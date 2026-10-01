@@ -122,3 +122,43 @@ func Platform() string {
 	}
 	return runtime.GOOS + "-" + runtime.GOARCH
 }
+
+// MinEngine is a pack's parsed minEngineVersion.
+type MinEngine struct {
+	v      V
+	legacy bool
+}
+
+// ParseMinEngineVersion reads a pack's minEngineVersion: <day>.<n>.<patch>
+// as Parse reads it, or the old Node engine's two-part <day>.<n>, which
+// every pack carried before the binary existed and so can only mean "any
+// engine of the new kind". Anything else is refused.
+//
+// @legacy-tolerance advisory:min-engine-version-legacy retire:#TBD
+func ParseMinEngineVersion(s string) (MinEngine, error) {
+	parts := strings.Split(s, ".")
+	if len(parts) == 2 {
+		if _, err := Parse(s + ".0"); err != nil {
+			return MinEngine{}, fmt.Errorf("minEngineVersion %q: want <day>.<n>.<patch>", s)
+		}
+		return MinEngine{legacy: true}, nil
+	}
+	v, err := Parse(s)
+	if err != nil {
+		return MinEngine{}, fmt.Errorf("minEngineVersion %q: want <day>.<n>.<patch>", s)
+	}
+	return MinEngine{v: v}, nil
+}
+
+// Legacy reports the two-part form, which raises a deprecation finding.
+func (m MinEngine) Legacy() bool { return m.legacy }
+
+// Satisfies reports whether an engine pinned at pin meets the minimum. A
+// legacy minimum is met by every pin; an unreadable pin meets nothing else.
+func (m MinEngine) Satisfies(pin string) bool {
+	if m.legacy {
+		return true
+	}
+	c, err := Compare(pin, fmt.Sprintf("%d.%d.%d", m.v.Day, m.v.Ordinal, m.v.Patch))
+	return err == nil && c >= 0
+}
