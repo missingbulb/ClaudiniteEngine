@@ -40,6 +40,8 @@ jobs:
       - run: release/build.sh
         env:
           VERSION: "1.1.0"
+      - run: release/sign.sh
+      - run: sha256sum -c dist/SHA256SUMS
       - run: release/smoke.sh
       - run: release/repro.sh
         env:

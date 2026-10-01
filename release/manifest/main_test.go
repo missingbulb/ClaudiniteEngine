@@ -7,8 +7,10 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/missingbulb/ClaudiniteEngine/release/releasefiles"
+	"github.com/missingbulb/ClaudiniteEngine/shared/sign"
 	"github.com/missingbulb/ClaudiniteEngine/shared/version"
 )
 
@@ -162,5 +164,67 @@ func TestIntegrity(t *testing.T) {
 	want := "sha512-3a81oZNherrMQXNJriBBMRLm+k6JqX6iCp7u5ktV05ohkpkqJ0/BqDa6PCOj/uu9RU1EI2Q86A4qmslPpUyknw=="
 	if c != 0 || strings.TrimSpace(out) != want {
 		t.Fatalf("got %q", out)
+	}
+}
+
+func TestSignRefusesACertificateExpiringWithin14Days(t *testing.T) {
+	dist := fakeDist(t)
+	if _, e, c := tool(t, "write", "--dist", dist, "--version", "1.1.0", "--commit", "abc1234"); c != 0 {
+		t.Fatal(e)
+	}
+	root := repoRoot(t)
+	rootRaw, _ := os.ReadFile(filepath.Join(root, "keys/dev/root.key"))
+	rootKey, err := sign.ParsePrivateKey(string(rootRaw))
+	if err != nil {
+		t.Fatal(err)
+	}
+	pubRaw, _ := os.ReadFile(filepath.Join(root, "keys/dev/release.pub"))
+	pub, err := sign.ParsePublicKey(string(pubRaw))
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	for _, c := range []struct {
+		days int
+		ok   bool
+	}{{13, false}, {15, true}} {
+		cert, err := sign.Issue(rootKey, pub, sign.UseManifest, now.Add(-time.Hour), now.Add(time.Duration(c.days)*24*time.Hour))
+		if err != nil {
+			t.Fatal(err)
+		}
+		certPath := filepath.Join(t.TempDir(), "cert.json")
+		raw, _ := json.Marshal(cert)
+		_ = os.WriteFile(certPath, raw, 0o644)
+		_, e, code := tool(t, "sign", "--dist", dist, "--key", filepath.Join(root, "keys/dev/release.key"), "--cert", certPath)
+		if (code == 0) != c.ok {
+			t.Errorf("%d days left: exit %d %s", c.days, code, e)
+		}
+		if !c.ok && !strings.Contains(e, "Rotating the release key") {
+			t.Errorf("%d days left: %q does not name the rotation step", c.days, e)
+		}
+	}
+}
+
+func TestSumsListsEveryReleaseFile(t *testing.T) {
+	dist := filepath.Join(t.TempDir(), "out")
+	for _, f := range []string{"bin/linux-x64/cn", "npm/cli/package/package.json", "tarballs/cli-1.1.0.tgz", "manifest.json", "manifest.integrity"} {
+		p := filepath.Join(dist, f)
+		_ = os.MkdirAll(filepath.Dir(p), 0o755)
+		_ = os.WriteFile(p, []byte(f), 0o644)
+	}
+	if _, e, c := tool(t, "sums", "--dist", dist); c != 0 {
+		t.Fatal(e)
+	}
+	raw, err := os.ReadFile(filepath.Join(dist, "SHA256SUMS"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, line := range strings.Split(strings.TrimSpace(string(raw)), "\n") {
+		names = append(names, strings.SplitN(line, "  ", 2)[1])
+	}
+	got := strings.Join(names, " ")
+	if got != "out/bin/linux-x64/cn out/manifest.json out/npm/cli/package/package.json out/tarballs/cli-1.1.0.tgz" {
+		t.Errorf("SHA256SUMS names %s", got)
 	}
 }

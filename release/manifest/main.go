@@ -1,6 +1,7 @@
 // Command manifest writes a release's manifest.json, signs it into
 // manifest.sig.json, verifies a signed manifest against the binaries on
-// disk, and prints a file's npm integrity string.
+// disk, writes the SHA256SUMS the release jobs hand each other, and prints
+// a file's npm integrity string.
 package main
 
 import (
@@ -10,10 +11,13 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/missingbulb/ClaudiniteEngine/release/releasefiles"
@@ -25,6 +29,7 @@ const usage = `usage:
   manifest write --dist DIR --version V --commit SHA
   manifest sign --dist DIR --key RELEASE.key --cert RELEASE.cert.json
   manifest verify --dist DIR --roots DIR
+  manifest sums --dist DIR
   manifest integrity FILE
 `
 
@@ -55,6 +60,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		err = signManifest(*dist, *key, *cert)
 	case "verify":
 		err = verify(*dist, *roots, stdout)
+	case "sums":
+		err = writeSums(*dist)
 	case "integrity":
 		if fs.NArg() != 1 {
 			err = errors.New("integrity takes one file")
@@ -117,6 +124,9 @@ func signManifest(dist, keyPath, certPath string) error {
 	}
 	var cert sign.Certificate
 	if err := json.Unmarshal(rawCert, &cert); err != nil {
+		return fmt.Errorf("%s: %w", certPath, err)
+	}
+	if err := checkExpiry(cert, time.Now()); err != nil {
 		return fmt.Errorf("%s: %w", certPath, err)
 	}
 	manifest, err := os.ReadFile(filepath.Join(dist, "manifest.json"))
@@ -188,4 +198,71 @@ func verify(dist, rootsDir string, stdout io.Writer) error {
 	}
 	fmt.Fprintf(stdout, "verified %s: signed by release key %s, certified by root %s\n", m.Version, body.KeyID, body.Issuer)
 	return nil
+}
+
+// renewMargin is how long before its certificate expires a release key
+// stops signing, so a rotation due turns a release red early, not on the day.
+const renewMargin = 14 * 24 * time.Hour
+
+func checkExpiry(cert sign.Certificate, now time.Time) error {
+	raw, err := sign.DecodeB64(cert.Payload)
+	if err != nil {
+		return fmt.Errorf("certificate payload: %w", err)
+	}
+	var body sign.Body
+	if err := json.Unmarshal(raw, &body); err != nil {
+		return fmt.Errorf("certificate body: %w", err)
+	}
+	notAfter, err := time.Parse(time.RFC3339, body.NotAfter)
+	if err != nil {
+		return fmt.Errorf("certificate notAfter: %w", err)
+	}
+	if notAfter.Sub(now) < renewMargin {
+		return fmt.Errorf("the release key's certificate expires %s, less than 14 days from now; certify a new one (cmd/cn-keys/README.md, \"Rotating the release key\")", body.NotAfter)
+	}
+	return nil
+}
+
+// writeSums writes DIR/SHA256SUMS in sha256sum format over every file under
+// bin/, npm/ and tarballs/ and the top-level manifest files, each path
+// starting with DIR's own name, so `sha256sum -c` runs from DIR's parent.
+func writeSums(dist string) error {
+	if dist == "" {
+		return errors.New("sums needs --dist")
+	}
+	base := filepath.Base(filepath.Clean(dist))
+	var files []string
+	for _, sub := range []string{"bin", "npm", "tarballs"} {
+		err := filepath.WalkDir(filepath.Join(dist, sub), func(p string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if d.Type().IsRegular() {
+				rel, err := filepath.Rel(dist, p)
+				if err != nil {
+					return err
+				}
+				files = append(files, filepath.ToSlash(rel))
+			}
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+	}
+	for _, f := range []string{"manifest.json", "manifest.sig.json"} {
+		if _, err := os.Stat(filepath.Join(dist, f)); err == nil {
+			files = append(files, f)
+		}
+	}
+	sort.Strings(files)
+	var b strings.Builder
+	for _, f := range files {
+		sum, _, err := releasefiles.HashFile(filepath.Join(dist, filepath.FromSlash(f)))
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(&b, "%s  %s/%s\n", sum, base, f)
+	}
+	return os.WriteFile(filepath.Join(dist, "SHA256SUMS"), []byte(b.String()), 0o644)
 }

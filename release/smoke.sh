@@ -2,13 +2,19 @@
 # Checks a built release in $DIST (default dist/): each binary exists and is
 # the right executable type, static where the platform allows (Linux;
 # macOS binaries always link dyld, Windows has no such notion), and the npm
-# manifest.json hashes to the integrity string build.sh printed.
+# manifest.json hashes to the integrity string build.sh printed. The channel
+# (cli or cli-rc) is the npm package that carries manifest.json.
 set -eu
 cd "$(dirname "$0")/.."
 DIST=${DIST:-dist}
 fail() { echo "smoke: $*" >&2; exit 1; }
 version=$(sed -n 's/^  "version": "\(.*\)",$/\1/p' "$DIST/manifest.json")
-[ -f "$DIST/tarballs/cli-$version.tgz" ] || fail "no tarball for @claudinite/cli"
+name=
+for d in "$DIST"/npm/*/package; do
+  [ -f "$d/manifest.json" ] && name=$(basename "$(dirname "$d")")
+done
+[ -n "$name" ] || fail "no npm package carries manifest.json"
+[ -f "$DIST/tarballs/$name-$version.tgz" ] || fail "no tarball for @claudinite/$name"
 
 for p in linux-x64 linux-arm64 darwin-x64 darwin-arm64 windows-x64; do
   bin=cn
@@ -25,11 +31,11 @@ for p in linux-x64 linux-arm64 darwin-x64 darwin-arm64 windows-x64; do
   esac
   # shellcheck disable=SC2254 # $want is a glob pattern on purpose
   case $desc in $want) ;; *) fail "$f: $desc" ;; esac
-  [ -f "$DIST/npm/cli-$p/package/bin/$bin" ] || fail "npm package for $p lacks bin/$bin"
-  [ -f "$DIST/tarballs/cli-$p-$version.tgz" ] || fail "no tarball for $p"
+  [ -f "$DIST/npm/$name-$p/package/bin/$bin" ] || fail "npm package for $p lacks bin/$bin"
+  [ -f "$DIST/tarballs/$name-$p-$version.tgz" ] || fail "no tarball for $p"
 done
 
 printed=$(cat "$DIST/manifest.integrity")
-actual="sha512-$(openssl dgst -sha512 -binary < "$DIST/npm/cli/package/manifest.json" | openssl base64 -A)"
+actual="sha512-$(openssl dgst -sha512 -binary < "$DIST/npm/$name/package/manifest.json" | openssl base64 -A)"
 [ "$printed" = "$actual" ] || fail "npm manifest.json hashes to $actual, build.sh printed $printed"
 echo "smoke: ok ($printed)"

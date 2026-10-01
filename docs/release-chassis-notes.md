@@ -11,8 +11,9 @@ one binds a later chunk.
    once the file's hash matched the pin, so the release workflow must write the manifest with
    `release/manifest write`, never with a generic JSON encoder.
 3. **Release key secrets** are named `CN_RELEASE_KEY` and `CN_RELEASE_CERT` in a `release`
-   environment (`cmd/cn-keys/README.md`, step 9). `release/build.sh` reads them through
-   `RELEASE_KEY` and `RELEASE_CERT` file paths and falls back to `keys/dev/`. The dev release
+   environment (`cmd/cn-keys/README.md`, step 9). `release/sign.sh` (split out of
+   `release/build.sh` in #8) reads them through `RELEASE_KEY` and `RELEASE_CERT` file paths and
+   falls back to `keys/dev/` with a warning while that folder exists. The dev release
    certificate expires on 2027-10-01.
 4. **Launcher exit codes for a refusal** (configuration or hash failure): at SessionStart, a
    `Claudinite refused to run its engine: <reason>: stop and ask the person before continuing.`

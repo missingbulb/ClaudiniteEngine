@@ -1,26 +1,23 @@
 #!/bin/sh
-# Builds a release into $DIST (default dist/): the five binaries, a signed
-# manifest.json, the npm package folders and their tarballs, then prints the
-# manifest's integrity string, the value a member pins.
+# Builds a release into $DIST (default dist/): the five binaries, an
+# UNSIGNED manifest.json, the npm package folders of $PACKAGE and their
+# tarballs, and SHA256SUMS over all of it, then prints the manifest's
+# integrity string, the value a member pins. release/sign.sh signs it.
 #
-# VERSION (default 0.0.0). RELEASE_KEY and RELEASE_CERT name the release key
-# and its certificate; unset, they fall back to the development keys in
-# $DEV_KEYS (default keys/dev/), and once #5 removes those both are required.
+# VERSION (default 0.0.0); PACKAGE @claudinite/cli (default) or
+# @claudinite/cli-rc.
 set -eu
 cd "$(dirname "$0")/.."
 root=$(pwd)
 
 VERSION=${VERSION:-0.0.0}
 DIST=${DIST:-dist}
-DEV_KEYS=${DEV_KEYS:-keys/dev}
-if [ -z "${RELEASE_KEY:-}" ] || [ -z "${RELEASE_CERT:-}" ]; then
-  if [ ! -f "$DEV_KEYS/release.key" ] || [ ! -f "$DEV_KEYS/release.cert.json" ]; then
-    echo "build: set RELEASE_KEY and RELEASE_CERT to the release key and its certificate; there are no development keys in $DEV_KEYS" >&2
-    exit 1
-  fi
-  RELEASE_KEY=$DEV_KEYS/release.key
-  RELEASE_CERT=$DEV_KEYS/release.cert.json
-fi
+PACKAGE=${PACKAGE:-@claudinite/cli}
+case $PACKAGE in
+  @claudinite/cli|@claudinite/cli-rc) ;;
+  *) echo "build: PACKAGE must be @claudinite/cli or @claudinite/cli-rc, not $PACKAGE" >&2; exit 2 ;;
+esac
+name=${PACKAGE#@claudinite/}
 COMMIT=$(git rev-parse --short=7 HEAD 2>/dev/null || echo unknown)
 export VERSION COMMIT
 platforms="linux-x64 linux-arm64 darwin-x64 darwin-arm64 windows-x64"
@@ -41,19 +38,17 @@ for p in $platforms; do
 done
 
 "$tools/manifest" write --dist "$DIST" --version "$VERSION" --commit "$COMMIT"
-"$tools/manifest" sign --dist "$DIST" --key "$RELEASE_KEY" --cert "$RELEASE_CERT"
-"$tools/manifest" verify --dist "$DIST" --roots license/roots >&2
 
 pkgjson() {
-  # name, extra fields
+  # name, description, extra fields
   printf '{\n  "name": "%s",\n  "version": "%s",\n  "description": "Claudinite engine %s",\n  "license": "UNLICENSED",\n  "repository": "github:missingbulb/ClaudiniteEngine"%s\n}\n' \
     "$1" "$VERSION" "$2" "$3"
 }
 
-cli=$DIST/npm/cli/package
+cli=$DIST/npm/$name/package
 mkdir -p "$cli"
-cp "$DIST/manifest.json" "$DIST/manifest.sig.json" "$cli/"
-pkgjson "@claudinite/cli" "release manifest" "" > "$cli/package.json"
+cp "$DIST/manifest.json" "$cli/"
+pkgjson "$PACKAGE" "release manifest" "" > "$cli/package.json"
 
 for p in $platforms; do
   bin=cn
@@ -61,20 +56,19 @@ for p in $platforms; do
   os=${p%-*}
   [ "$os" = windows ] && os=win32
   cpu=${p#*-}
-  dir=$DIST/npm/cli-$p/package
+  dir=$DIST/npm/$name-$p/package
   mkdir -p "$dir/bin"
   cp "$DIST/bin/$p/$bin" "$dir/bin/$bin"
-  pkgjson "@claudinite/cli-$p" "binary for $p" ",
+  pkgjson "$PACKAGE-$p" "binary for $p" ",
   \"os\": [\"$os\"],
   \"cpu\": [\"$cpu\"]" > "$dir/package.json"
 done
 
 for d in "$DIST"/npm/*/package; do
-  name=$(basename "$(dirname "$d")")
-  (cd "$d" && npm pack --silent --pack-destination "$DIST/tarballs" >/dev/null)
-  mv "$DIST/tarballs/claudinite-$name-$VERSION.tgz" "$DIST/tarballs/$name-$VERSION.tgz"
+  sh release/npmpack.sh "$d" "$DIST/tarballs"
 done
 
+"$tools/manifest" sums --dist "$DIST"
 integrity=$("$tools/manifest" integrity "$cli/manifest.json")
 printf '%s\n' "$integrity" > "$DIST/manifest.integrity"
 echo "version $VERSION"
