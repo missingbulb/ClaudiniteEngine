@@ -19,19 +19,11 @@
 package main
 
 import (
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
 	"crypto/sha512"
-	"crypto/tls"
-	"crypto/x509"
-	"crypto/x509/pkix"
 	"encoding/base64"
 	"encoding/json"
-	"encoding/pem"
 	"flag"
 	"fmt"
-	"math/big"
 	"net"
 	"net/http"
 	"os"
@@ -43,6 +35,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/missingbulb/ClaudiniteEngine/release/stubtls"
 )
 
 var (
@@ -66,7 +60,7 @@ func main() {
 		dists = distList{"dist"}
 	}
 
-	cert, pemBytes, err := selfSigned()
+	cert, pemBytes, err := stubtls.SelfSigned("regstub")
 	if err != nil {
 		fail(err)
 	}
@@ -115,13 +109,10 @@ func main() {
 		}
 		http.NotFound(w, r)
 	})
-	srv := &http.Server{Handler: h, TLSConfig: &tls.Config{Certificates: []tls.Certificate{cert}}, ReadHeaderTimeout: 10 * time.Second}
+	srv := &http.Server{Handler: h, TLSConfig: stubtls.Config(cert), ReadHeaderTimeout: 10 * time.Second}
 	base := "https://" + ln.Addr().String()
 	if *ready != "" {
-		if err := os.WriteFile(*ready+".tmp", []byte(base+"\n"), 0o644); err != nil {
-			fail(err)
-		}
-		if err := os.Rename(*ready+".tmp", *ready); err != nil {
+		if err := stubtls.WriteReady(*ready, base); err != nil {
 			fail(err)
 		}
 	}
@@ -208,37 +199,6 @@ type distList []string
 
 func (d *distList) String() string     { return strings.Join(*d, ",") }
 func (d *distList) Set(v string) error { *d = append(*d, v); return nil }
-
-func selfSigned() (tls.Certificate, []byte, error) {
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		return tls.Certificate{}, nil, err
-	}
-	tmpl := &x509.Certificate{
-		SerialNumber:          big.NewInt(time.Now().UnixNano()),
-		Subject:               pkix.Name{CommonName: "regstub"},
-		NotBefore:             time.Now().Add(-time.Hour),
-		NotAfter:              time.Now().Add(24 * time.Hour),
-		IPAddresses:           []net.IP{net.ParseIP("127.0.0.1"), net.ParseIP("::1")},
-		DNSNames:              []string{"localhost"},
-		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-		BasicConstraintsValid: true,
-		IsCA:                  true,
-	}
-	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
-	if err != nil {
-		return tls.Certificate{}, nil, err
-	}
-	keyDER, err := x509.MarshalECPrivateKey(key)
-	if err != nil {
-		return tls.Certificate{}, nil, err
-	}
-	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
-	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: keyDER})
-	c, err := tls.X509KeyPair(certPEM, keyPEM)
-	return c, certPEM, err
-}
 
 func fail(err error) {
 	fmt.Fprintf(os.Stderr, "regstub: %v\n", err)
