@@ -35,10 +35,23 @@ var workingKeys = []workingKey{
 // The root key's home: an environment secret of the engine repo, readable
 // only by a job in that environment, which is the rotate mode.
 const (
-	rootRepo   = "missingbulb/ClaudiniteEngine"
-	rootEnv    = "root"
-	rootSecret = "ROOT_KEY"
+	rootRepo    = "missingbulb/ClaudiniteEngine"
+	rootEnv     = "root"
+	rootSecret  = "ROOT_KEY"
+	ceremonyEnv = "ceremony"
 )
+
+// rootsToSwap is what must change before anything the new working keys sign
+// verifies.
+var rootsToSwap = strings.ReplaceAll(`### Roots to swap
+
+Until these land, every Engine release, Packs publish and Licenses deploy fails verification:
+the working keys are certified by roots nothing trusts yet.
+
+- ClaudiniteEngine 'license/roots/root.pub' and 'license/roots/standby.pub'; remove 'keys/dev/'.
+- ClaudinitePacks 'keys/dev/roots/', the directory 'release-packs.yml' passes to '--roots'.
+- ClaudiniteLicenses 'keys/dev/' (its 'roots/' and the development issuing key).
+`, "'", "`")
 
 // masker hides a secret value from the Actions log before anything could
 // print it.
@@ -127,16 +140,34 @@ func checkTargets(gh secretStore, keys []workingKey) error {
 		return err
 	}
 	for _, k := range keys {
-		ok, err := gh.EnvironmentExists(k.Repo, k.Env)
+		e, err := gh.Environment(k.Repo, k.Env)
 		if err != nil {
 			return err
 		}
-		if !ok && k.Env != "" {
+		if e == nil && k.Env != "" {
 			return fmt.Errorf("%s has no environment %q; create it under Settings → Environments", k.Repo, k.Env)
 		}
-		if !ok {
+		if e == nil {
 			return fmt.Errorf("the token cannot reach %s", k.Repo)
 		}
+	}
+	return nil
+}
+
+// requireProtected refuses an environment that is missing, that runs
+// without a required reviewer, or that any branch may deploy from.
+func requireProtected(gh secretStore, repo, env string) error {
+	e, err := gh.Environment(repo, env)
+	if err != nil {
+		return err
+	}
+	switch {
+	case e == nil:
+		return fmt.Errorf("%s has no environment %q; create it with yourself as a required reviewer (cmd/cn-keys/README.md)", repo, env)
+	case !e.RequiredReviewers:
+		return fmt.Errorf("%s environment %q has no required reviewer; add yourself before running", repo, env)
+	case !e.BranchPolicy:
+		return fmt.Errorf("%s environment %q allows every branch; limit its deployment branches to main", repo, env)
 	}
 	return nil
 }
@@ -154,18 +185,17 @@ func ceremony(gh secretStore, passphrase string, now time.Time, summary, log io.
 	if err := checkTargets(gh, workingKeys); err != nil {
 		return err
 	}
-	rootEnvExists, err := gh.EnvironmentExists(rootRepo, rootEnv)
-	if err != nil {
-		return err
+	for _, env := range []string{ceremonyEnv, rootEnv} {
+		if err := requireProtected(gh, rootRepo, env); err != nil {
+			return err
+		}
 	}
-	if rootEnvExists {
-		names, err := gh.SecretNames(rootRepo, rootEnv)
-		if err != nil {
-			return fmt.Errorf("cannot list the secrets of %s environment %s: %w", rootRepo, rootEnv, err)
-		}
-		if slices.Contains(names, rootSecret) {
-			return fmt.Errorf("%s environment %s already holds %s: the ceremony has run; use the rotate mode", rootRepo, rootEnv, rootSecret)
-		}
+	names, err := gh.SecretNames(rootRepo, rootEnv)
+	if err != nil {
+		return fmt.Errorf("cannot list the secrets of %s environment %s: %w", rootRepo, rootEnv, err)
+	}
+	if slices.Contains(names, rootSecret) {
+		return fmt.Errorf("%s environment %s already holds %s: the ceremony has run; use the rotate mode", rootRepo, rootEnv, rootSecret)
 	}
 
 	rootPub, root, err := ed25519.GenerateKey(rand.Reader)
@@ -199,8 +229,10 @@ func ceremony(gh secretStore, passphrase string, now time.Time, summary, log io.
 	fmt.Fprintf(&b, "### Sealed standby root\n\nSave this whole block in your password manager, beside the passphrase. "+
 		"It is the only copy of the standby root.\n\n```\n%s```\n\n", sealed)
 	fmt.Fprintf(&b, "### Now\n\n1. Save the sealed block above in your password manager, beside the passphrase.\n"+
-		"2. Delete the `ceremony` environment's secrets `CEREMONY_TOKEN` and `%s`, then revoke the token.\n"+
-		"3. Comment on #5 that the ceremony ran.\n", passphraseVar)
+		"2. Delete this workflow run, so the sealed block stops being public.\n"+
+		"3. Delete the `ceremony` environment's secrets `CEREMONY_TOKEN` and `%s`, then revoke the token.\n"+
+		"4. Comment on #5 that the ceremony ran.\n\n", passphraseVar)
+	fmt.Fprint(&b, rootsToSwap)
 	// The summary carries the only copy of the sealed standby, so it is
 	// written before the root is stored: a run that cannot report stores no
 	// root and can simply run again.
@@ -208,11 +240,6 @@ func ceremony(gh secretStore, passphrase string, now time.Time, summary, log io.
 		return fmt.Errorf("writing the summary: %w; no root was stored, run the ceremony again", err)
 	}
 
-	if !rootEnvExists {
-		if err := gh.CreateEnvironment(rootRepo, rootEnv); err != nil {
-			return storeRootFailed(summary, err)
-		}
-	}
 	if err := gh.SetSecret(rootRepo, rootEnv, rootSecret, []byte(rootSeed)); err != nil {
 		return storeRootFailed(summary, err)
 	}
@@ -228,6 +255,9 @@ func storeRootFailed(summary io.Writer, err error) error {
 // rotate replaces the given working keys, certified by root.
 func rotate(root ed25519.PrivateKey, keys []workingKey, gh secretStore, now time.Time, summary, log io.Writer, mask masker) error {
 	if err := checkTargets(gh, keys); err != nil {
+		return err
+	}
+	if err := requireProtected(gh, rootRepo, rootEnv); err != nil {
 		return err
 	}
 	issued, err := issueAll(root, keys, gh, now, mask)

@@ -19,12 +19,12 @@ import (
 const passphrase = "correct horse battery staple ceremony"
 
 type fakeStore struct {
-	authErr   error
-	missing   map[string]bool // repo or repo/env that does not exist
-	failSetAt int             // 1-based SetSecret call that fails; 0 never
-	calls     int
-	created   []string
-	secrets   map[string][]byte // repo|env|name
+	authErr    error
+	envs       map[string]*environment // repo or repo/env; a nil value is missing, an absent key protected
+	secretsErr error
+	failSetAt  int // 1-based SetSecret call that fails; 0 never
+	calls      int
+	secrets    map[string][]byte // repo|env|name
 }
 
 func place(repo, env string) string {
@@ -36,17 +36,17 @@ func place(repo, env string) string {
 
 func (f *fakeStore) CheckAuth() error { return f.authErr }
 
-func (f *fakeStore) EnvironmentExists(repo, env string) (bool, error) {
-	return !f.missing[place(repo, env)], nil
-}
-
-func (f *fakeStore) CreateEnvironment(repo, env string) error {
-	f.created = append(f.created, place(repo, env))
-	delete(f.missing, place(repo, env))
-	return nil
+func (f *fakeStore) Environment(repo, env string) (*environment, error) {
+	if e, ok := f.envs[place(repo, env)]; ok {
+		return e, nil
+	}
+	return &environment{RequiredReviewers: true, BranchPolicy: true}, nil
 }
 
 func (f *fakeStore) SecretNames(repo, env string) ([]string, error) {
+	if f.secretsErr != nil {
+		return nil, f.secretsErr
+	}
 	var names []string
 	for k := range f.secrets {
 		if parts := strings.Split(k, "|"); parts[0] == repo && parts[1] == env {
@@ -61,7 +61,7 @@ func (f *fakeStore) SetSecret(repo, env, name string, value []byte) error {
 	if f.calls == f.failSetAt {
 		return errors.New("HTTP 403")
 	}
-	if f.missing[place(repo, env)] {
+	if e, ok := f.envs[place(repo, env)]; ok && e == nil {
 		return errors.New("HTTP 404: no such environment")
 	}
 	if f.secrets == nil {
@@ -90,25 +90,30 @@ func TestCeremonyPrerequisiteFailureWritesNothing(t *testing.T) {
 		store *fakeStore
 		pass  string
 	}{
-		"gh not authenticated": {&fakeStore{authErr: errors.New("no token")}, passphrase},
-		"missing environment":  {&fakeStore{missing: map[string]bool{"missingbulb/ClaudinitePacks/release": true}}, passphrase},
-		"unreachable repo":     {&fakeStore{missing: map[string]bool{"missingbulb/ClaudiniteLicenses": true}}, passphrase},
-		"short passphrase":     {&fakeStore{}, "too short"},
+		"gh not authenticated":      {&fakeStore{authErr: errors.New("no token")}, passphrase},
+		"missing environment":       {&fakeStore{envs: map[string]*environment{"missingbulb/ClaudinitePacks/release": nil}}, passphrase},
+		"unreachable repo":          {&fakeStore{envs: map[string]*environment{"missingbulb/ClaudiniteLicenses": nil}}, passphrase},
+		"short passphrase":          {&fakeStore{}, strings.Repeat("x", minPassphrase-1)},
+		"missing root":              {&fakeStore{envs: map[string]*environment{"missingbulb/ClaudiniteEngine/root": nil}}, passphrase},
+		"root without reviewer":     {&fakeStore{envs: map[string]*environment{"missingbulb/ClaudiniteEngine/root": {BranchPolicy: true}}}, passphrase},
+		"root on every branch":      {&fakeStore{envs: map[string]*environment{"missingbulb/ClaudiniteEngine/root": {RequiredReviewers: true}}}, passphrase},
+		"ceremony without reviewer": {&fakeStore{envs: map[string]*environment{"missingbulb/ClaudiniteEngine/ceremony": {BranchPolicy: true}}}, passphrase},
+		"secrets unreadable":        {&fakeStore{secretsErr: errors.New("HTTP 403")}, passphrase},
 	} {
 		t.Run(name, func(t *testing.T) {
 			r, err := runCeremony(c.store, c.pass)
 			if err == nil {
 				t.Fatal("ceremony went ahead")
 			}
-			if len(c.store.secrets) != 0 || len(c.store.created) != 0 || r.summary.Len() != 0 {
-				t.Fatalf("set %d secrets, created %v, summary %q", len(c.store.secrets), c.store.created, r.summary.String())
+			if len(c.store.secrets) != 0 || c.store.calls != 0 || r.summary.Len() != 0 {
+				t.Fatalf("set %d secrets, summary %q", c.store.calls, r.summary.String())
 			}
 		})
 	}
 }
 
 func TestCeremonyStoresEveryKey(t *testing.T) {
-	store := &fakeStore{missing: map[string]bool{"missingbulb/ClaudiniteEngine/root": true}}
+	store := &fakeStore{}
 	r, err := runCeremony(store, passphrase)
 	if err != nil {
 		t.Fatal(err)
@@ -132,8 +137,10 @@ func TestCeremonyStoresEveryKey(t *testing.T) {
 	if strings.Join(got, "\n") != strings.Join(want, "\n") {
 		t.Fatalf("secrets set:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
-	if strings.Join(store.created, " ") != "missingbulb/ClaudiniteEngine/root" {
-		t.Fatalf("created %v", store.created)
+	for _, want := range []string{"license/roots/root.pub", "keys/dev/roots/", "ClaudiniteLicenses `keys/dev/`", "fails verification"} {
+		if !strings.Contains(summary, want) {
+			t.Errorf("summary does not list the roots to swap: lacks %q", want)
+		}
 	}
 
 	rootSeed := string(store.secrets["missingbulb/ClaudiniteEngine|root|ROOT_KEY"])
@@ -266,6 +273,39 @@ func TestRotateReplacesOnlyTheNamedKeys(t *testing.T) {
 	}
 	if _, err := selectKeys("license"); err == nil {
 		t.Fatal("selected a use no working key has")
+	}
+	unprotected := &fakeStore{envs: map[string]*environment{"missingbulb/ClaudiniteEngine/root": {BranchPolicy: true}}}
+	if err := rotate(root, keys, unprotected, at, &summary, &log, func(string) {}); err == nil || unprotected.calls != 0 {
+		t.Fatal("rotated from an unprotected root environment")
+	}
+}
+
+func TestGhErrorMapping(t *testing.T) {
+	args := []string{"api", "repos/o/r/environments/root"}
+	nf := ghError(args, errors.New("exit status 1"), "gh: Not Found (HTTP 404)\n")
+	if !errors.Is(nf, errNotFound) || errors.Is(nf, errForbidden) {
+		t.Errorf("404 mapped to %v", nf)
+	}
+	fb := ghError(args, errors.New("exit status 1"), "gh: Resource not accessible by personal access token (HTTP 403)\n")
+	if !errors.Is(fb, errForbidden) || errors.Is(fb, errNotFound) || !strings.Contains(fb.Error(), "Administration: read") {
+		t.Errorf("403 mapped to %v", fb)
+	}
+	other := ghError(args, errors.New("exit status 1"), "gh: Server Error (HTTP 502)")
+	if errors.Is(other, errNotFound) || errors.Is(other, errForbidden) || !strings.Contains(other.Error(), "502") {
+		t.Errorf("502 mapped to %v", other)
+	}
+}
+
+func TestParseEnvironment(t *testing.T) {
+	for raw, want := range map[string]environment{
+		`{"protection_rules":[{"type":"wait_timer"},{"type":"required_reviewers"}],"deployment_branch_policy":{"protected_branches":false,"custom_branch_policies":true}}`: {true, true},
+		`{"protection_rules":[],"deployment_branch_policy":null}`: {false, false},
+		`{"protection_rules":[{"type":"required_reviewers"}]}`:    {true, false},
+	} {
+		got, err := parseEnvironment([]byte(raw))
+		if err != nil || *got != want {
+			t.Errorf("%s: got %+v, %v", raw, got, err)
+		}
 	}
 }
 

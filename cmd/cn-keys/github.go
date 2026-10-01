@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os/exec"
@@ -12,16 +13,40 @@ import (
 // with the owner's token. env "" means the repository itself.
 type secretStore interface {
 	CheckAuth() error
-	EnvironmentExists(repo, env string) (bool, error)
-	CreateEnvironment(repo, env string) error
+	// Environment returns nil, nil when the repository or environment does
+	// not exist.
+	Environment(repo, env string) (*environment, error)
 	SecretNames(repo, env string) ([]string, error)
 	SetSecret(repo, env, name string, value []byte) error
+}
+
+// environment is what the ceremony reads of an environment's protection.
+type environment struct {
+	RequiredReviewers bool
+	BranchPolicy      bool
 }
 
 // ghCLI drives the gh command line, authenticated by GH_TOKEN.
 type ghCLI struct{}
 
-var errNotFound = errors.New("not found")
+var (
+	errNotFound  = errors.New("not found")
+	errForbidden = errors.New("forbidden")
+)
+
+// ghError names what a failed gh call means: a 404 is absence, a 403 a
+// token missing a permission, anything else is passed on.
+func ghError(args []string, err error, stderr string) error {
+	msg := strings.TrimSpace(stderr)
+	what := strings.Join(args[:min(2, len(args))], " ")
+	switch {
+	case strings.Contains(msg, "HTTP 404"):
+		return fmt.Errorf("gh %s: %w: %s", what, errNotFound, msg)
+	case strings.Contains(msg, "HTTP 403"):
+		return fmt.Errorf("gh %s: %w: the token lacks a permission (Secrets: read and write, Environments: read and write, Administration: read): %s", what, errForbidden, msg)
+	}
+	return fmt.Errorf("gh %s: %v: %s", what, err, msg)
+}
 
 func (ghCLI) gh(stdin []byte, args ...string) (string, error) {
 	cmd := exec.Command("gh", args...)
@@ -31,11 +56,7 @@ func (ghCLI) gh(stdin []byte, args ...string) (string, error) {
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	if err := cmd.Run(); err != nil {
-		msg := strings.TrimSpace(stderr.String())
-		if strings.Contains(msg, "HTTP 404") {
-			return "", fmt.Errorf("gh %s %s: %w: %s", args[0], args[1], errNotFound, msg)
-		}
-		return "", fmt.Errorf("gh %s %s: %v: %s", args[0], args[1], err, msg)
+		return "", ghError(args, err, stderr.String())
 	}
 	return stdout.String(), nil
 }
@@ -57,17 +78,36 @@ func apiPath(repo, env string) string {
 	return "repos/" + repo + "/environments/" + env
 }
 
-func (g ghCLI) EnvironmentExists(repo, env string) (bool, error) {
-	_, err := g.gh(nil, "api", "--silent", apiPath(repo, env))
+func (g ghCLI) Environment(repo, env string) (*environment, error) {
+	out, err := g.gh(nil, "api", apiPath(repo, env))
 	if errors.Is(err, errNotFound) {
-		return false, nil
+		return nil, nil
 	}
-	return err == nil, err
+	if err != nil {
+		return nil, err
+	}
+	if env == "" {
+		return &environment{}, nil
+	}
+	return parseEnvironment([]byte(out))
 }
 
-func (g ghCLI) CreateEnvironment(repo, env string) error {
-	_, err := g.gh(nil, "api", "--silent", "-X", "PUT", apiPath(repo, env))
-	return err
+func parseEnvironment(raw []byte) (*environment, error) {
+	var e struct {
+		ProtectionRules []struct {
+			Type string `json:"type"`
+		} `json:"protection_rules"`
+		DeploymentBranchPolicy json.RawMessage `json:"deployment_branch_policy"`
+	}
+	if err := json.Unmarshal(raw, &e); err != nil {
+		return nil, fmt.Errorf("reading an environment: %w", err)
+	}
+	policy := strings.TrimSpace(string(e.DeploymentBranchPolicy))
+	out := &environment{BranchPolicy: policy != "" && policy != "null"}
+	for _, r := range e.ProtectionRules {
+		out.RequiredReviewers = out.RequiredReviewers || r.Type == "required_reviewers"
+	}
+	return out, nil
 }
 
 func (g ghCLI) SecretNames(repo, env string) ([]string, error) {

@@ -24,7 +24,7 @@ import (
 // does not carry) at OWASP's 600,000 iterations, then AES-256-GCM.
 const (
 	standbyIterations = 600_000
-	minPassphrase     = 20
+	minPassphrase     = 32
 	standbyAAD        = "claudinite-standby-root-v1"
 	armorBegin        = "-----BEGIN CLAUDINITE STANDBY ROOT-----"
 	armorEnd          = "-----END CLAUDINITE STANDBY ROOT-----"
