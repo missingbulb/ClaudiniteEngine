@@ -26,6 +26,11 @@ commands:
   version        print the engine version
   version --day  print today's <day> version part (UTC), for release tooling
   selftest       check this machine can run the engine
+  verify [--repo DIR]
+                 check a member's files against this engine version;
+                 exit 1 on a break
+  check world --pr-author LOGIN --base-ref REF [--repo DIR]
+                 the CI gate: the pin and launcher guard, then verify
 `
 
 // secretScanPlant is set only by the secret scan's own test build, to prove
@@ -116,6 +121,10 @@ func dispatch(args []string, stdin io.Reader, stdout, stderr io.Writer, start ti
 			return report.New(report.IO, "selftest failed")
 		}
 		return nil
+	case "verify":
+		return cmdVerify(args[1:], stdout)
+	case "check":
+		return cmdCheck(args[1:], stdout)
 	}
 	return report.New(report.Usage, fmt.Sprintf("unknown command %q", args[0]))
 }
