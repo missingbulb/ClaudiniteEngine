@@ -1,0 +1,8 @@
+{
+  "rules": "",
+  "mounts": [],
+  "world": [],
+  "work": [
+    "v-forbidAddedValueInArray manifest.json block"
+  ]
+}

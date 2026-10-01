@@ -173,12 +173,18 @@ func TestInitAdoptsAnEmptyRepo(t *testing.T) {
 		t.Fatalf("%v\n%s", err, out)
 	}
 	want := []string{".claude/settings.json", ".claude/skills/.gitignore", ".claudinite/.gitignore",
-		".claudinite/launch", ".claudinite/settings.yaml",
+		".claudinite/flat/claudinite-rules.GENERATED.md", ".claudinite/launch", ".claudinite/settings.yaml",
 		".claudinite/shared/packs/base/RULES.md", ".claudinite/shared/packs/base/pack.json",
 		".claudinite/shared/packs/hello/RULES.md", ".claudinite/shared/packs/hello/pack.json",
-		".github/workflows/claudinite-ci.yml", ".github/workflows/claudinite-update.yml"}
+		".github/workflows/claudinite-ci.yml", ".github/workflows/claudinite-update.yml", "CLAUDE.md"}
 	if got := listFiles(t, repo); strings.Join(got, " ") != strings.Join(want, " ") {
 		t.Errorf("files %v", got)
+	}
+	if idx, _ := os.ReadFile(filepath.Join(repo, ".claudinite/flat/claudinite-rules.GENERATED.md")); string(idx) != "@../shared/packs/base/RULES.md\n@../shared/packs/hello/RULES.md\n" {
+		t.Errorf("index %q", idx)
+	}
+	if c, _ := os.ReadFile(filepath.Join(repo, "CLAUDE.md")); string(c) != "@.claudinite/flat/claudinite-rules.GENERATED.md\n" {
+		t.Errorf("CLAUDE.md %q", c)
 	}
 	raw, _ := os.ReadFile(filepath.Join(repo, ".claudinite/settings.yaml"))
 	e, err := settings.ReadEngine(raw, settings.YAML)
@@ -279,10 +285,30 @@ func TestAdoptDeclaresAndVendors(t *testing.T) {
 	if string(raw) != body+"    - hello\n" {
 		t.Errorf("%s", raw)
 	}
-	if got := listFiles(t, repo); strings.Join(got, " ") != ".claudinite/settings.yaml .claudinite/shared/packs/hello/RULES.md .claudinite/shared/packs/hello/pack.json" {
+	if got := listFiles(t, repo); strings.Join(got, " ") != ".claude/skills/.gitignore .claudinite/flat/claudinite-rules.GENERATED.md .claudinite/settings.yaml .claudinite/shared/packs/hello/RULES.md .claudinite/shared/packs/hello/pack.json CLAUDE.md" {
 		t.Errorf("%v", got)
+	}
+	if g, _ := os.ReadFile(filepath.Join(repo, ".claude/skills/.gitignore")); string(g) != "*\n!.gitignore\n" {
+		t.Errorf("skills ignore %q", g)
 	}
 	if err := Adopt(AdoptInput{Repo: repo, ID: "hello", Reader: newPacks(t), Out: &out}); err == nil || !strings.Contains(err.Error(), "already declared") {
 		t.Errorf("%v", err)
+	}
+}
+
+// A member's own skills ignore is left as it is.
+func TestAdoptKeepsAnExistingSkillsIgnore(t *testing.T) {
+	repo := t.TempDir()
+	_ = os.MkdirAll(filepath.Join(repo, ".claudinite"), 0o755)
+	_ = os.MkdirAll(filepath.Join(repo, ".claude/skills"), 0o755)
+	_ = os.WriteFile(filepath.Join(repo, ".claude/skills/.gitignore"), []byte("mine\n"), 0o644)
+	body := "engine:\n  version: \"" + ver + "\"\n  manifest: \"sha512-" + strings.Repeat("A", 86) + "==\"\npacks:\n  channel: \"canary\"\n  declared:\n    - base\n"
+	_ = os.WriteFile(filepath.Join(repo, ".claudinite/settings.yaml"), []byte(body), 0o644)
+	var out bytes.Buffer
+	if err := Adopt(AdoptInput{Repo: repo, ID: "hello", Reader: newPacks(t), Out: &out}); err != nil {
+		t.Fatalf("%v\n%s", err, out.String())
+	}
+	if g, _ := os.ReadFile(filepath.Join(repo, ".claude/skills/.gitignore")); string(g) != "mine\n" {
+		t.Errorf("skills ignore %q", g)
 	}
 }

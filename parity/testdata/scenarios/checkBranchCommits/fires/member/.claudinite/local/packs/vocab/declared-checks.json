@@ -1,0 +1,15 @@
+[
+  {
+    "id": "v-checkBranchCommits",
+    "on_fail": "block",
+    "failureMessage": "the checkBranchCommits check",
+    "fix": "fix the checkBranchCommits finding",
+    "checkBranchCommits": [
+      {
+        "someMessageMatches": "/(Refs|Closes) #\\d+/",
+        "what": "no commit on this branch names an issue"
+      }
+    ],
+    "scope": "work"
+  }
+]

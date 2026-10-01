@@ -1,0 +1,20 @@
+[
+  {
+    "id": "tts-voices-cached-empty",
+    "on_fail": "block",
+    "since": "2026-09-15",
+    "failureMessage": "getVoices() is empty until the browser has loaded voices, so a module-scope cache stays empty for the page's life and every utterance silently falls back to the OS default voice",
+    "scanFileClasses": ["javascriptFiles"],
+    "excludeFileClasses": ["testFiles"],
+    "excludeFiles": "/(^|\\/)(node_modules|dist|build|out|coverage|vendor|third_party)\\//",
+    "scanIgnoringComments": true,
+    "matchLines": [
+      {
+        "match": "/^(?:const|let|var)\\s+\\w+\\s*=\\s*(?:(?:window|globalThis|self)\\.)?speechSynthesis\\.getVoices\\s*\\(\\s*\\)/",
+        "unlessFileMatches": "/voiceschanged/",
+        "what": "caches getVoices() at module scope, which runs before the browser has any voices to give",
+        "fix": "resolve the voice inside speak() and never keep an empty result — fall back for that utterance and resolve again on the next"
+      }
+    ]
+  }
+]

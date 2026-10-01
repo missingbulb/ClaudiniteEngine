@@ -1,0 +1,18 @@
+[
+  {
+    "id": "v-requireIndexCoverage",
+    "on_fail": "block",
+    "failureMessage": "the requireIndexCoverage check",
+    "fix": "fix the requireIndexCoverage finding",
+    "requireIndexCoverage": [
+      {
+        "eachTrackedPathMatching": "/^(?:.*\\/)?(?<base>[^/]*GENERATED[^/]*)$/",
+        "indexFile": ".gitattributes",
+        "coveredByGlobLinesMatching": "/merge=ours/",
+        "whenIndexFileAbsent": "flagEveryPath",
+        "anchorFindingsAt": "eachUncoveredPath",
+        "what": "{base} has no merge=ours entry"
+      }
+    ]
+  }
+]

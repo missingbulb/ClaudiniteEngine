@@ -4,3 +4,7 @@ dist/
 /cdnstub
 /packfixture
 /licstub
+*.test
+*.out
+/cn
+/cn.exe

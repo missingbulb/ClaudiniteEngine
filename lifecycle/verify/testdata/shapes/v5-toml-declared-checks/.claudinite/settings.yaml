@@ -1,0 +1,10 @@
+engine:
+  package: "@claudinite/cli-rc"
+  version: "60930.1.0"
+  manifest: "sha512-v1shapev1shapev1shapev1shapev1shapev1shapev1shapev1shapev1shapev1shapev1shapev1shapev1=="
+packs:
+  channel: "stable"
+  declared:
+    - acme-pack
+license:
+  plan: "public"

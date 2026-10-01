@@ -1,0 +1,10 @@
+{
+  "rules": "",
+  "mounts": [],
+  "world": [
+    "v-checkEachFile a.md block",
+    "v-checkEachFile a.md block",
+    "v-checkEachFile a.md block"
+  ],
+  "work": []
+}

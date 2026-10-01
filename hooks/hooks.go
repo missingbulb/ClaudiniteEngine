@@ -69,11 +69,24 @@ type License interface {
 	Hook(repo, sessionID string) LicenseStatus
 }
 
+// RulesIndex writes the generated index the member's CLAUDE.md imports, so
+// a session on a hand-edited declaration gets its rules on the next start.
+type RulesIndex interface {
+	Write(repo, engine string) (bool, error)
+	// HasImport reports whether the member's CLAUDE.md imports the index.
+	HasImport(repo string) bool
+}
+
+// MissingImport is SessionStart's line for a member whose CLAUDE.md does
+// not import the rules index, which leaves the session with no pack rules.
+const MissingImport = `[cn] rules not loaded: CLAUDE.md does not import .claudinite/flat/claudinite-rules.GENERATED.md; add the line "@.claudinite/flat/claudinite-rules.GENERATED.md"`
+
 // Handler answers hook events. A nil Checks runs no coded checks; a nil
-// License gates nothing.
+// License gates nothing; a nil Index writes no rules index.
 type Handler struct {
 	Checks  Checks
 	License License
+	Index   RulesIndex
 	// ProjectDir overrides where the repo is found.
 	ProjectDir string
 	// Engine overrides this engine's version, for tests.
@@ -178,7 +191,6 @@ func sessionKey(id string) string {
 func (h Handler) sessionStart(repo, sessionID string, outcome breadcrumb.Outcome, stdout io.Writer, start time.Time) error {
 	ctx := assemble(repo, h.engine())
 	var b strings.Builder
-	b.WriteString(ctx.rules)
 	b.WriteString(HelloRule())
 	b.WriteString("\n")
 	for _, l := range ctx.notes {
@@ -187,6 +199,14 @@ func (h Handler) sessionStart(repo, sessionID string, outcome breadcrumb.Outcome
 	if h.Checks != nil {
 		if err := h.Checks.Start(repo); err != nil {
 			fmt.Fprintf(&b, "[cn] checks build did not start: %v\n", err)
+		}
+	}
+	if h.Index != nil && ctx.selfCheck != "" {
+		if _, err := h.Index.Write(repo, h.engine()); err != nil {
+			fmt.Fprintf(&b, "[cn] rules index not written: %v\n", err)
+		}
+		if ctx.prose && !h.Index.HasImport(repo) {
+			b.WriteString(MissingImport + "\n")
 		}
 	}
 	if ctx.selfCheck != "" {
@@ -242,7 +262,10 @@ func (h Handler) stop(repo, sessionID string, active bool, stdout, stderr io.Wri
 			var reason strings.Builder
 			reason.WriteString("Claudinite checks found work to finish before stopping:\n")
 			for _, f := range res.Findings {
-				fmt.Fprintf(&reason, "- %s %s: %s\n", f.ID, f.Path, f.Sentence)
+				fmt.Fprintf(&reason, "- %s %s: %s\n", f.Name(), f.Location(), f.Sentence)
+				if f.Fix != "" {
+					fmt.Fprintf(&reason, "  fix: %s\n", f.Fix)
+				}
 			}
 			out, _ := json.Marshal(struct {
 				Decision string `json:"decision"`

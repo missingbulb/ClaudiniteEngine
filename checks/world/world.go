@@ -1,12 +1,13 @@
-// Package world is cn check world. In this chunk the whole world run is the
-// pin guard, which refuses a change to the engine pin or the launcher on a
-// pull request the update bot did not open, or that moves anything but the
-// pin, or whose new pin does not verify or is held, revoked or deprecated;
-// then verify's findings and the packs' world-tagged checks. A change
-// confined to .claudinite/shared/packs/ passes the guard whoever made it,
-// the bot's pack PR and a person's adoption alike: verify's pack rules
-// judge that tree. The caller injects the pin check and the findings, so
-// this capability imports neither the updater nor verify.
+// Package world is cn check world: the pin guard, which refuses a change
+// to the engine pin or the launcher on a pull request the update bot did
+// not open, or that moves anything but the pin, or whose new pin does not
+// verify or is held, revoked or deprecated; then the findings the caller
+// gathered, verify's and every world-tagged check's, declared checks
+// included. A change confined to .claudinite/shared/packs/ passes the
+// guard whoever made it, the bot's pack PR and a person's adoption alike:
+// verify's pack rules judge that tree. The caller injects the pin check
+// and the findings, so this capability imports neither the updater, verify
+// nor the check engine.
 package world
 
 import (
@@ -49,6 +50,16 @@ func Run(w io.Writer, in Input) int {
 		findings.Print(w, in.Findings)
 		return 1
 	}
+	findings.Print(w, in.Findings)
+	if findings.AnyBreak(in.Findings) {
+		return 1
+	}
+	return 0
+}
+
+// Report prints the findings without the pin guard, for a run with no
+// pull request to judge, and returns 1 on a break, else 0.
+func Report(w io.Writer, in Input) int {
 	findings.Print(w, in.Findings)
 	if findings.AnyBreak(in.Findings) {
 		return 1

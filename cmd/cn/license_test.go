@@ -4,9 +4,11 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/missingbulb/ClaudiniteEngine/license"
 	"github.com/missingbulb/ClaudiniteEngine/lifecycle/adopt"
+	"github.com/missingbulb/ClaudiniteEngine/shared/licenseapi"
 )
 
 func TestLicenseStatusWithNoSessionSaysSo(t *testing.T) {
@@ -48,5 +50,52 @@ func TestLicenseRequestNeedsASession(t *testing.T) {
 func TestInstallLinksAgree(t *testing.T) {
 	if adopt.InstallURL != license.InstallURL {
 		t.Errorf("adopt.InstallURL %q, license.InstallURL %q", adopt.InstallURL, license.InstallURL)
+	}
+}
+
+func TestTheDetachedRequestGetsAnAllowlistedEnvironment(t *testing.T) {
+	in := []string{"HOME=/h", "PATH=/bin", "TMPDIR=/t", "XDG_CACHE_HOME=/c", "HTTPS_PROXY=p", "https_proxy=p", "NO_PROXY=n",
+		"SSL_CERT_FILE=s", "GH_TOKEN=g", "GITHUB_TOKEN=t", "GITHUB_ACTIONS=true", "CLAUDINITE_LICENSE_API=a", "GIT_DIR=d",
+		"SystemRoot=C:\\W", "ANTHROPIC_API_KEY=secret", "AWS_SECRET_ACCESS_KEY=secret", "GITHUB_REPOSITORY=acme/x", "OLDPWD=/o"}
+	got := strings.Join(requestEnv(in, "linux"), " ")
+	for _, k := range []string{"HOME", "PATH", "TMPDIR", "XDG_CACHE_HOME", "HTTPS_PROXY", "https_proxy", "NO_PROXY", "SSL_CERT_FILE",
+		"GH_TOKEN", "GITHUB_TOKEN", "GITHUB_ACTIONS", "CLAUDINITE_LICENSE_API", "GIT_DIR", "SystemRoot"} {
+		if !strings.Contains(got, k+"=") {
+			t.Errorf("dropped %s: %s", k, got)
+		}
+	}
+	for _, k := range []string{"ANTHROPIC_API_KEY", "AWS_SECRET_ACCESS_KEY", "GITHUB_REPOSITORY", "OLDPWD"} {
+		if strings.Contains(got, k+"=") {
+			t.Errorf("kept %s: %s", k, got)
+		}
+	}
+}
+
+// Windows variable names are case-insensitive, so every allowlisted name
+// matches in any case there, and the temp directories Go reads on Windows
+// pass; elsewhere a name matches exactly, the proxy names aside.
+func TestTheRequestAllowlistOnWindows(t *testing.T) {
+	in := []string{"Path=C:\\bin", "TMP=C:\\t", "Temp=C:\\t2", "SYSTEMROOT=C:\\W", "gh_token=g", "Claudinite_License_API=a", "UserProfile=C:\\u", "OLDPWD=/o"}
+	got := strings.Join(requestEnv(in, "windows"), " ")
+	for _, k := range []string{"Path", "TMP", "Temp", "SYSTEMROOT", "gh_token", "Claudinite_License_API", "UserProfile"} {
+		if !strings.Contains(got, k+"=") {
+			t.Errorf("windows dropped %s: %s", k, got)
+		}
+	}
+	if strings.Contains(got, "OLDPWD=") {
+		t.Errorf("windows kept OLDPWD: %s", got)
+	}
+	if got := strings.Join(requestEnv([]string{"gh_token=g", "Path=/p", "TMP=/t"}, "linux"), " "); got != "TMP=/t" {
+		t.Errorf("linux: %q", got)
+	}
+}
+
+func TestTheWorkerClientKeepsToTheTimeoutAsked(t *testing.T) {
+	w, err := workerWithin(1500 * time.Millisecond)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c := w.(*licenseapi.Client); c.HTTP.Timeout != 1500*time.Millisecond {
+		t.Errorf("timeout %v", c.HTTP.Timeout)
 	}
 }

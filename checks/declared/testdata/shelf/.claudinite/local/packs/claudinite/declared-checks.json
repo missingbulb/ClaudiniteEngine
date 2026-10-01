@@ -1,0 +1,616 @@
+[
+  {
+    "id": "home-seeded-packs-declared",
+    "on_fail": "block",
+    "failureMessage": "the update lands a seeded pack on every member but skips the home, so a newly seeded pack reaches the whole fleet except this repo, invisibly",
+    "scanIgnoringComments": true,
+    "requireIndexCoverage": [
+      {
+        "eachTrackedPathMatching": "/^packs\\/(?<pack>[^/]+)\\/pack\\.(?:json|mjs)$/",
+        "whoseTextMatches": "/(^|[^\\w.$])\"?seededByDefault\"?\\s*:\\s*true\\b/",
+        "indexFile": ".claudinite-settings.json",
+        "coveredByValueInArrayAtField": {
+          "atField": "packs",
+          "value": "{pack}",
+          "matchingEntryObjectsByField": "id"
+        },
+        "whenIndexFileAbsent": "assertNothing",
+        "anchorFindingsAt": "indexFile",
+        "what": "the \"{pack}\" pack flags seededByDefault in its manifest but is not declared here",
+        "fix": "add \"{pack}\" to the \"packs\" array — the update skips the home, so this repo's declaration is hand-maintained; a deliberate opt-out is an acceptance with a reason instead"
+      }
+    ]
+  },
+  {
+    "id": "legacy-tolerance-scheduled",
+    "on_fail": "block",
+    "since": "2026-09-03",
+    "failureMessage": "a legacy tolerance nobody is scheduled to remove is a permanent feature wearing a temporary name, and its holders are never told to move off it",
+    "scanFiles": "/^(engine|packs)\\/.*\\.mjs$/",
+    "excludeFileClasses": [
+      "testFiles"
+    ],
+    "matchLines": [
+      {
+        "match": "/^(?:export\\s+)?(?:const|let|function|async function)\\s+\\w*(?:LEGACY|Legacy)\\w*/",
+        "unlessPreviousLineMatches": "/@legacy-tolerance/",
+        "what": "{match} declares a legacy tolerance with no scheduled removal above it",
+        "fix": "put `// @legacy-tolerance advisory:<rule-id|none> retire:#<issue>` directly above it: the rule that tells a holder to migrate, and the issue whose merge deletes this code"
+      },
+      {
+        "match": "/@legacy-tolerance/",
+        "unlessLineMatches": "/@legacy-tolerance advisory:(?:[a-z][a-z0-9/-]*) retire:#\\d+$/",
+        "what": "{match} is not a readable tolerance annotation",
+        "fix": "write it as `// @legacy-tolerance advisory:<rule-id|none> retire:#<issue>` with nothing after — a grep for this token is the register, and an unparseable form is not in it"
+      }
+    ]
+  },
+  {
+    "id": "rules-append-only",
+    "on_fail": "advise",
+    "scope": "work",
+    "failureMessage": "a pack's RULES.md is written several times a day, and a whole-file re-apply onto a moved main deletes lessons with nothing going red",
+    "forbidRemovedLinesMatching": [
+      {
+        "inFilesMatching": "/(^|\\/)packs\\/[^/]+\\/RULES\\.md$/",
+        "match": "/^- \\*\\*(?<title>[^*]+)\\*\\*/",
+        "unlessMatchRemainsInFile": true,
+        "what": "removes the rule \"{title}\"",
+        "fix": "re-apply your edit onto the fetched file as an insertion, and say in the PR when a rule is deliberately retired"
+      }
+    ]
+  },
+  {
+    "id": "git-pull-on-shallow-clone",
+    "on_fail": "block",
+    "since": "2026-09-06",
+    "scope": "action",
+    "failureMessage": "the clones here are shallow, so git pull finds no common ancestor, and nothing of value is ever on this repo's local main",
+    "guardToolCalls": [
+      {
+        "tool": "Bash",
+        "inputField": "command",
+        "match": "/(^|[;&|]\\s*|\\n\\s*)git\\s+pull\\b/",
+        "what": "a git pull",
+        "fix": "git fetch origin main && git reset --hard origin/main"
+      }
+    ]
+  },
+  {
+    "id": "github-api-via-shell",
+    "on_fail": "block",
+    "since": "2026-09-06",
+    "scope": "action",
+    "failureMessage": "there is no gh CLI here, and every repo-scoped api.github.com call 403s (\"GitHub access is not enabled for this session\"), so a shell poll reports \"still running\" until it times out",
+    "guardToolCalls": [
+      {
+        "tool": "Bash",
+        "inputField": "command",
+        "match": "/(^|[;&|]\\s*|\\n\\s*)((do|then|else)\\s+)?((curl|wget)\\b[^;&|\\n]*api\\.github\\.com|gh\\s)/",
+        "what": "a GitHub read through the shell: \"{match}\"",
+        "fix": "read the head sha's check runs with the GitHub MCP tools (pull_request_read get_check_runs, get_check_run)"
+      },
+      {
+        "tool": "Monitor",
+        "inputField": "command",
+        "match": "/(^|[;&|]\\s*|\\n\\s*)((do|then|else)\\s+)?((curl|wget)\\b[^;&|\\n]*api\\.github\\.com|gh\\s)/",
+        "what": "a Monitor polling GitHub through the shell: \"{match}\"",
+        "fix": "read the head sha's check runs with the GitHub MCP tools on a rolling backoff; a shell poll here never sees the run finish"
+      }
+    ]
+  },
+  {
+    "id": "bare-sleep-wait",
+    "on_fail": "advise",
+    "scope": "action",
+    "failureMessage": "a padded sleep waits on nothing nameable; a guard that would not stand as the whole test is sleeping and calling it polling",
+    "fix": "name the condition awaited — a run's status, a file's arrival, a deadline — and wait on that",
+    "guardToolCalls": [
+      {
+        "tool": "Bash",
+        "inputField": "command",
+        "match": "/(^|[;&|]\\s*)sleep\\s+\\d+\\s*($|[;&|])/",
+        "what": "a bare \"{match}\""
+      },
+      {
+        "tool": "Bash",
+        "inputField": "command",
+        "match": "/\\bfor\\b[^;\\n]*;\\s*do\\s+sleep\\s+\\d+\\s*;\\s*done\\b/",
+        "what": "a counted loop with nothing but a sleep in its body: \"{match}\""
+      }
+    ]
+  },
+  {
+    "id": "test-suite-command-form",
+    "on_fail": "advise",
+    "scope": "action",
+    "failureMessage": "a bash glob without globstar runs green over a subset — packs/*/test/*.test.mjs reaches 125 of 314 files and says nothing; node --test <dir> at least fails outright with Cannot find module",
+    "fix": "node --test $(git ls-files '*.test.mjs')",
+    "guardToolCalls": [
+      {
+        "tool": "Bash",
+        "inputField": "command",
+        "match": "/\\bnode\\s+--test\\s+[^\\s;&|]*\\*/",
+        "unlessMatches": "/git ls-files/",
+        "what": "the suite run through a glob: \"{match}\""
+      },
+      {
+        "tool": "Bash",
+        "inputField": "command",
+        "match": "/\\bnode\\s+--test\\s*($|[;&|>])/",
+        "what": "node --test with no files named"
+      }
+    ]
+  },
+  {
+    "id": "commit-all-sweeps-edits",
+    "on_fail": "advise",
+    "scope": "action",
+    "failureMessage": "git commit -a stages every modified file, and a later branch -D discards the in-progress edits it swept up",
+    "guardToolCalls": [
+      {
+        "tool": "Bash",
+        "inputField": "command",
+        "match": "/(^|[;&|]\\s*|\\n\\s*)git\\s+commit\\b[^;&|\\n]*\\s-a(m)?\\b/",
+        "what": "a commit with -a",
+        "fix": "stage the files this commit is about by name; isolate pending edits first"
+      }
+    ]
+  },
+  {
+    "id": "hook-judges-never-exit",
+    "on_fail": "block",
+    "since": "2026-09-05",
+    "failureMessage": "a hook is a guest in the harness: the runner alone exits or writes, and a judge that does prints an error on every call",
+    "fix": "return the verdict — { block, reason } or { context } — and let hook-runner.mjs write it",
+    "scanFiles": "/^engine\\/hooks\\/[^/]+-judge\\.mjs$/",
+    "scanIgnoringComments": true,
+    "matchLines": [
+      {
+        "match": "/\\bprocess\\.(exit|stdout|stderr|stdin)\\b/",
+        "what": "a judge touching the process itself: {match}"
+      }
+    ]
+  },
+  {
+    "id": "migration-record-in-docs",
+    "on_fail": "block",
+    "since": "2026-09-06",
+    "failureMessage": "a migration's plan, status and remaining work live in its tracking issue, never a MIGRATION.md beside the design",
+    "forbidTrackedPathsMatching": [
+      {
+        "match": "/(^|\\/)docs\\/.*MIGRATION\\.md$/",
+        "what": "a MIGRATION.md beside a design: {path}",
+        "fix": "move what is still live into the tracking issue (writing-migration-plans) and delete the file"
+      }
+    ]
+  },
+  {
+    "id": "cross-repo-verify-line",
+    "on_fail": "advise",
+    "scope": "action",
+    "since": "2026-09-06",
+    "failureMessage": "the executor reads only this repository: its sessions carry no member's scope and its probes fetch anonymously, so this verification can never pass",
+    "guardToolCalls": [
+      {
+        "tool": "mcp__github__issue_write",
+        "inputField": "body",
+        "match": "/^(Verify|In-production-when):[^\\n]*\\bmissingbulb\\/(?!Claudinite\\b)[\\w.-]+/m",
+        "what": "a verification line reading another repository: \"{match}\"",
+        "fix": "reproduce the premise on an object this repo owns, or file the verification on that repo"
+      },
+      {
+        "tool": "mcp__github__issue_write",
+        "inputField": "body",
+        "match": "/^(Live-probe|Verify-probe):[^\\n]*api\\.github\\.com/m",
+        "what": "a probe fetching the GitHub API: \"{match}\"",
+        "fix": "probe a public raw or Pages URL instead, or make it a Verify: line about this repository"
+      }
+    ]
+  },
+  {
+    "id": "add-repo-for-a-public-clone",
+    "on_fail": "advise",
+    "scope": "action",
+    "since": "2026-09-06",
+    "failureMessage": "add_repo attaches nothing the git proxy does not already serve for a public repository",
+    "guardToolCalls": [
+      {
+        "tool": "mcp__Claude_Code_Remote__add_repo",
+        "inputField": "repo",
+        "match": "/./",
+        "what": "an add_repo for \"{field}\"",
+        "fix": "for a public repository's files, git clone --depth 1 (about two seconds); add_repo only for a private one, or for its issues and pull requests"
+      }
+    ]
+  },
+  {
+    "id": "scratch-screenshot-caption",
+    "on_fail": "advise",
+    "scope": "action",
+    "since": "2026-09-06",
+    "failureMessage": "an image rendered from a scratch harness reads as the product unless its caption says otherwise",
+    "guardToolCalls": [
+      {
+        "tool": "SendUserFile",
+        "inputMatches": "/scratchpad[^\"]*\\.(png|jpe?g|gif|webp|svg)\\b/i",
+        "unlessInputMatches": "/\"caption\":\"[^\"]*(harness|scratch)/i",
+        "what": "a screenshot from the scratchpad sent without saying it came from a scratch harness",
+        "fix": "say in the caption that it is rendered from a scratch test harness, not just what the widget shows"
+      }
+    ]
+  },
+  {
+    "id": "author-association-as-permission",
+    "on_fail": "block",
+    "since": "2026-09-06",
+    "failureMessage": "MEMBER covers any org member and COLLABORATOR includes read-only ones, both broader than push access",
+    "scanFiles": "/\\.mjs$/",
+    "excludeFiles": "/(^|\\/)(test|tests|fixtures|engine-tests)\\/|\\.test\\.mjs$/",
+    "scanIgnoringComments": true,
+    "matchLines": [
+      {
+        "match": "/\\bauthor_association\\b/",
+        "what": "reads author_association: {match}",
+        "fix": "read the collaborators permission endpoint (GET /repos/../collaborators/../permission) for the actor instead"
+      }
+    ]
+  },
+  {
+    "id": "updates-export-removed",
+    "on_fail": "block",
+    "scope": "work",
+    "since": "2026-09-06",
+    "failureMessage": "fielded workers are stale callers of an instantly-current flow module, so a removed export wedges every member on its next run",
+    "forbidRemovedLinesMatching": [
+      {
+        "inFilesMatching": "/^(updates|packs\\/claudinite-lifecycle\\/updates)\\/[^/]+\\.mjs$/",
+        "match": "/^export\\s+(async\\s+)?(function|const|let|class)\\s+\\w+|^export\\s*\\{|^export\\s+\\*/",
+        "unlessMatchRemainsInFile": true,
+        "what": "removes an export from a fielded flow module: {match}",
+        "fix": "empty the export instead, and say at its definition why it stays"
+      }
+    ]
+  },
+  {
+    "id": "year-last-digit-rollover",
+    "on_fail": "block",
+    "since": "2026-09-06",
+    "failureMessage": "a year's last digit wraps to 0 in 2030, so an identifier anchored on it collides four years out",
+    "scanFiles": "/\\.mjs$/",
+    "excludeFiles": "/(^|\\/)(test|tests|fixtures|engine-tests)\\/|\\.test\\.mjs$/",
+    "scanIgnoringComments": true,
+    "matchLines": [
+      {
+        "match": "/\\b\\w*[yY]ear\\w*\\s*%\\s*10\\b/",
+        "what": "anchors a year on its last digit: {match}",
+        "fix": "subtract an epoch (year - 2020) so the encoding survives the decade boundary"
+      }
+    ]
+  },
+  {
+    "id": "checkout-restores-index",
+    "on_fail": "advise",
+    "scope": "action",
+    "since": "2026-09-06",
+    "failureMessage": "git checkout -- restores from the index, destroying uncommitted work as thoroughly as the mutation it undoes",
+    "guardToolCalls": [
+      {
+        "tool": "Bash",
+        "inputField": "command",
+        "match": "/(^|[;&|]\\s*|\\n\\s*)git\\s+(checkout\\s+--|restore\\s|stash\\b)/",
+        "what": "a working-tree restore: \"{match}\"",
+        "fix": "commit or stage the real edit first, and only mutate a file whose current state you are ready to throw away"
+      }
+    ]
+  },
+  {
+    "id": "settings-json-reserialized",
+    "on_fail": "advise",
+    "scope": "action",
+    "since": "2026-09-06",
+    "failureMessage": "a JSON round trip rewrites indent, key order and escapes while nothing fails and tests stay green",
+    "guardToolCalls": [
+      {
+        "tool": "Bash",
+        "inputField": "command",
+        "match": "/JSON\\.stringify\\([^\\n]*\\.claudinite-settings\\.json|\\.claudinite-settings\\.json[^\\n]*JSON\\.stringify|json\\.dump\\([^\\n]*settings|settings[^\\n]*json\\.dump\\(/",
+        "what": "a settings file rewritten by re-serialising it: \"{match}\"",
+        "fix": "patch the file as anchored text instead"
+      }
+    ]
+  },
+  {
+    "id": "design-doc-status-banner",
+    "on_fail": "advise",
+    "since": "2026-09-08",
+    "failureMessage": "an initiative's DESIGN.md reads as a description of how the system works; without a status on its first screen a reader takes an unbuilt proposal for the current state",
+    "scanFiles": "/(^|\\/)docs\\/[^/]+\\/DESIGN\\.md$/",
+    "scanTracked": true,
+    "checkEachFile": [
+      {
+        "require": "/^(?:.*\\n){0,6}> \\*\\*Status: (?:not implemented|in flight)\\.\\*\\* /",
+        "what": "carries no status banner in its first seven lines",
+        "fix": "open it with `> **Status: not implemented.** \u2026` or `> **Status: in flight.** \u2026`; a built system's design doc has no third status \u2014 delete it whole instead"
+      }
+    ]
+  },
+  {
+    "id": "busy-wait-loop",
+    "on_fail": "block",
+    "since": "2026-09-11",
+    "scope": "action",
+    "failureMessage": "a loop body of `:` yields nothing, so the shell spins at full tilt and the session answers nobody until a person interrupts it",
+    "guardToolCalls": [
+      {
+        "tool": "Bash",
+        "inputField": "command",
+        "match": "/(^|[;&|]\\s*|\\n\\s*)(until|while)\\b[^\\n]*;\\s*do\\s*(:|true)\\s*;\\s*done\\b/",
+        "what": "a loop that spins without waiting: \"{match}\"",
+        "fix": "sleep inside the loop body and bound the wait \u2014 or drop the loop: a background task's completion arrives as a notification"
+      }
+    ]
+  },
+  {
+    "id": "mount-path-in-the-canon-home",
+    "on_fail": "block",
+    "since": "2026-09-13",
+    "scope": "action",
+    "failureMessage": "the canon home carries no .claudinite/shared/ at all, so a module invoked through that path is Cannot find module and the sweep the session believed it ran never ran",
+    "guardToolCalls": [
+      {
+        "tool": "Bash",
+        "inputField": "command",
+        "match": "/(^|[;&|(]\\s*|\\n\\s*)(?:[A-Za-z_][A-Za-z0-9_]*=[^\\s;&|]*\\s+)*(node|bash|sh)\\s+(--test\\s+)?\\.claudinite\\/shared\\//",
+        "unlessMatches": "/(^|[;&|(]\\s*|\\n\\s*)cd\\s|PROJECT_DIR|--root|<<|\\|\\|\\s*(node|bash|sh)\\s/",
+        "what": "an engine module run through the mount: \"{match}\"",
+        "fix": "drop the prefix and run it from the repo root (node engine/checks/check_the_world.mjs); a member's checkout cloned into this session keeps the mount path, and needs the cd that says so"
+      }
+    ]
+  },
+  {
+    "id": "shell-write-to-skill-scoped-path",
+    "on_fail": "advise",
+    "since": "2026-09-14",
+    "scope": "action",
+    "failureMessage": "the pre-edit skill guard reads Edit, Write and NotebookEdit only, so a shell write carries its skill requirement to Stop, after the work the skill was there to shape",
+    "guardToolCalls": [
+      {
+        "tool": "Bash",
+        "inputField": "command",
+        "match": "/(?:>>?\\s*|\\bopen\\(\\s*|\\bPath\\(\\s*|\\b[A-Za-z_]\\w*\\s*=\\s*['\"])['\"]?(?:[\\w.@-]+\\/)*(?:[\\w.@-]+\\.(?:test|spec)\\.\\w+|RULES\\.md|SKILL\\.md|CLAUDE\\.md|tasks\\/[\\w.@\\/-]+|engine\\/checks\\/[\\w.@\\/-]+)/",
+        "what": "a skill-scoped file written through the shell: \"{match}\"",
+        "fix": "write it with Write, or Edit it after a read \u2014 those are the calls the guard sees"
+      }
+    ]
+  },
+  {
+    "id": "check-sweep-read-blocking-only",
+    "on_fail": "advise",
+    "since": "2026-09-15",
+    "scope": "action",
+    "failureMessage": "a check inside its two-week since grace reports ADVISORY, so a BLOCKING-only filter reads your own new check as silent and the violations it found as none",
+    "guardToolCalls": [
+      {
+        "tool": "Bash",
+        "inputField": "command",
+        "match": "/check_the_(?:world|work)\\.mjs[^\\n]*[|;\\n][^\\n]*\\b(?:grep|egrep|rg)\\b[^\\n]*BLOCKING/",
+        "what": "a sweep read through a BLOCKING-only filter: \"{match}\"",
+        "fix": "read the whole output \u2014 the advisory lines carry every check still inside its since grace, your own new one among them"
+      }
+    ]
+  },
+  {
+    "id": "subagent-branch-named-git",
+    "on_fail": "block",
+    "since": "2026-09-16",
+    "scope": "action",
+    "failureMessage": "a worktree-isolated agent's shell guard refuses a command over the word git, so a branch carrying it in its own name cannot be created there under any spelling",
+    "guardToolCalls": [
+      {
+        "tool": "Agent",
+        "inputField": "prompt",
+        "match": "/(?:branch\\s+named|branch\\s+-m|switch\\s+-c|checkout\\s+-b)\\s+[`'\"]?(?:[\\w.\\/-]*[\\/_-])?git[\\w.\\/-]*/",
+        "inputMatches": "/\"isolation\"\\s*:\\s*\"worktree\"/",
+        "what": "a worktree-isolated dispatch mandating a branch named over git: \"{match}\"",
+        "fix": "name the branch without the word git (perf/fixtures, not perf/git-fixtures) \u2014 the child cannot rename it afterwards either"
+      }
+    ]
+  },
+  {
+    "id": "transcript-found-by-mtime",
+    "on_fail": "block",
+    "since": "2026-09-18",
+    "scope": "action",
+    "failureMessage": "the newest .jsonl under ~/.claude/projects is always the transcript of the session running the scan, so the script reads its own run rather than the one asked about",
+    "guardToolCalls": [
+      {
+        "tool": "/^(Bash|Write)$/",
+        "inputMatches": "/^(?=[\\s\\S]*(?:mtimeMs|\\.mtime\\b))(?=[\\s\\S]*projects)(?=[\\s\\S]*\\.jsonl)/",
+        "unlessInputMatches": "/findTranscript|capture-log\\.mjs|transcript-found-by-mtime/",
+        "what": "a {tool} locating a session transcript by newest mtime",
+        "fix": "resolve <sessionId>.jsonl with findTranscript from packs/claudinite-growth/capture-log.mjs; a transcript never leaves its container, so a script for another session takes that session's id as an argument"
+      }
+    ]
+  },
+  {
+    "id": "migration-record-paths-resolve",
+    "on_fail": "block",
+    "since": "2026-09-20",
+    "failureMessage": "a canon path in a migration record fails open \u2014 an unreadable probe reads as \"not capable\", a missing template is skipped \u2014 so a move leaves the record silently inert",
+    "scanIgnoringComments": true,
+    "extractValueSets": [
+      {
+        "setName": "migrationCanonPaths",
+        "fromLinesMatching": "/['\"`](?<value>(?:packs|engine)\\/[A-Za-z0-9_.-]+(?:\\/[A-Za-z0-9_.-]+)+)['\"`]/",
+        "inFilesMatching": "/(^|\\/)migrations\\/[^/]+\\/migration\\.mjs$/",
+        "whenSetEmpty": "assertNothing"
+      }
+    ],
+    "checkSetValues": [
+      {
+        "setName": "migrationCanonPaths",
+        "requirePathExists": "{value}",
+        "what": "the record names {value}, which is not a path in this tree",
+        "fix": "repoint it at the file's current path; where the target is gone for good, delete the probe or materialization naming it rather than leave one that can never fire"
+      }
+    ]
+  },
+  {
+    "id": "no-new-long-dashes",
+    "on_fail": "block",
+    "scope": "work",
+    "since": "2026-09-20",
+    "failureMessage": "the owner writes with hyphens; a long dash is a model's habit, and a JSON round trip turns the ones already there into escapes nobody meant to write",
+    "excludeFileClasses": [
+      "testFiles"
+    ],
+    "forbidAddedLinesMatching": [
+      {
+        "inFilesMatching": "/^(?!\\.claudinite\\/shared\\/)(?!.*\\.GENERATED\\.).*$/",
+        "match": "/[\u2013\u2014]|\\\\u201[34]/",
+        "unlessLineMatches": "/^\\s*\"match\": /",
+        "what": "adds a long dash: \"{match}\"",
+        "fix": "use a hyphen, a comma or a full stop; a line the change merely moved keeps its text, so re-add it as it was"
+      }
+    ]
+  },
+  {
+    "id": "fixture-git-housekeeping",
+    "on_fail": "block",
+    "since": "2026-09-21",
+    "failureMessage": "git's auto-gc detaches and keeps writing under .git after the command returns, so the fixture's removal races it: the suite passes locally and CI fails with ENOTEMPTY",
+    "scanFiles": "/\\.test\\.mjs$/",
+    "scanTracked": true,
+    "scanIgnoringComments": true,
+    "checkEachFile": [
+      {
+        "whenFileMatches": [
+          "/(?:execFileSync|execSync|spawnSync|execFile|spawn)\\(\\s*'git'/",
+          "/'(?:init|clone)'/"
+        ],
+        "require": "/gc\\.autoDetach/",
+        "what": "builds a throwaway git repo with a spawn of its own, so git's housekeeping outlives the command that started it",
+        "fix": "call the shared runner - `import { git } from '<relative>/engine-tests/helpers.mjs'`, then `git(root, 'init', '-q')` - or spawn with its GIT_CONFIG env, which holds gc.autoDetach and maintenance.auto off"
+      }
+    ]
+  },
+  {
+    "id": "pack-prose-paths-resolve",
+    "on_fail": "block",
+    "since": "2026-09-22",
+    "failureMessage": "reference-integrity is work-scoped and sees only a path the same branch deletes, so a citation an earlier move stranded sends every later session into nothing",
+    "scanIgnoringMarkdownFences": true,
+    "extractValueSets": [
+      {
+        "setName": "citedCanonPaths",
+        "fromLinesMatching": "/`(?<value>(?:packs|engine)\\/[A-Za-z0-9_.-]+(?:\\/[A-Za-z0-9_.-]+)*\\.(?:mjs|json|md|ya?ml|sh))`/",
+        "inFilesMatching": "/(^|\\/)(?:packs|\\.claudinite\\/local\\/packs)\\/[^/]+\\/(?:RULES\\.md|skills\\/[^/]+\\/SKILL\\.md)$/",
+        "whenSetEmpty": "assertNothing"
+      }
+    ],
+    "checkSetValues": [
+      {
+        "setName": "citedCanonPaths",
+        "requirePathExists": "{value}",
+        "what": "the prose cites {value}, which is not a path in this tree",
+        "fix": "repoint it at the file's current path, or drop the citation where the sentence reads without one"
+      }
+    ]
+  },
+  {
+    "id": "print-then-exit",
+    "on_fail": "block",
+    "since": "2026-09-22",
+    "scope": "work",
+    "failureMessage": "a pipe write is asynchronous and process.exit() drops what is still queued, so a caller capturing the output reads a truncated answer under a clean status",
+    "excludeFileClasses": [
+      "testFiles"
+    ],
+    "forbidAddedLinesMatching": [
+      {
+        "inFilesMatching": "/\\.(m|c)?js$/",
+        "match": "/console\\.(log|error|warn)\\(.*process\\.exit\\(/",
+        "unlessLineMatches": "/^\\s*(\\/\\/|\\/\\*|\\*)/",
+        "what": "\"{match}\" prints and then exits hard on one line",
+        "fix": "set process.exitCode and let the process end, adding a `return` where the exit was also ending the flow - or exit from the write's own callback, as hook-runner.mjs does"
+      }
+    ]
+  },
+  {
+    "id": "history-search-on-shallow-clone",
+    "on_fail": "block",
+    "since": "2026-09-23",
+    "failureMessage": "a pickaxe or --reverse walk answers with the earliest commit the CHECKOUT reaches, so on a shallow clone it hands back the clone's own horizon as the repository's history",
+    "scanFiles": "/\\.mjs$/",
+    "scanIgnoringComments": true,
+    "matchLines": [
+      {
+        "match": "/['\"`](?:log|rev-list)['\"`][^\\n]*(?:--reverse|['\"`\\s]-S)/",
+        "unlessLineMatches": "/[^.]\\.\\.[^.]/",
+        "unlessIndentedBlockBelowMatches": "/[^.]\\.\\.[^.]/",
+        "unlessFileMatches": "/--is-shallow-repository|--unshallow/",
+        "what": "asks history for its earliest hit: {match}",
+        "fix": "probe `git rev-parse --is-shallow-repository` and say so rather than answering from the horizon, or `git fetch --unshallow` first; a walk bounded by a `<ref>..<ref>` range is out of scope"
+      }
+    ]
+  },
+  {
+    "id": "timed-phase-named-in-vocabulary",
+    "on_fail": "block",
+    "since": "2026-09-24",
+    "failureMessage": "renderRunCost prints only the words RUN_PHASES names, so a phase timed under any other word is measured and then dropped, and the fold never sees what it cost",
+    "scanIgnoringComments": true,
+    "extractValueSets": [
+      {
+        "setName": "phasesTimed",
+        "fromLinesMatching": "/\\b(?:phase\\(|timed\\([A-Za-z_$][\\w$]*,\\s*)'(?<value>[a-z][a-z-]*)'/",
+        "inFilesMatching": "/^packs\\/claudinite-tasks\\/src\\/.+\\.mjs$/",
+        "whenSetEmpty": {
+          "what": "nothing under packs/claudinite-tasks/src/ opens a run phase under a literal word",
+          "fix": "the timer's call shape moved, so repoint \"phasesTimed\" at how a phase is opened now, or retire this check if no run times itself any more"
+        }
+      },
+      {
+        "setName": "phasesNamed",
+        "fromLinesMatching": "/^\\s*(?:scheduler|executor): Object\\.freeze\\(\\[(?<value>[^\\]]*)\\]\\)/",
+        "inFilesMatching": "/(^|\\/)run-record\\.mjs$/",
+        "splitValuesOn": "/[',\\s]+/",
+        "whenSetEmpty": {
+          "what": "RUN_PHASES names no phase word, so every timed phase would read as one this vocabulary does not have",
+          "fix": "the declaration's shape moved, so repoint \"phasesNamed\" at where the per-workflow phase lists are spelled now"
+        }
+      }
+    ],
+    "checkSetPairs": [
+      {
+        "everyValueOf": "phasesTimed",
+        "mustAlsoBeIn": "phasesNamed",
+        "what": "the run times a phase under '{value}', which RUN_PHASES does not name",
+        "fix": "add '{value}' to that workflow's list in RUN_PHASES, in the order the run executes it, or time the phase under a word the vocabulary already carries"
+      }
+    ]
+  },
+  {
+    "id": "generated-file-carries-no-banner",
+    "on_fail": "block",
+    "since": "2026-09-26",
+    "failureMessage": "a generated file's banner is read by everyone and heeded by nobody: it repeats what the file's name or its directory already says, and every reader pays the line",
+    "fix": "delete the banner where the generator writes it, not in the file it wrote",
+    "scanFiles": "/.*/",
+    "scanIgnoringMarkdownFences": true,
+    "excludeFileClasses": [
+      "testFiles"
+    ],
+    "matchLines": [
+      {
+        "match": "/^\\s*(<!--|#|\\/\\/|\\/\\*+)\\s*GENERATED\\b/",
+        "what": "opens with a banner announcing the file generated: {match}"
+      },
+      {
+        "match": "/^\\s*(<!--|\\/\\/|\\/\\*+)[^\\n]{0,90}generated\\b[^\\n]{0,90}(do not|don't|never)\\s+(hand-)?edit/i",
+        "what": "carries a do-not-edit banner: {match}"
+      }
+    ]
+  }
+]

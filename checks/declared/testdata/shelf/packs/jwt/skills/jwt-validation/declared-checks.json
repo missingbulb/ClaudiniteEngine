@@ -1,0 +1,49 @@
+[
+  {
+    "id": "jwt-none-not-accepted",
+    "on_fail": "block",
+    "failureMessage": "a token whose header claims alg \"none\" carries no signature at all, so a verifier that accepts it treats attacker-written claims as authenticated — the classic signature-stripping bypass",
+    "scanFileClasses": ["javascriptFiles", "pythonFiles"],
+    "excludeFileClasses": ["testFiles"],
+    "matchLines": [
+      {
+        "match": "/\\balgorithms?\\s*[:=]\\s*\\[[^\\]]*['\"]none['\"]/i",
+        "whenFileMatches": "/jwt|jose/i",
+        "what": "lists \"none\" in a JWT verification-algorithm allowlist",
+        "fix": "remove \"none\" — an unsigned token must never verify; list only the exact algorithm(s) this verifier expects"
+      }
+    ]
+  },
+  {
+    "id": "jwt-verify-pins-algorithms",
+    "on_fail": "block",
+    "failureMessage": "without an allowlist the verification algorithm comes from the token's own header — the attacker writes that header, so they pick the algorithm",
+    "scanFileClasses": ["javascriptFiles"],
+    "excludeFileClasses": ["testFiles"],
+    "matchLines": [
+      {
+        "match": "/\\.verify\\s*\\(/",
+        "whenFileMatches": "/['\"]jsonwebtoken['\"]/",
+        "unlessFileMatches": "/\\balgorithms\\b/",
+        "what": "verifies a JWT with no algorithms allowlist (and none is set anywhere in this file)",
+        "fix": "pass { algorithms: ['<the one algorithm this issuer uses>'] } to every jsonwebtoken verify call — never let the token pick"
+      }
+    ]
+  },
+  {
+    "id": "jwt-verify-binds-audience",
+    "on_fail": "advise",
+    "failureMessage": "the signature proves who signed the token, not who it was for — without an audience/issuer check, a valid token minted for a different service or purpose is accepted here (substitution attack)",
+    "scanFileClasses": ["javascriptFiles"],
+    "excludeFileClasses": ["testFiles"],
+    "matchLines": [
+      {
+        "match": "/\\.verify\\s*\\(|\\bjwtVerify\\s*\\(/",
+        "whenFileMatches": "/['\"](jsonwebtoken|jose)['\"]/",
+        "unlessFileMatches": "/\\b(audience|issuer)\\b/",
+        "what": "verifies a JWT binding neither audience nor issuer (neither word appears in this file)",
+        "fix": "pass the expected audience (and issuer) to the verify call so a token minted for another recipient is rejected — validate every claim the token carries"
+      }
+    ]
+  }
+]

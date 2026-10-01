@@ -1,0 +1,8 @@
+{
+  "rules": "@../local/packs/mine/RULES.md\n",
+  "mounts": [
+    "kept"
+  ],
+  "world": [],
+  "work": []
+}

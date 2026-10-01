@@ -1,0 +1,13 @@
+[
+  {
+    "id": "v-maxLineLength",
+    "on_fail": "block",
+    "failureMessage": "the maxLineLength check",
+    "fix": "fix the maxLineLength finding",
+    "scanFiles": "/\\.md$/",
+    "maxLineLength": {
+      "bytes": 10,
+      "what": "{count} line(s) over {bytes} bytes, longest {longest}"
+    }
+  }
+]

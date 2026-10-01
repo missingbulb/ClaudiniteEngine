@@ -1,0 +1,285 @@
+[
+  {
+    "id": "pack-independence",
+    "on_fail": "block",
+    "failureMessage": "the vendor set ships a pack only when declared, so a cross-pack import crashes every consumer that vendors one pack without the other",
+    "fix": "declare the dependency (requires) and pass configuration, move the shared helper into engine/checks/helpers, or accept the import with a reason in .claudinite-settings.json",
+    "relevantWhen": {
+      "pathExists": "packs"
+    },
+    "forbidReferences": [
+      {
+        "siblings": "packs",
+        "to": "*",
+        "scope": "imports",
+        "allow": [
+          "engine",
+          "packs/claudinite-tasks/public"
+        ],
+        "reason": "a pack imports only its own files, the engine surface, and the tasks pack's published public/ — abilities otherwise cross pack boundaries through declaration and configuration, never imports; a pack's updates/ is carved out because no vendor set carries it, so an import there cannot crash a consumer (#1317)",
+        "except": [
+          "packs/claudinite-lifecycle/updates"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "pack-directory-kebab-case",
+    "on_fail": "block",
+    "since": "2026-09-06",
+    "failureMessage": "the directory name is the public id every member declares, so another casing costs a fleet-wide rename",
+    "forbidTrackedPathsMatching": [
+      {
+        "match": "/^(\\.claudinite\\/shared\\/)?packs\\/[^/]*[^a-z0-9/-][^/]*\\//",
+        "what": "a pack directory that is not kebab-case: {path}",
+        "fix": "rename the directory to lowercase kebab-case before anyone declares it"
+      }
+    ]
+  },
+  {
+    "id": "corpus-count-in-prose",
+    "on_fail": "advise",
+    "since": "2026-09-06",
+    "failureMessage": "a quoted count of checks or rules is stale at the next change; packs/README.md says how to count them",
+    "scanFiles": "/(^|\\/)packs\\/.*\\.md$/",
+    "excludeFiles": "/GENERATED|VERSIONS\\.md$/",
+    "scanIgnoringMarkdownFences": true,
+    "matchLines": [
+      {
+        "match": "/\\b\\d+ (checks|rules)\\b/",
+        "what": "states a corpus count: \"{match}\"",
+        "fix": "say how to count them instead of quoting the number"
+      }
+    ]
+  },
+  {
+    "id": "home-only-path-in-canon-prose",
+    "on_fail": "block",
+    "since": "2026-09-06",
+    "failureMessage": ".claudinite/local/packs/<pack>/ exists only in the canon home, so the name dangles everywhere else the prose mounts",
+    "scanFiles": "/^(\\.claudinite\\/shared\\/)?packs\\/.*\\.md$/",
+    "excludeFiles": "/^\\.claudinite\\/local\\//",
+    "matchLines": [
+      {
+        "match": "/\\.claudinite\\/local\\/packs\\/[a-z0-9-]+\\//",
+        "what": "names a home-only local pack path: {match}",
+        "fix": "point at the canon pack that owns the artifact, or describe it without its home path"
+      }
+    ]
+  },
+  {
+    "id": "named-import-of-new-engine-export",
+    "on_fail": "block",
+    "scope": "work",
+    "since": "2026-09-06",
+    "failureMessage": "the pack and engine lanes deliver on separate cadences, so a named import of an export the member's engine lacks is a link-time SyntaxError faulting the whole pack",
+    "extractValueSets": [
+      {
+        "setName": "newEngineExports",
+        "whenSetEmpty": "assertNothing",
+        "fromAddedLinesMatching": "/^export\\s+(async\\s+)?(function|const|let|class)\\s+(?<value>\\w+)/",
+        "inFilesMatching": "/^engine\\/.*\\.mjs$/"
+      }
+    ],
+    "checkSetValues": [
+      {
+        "setName": "newEngineExports",
+        "forbidEveryFileMatching": {
+          "pathMatching": "/^packs\\/.*\\.mjs$/",
+          "text": "/import\\s*\\{[^}]*\\b{value}\\b[^}]*\\}\\s*from\\s*['\"][^'\"]*\\/engine\\//"
+        },
+        "what": "a pack imports the engine export {value} by name in the change that adds it",
+        "fix": "import the engine module as a namespace and guard the call with a typeof capability check"
+      }
+    ]
+  },
+  {
+    "id": "tasks-stage-barriers",
+    "on_fail": "block",
+    "since": "2026-09-07",
+    "failureMessage": "the tasks pack's roles are folders and the graph between them is one-directional — a stage reaching sideways or upwards is how the flat tree it replaced became unreadable",
+    "fix": "move the shared thing down into contract/ or items/, or reach the other stage through the queue rather than through an import",
+    "relevantWhen": {
+      "pathExists": "packs/claudinite-tasks/src"
+    },
+    "forbidReferences": [
+      {
+        "from": "packs/claudinite-tasks/src/contract",
+        "to": "*",
+        "scope": "imports",
+        "allow": [
+          "engine",
+          "packs/claudinite-tasks/public",
+          "packs/claudinite-tasks/src/items"
+        ],
+        "reason": "what a task DECLARES is what every stage agrees on, so the contract names no stage and no port — a contract that read the world would make the thing being agreed on depend on who was asking, which is why the automerge verdict's git-reading command sits in src/session/ and the policy engine here decides"
+      },
+      {
+        "from": "packs/claudinite-tasks/src/items",
+        "to": "*",
+        "scope": "imports",
+        "allow": [
+          "engine",
+          "packs/claudinite-tasks/public",
+          "packs/claudinite-tasks/src/contract",
+          "packs/claudinite-tasks/src/world"
+        ],
+        "reason": "the work item as data, and the reads that fetch it: items names no stage, but the queue listing IS a GitHub read and a lease IS a clock read, so it reaches those through the ports like everything else"
+      },
+      {
+        "from": "packs/claudinite-tasks/src/world",
+        "to": "*",
+        "scope": "imports",
+        "allow": [
+          "engine",
+          "packs/claudinite-tasks/public",
+          "packs/claudinite-tasks/src/contract",
+          "packs/claudinite-tasks/src/items"
+        ],
+        "reason": "the ports are the only modules that reach outside, so they carry no stage's policy — a port that imported a stage would put a decision behind the seam a simulator replaces"
+      },
+      {
+        "from": "packs/claudinite-tasks/src/signals",
+        "to": "*",
+        "scope": "imports",
+        "allow": [
+          "engine",
+          "packs/claudinite-tasks/public",
+          "packs/claudinite-tasks/src/contract",
+          "packs/claudinite-tasks/src/items",
+          "packs/claudinite-tasks/src/world"
+        ],
+        "reason": "collection reads the world through the ports and describes it in the contract's terms; it decides nothing, so it names no stage"
+      },
+      {
+        "from": "packs/claudinite-tasks/src/schedule",
+        "to": "*",
+        "scope": "imports",
+        "allow": [
+          "engine",
+          "packs/claudinite-tasks/public",
+          "packs/claudinite-tasks/src/contract",
+          "packs/claudinite-tasks/src/items",
+          "packs/claudinite-tasks/src/world",
+          "packs/claudinite-tasks/src/signals"
+        ],
+        "reason": "the schedule asks whether a task's window has opened and files the item — what happens to that item afterwards is another stage's, reached through the queue and never through an import"
+      },
+      {
+        "from": "packs/claudinite-tasks/src/execute",
+        "to": "*",
+        "scope": "imports",
+        "allow": [
+          "engine",
+          "packs/claudinite-tasks/public",
+          "packs/claudinite-tasks/src/contract",
+          "packs/claudinite-tasks/src/items",
+          "packs/claudinite-tasks/src/world",
+          "packs/claudinite-tasks/src/signals",
+          "packs/claudinite-tasks/src/deliver"
+        ],
+        "reason": "the executor runs an item and hands its output to the delivery lane; it never reaches back into scheduling or into what a session does with the item it was handed"
+      },
+      {
+        "from": "packs/claudinite-tasks/src/session",
+        "to": "*",
+        "scope": "imports",
+        "allow": [
+          "engine",
+          "packs/claudinite-tasks/public",
+          "packs/claudinite-tasks/src/contract",
+          "packs/claudinite-tasks/src/items",
+          "packs/claudinite-tasks/src/world",
+          "packs/claudinite-tasks/src/signals",
+          "packs/claudinite-tasks/src/deliver"
+        ],
+        "reason": "a session converges the item it was handed and lands its output; it is downstream of the executor and imports nothing from it"
+      },
+      {
+        "from": "packs/claudinite-tasks/src/deliver",
+        "to": "*",
+        "scope": "imports",
+        "allow": [
+          "engine",
+          "packs/claudinite-tasks/public",
+          "packs/claudinite-tasks/src/contract",
+          "packs/claudinite-tasks/src/items",
+          "packs/claudinite-tasks/src/world",
+          "packs/claudinite-tasks/src/signals"
+        ],
+        "reason": "the landing lane is the bottom stage — it turns an output into a pull request and knows nothing about who produced it"
+      },
+      {
+        "from": "packs/claudinite-tasks/src/recover",
+        "to": "*",
+        "scope": "imports",
+        "allow": [
+          "engine",
+          "packs/claudinite-tasks/public",
+          "packs/claudinite-tasks/src/contract",
+          "packs/claudinite-tasks/src/items",
+          "packs/claudinite-tasks/src/world",
+          "packs/claudinite-tasks/src/signals"
+        ],
+        "reason": "repair reads the wreckage and files a report; it re-derives state rather than importing the stage that left it"
+      },
+      {
+        "from": "packs/claudinite-tasks/src/adopt",
+        "to": "*",
+        "scope": "imports",
+        "allow": [
+          "engine",
+          "packs/claudinite-tasks/public",
+          "packs/claudinite-tasks/src/contract",
+          "packs/claudinite-tasks/src/items",
+          "packs/claudinite-tasks/src/world",
+          "packs/claudinite-tasks/src/signals"
+        ],
+        "reason": "adoption writes a member's workflows from the declarations and touches no running stage"
+      },
+      {
+        "from": "packs/claudinite-tasks/src",
+        "to": "packs/claudinite-tasks/queue",
+        "scope": "imports",
+        "reason": "`queue/` is frozen workflow ABI that re-exports the mechanism, so a module under src/ importing it would close a cycle through a path that exists only for outside callers; `public/` is different — its definition files (the vocabulary, the grammar, the GitHub client) are what src/ builds on"
+      }
+    ]
+  },
+  {
+    "id": "tasks-world-edges-live-in-world",
+    "on_fail": "block",
+    "since": "2026-09-07",
+    "failureMessage": "everything outside the run — GitHub, the Actions environment, subprocesses, the clock — is reached through packs/claudinite-tasks/src/world/, so a run can be driven at a chosen instant against a fake world",
+    "fix": "call the port: makeGh and the named operation from src/world/github.mjs, actionsEnv/actionRepoContext from src/world/actions.mjs, runGit/startProcess from src/world/processes.mjs, now/nowMs/nowIso from src/world/clock.mjs",
+    "scanFiles": "/^(\\.claudinite\\/shared\\/)?packs\\/claudinite-tasks\\/src\\/.*\\.mjs$/",
+    "excludeFiles": "/^(\\.claudinite\\/shared\\/)?packs\\/claudinite-tasks\\/src\\/world\\//",
+    "scanIgnoringComments": true,
+    "matchLines": [
+      {
+        "match": "/(?<![\\w.])fetch\\(/",
+        "what": "calls fetch outside the world ports: \"{match}\"",
+        "fix": "reach GitHub through a named operation in src/world/github.mjs"
+      },
+      {
+        "match": "/(?<![\\w.])process\\.env(?![\\w])/",
+        "what": "reads the environment outside the world ports: \"{match}\"",
+        "fix": "take the bag from actionsEnv(), or the named fact from src/world/actions.mjs"
+      },
+      {
+        "match": "/node:child_process/",
+        "what": "starts a subprocess outside the world ports: \"{match}\"",
+        "fix": "call runGit or startProcess from src/world/processes.mjs"
+      },
+      {
+        "match": "/(?<![\\w.])new Date\\(\\s*\\)/",
+        "what": "reads the clock outside the world ports: \"{match}\"",
+        "fix": "call now() from src/world/clock.mjs — parsing a timestamp string is not a clock read and stays where it is"
+      },
+      {
+        "match": "/(?<![\\w.])Date\\.now\\(/",
+        "what": "reads the clock outside the world ports: \"{match}\"",
+        "fix": "call nowMs() from src/world/clock.mjs"
+      }
+    ]
+  }
+]

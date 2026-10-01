@@ -1,0 +1,28 @@
+[
+  {
+    "id": "v-extractValueSets-checkSetValues",
+    "on_fail": "block",
+    "failureMessage": "the extractValueSets-checkSetValues check",
+    "fix": "fix the extractValueSets-checkSetValues finding",
+    "extractValueSets": [
+      {
+        "setName": "perms",
+        "fromParsedFile": "manifest.json",
+        "valuesOfArraysAtFields": [
+          "permissions"
+        ],
+        "whenSetEmpty": "assertNothing"
+      }
+    ],
+    "checkSetValues": [
+      {
+        "setName": "perms",
+        "requireSomeFileMatching": {
+          "pathMatching": "/^PRIVACY\\.md$/",
+          "text": "/\\b{value}\\b/"
+        },
+        "what": "permission {value} is not disclosed"
+      }
+    ]
+  }
+]

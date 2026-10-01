@@ -33,8 +33,13 @@ type fakeGH struct {
 	polls       int
 	nonce       string
 	refuse      string
+	summary     string
 	keyEdits    func(nonce string) map[string]any
 	unreachable bool
+	// impostor puts first a run carrying the session's nonce and a key
+	// minted for another user, as one dispatched by a reader who copied
+	// the nonce; impostorOnly leaves the session's own run out.
+	impostor, impostorOnly bool
 }
 
 func (g *fakeGH) record(c string) {
@@ -100,6 +105,9 @@ func (g *fakeGH) CheckRuns(sha, name string) ([]githubapi.CheckRun, error) {
 	r := githubapi.CheckRun{ID: 1, Name: CheckRunName, ExternalID: nonce, Status: "completed", Conclusion: "neutral"}
 	if g.refuse != "" {
 		r.Output.Title, r.Output.Summary = CheckRunName+" refused", g.refuse+": the reason"
+		if g.summary != "" {
+			r.Output.Summary = g.summary
+		}
 		return []githubapi.CheckRun{r}, nil
 	}
 	edits := map[string]any{"nonce": nonce}
@@ -110,7 +118,18 @@ func (g *fakeGH) CheckRuns(sha, name string) ([]githubapi.CheckRun, error) {
 	other := r
 	other.ExternalID = "someone-elses-nonce"
 	other.Output.Text = "not this one"
-	return []githubapi.CheckRun{other, r}, nil
+	runs := []githubapi.CheckRun{other, r}
+	if g.impostor || g.impostorOnly {
+		fake := r
+		fake.ID = 2
+		edits["user_id"] = 8
+		fake.Output.Text = string(mint(g.t, edits))
+		runs = []githubapi.CheckRun{other, fake, r}
+		if g.impostorOnly {
+			runs = runs[:2]
+		}
+	}
+	return runs, nil
 }
 
 // fakeWorker answers the desktop and Actions routes.
@@ -170,9 +189,11 @@ type rig struct {
 	w      *fakeWorker
 	env    Env
 	starts []string
-	origin string
-	vars   map[string]string
-	log    bytes.Buffer
+	// budgets is the timeout of each Worker client the session built.
+	budgets []time.Duration
+	origin  string
+	vars    map[string]string
+	log     bytes.Buffer
 }
 
 func newRig(t *testing.T) *rig {
@@ -185,7 +206,10 @@ func newRig(t *testing.T) *rig {
 			r.gh.record("client " + repo + " token=" + token)
 			return r.gh
 		},
-		Worker: func() (Worker, error) { return r.w, nil },
+		Worker: func(timeout time.Duration) (Worker, error) {
+			r.budgets = append(r.budgets, timeout)
+			return r.w, nil
+		},
 		Origin: func(string) (string, error) { return r.origin, nil },
 		Plan:   func(string) string { return "public" },
 		Start: func(id, nonce, dir string) error {
@@ -367,6 +391,27 @@ func TestARefusedCheckRunDegradesNamingTheReason(t *testing.T) {
 	}
 }
 
+// The public Worker's private-repo refusal, with its reason prefix and
+// without it (as it was written before the prefix), is refused-private,
+// with the link where an owner picks a plan.
+func TestThePublicWorkersRefusalIsAPrivateRepoCause(t *testing.T) {
+	for _, summary := range []string{
+		"refused-private: this repo is private; the Public plan covers public repos only",
+		"this repo is private; the Public plan covers public repos only",
+	} {
+		r := newRig(t)
+		r.gh.refuse, r.gh.summary = "x", summary
+		r.start()
+		f := r.file()
+		if f.State != StateDegraded || f.Cause != CauseRefusedPrivate || f.Link != InstallURL || f.CauseDetail != "this repo is private; the Public plan covers public repos only" {
+			t.Fatalf("%q: %+v", summary, f)
+		}
+		if h := r.env.Hook("/repo", "s1"); !strings.Contains(h.Notice, "private") || !strings.Contains(h.Notice, InstallURL) {
+			t.Errorf("%q: %+v", summary, h)
+		}
+	}
+}
+
 func TestBindFailuresDegrade(t *testing.T) {
 	for name, c := range map[string]struct {
 		private bool
@@ -493,6 +538,87 @@ func TestAFailedRenewalKeepsTheOldKey(t *testing.T) {
 	}
 }
 
+// A renewal that keeps failing backs off, 1, 2, 4 ... 32 minutes after
+// each attempt's tail, and stops after MaxRenewals in one session.
+func TestAFailingRenewalBacksOffAndIsCapped(t *testing.T) {
+	r := newRig(t)
+	r.start()
+	r.gh.dispatchErr = &githubapi.HTTPError{Status: 403}
+	r.now = r.now.Add(RenewAge + time.Minute)
+	fail := func() {
+		t.Helper()
+		_ = r.env.RunRequest("s1", r.file().Nonce, "/repo")
+	}
+	r.env.Hook("/repo", "s1")
+	if len(r.starts) != 2 {
+		t.Fatalf("no first renewal: %v", r.starts)
+	}
+	fail()
+	for attempt := 1; attempt < MaxRenewals; attempt++ {
+		wait := time.Minute << (attempt - 1)
+		if wait > 32*time.Minute {
+			wait = 32 * time.Minute
+		}
+		ends := r.file().RequestedAt.Add(Cut + Tail())
+		r.now = ends.Add(wait - time.Second)
+		r.env.Hook("/repo", "s1")
+		if len(r.starts) != attempt+1 {
+			t.Fatalf("attempt %d: renewed %v early (backoff %v)", attempt, r.starts, wait)
+		}
+		r.now = ends.Add(wait)
+		r.env.Hook("/repo", "s1")
+		if len(r.starts) != attempt+2 {
+			t.Fatalf("attempt %d: no renewal after %v: %v", attempt, wait, r.starts)
+		}
+		fail()
+	}
+	r.now = r.now.Add(24 * time.Hour)
+	if h := r.env.Hook("/repo", "s1"); len(r.starts) != MaxRenewals+1 || h.Verdict.Key == nil {
+		t.Errorf("past the cap: %d starts, key %v", len(r.starts), h.Verdict.Key != nil)
+	}
+	// A renewal that lands resets the count.
+	r.gh.dispatchErr = nil
+	f := r.file()
+	f.RenewAttempts = 1
+	_ = UpdateState(mustPath(t, r), func(*File) (*File, bool) { return f, true })
+	r.now = f.RequestedAt.Add(Cut + Tail() + time.Minute)
+	r.env.Hook("/repo", "s1")
+	if err := r.env.RunRequest("s1", r.file().Nonce, "/repo"); err != nil {
+		t.Fatal(err)
+	}
+	if got := r.file(); got.State != StateLanded || got.RenewAttempts != 0 {
+		t.Errorf("after a landed renewal: %+v", got)
+	}
+}
+
+func mustPath(t *testing.T, r *rig) string {
+	t.Helper()
+	p, err := StatePath(r.env.CacheRoot, "s1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
+
+// A check run carrying the session's nonce with another user's key is
+// someone else's request: it is passed over, not taken as a bind failure.
+func TestThePollPassesOverAnotherUsersRunWithTheSameNonce(t *testing.T) {
+	r := newRig(t)
+	r.gh.impostor = true
+	r.start()
+	if f := r.file(); f.State != StateLanded || f.Cause != "" {
+		t.Fatalf("with both runs: %+v", f)
+	}
+
+	// With only the other user's run, the cut names it.
+	r = newRig(t)
+	r.gh.impostorOnly = true
+	r.start()
+	if f := r.file(); f.State != StateDegraded || f.Cause != CauseBindUser {
+		t.Fatalf("with only the other user's run: %+v", f)
+	}
+}
+
 func TestAMalformedStateFileDegrades(t *testing.T) {
 	r := newRig(t)
 	path, _ := StatePath(r.env.CacheRoot, "s1")
@@ -573,6 +699,23 @@ func TestDesktopKeyLandsAndIsCached(t *testing.T) {
 	}
 	if st, _ := os.Stat(r.env.store().LoginPath()); st.Mode().Perm() != 0o600 {
 		t.Errorf("login mode %v", st.Mode())
+	}
+}
+
+// A desktop hook's read for a pending key is bounded like a web hook's.
+func TestADesktopHookPollKeepsToTheHookBudget(t *testing.T) {
+	r := desktopRig(t)
+	r.env.SessionStart("/repo", "s1")
+	f := r.file()
+	f.UserID, f.Identity = 7, &RepoIdentity{ID: 11, OwnerID: 3, OwnerLogin: "acme"}
+	_ = UpdateState(mustPath(t, r), func(*File) (*File, bool) { return f, true })
+	r.now = r.now.Add(2 * time.Second)
+	h := r.env.Hook("/repo", "s1")
+	if h.Verdict.Key == nil || r.file().Path != PathHookPoll {
+		t.Fatalf("hook %+v file %+v", h, r.file())
+	}
+	if len(r.budgets) != 1 || r.budgets[0] != HookPollBudget {
+		t.Errorf("worker budgets %v, want [%v]", r.budgets, HookPollBudget)
 	}
 }
 

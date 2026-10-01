@@ -1,15 +1,19 @@
 package update
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/missingbulb/ClaudiniteEngine/lifecycle/packs"
+	"github.com/missingbulb/ClaudiniteEngine/lifecycle/rulesindex"
 	"github.com/missingbulb/ClaudiniteEngine/shared/gitcmd"
 	"github.com/missingbulb/ClaudiniteEngine/shared/githubapi"
 	"github.com/missingbulb/ClaudiniteEngine/shared/packindex"
@@ -131,6 +135,10 @@ func Packs(d Deps, o Options) (string, error) {
 	}
 
 	moves, err := proposePacks(d)
+	var dis *packs.SourcesDisagree
+	if errors.As(err, &dis) {
+		return "skipped: " + dis.Error(), nil
+	}
 	if err != nil {
 		return "", err
 	}
@@ -223,6 +231,66 @@ func proposePacks(d Deps) ([]move, error) {
 	return moves, nil
 }
 
+// memberWant is what the member on disk takes: its packs channel and its
+// pinned engine.
+func memberWant(repo string) (packindex.Want, error) {
+	path, f, err := settings.Find(repo)
+	if err != nil {
+		return packindex.Want{}, err
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return packindex.Want{}, err
+	}
+	pin, err := settings.ReadEngine(raw, f)
+	if err != nil {
+		return packindex.Want{}, err
+	}
+	declared, err := settings.ReadPacks(raw, f)
+	if err != nil {
+		return packindex.Want{}, err
+	}
+	return packindex.Want{Channel: declared.Channel, Engine: pin.Version}, nil
+}
+
+// indexImport is one line the rules index may hold: a vendored or local
+// pack's prose, or the copied person's.
+var indexImport = regexp.MustCompile(`^@\.\./(shared/packs/[a-z0-9][a-z0-9-]*|local/packs/[A-Za-z0-9][A-Za-z0-9_.-]*)/[A-Za-z0-9_.-]+$|^@\.\./temp/packs/current_user/RULES\.md$`)
+
+// indexShape refuses a rules index holding anything but import lines, so a
+// pack PR cannot carry text into every session through it; CI's verify
+// judges that the imports are the declaration's.
+func indexShape(raw []byte) error {
+	text := string(raw)
+	if !strings.HasSuffix(text, "\n") {
+		return errors.New("does not end in a newline")
+	}
+	for _, l := range strings.Split(strings.TrimSuffix(text, "\n"), "\n") {
+		if !indexImport.MatchString(l) {
+			return fmt.Errorf("holds %q, which is not a pack's prose import", l)
+		}
+	}
+	return nil
+}
+
+// pinVersion is the member's pinned engine version, or 0.0.0 when unreadable;
+// the index then loads the packs as a development engine would.
+func pinVersion(repo string) string {
+	path, f, err := settings.Find(repo)
+	if err != nil {
+		return "0.0.0"
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return "0.0.0"
+	}
+	e, err := settings.ReadEngine(raw, f)
+	if err != nil {
+		return "0.0.0"
+	}
+	return e.Version
+}
+
 func packsTitle(day int, moves []move) string {
 	return fmt.Sprintf("Claudinite packs %d: %s", day, describe(moves, true))
 }
@@ -249,6 +317,22 @@ func openPackPR(d Deps, o Options, moves []move, prev *githubapi.PR) (string, er
 				return err
 			}
 			rels = append(rels, packset.TreeRel(m.id))
+		}
+		changed, err := rulesindex.Write(d.Repo, pinVersion(d.Repo))
+		if err != nil {
+			return err
+		}
+		if changed {
+			rels = append(rels, rulesindex.File)
+		}
+		if _, err := os.Stat(filepath.Join(d.Repo, filepath.FromSlash(rulesindex.File))); err == nil {
+			added, err := rulesindex.EnsureImport(d.Repo)
+			if err != nil {
+				return err
+			}
+			if added {
+				rels = append(rels, rulesindex.ClaudeMD)
+			}
 		}
 		return d.Git.Commit(title, rels...)
 	}()
@@ -283,7 +367,7 @@ func openPackPR(d Deps, o Options, moves []move, prev *githubapi.PR) (string, er
 	}
 
 	var b strings.Builder
-	fmt.Fprintf(&b, "Moves this repo's vendored Claudinite packs. Only `%s/` changes.\n\n", packset.Dir)
+	fmt.Fprintf(&b, "Moves this repo's vendored Claudinite packs. Only `%s/` and the rules index `%s` change, and `%s` gains the line importing that index when it lacks it.\n\n", packset.Dir, rulesindex.File, rulesindex.ClaudeMD)
 	b.WriteString("| Pack | From | To | Channel | Index serial | Source | Key | Archive SHA-256 |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n")
 	for _, m := range moves {
 		old := m.old
@@ -328,8 +412,27 @@ func openPackPR(d Deps, o Options, moves []move, prev *githubapi.PR) (string, er
 	return fmt.Sprintf("opened #%d for packs %s", pr.Number, set), nil
 }
 
+// onlyAppendsImport refuses a CLAUDE.md on sha that is anything but
+// base's with the rules index import appended, so a pack PR cannot carry
+// other text into every session through it.
+func onlyAppendsImport(g gitcmd.Repo, base, sha string) error {
+	old, had, err := g.Show(base, rulesindex.ClaudeMD)
+	if err != nil {
+		return err
+	}
+	cur, has, err := g.Show(sha, rulesindex.ClaudeMD)
+	if err != nil {
+		return err
+	}
+	if !has || (had && rulesindex.HasImportIn(old)) || !bytes.Equal(cur, rulesindex.WithImport(old)) {
+		return errors.New("changes more than appending the rules index import")
+	}
+	return nil
+}
+
 // landPacks checks pack PR pr is the updater's own: every changed file
-// under the vendored packs, each touched pack's tree exactly the archive
+// under the vendored packs, the rules index (import lines only) or
+// CLAUDE.md (the import appended only), each touched pack's tree exactly the archive
 // its index names at the tree's version, fetched and verified again now,
 // and newer than main's. Then it merges.
 func landPacks(d Deps, pr githubapi.PR, sha string) (string, error) {
@@ -344,6 +447,24 @@ func landPacks(d Deps, pr githubapi.PR, sha string) (string, error) {
 	touched := map[string]bool{}
 	var ids []string
 	for _, f := range files {
+		if f == rulesindex.File {
+			idx, ok, err := d.Git.Show(sha, f)
+			if err != nil {
+				return "", err
+			}
+			if ok {
+				if err := indexShape(idx); err != nil {
+					return "", fmt.Errorf("#%d: %s: %w", pr.Number, f, err)
+				}
+			}
+			continue
+		}
+		if f == rulesindex.ClaudeMD {
+			if err := onlyAppendsImport(d.Git, base, sha); err != nil {
+				return "", fmt.Errorf("#%d: %s: %w", pr.Number, f, err)
+			}
+			continue
+		}
 		rest, ok := strings.CutPrefix(f, packset.Dir+"/")
 		id, _, nested := strings.Cut(rest, "/")
 		if !ok || !nested {
@@ -355,6 +476,10 @@ func landPacks(d Deps, pr githubapi.PR, sha string) (string, error) {
 		}
 	}
 	sort.Strings(ids)
+	want, err := memberWant(d.Repo)
+	if err != nil {
+		return "", err
+	}
 	var landed []string
 	for _, id := range ids {
 		prefix := packset.TreeRel(id) + "/"
@@ -366,18 +491,26 @@ func landPacks(d Deps, pr githubapi.PR, sha string) (string, error) {
 		for p, f := range tree {
 			have[strings.TrimPrefix(p, prefix)] = packs.File{Data: f.Data, Executable: f.Executable}
 		}
-		mf, ok := have["pack.json"]
-		if !ok {
-			return "", fmt.Errorf("#%d leaves %s without a pack.json", pr.Number, packset.TreeRel(id))
+		var mfName string
+		for _, n := range packset.ManifestFiles() {
+			if _, ok := have[n]; ok {
+				if mfName != "" {
+					return "", fmt.Errorf("#%d leaves %s with two manifests, %s and %s", pr.Number, packset.TreeRel(id), mfName, n)
+				}
+				mfName = n
+			}
 		}
-		m, err := packset.ParseManifest(mf.Data)
+		if mfName == "" {
+			return "", fmt.Errorf("#%d leaves %s without a pack manifest", pr.Number, packset.TreeRel(id))
+		}
+		m, err := packset.ParseManifestFile(mfName, have[mfName].Data)
 		if err != nil {
 			return "", fmt.Errorf("#%d: %s: %w", pr.Number, id, err)
 		}
-		if cur, inMain, err := d.Git.Show(base, path.Join(packset.TreeRel(id), "pack.json")); err != nil {
+		if cur, inMain, err := d.Git.Show(base, path.Join(packset.TreeRel(id), mfName)); err != nil {
 			return "", err
 		} else if inMain {
-			if cm, err := packset.ParseManifest(cur); err == nil {
+			if cm, err := packset.ParseManifestFile(mfName, cur); err == nil {
 				if c, err := version.ComparePack(m.Version, cm.Version); err != nil || c <= 0 {
 					return "", fmt.Errorf("#%d holds %s %s, not newer than main's %s", pr.Number, id, m.Version, cm.Version)
 				}
@@ -393,6 +526,19 @@ func landPacks(d Deps, pr githubapi.PR, sha string) (string, error) {
 		}
 		if e.Revoked {
 			return "", fmt.Errorf("#%d holds %s %s, which is revoked", pr.Number, id, m.Version)
+		}
+		// The proposal selected it; landing selects it again, against the
+		// member as main holds it, in case the index or the member moved.
+		w := want
+		if held, err := packs.HeldVersion(packset.Tree(d.Repo, id)); err == nil {
+			w.Held = held
+		}
+		if c := packindex.Select(packindex.Index{Versions: []packindex.Entry{e}}, w); c.Entry == nil {
+			why := "it is not newer than what main holds"
+			if c.Skipped != nil {
+				why = c.Skipped.Reason
+			}
+			return "", fmt.Errorf("#%d holds %s %s, and this member does not take it: %s", pr.Number, id, m.Version, why)
 		}
 		archive, err := d.Packs.Archive(id, e)
 		if err != nil {

@@ -1,0 +1,10 @@
+{
+  "rules": "",
+  "mounts": [
+    "marking"
+  ],
+  "world": [
+    "v-mark a.txt:1 block"
+  ],
+  "work": []
+}

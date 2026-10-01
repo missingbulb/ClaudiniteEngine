@@ -1,0 +1,27 @@
+[
+  {
+    "id": "v-mark",
+    "on_fail": "block",
+    "failureMessage": "marks are placeholders",
+    "fix": "replace the mark",
+    "scanFiles": "/\\.txt$/",
+    "matchLines": [
+      {
+        "match": "/MARK/",
+        "what": "a mark"
+      }
+    ]
+  },
+  {
+    "id": "v-guard",
+    "on_fail": "block",
+    "scope": "action",
+    "guardToolCalls": [
+      {
+        "tool": "Bash",
+        "inputMatches": "/rm -rf/",
+        "what": "rm -rf"
+      }
+    ]
+  }
+]

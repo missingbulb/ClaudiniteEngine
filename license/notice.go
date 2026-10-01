@@ -19,7 +19,7 @@ const offList = "work checks, forced skill loading and in-session growth are off
 // LinkFor is the link a cause wants in its notice, or "".
 func LinkFor(c Cause) string {
 	switch c {
-	case CauseAppNotInstalled, "no-plan", "repo-not-visible":
+	case CauseAppNotInstalled, "no-plan", "repo-not-visible", CauseRefusedPrivate:
 		return InstallURL
 	}
 	return ""
@@ -105,6 +105,8 @@ func NoticeFor(key *KeyPayload, cause Cause, detail, link string) string {
 		return fmt.Sprintf("[cn] license degraded: the session's license state file is unreadable, so %s; tell the person the next session asks again.", offList)
 	case CauseActions:
 		return "[cn] license: a GitHub Actions job is not a session and requests no session key."
+	case CauseRefusedPrivate:
+		return withLink(fmt.Sprintf("[cn] license degraded: the Public plan covers public repos only and this repo is private, so %s; tell the person an owner picks a plan where the App is installed", offList), link)
 	case "no-plan":
 		return withLink(fmt.Sprintf("[cn] license degraded: the license server refused the key because this private repo has no plan (the Public plan covers public repos), so %s; tell the person an owner picks a plan where the App is installed", offList), link)
 	}

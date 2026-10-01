@@ -1,0 +1,10 @@
+{
+  "rules": "",
+  "mounts": [],
+  "world": [
+    "v-checkParsedFiles package.json block",
+    "v-checkParsedFiles package.json block",
+    "v-checkParsedFiles package.json block"
+  ],
+  "work": []
+}

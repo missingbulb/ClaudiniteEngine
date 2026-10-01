@@ -1,0 +1,16 @@
+name: w
+on: [workflow_dispatch]
+permissions: write-all
+jobs:
+  a:
+    steps:
+      - uses: x
+        with:
+          a: 1
+      - run: curl x
+      - run: danger
+    env:
+      A: 1
+    image: node:22
+# hi
+secret: x

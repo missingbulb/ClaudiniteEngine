@@ -53,7 +53,35 @@ func TestCheckWorldCommand(t *testing.T) {
 	if code != 1 || !strings.Contains(out, "pin-guard") {
 		t.Errorf("a person moved the pin: exit %d\n%s", code, out)
 	}
-	if _, _, code := runCN(t, bin, nil, "", "check", "world", "--repo", dir); code != 2 {
-		t.Errorf("missing flags: exit %d", code)
+	if out, _, code := runCN(t, bin, nil, "", "check", "world", "--repo", dir); code != 0 || strings.Contains(out, "pin-guard") {
+		t.Errorf("no pull request to judge: the guard runs, or the findings break: exit %d\n%s", code, out)
+	}
+	if out, _, code := runCN(t, bin, nil, "", "check", "world", "--repo", t.TempDir()); code != 0 || out != "" {
+		t.Errorf("a repo that is not a member: exit %d\n%s", code, out)
+	}
+}
+
+func TestVerifyReadsTheDeclaredChecks(t *testing.T) {
+	bin := buildCN(t, "")
+	src, _ := filepath.Abs("../../lifecycle/verify/testdata/shapes/v5-settings-checks")
+	dir := t.TempDir()
+	if out, err := exec.Command("cp", "-R", src+"/.", dir).CombinedOutput(); err != nil {
+		t.Fatalf("%v %s", err, out)
+	}
+	out, _, _ := runCN(t, bin, nil, "", "verify", "--repo", dir)
+	if strings.Contains(out, "settings-checks") {
+		t.Errorf("a rule the declared pack carries is reported:\n%s", out)
+	}
+	path := filepath.Join(dir, ".claudinite/settings.yaml")
+	raw, _ := os.ReadFile(path)
+	_ = os.WriteFile(path, []byte(strings.Replace(string(raw), "    acme-check: \"off\"\n  accept", "    acme-check: \"off\"\n    ghost-check: \"advise\"\n  accept", 1)), 0o644)
+	out, _, _ = runCN(t, bin, nil, "", "verify", "--repo", dir)
+	if !strings.Contains(out, `deprecation settings-checks .claudinite/settings.yaml: names rule "ghost-check"`) || strings.Contains(out, `"acme-check"`) {
+		t.Errorf("a rule no declared check carries:\n%s", out)
+	}
+	_ = os.WriteFile(filepath.Join(dir, ".claudinite/shared/packs/acme-pack/declared-checks.yaml"), []byte("[]\n"), 0o644)
+	out, _, _ = runCN(t, bin, nil, "", "verify", "--repo", dir)
+	if !strings.Contains(out, "break descriptor-duplicate") {
+		t.Errorf("two spellings of the declared checks:\n%s", out)
 	}
 }

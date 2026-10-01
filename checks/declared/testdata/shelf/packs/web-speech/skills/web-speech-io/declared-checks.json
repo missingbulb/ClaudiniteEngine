@@ -1,0 +1,56 @@
+[
+  {
+    "id": "web-speech-no-window-api-in-service-worker",
+    "on_fail": "block",
+    "failureMessage": "the recognition API and speechSynthesis live on window, which a service worker has none of — referencing them there throws or reads undefined, so the listen or speak silently never happens",
+    "scanFiles": {
+      "inParsedFilesMatching": "/(^|\\/)manifest\\.json$/",
+      "whereFileContains": "/\"manifest_version\"\\s*:\\s*3/",
+      "namedByField": "background.service_worker"
+    },
+    "matchLines": [
+      {
+        "match": "/\\b(webkitSpeechRecognition|SpeechRecognitionPhrase|SpeechRecognition)\\b/",
+        "what": "constructs or references the Web Speech recognition API in the MV3 service worker",
+        "fix": "move the listening half to a content script, side panel, popup or offscreen document — recognition needs a document"
+      },
+      {
+        "match": "/\\b(speechSynthesis|SpeechSynthesisUtterance)\\b/",
+        "what": "references speechSynthesis in the MV3 service worker, where it is undefined",
+        "fix": "speak from the worker with chrome.tts (extension-only, needs the \"tts\" permission); reserve speechSynthesis for a document context"
+      }
+    ]
+  },
+  {
+    "id": "web-speech-recognition-feature-detected",
+    "on_fail": "advise",
+    "failureMessage": "Chrome exposes recognition only under the webkit prefix and other contexts may expose neither, so the bare prefixed constructor throws a ReferenceError wherever that global is absent",
+    "scanFileClasses": ["javascriptFiles"],
+    "matchLines": [
+      {
+        "match": "/new\\s+webkitSpeechRecognition\\s*\\(/",
+        "unlessFileMatches": "/\\bSpeechRecognition/",
+        "what": "constructs the webkit-prefixed recognizer directly with no unprefixed SpeechRecognition fallback",
+        "fix": "resolve the constructor once via `globalThis.SpeechRecognition ?? globalThis.webkitSpeechRecognition` and gate an availability flag on it existing, so absent-API contexts degrade to a no-op"
+      }
+    ]
+  },
+  {
+    "id": "web-speech-capture-released-on-pagehide",
+    "on_fail": "block",
+    "failureMessage": "a page frozen into the bfcache is suspended, not destroyed, so a live recognizer or getUserMedia stream keeps the microphone on until a pagehide handler stops it",
+    "scanFileClasses": ["javascriptFiles"],
+    "repoWide": [
+      {
+        "unlessSomeFileMatches": "/addEventListener\\s*\\(\\s*['\"`]pagehide['\"`]|\\bonpagehide\\b/",
+        "flagFilesMatching": [
+          ["/\\bgetUserMedia\\s*\\(/"],
+          ["/\\b(webkitSpeechRecognition|SpeechRecognition)\\b/", "/\\.start\\s*\\(/"]
+        ],
+        "neverFlagFiles": "/\\.(test|spec)\\.[cm]?jsx?$|(^|\\/)(__tests__|__mocks__|fixtures?)\\//",
+        "what": "opens the microphone (getUserMedia / a speech recognizer) but no source file releases the capture on `pagehide`",
+        "fix": "add a `pagehide` listener that aborts the recognizer and stops getUserMedia tracks — it fires on unload AND bfcache freeze, unlike beforeunload; an offscreen-document capture earns an accept with a reason"
+      }
+    ]
+  }
+]

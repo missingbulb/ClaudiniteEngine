@@ -1,0 +1,68 @@
+[
+  {
+    "id": "technology-skill-cites-dated-sources",
+    "on_fail": "block",
+    "since": "2026-09-10",
+    "failureMessage": "a technology skill is trusted as verified by every session that loads it, so one that names no dated source and no verification record cannot be told from one written from memory",
+    "scanFiles": "/(^|\\/)skills\\/[^/]+\\/SKILL\\.md$/",
+    "scanIgnoringMarkdownFences": true,
+    "checkEachFile": [
+      {
+        "whenFileMatches": "/^\\s+technology:\\s*\\S/m",
+        "require": "/^## Sources\\s*$[\\s\\S]*?https?:\\/\\/[^\\s)]+[^\\n]*\\b\\d{4}-\\d{2}-\\d{2}\\b/m",
+        "what": "declares a technology but carries no `## Sources` section with a URL and its fetch date (YYYY-MM-DD) on one line",
+        "fix": "add `## Sources` with one line per document read — its URL and the date it was fetched — from the vendor's live documentation, never a search snippet"
+      },
+      {
+        "whenFileMatches": "/^\\s+technology:\\s*\\S/m",
+        "require": "/^## Verified\\s*$/m",
+        "what": "declares a technology but carries no `## Verified` section",
+        "fix": "add `## Verified` saying what was actually run against the vendor, when, and what came back — or that nothing was, and the date egress was blocked"
+      }
+    ]
+  },
+  {
+    "id": "technology-skill-links-inside-its-folder",
+    "on_fail": "block",
+    "since": "2026-09-10",
+    "failureMessage": "a technology skill is promoted by lifting its folder into another pack, and a link out of that folder dangles the moment it lands",
+    "scanFiles": "/(^|\\/)skills\\/[^/]+\\/SKILL\\.md$/",
+    "scanIgnoringMarkdownFences": true,
+    "matchLines": [
+      {
+        "whenFileMatches": "/^\\s+technology:\\s*\\S/m",
+        "match": "/\\]\\(\\.\\.\\/|\\.claudinite\\/(local|shared)\\//",
+        "what": "a technology skill points outside its own folder: \"{match}\"",
+        "fix": "name the skill, check or document instead of linking it, or copy what the skill needs into its own folder"
+      }
+    ]
+  },
+  {
+    "id": "technology-skill-code-imports-inside-its-folder",
+    "on_fail": "block",
+    "since": "2026-09-10",
+    "failureMessage": "a technology skill's code travels with its folder, and an import that reaches outside it breaks silently wherever the folder lands",
+    "scanFiles": "/(^|\\/)skills\\/[^/]+\\/[^/]+\\.(md|mjs|cjs|js)$/",
+    "excludeFileClasses": ["testFiles"],
+    "scanIgnoringComments": true,
+    "extractValueSets": [
+      {
+        "setName": "technologySkills",
+        "fromLinesMatching": "/^\\s+technology:\\s*(?<value>\\S.*?)\\s*$/",
+        "inFilesMatching": "/^(?<skillDir>(?:.*\\/)?skills\\/[^/]+\\/)SKILL\\.md$/",
+        "whenSetEmpty": "assertNothing"
+      }
+    ],
+    "checkSetValues": [
+      {
+        "setName": "technologySkills",
+        "forbidEveryFileMatching": {
+          "pathMatching": "/^{skillDir}[^/]+\\.(mjs|cjs|js)$/",
+          "text": "/\\bfrom\\s+['\"]\\.\\.\\/|\\bimport\\s*\\(\\s*['\"]\\.\\.\\/|\\brequire\\s*\\(\\s*['\"]\\.\\.\\//"
+        },
+        "what": "code of the {value} technology skill imports from outside the skill's folder",
+        "fix": "take what the code needs as a parameter, or copy the helper into the skill's folder — the folder is the unit that gets promoted"
+      }
+    ]
+  }
+]

@@ -1,0 +1,20 @@
+[
+  {
+    "id": "v-scanFileClasses",
+    "on_fail": "block",
+    "failureMessage": "the scanFileClasses check",
+    "fix": "fix the scanFileClasses finding",
+    "scanFileClasses": [
+      "javascriptFiles"
+    ],
+    "excludeFileClasses": [
+      "testFiles"
+    ],
+    "matchLines": [
+      {
+        "match": "/eval\\(/",
+        "what": "eval"
+      }
+    ]
+  }
+]

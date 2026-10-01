@@ -1,0 +1,306 @@
+[
+  {
+    "id": "warning-suppression",
+    "on_fail": "block",
+    "failureMessage": "an unexplained suppression hides the signal instead of recording why the fix was rejected",
+    "fix": "add the reason on the suppression line or in the comment above — or fix the cause; if it genuinely can't be annotated, accept it in .claudinite-settings.json with a reason",
+    "scanFiles": "/^(?!.*\\.md$)/",
+    "excludeFiles": "/^packs\\/|(^|\\/)checks\\/test\\/|^\\.claudinite\\/local(\\/packs|_packs)\\/[^/]+\\/([^/]+\\.mjs|skills\\/[^/]+\\/checks\\.mjs)$/",
+    "matchLines": [
+      {
+        "match": "/eslint-disable(-next-line|-line)?(\\s+[\\w@/-]+(\\s*,\\s*[\\w@/-]+)*)?\\s*(\\*\\/)?\\s*$/",
+        "unlessPreviousLineMatches": "/^(?=\\s*(\\/\\/|#|\\*|\\/\\*|<!--))(?=.*[a-zA-Z])(?!.*(eslint-disable|@ts-ignore|@ts-nocheck|\\bnoqa\\b|pylint:\\s*disable|@SuppressWarnings|#\\s*type:\\s*ignore))/",
+        "what": "carries a warning-suppression marker with no reason at the site: {match}"
+      },
+      {
+        "match": "/@ts-ignore\\s*(\\*\\/)?\\s*$/",
+        "unlessPreviousLineMatches": "/^(?=\\s*(\\/\\/|#|\\*|\\/\\*|<!--))(?=.*[a-zA-Z])(?!.*(eslint-disable|@ts-ignore|@ts-nocheck|\\bnoqa\\b|pylint:\\s*disable|@SuppressWarnings|#\\s*type:\\s*ignore))/",
+        "what": "carries a warning-suppression marker with no reason at the site: {match}"
+      },
+      {
+        "match": "/@ts-nocheck\\s*(\\*\\/)?\\s*$/",
+        "unlessPreviousLineMatches": "/^(?=\\s*(\\/\\/|#|\\*|\\/\\*|<!--))(?=.*[a-zA-Z])(?!.*(eslint-disable|@ts-ignore|@ts-nocheck|\\bnoqa\\b|pylint:\\s*disable|@SuppressWarnings|#\\s*type:\\s*ignore))/",
+        "what": "carries a warning-suppression marker with no reason at the site: {match}"
+      },
+      {
+        "match": "/\\bnoqa(:\\s*[A-Z0-9]+(\\s*,\\s*[A-Z0-9]+)*)?\\s*$/",
+        "unlessPreviousLineMatches": "/^(?=\\s*(\\/\\/|#|\\*|\\/\\*|<!--))(?=.*[a-zA-Z])(?!.*(eslint-disable|@ts-ignore|@ts-nocheck|\\bnoqa\\b|pylint:\\s*disable|@SuppressWarnings|#\\s*type:\\s*ignore))/",
+        "what": "carries a warning-suppression marker with no reason at the site: {match}"
+      },
+      {
+        "match": "/pylint:\\s*disable(-next)?=[\\w-]+(\\s*,\\s*[\\w-]+)*\\s*(\\*\\/)?\\s*$/",
+        "unlessPreviousLineMatches": "/^(?=\\s*(\\/\\/|#|\\*|\\/\\*|<!--))(?=.*[a-zA-Z])(?!.*(eslint-disable|@ts-ignore|@ts-nocheck|\\bnoqa\\b|pylint:\\s*disable|@SuppressWarnings|#\\s*type:\\s*ignore))/",
+        "what": "carries a warning-suppression marker with no reason at the site: {match}"
+      },
+      {
+        "match": "/@SuppressWarnings\\s*\\(\\s*(\\{[^}]*\\}|\"[^\"]*\"|'[^']*')\\s*\\)\\s*$/",
+        "unlessPreviousLineMatches": "/^(?=\\s*(\\/\\/|#|\\*|\\/\\*|<!--))(?=.*[a-zA-Z])(?!.*(eslint-disable|@ts-ignore|@ts-nocheck|\\bnoqa\\b|pylint:\\s*disable|@SuppressWarnings|#\\s*type:\\s*ignore))/",
+        "what": "carries a warning-suppression marker with no reason at the site: {match}"
+      },
+      {
+        "match": "/#\\s*type:\\s*ignore(\\[[\\w,\\s-]+\\])?\\s*$/",
+        "unlessPreviousLineMatches": "/^(?=\\s*(\\/\\/|#|\\*|\\/\\*|<!--))(?=.*[a-zA-Z])(?!.*(eslint-disable|@ts-ignore|@ts-nocheck|\\bnoqa\\b|pylint:\\s*disable|@SuppressWarnings|#\\s*type:\\s*ignore))/",
+        "what": "carries a warning-suppression marker with no reason at the site: {match}"
+      }
+    ]
+  },
+  {
+    "id": "no-conflict-markers",
+    "on_fail": "block",
+    "failureMessage": "a conflict marker left behind breaks the file, and in a rules or config file it silently changes what the repo instructs every later session and check to do",
+    "scanFiles": "/.*/",
+    "matchLines": [
+      {
+        "match": "/^(<{7}|\\|{7}|>{7}) \\S/",
+        "what": "a merge-conflict marker line survives here",
+        "fix": "finish the resolution, delete the marker line, then re-read the whole file before staging — never chain the grep that checks for markers with the command that stages"
+      }
+    ]
+  },
+  {
+    "id": "rules-line-length",
+    "on_fail": "advise",
+    "failureMessage": "a rule changed one word at a time still shows as a whole-paragraph diff when its bullet is one physical line",
+    "scanFiles": "/(^|\\/)RULES\\.md$/",
+    "maxLineLength": {
+      "bytes": 100,
+      "what": "{count} line(s) over {bytes} bytes, longest {longest}",
+      "fix": "wrap the prose at {bytes} columns — a Markdown bullet continues on an indented line, so the rendering is unchanged"
+    }
+  },
+  {
+    "id": "skill-description-length",
+    "on_fail": "advise",
+    "failureMessage": "a skill's description is in every session's window whether the skill loads or not, so one written as a summary charges every session for a method almost none of them need",
+    "scanTracked": true,
+    "scanFiles": "/(^|\\/)SKILL\\.md$/",
+    "matchLines": [
+      {
+        "match": "/^description:(?:\\s+\\S+){31}/",
+        "what": "this description runs past 30 words",
+        "fix": "cut it to what decides whether to reach for the skill, and leave the method to the body, which loads only when the skill does"
+      }
+    ]
+  },
+  {
+    "id": "generated-merge-driver",
+    "on_fail": "advise",
+    "failureMessage": "without merge=ours a conflicting merge on a generated file gets hand-resolved and desyncs from its source",
+    "requireIndexCoverage": [
+      {
+        "eachScannedPathMatching": "/^(?!\\.claudinite/)(?:.*/)?(?<base>[^/]*GENERATED[^/]*)$/",
+        "includeVendored": true,
+        "indexFile": ".gitattributes",
+        "coveredByGlobLinesMatching": "/\\bmerge=ours\\b/",
+        "whenIndexFileAbsent": "flagEveryPath",
+        "anchorFindingsAt": "eachUncoveredPath",
+        "what": "a GENERATED file with no merge=ours .gitattributes entry",
+        "fix": "add `{base} merge=ours` to .gitattributes so a conflicting merge auto-resolves — the session-start hook already sets the `merge.ours.driver` config in the clone"
+      },
+      {
+        "eachScannedPathMatching": "/^\\.claudinite/(?:.*/)?(?<base>[^/]*GENERATED[^/]*)$/",
+        "includeVendored": true,
+        "indexFile": ".claudinite/.gitattributes",
+        "coveredByGlobLinesMatching": "/\\bmerge=ours\\b/",
+        "whenIndexFileAbsent": "assertNothing",
+        "anchorFindingsAt": "eachUncoveredPath",
+        "what": "a GENERATED file under .claudinite/ that .claudinite/.gitattributes does not cover",
+        "fix": "the engine converges that file — run `node .claudinite/shared/engine/converge-wiring.mjs <owner/repo>` (silent until an engine that writes it has arrived)"
+      }
+    ]
+  },
+  {
+    "id": "catalog-completeness",
+    "on_fail": "block",
+    "failureMessage": "a hand-maintained catalog that omits a real pack misroutes readers and hides capability; the check keeps the index honest against the tree",
+    "relevantWhen": {
+      "trackedFileMatches": "/^engine\\/pack_loader\\/pack-registry\\.mjs$/"
+    },
+    "requireIndexCoverage": [
+      {
+        "eachTrackedPathMatching": "/^packs\\/(?<name>[^/]+)\\/pack\\.(?:json|mjs)$/",
+        "indexFile": "packs/README.md",
+        "coveredByText": "({name}/",
+        "whenIndexFileAbsent": "assertNothing",
+        "anchorFindingsAt": "indexFile",
+        "what": "the pack \"{name}\" exists on disk but is not listed in packs/README.md",
+        "fix": "add a \"{name}\" entry to packs/README.md (or delete the pack if it is dead)"
+      }
+    ]
+  },
+  {
+    "id": "untracked-test-file",
+    "on_fail": "advise",
+    "scope": "work",
+    "failureMessage": "a suite driven by git ls-files never executes an untracked test, so a green run is not coverage of it",
+    "flagUntrackedFilesMatching": [
+      {
+        "match": "/\\.(test|spec)\\.[cm]?[jt]sx?$|(^|\\/)test_[^/]+\\.py$|_test\\.(py|go)$/",
+        "what": "{path} is untracked, so the suite you are certifying never ran it",
+        "fix": "git add {path}, then re-run the suite"
+      }
+    ]
+  },
+  {
+    "id": "grep-context-without-content",
+    "on_fail": "block",
+    "since": "2026-09-06",
+    "scope": "action",
+    "failureMessage": "under the default files_with_matches mode a context flag is silently ignored, so the call answers a file list and never the lines it asked for",
+    "guardToolCalls": [
+      {
+        "tool": "Grep",
+        "inputMatches": "/\"(-A|-B|-C|context)\":/",
+        "unlessInputMatches": "/\"output_mode\":\\s*\"content\"/",
+        "what": "a Grep with a context flag and no output_mode: \"content\"",
+        "fix": "add output_mode: \"content\" to the same call"
+      }
+    ]
+  },
+  {
+    "id": "generated-file-hand-edit",
+    "on_fail": "block",
+    "since": "2026-09-06",
+    "scope": "action",
+    "failureMessage": "a GENERATED file is written by its generator, and a hand edit is overwritten by the next run while its merge conflicts are resolved by neither side",
+    "guardToolCalls": [
+      {
+        "tool": "/^(Edit|Write|NotebookEdit)$/",
+        "inputMatches": "/\"(file_path|notebook_path)\":\\s*\"[^\"]*GENERATED[^\"]*\"/",
+        "what": "a hand edit of a GENERATED file",
+        "fix": "change the generator (or its inputs) and re-run it"
+      }
+    ]
+  },
+  {
+    "id": "wakeup-without-prompt",
+    "on_fail": "block",
+    "since": "2026-09-06",
+    "scope": "action",
+    "failureMessage": "the harness rejects a wake-up that carries no prompt, and a rejection leaves no fallback armed",
+    "guardToolCalls": [
+      {
+        "tool": "ScheduleWakeup",
+        "inputFieldAbsent": [
+          "prompt"
+        ],
+        "unlessInputMatches": "/\"stop\":\\s*true/",
+        "what": "a ScheduleWakeup call without a prompt",
+        "fix": "pass prompt — the instruction the woken turn acts on — on every call that is not stop: true"
+      }
+    ]
+  },
+  {
+    "id": "pipe-tail-hides-exit",
+    "on_fail": "advise",
+    "scope": "action",
+    "failureMessage": "a trailing tail or head replaces the pipeline's exit code with its own and discards the earlier lines a failure would have shown",
+    "guardToolCalls": [
+      {
+        "tool": "Bash",
+        "inputField": "command",
+        "match": "/(^|[;&|]\\s*|\\n\\s*)(node\\s+(--test|\\S+\\.[cm]?js)|npm\\s+(test|run)|npx|make|pytest|cargo|go\\s+test|gradle|mvn)\\b[^|;\\n]*\\|\\s*(tail|head)\\b[^|;&]*$/",
+        "what": "a run whose output ends in \"{match}\"",
+        "fix": "redirect the run to a file, read $? from that invocation, and grep the file for the slice you need"
+      }
+    ]
+  },
+  {
+    "id": "pkill-pattern-self-match",
+    "on_fail": "advise",
+    "scope": "action",
+    "failureMessage": "pkill -f matches the invoking shell's own command line, which carries the pattern",
+    "guardToolCalls": [
+      {
+        "tool": "Bash",
+        "inputField": "command",
+        "match": "/(^|[;&|]\\s*|\\n\\s*)pkill\\s+-f\\s+['\"]?(?<pattern>[^\\[\\s'\"]\\S*)/",
+        "what": "pkill -f with the unbracketed pattern \"{pattern}\"",
+        "fix": "bracket one character of the pattern ([h]ttp.server) and never chain the pkill"
+      }
+    ]
+  },
+  {
+    "id": "github-list-without-fields",
+    "on_fail": "advise",
+    "scope": "action",
+    "failureMessage": "an unnarrowed list or search answers with a single-line dump that Read cannot slice",
+    "guardToolCalls": [
+      {
+        "tool": "/^mcp__github__(list|search)_/",
+        "inputFieldAbsent": [
+          "fields"
+        ],
+        "what": "a {tool} call with no fields",
+        "fix": "pass fields (and perPage) naming just what the next step reads"
+      }
+    ]
+  },
+  {
+    "id": "ask-user-question-already-decided",
+    "on_fail": "advise",
+    "scope": "action",
+    "failureMessage": "a blocking question spends real human wall-clock, and most are already answered by an instruction in context, by state one read away, or by the recommended option being the status quo",
+    "guardToolCalls": [
+      {
+        "tool": "AskUserQuestion",
+        "inputField": "questions",
+        "match": "/./",
+        "what": "a blocking question to the owner",
+        "fix": "ask only a fork you cannot resolve yourself and batch every open decision into this one call; for anything answerable from the instruction or the tree, act and say what you assumed"
+      }
+    ]
+  },
+  {
+    "id": "bare-wait-in-fresh-shell",
+    "on_fail": "block",
+    "since": "2026-09-06",
+    "scope": "action",
+    "failureMessage": "each Bash call is a fresh shell, so a wait with no job launched in the same call returns at once, looking like a satisfied wait",
+    "guardToolCalls": [
+      {
+        "tool": "Bash",
+        "inputField": "command",
+        "match": "/(^|[;&|]\\s*|\\n\\s*)(?<wait>wait(\\s+(-n|-f|%\\d+|\\d+|\\$!))*)\\s*(;|&&|\\|\\||\\n|$)/",
+        "unlessMatches": "/[^&>]&(\\s|$)/",
+        "what": "a \"{wait}\" in a shell that launched nothing",
+        "fix": "consume the launching call's own result, or run the command with run_in_background: true and act on its notification"
+      }
+    ]
+  },
+  {
+    "id": "manufactured-no-op-call",
+    "on_fail": "advise",
+    "scope": "action",
+    "failureMessage": "a call made only to occupy the turn can come back with no visible text, which the harness then interrupts to ask for a real response",
+    "guardToolCalls": [
+      {
+        "tool": "Bash",
+        "inputField": "command",
+        "match": "/^\\s*(sleep\\s+\\d+\\s*;?\\s*)?(echo\\s+[\"']?(still\\s+)?waiting[^;\\n]*|true|:)\\s*$/i",
+        "what": "a no-op call (\"{field}\") made only to pass the turn",
+        "fix": "say in plain text that you are waiting, with no tool call"
+      }
+    ]
+  },
+  {
+    "id": "sub-issue-without-parent",
+    "on_fail": "advise",
+    "scope": "action",
+    "since": "2026-09-06",
+    "failureMessage": "a child issue linked only by a number in its body leaves the parent blind to what is still open under it",
+    "guardToolCalls": [
+      {
+        "tool": "mcp__github__issue_write",
+        "inputField": "body",
+        "match": "/\\b(phase|slice|step|follow-up|verification|retrospective|sub-issue)( \\w+)? (of|to|for) #\\d+|^(Original-issue|Blocked-by): #\\d+/im",
+        "inputMatches": "/\"method\":\"create\"/",
+        "inputFieldAbsent": [
+          "parent_issue_number"
+        ],
+        "what": "an issue filed under another (\"{match}\") with no parent_issue_number",
+        "fix": "pass parent_issue_number on the create, or attach it afterwards with sub_issue_write (method add, sub_issue_id the id the create returned, not its number)"
+      }
+    ]
+  }
+]

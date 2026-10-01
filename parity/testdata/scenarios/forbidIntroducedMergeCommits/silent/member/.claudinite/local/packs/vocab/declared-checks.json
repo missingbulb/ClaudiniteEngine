@@ -1,0 +1,12 @@
+[
+  {
+    "id": "v-forbidIntroducedMergeCommits",
+    "on_fail": "block",
+    "failureMessage": "the forbidIntroducedMergeCommits check",
+    "fix": "fix the forbidIntroducedMergeCommits finding",
+    "forbidIntroducedMergeCommits": {
+      "what": "merge commit {sha} ({subject})"
+    },
+    "scope": "work"
+  }
+]

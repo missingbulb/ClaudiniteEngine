@@ -1,0 +1,6 @@
+{
+  "rules": "@../local/packs/mine/RULES.md\n",
+  "mounts": [],
+  "loaderOnly": true,
+  "why": "a declared local pack with no tree is each engine's own settings finding: the Node engine's config check, cn's verify rule pack-declared"
+}

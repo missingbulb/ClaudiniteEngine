@@ -1,0 +1,34 @@
+[
+  {
+    "id": "flutter/network-fetch-in-widget-tree",
+    "on_fail": "block",
+    "since": "2026-09-20",
+    "failureMessage": "widget tests block real HTTP, so a tree that fetches its own images renders error boxes where the golden expects the picture",
+    "scanFiles": "/(^|\\/)lib\\/(ui|screens|widgets)\\/.*\\.dart$/",
+    "scanIgnoringComments": true,
+    "matchLines": [
+      {
+        "match": "/\\bImage\\.network\\s*\\(|\\b(?:Cached)?NetworkImage(?:Provider)?\\s*\\(|\\bNetworkTileProvider\\s*\\(/",
+        "what": "fetches its own image from inside the widget tree — {match}",
+        "fix": "take the ImageProvider or TileProvider as a parameter and construct the network one where the adapters are wired (main.dart), so a test can pass an in-memory substitute"
+      }
+    ]
+  },
+  {
+    "id": "flutter/device-clock-not-injected",
+    "on_fail": "block",
+    "since": "2026-09-20",
+    "failureMessage": "a time read off the device clock cannot be pinned by a test, so a relative-time widget is untestable and its golden drifts with the wall clock",
+    "scanFiles": "/(^|\\/)lib\\/.*\\.dart$/",
+    "excludeFiles": "/(^|\\/)lib\\/testing\\//",
+    "scanIgnoringComments": true,
+    "matchLines": [
+      {
+        "match": "/\\bDateTime\\.now\\s*\\(\\s*\\)/",
+        "unlessFileMatches": "/\\bclass\\s+\\w*Clock\\b/",
+        "what": "reads the device clock directly — {match}",
+        "fix": "take a Clock port and read the time through it; the class that implements the port is the one place DateTime.now() belongs"
+      }
+    ]
+  }
+]

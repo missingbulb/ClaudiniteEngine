@@ -1,0 +1,11 @@
+{
+  "packs": [
+    {
+      "id": "local/vocab",
+      "rules": {
+        "v-mark": "off",
+        "v-mark2": "off"
+      }
+    }
+  ]
+}

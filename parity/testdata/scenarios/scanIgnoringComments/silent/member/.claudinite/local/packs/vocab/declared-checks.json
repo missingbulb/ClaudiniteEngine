@@ -1,0 +1,16 @@
+[
+  {
+    "id": "v-scanIgnoringComments",
+    "on_fail": "block",
+    "failureMessage": "the scanIgnoringComments check",
+    "fix": "fix the scanIgnoringComments finding",
+    "scanFiles": "/\\.js$/",
+    "scanIgnoringComments": true,
+    "matchLines": [
+      {
+        "match": "/fetch\\(/",
+        "what": "fetch at {match}"
+      }
+    ]
+  }
+]

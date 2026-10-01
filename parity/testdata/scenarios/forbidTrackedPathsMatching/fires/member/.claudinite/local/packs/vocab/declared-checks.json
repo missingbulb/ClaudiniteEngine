@@ -1,0 +1,14 @@
+[
+  {
+    "id": "v-forbidTrackedPathsMatching",
+    "on_fail": "block",
+    "failureMessage": "the forbidTrackedPathsMatching check",
+    "fix": "fix the forbidTrackedPathsMatching finding",
+    "forbidTrackedPathsMatching": [
+      {
+        "match": "/\\.env$/",
+        "what": "a tracked env file: {path}"
+      }
+    ]
+  }
+]

@@ -1,0 +1,18 @@
+{
+  "packs": [
+    {
+      "id": "basics",
+      "config": {
+        "barriers": {
+          "rules": [
+            {
+              "from": "app",
+              "to": "tools",
+              "reason": "the app never reaches into tools"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

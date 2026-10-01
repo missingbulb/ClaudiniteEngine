@@ -1,0 +1,46 @@
+[
+  {
+    "id": "v-checkSetValues-lines",
+    "on_fail": "block",
+    "failureMessage": "the checkSetValues-lines check",
+    "fix": "fix the checkSetValues-lines finding",
+    "extractValueSets": [
+      {
+        "setName": "names",
+        "fromLinesMatching": "/^- (?<value>[a-z]+)$/",
+        "inFilesMatching": "/^LIST\\.md$/",
+        "whenSetEmpty": {
+          "what": "the list is empty",
+          "fix": "add names"
+        }
+      },
+      {
+        "setName": "dirs",
+        "fromTrackedPathsMatching": "/^items\\/(?<value>[a-z]+)\\//",
+        "whenSetEmpty": "assertNothing"
+      }
+    ],
+    "checkSetValues": [
+      {
+        "setName": "names",
+        "requirePathExists": "items/{value}/README.md",
+        "what": "{value} has no directory"
+      },
+      {
+        "setName": "dirs",
+        "forbidEveryFileMatching": {
+          "pathMatching": "/^items\\/{value}\\/README\\.md$/",
+          "text": "/TODO/"
+        },
+        "what": "{value} still says TODO"
+      }
+    ],
+    "checkSetPairs": [
+      {
+        "everyValueOf": "dirs",
+        "mustAlsoBeIn": "names",
+        "what": "{value} is not listed"
+      }
+    ]
+  }
+]

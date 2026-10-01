@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -47,7 +48,7 @@ func licenseEnv(log io.Writer) (license.Env, error) {
 			c.HTTP = &http.Client{Timeout: timeout}
 			return c
 		},
-		Worker: func() (license.Worker, error) { return licenseapi.FromEnv() },
+		Worker: workerWithin,
 		Origin: originOf,
 		Plan:   planOf,
 		Start:  startRequest,
@@ -104,11 +105,47 @@ func startRequest(sessionID, nonce, dir string) error {
 	cmd := exec.Command(exe, "license", "request", "--session", sessionID, "--nonce", nonce, "--repo", abs)
 	cmd.SysProcAttr = build.Detached()
 	cmd.Dir = os.TempDir()
+	cmd.Env = requestEnv(os.Environ(), runtime.GOOS)
 	cmd.Stdout, cmd.Stderr = logf, logf
 	if err := cmd.Start(); err != nil {
 		return err
 	}
 	return cmd.Process.Release()
+}
+
+// requestKeys are the variables the detached key request may read: where
+// it keeps its cache and finds its tools, the proxy and certificate
+// settings its HTTPS calls honour, the GitHub credential, git's own, and
+// the engine's.
+var requestKeys = []string{"HOME", "PATH", "TMPDIR", "TMP", "TEMP", "XDG_CACHE_HOME", "USERPROFILE", "LOCALAPPDATA", "SystemRoot",
+	"HTTPS_PROXY", "HTTP_PROXY", "NO_PROXY", "ALL_PROXY", "SSL_CERT_FILE", "SSL_CERT_DIR",
+	"GH_TOKEN", "GITHUB_TOKEN", "GITHUB_ACTIONS"}
+
+var requestPrefixes = []string{"CLAUDINITE_", "GIT_"}
+
+// requestEnv is environ cut to what the key request reads. On Windows,
+// where variable names are case-insensitive, every name matches in any
+// case; elsewhere only a proxy variable does, as Go's transport reads both.
+func requestEnv(environ []string, goos string) []string {
+	anyCase := goos == "windows"
+	var out []string
+	for _, kv := range environ {
+		k, _, ok := strings.Cut(kv, "=")
+		if !ok {
+			continue
+		}
+		keep := false
+		for _, want := range requestKeys {
+			keep = keep || k == want || (anyCase || strings.HasSuffix(want, "_PROXY") || want == "SystemRoot") && strings.EqualFold(k, want)
+		}
+		for _, p := range requestPrefixes {
+			keep = keep || strings.HasPrefix(k, p) || anyCase && strings.HasPrefix(strings.ToUpper(k), p)
+		}
+		if keep {
+			out = append(out, kv)
+		}
+	}
+	return out
 }
 
 // hookLicense gives the hooks the session license flow.
@@ -411,4 +448,15 @@ func initKey(stderr io.Writer) func(repo string) adopt.KeyGrant {
 			time.Sleep(license.PollEvery / 5)
 		}
 	}
+}
+
+// workerWithin is the license server's client with each call bounded by
+// timeout.
+func workerWithin(timeout time.Duration) (license.Worker, error) {
+	c, err := licenseapi.FromEnv()
+	if err != nil {
+		return nil, err
+	}
+	c.HTTP.Timeout = timeout
+	return c, nil
 }

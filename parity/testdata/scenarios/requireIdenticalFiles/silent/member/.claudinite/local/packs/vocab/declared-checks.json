@@ -1,0 +1,18 @@
+[
+  {
+    "id": "v-requireIdenticalFiles",
+    "on_fail": "block",
+    "failureMessage": "the requireIdenticalFiles check",
+    "fix": "fix the requireIdenticalFiles finding",
+    "requireIdenticalFiles": [
+      {
+        "everyFileMatching": "/^a\\/(?<rest>.+\\.yml)$/",
+        "twinAt": "b/{rest}",
+        "whenTwinAbsent": {
+          "what": "{path} has no twin"
+        },
+        "what": "{path} differs from its twin {twin}"
+      }
+    ]
+  }
+]

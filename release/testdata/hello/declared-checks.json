@@ -1,0 +1,21 @@
+[
+  {
+    "id": "hello-declared",
+    "on_fail": "block",
+    "failureMessage": "HELLO_DECLARED is the hello pack's declared-check probe: while it holds a line, a declared world check finds",
+    "fix": "delete HELLO_DECLARED",
+    "scanFiles": "HELLO_DECLARED",
+    "matchLines": [
+      { "match": "/./", "what": "HELLO_DECLARED exists and has a line" }
+    ]
+  },
+  {
+    "id": "hello-declared-work",
+    "on_fail": "block",
+    "scope": "work",
+    "failureMessage": "HELLO_UNTRACKED is the hello pack's declared work-check probe: while it is untracked, Stop blocks",
+    "flagUntrackedFilesMatching": [
+      { "match": "/^HELLO_UNTRACKED$/", "what": "{path} is untracked", "fix": "git add {path}, or delete it" }
+    ]
+  }
+]

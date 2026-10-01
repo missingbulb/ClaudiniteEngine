@@ -1,0 +1,21 @@
+[
+  {
+    "id": "v-relevantWhen-absent",
+    "on_fail": "block",
+    "failureMessage": "the relevantWhen-absent check",
+    "fix": "fix the relevantWhen-absent finding",
+    "relevantWhen": {
+      "pathAbsent": "LICENSE",
+      "noTrackedFileMatches": "/\\.lock$/",
+      "exactlyOneTrackedFileMatches": "/\\.js$/",
+      "repoContains": "/listen/"
+    },
+    "scanFiles": "/\\.js$/",
+    "matchLines": [
+      {
+        "match": "/listen/",
+        "what": "listen"
+      }
+    ]
+  }
+]

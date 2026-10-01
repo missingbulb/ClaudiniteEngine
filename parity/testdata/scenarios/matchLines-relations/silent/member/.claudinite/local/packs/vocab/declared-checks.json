@@ -1,0 +1,61 @@
+[
+  {
+    "id": "v-matchLines-relations",
+    "on_fail": "block",
+    "failureMessage": "the matchLines-relations check",
+    "fix": "fix the matchLines-relations finding",
+    "scanFiles": "/\\.ya?ml$/",
+    "matchLines": [
+      {
+        "match": "/^\\s*image:/",
+        "unlessLineMatches": "/@sha256:/",
+        "what": "unpinned image"
+      },
+      {
+        "match": "/\\brun:/",
+        "andLineMatches": "/curl/",
+        "what": "curl in run"
+      },
+      {
+        "match": "/^\\s*secret:/",
+        "unlessPreviousLineMatches": "/# reviewed/",
+        "what": "unreviewed secret"
+      },
+      {
+        "match": "/^\\s*steps:/",
+        "andIndentedBlockBelowMatches": "/danger/",
+        "what": "a dangerous step block"
+      },
+      {
+        "match": "/^\\s*jobs:/",
+        "unlessIndentedBlockBelowMatches": "/timeout-minutes/",
+        "what": "jobs with no timeout"
+      },
+      {
+        "match": "/^\\s*with:/",
+        "andWithinBlockOpenedBy": "/^\\s*- uses:/",
+        "what": "with inside a uses step"
+      },
+      {
+        "match": "/^\\s*env:/",
+        "unlessWithinBlockOpenedBy": "/^\\s*defaults:/",
+        "what": "env outside defaults"
+      },
+      {
+        "match": "/^\\s*name:/",
+        "whenPathMatches": "/^ci\\//",
+        "what": "a name under ci/"
+      },
+      {
+        "match": "/^\\s*on:/",
+        "whenFileMatches": "/workflow_dispatch/",
+        "what": "dispatchable"
+      },
+      {
+        "match": "/^\\s*permissions:/",
+        "unlessFileMatches": "/contents: read/",
+        "what": "permissions without read"
+      }
+    ]
+  }
+]

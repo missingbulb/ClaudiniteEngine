@@ -1,0 +1,6 @@
+{
+  "packs": [
+    "local/mine",
+    "local/other"
+  ]
+}

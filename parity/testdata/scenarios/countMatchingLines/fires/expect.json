@@ -1,0 +1,9 @@
+{
+  "rules": "",
+  "mounts": [],
+  "world": [
+    "v-countMatchingLines a.yml:2 block",
+    "v-countMatchingLines b.yml block"
+  ],
+  "work": []
+}

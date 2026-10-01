@@ -1,0 +1,71 @@
+[
+  {
+    "id": "tasks-pack-read-through-its-surface",
+    "on_fail": "block",
+    "since": "2026-09-14",
+    "failureMessage": "an import past claudinite-tasks' published public/ couples a consumer to a layout the pack is free to change",
+    "fix": "import it from packs/claudinite-tasks/public/, adding the named export there if it is not published yet; a canon pack's own test may reach src/ for a test-only name",
+    "scanFiles": "/^(\\.claudinite\\/(shared|local)\\/packs\\/(?!claudinite-tasks\\/).*\\.m?js|packs\\/(?!claudinite-tasks\\/)(?!.*(\\/test\\/|\\.test\\.m?js$)).*\\.m?js)$/",
+    "scanIgnoringComments": true,
+    "matchLines": [
+      {
+        "match": "/(?:from|import\\s*\\()\\s*['\"][^'\"]*claudinite-tasks\\/(?!public\\/)[^'\"]*['\"]/",
+        "what": "reads claudinite-tasks past its published surface: \"{match}\"",
+        "fix": "reach it through packs/claudinite-tasks/public/, adding the named export there if it is not published yet"
+      }
+    ]
+  },
+  {
+    "id": "repo-variables-through-the-bag",
+    "on_fail": "block",
+    "since": "2026-09-16",
+    "failureMessage": "the Actions GITHUB_TOKEN is refused on the REST variables API in every member, so the read never answers and costs a call and a log line per run",
+    "fix": "read the variable from the executor's vars bag (packs/claudinite-tasks/src/world/vars-bag.mjs): a task's code-work finds every repository variable already in process.env, and engine code reads varsBag(env)",
+    "scanFiles": "/^(\\.claudinite\\/(shared|local)\\/)?(packs|engine)\\/(?!.*(\\/test\\/|\\.test\\.mjs$)).*\\.mjs$/",
+    "scanIgnoringComments": true,
+    "matchLines": [
+      {
+        "match": "/\\/actions\\/(organization-)?variables\\b/",
+        "what": "reads a repository variable over the REST API: \"{match}\"",
+        "fix": "take it from the vars bag — CLAUDINITE_VARS, unpacked into a task's environment by taskEnv and readable in engine code through varsBag(env)"
+      }
+    ]
+  },
+  {
+    "id": "issue-label-outside-the-queue-vocabulary",
+    "on_fail": "block",
+    "since": "2026-09-22",
+    "scope": "action",
+    "failureMessage": "every label the queue reads is in the `task:` namespace, so an issue wearing one outside it reaches no run and sits",
+    "guardToolCalls": [
+      {
+        "tool": "mcp__github__issue_write",
+        "inputField": "labels",
+        "match": "/[\\[,]\\s*\"(?!task:|claude-task\"|claude-queued\"|claude-in-review\"|needs-human\"|outcome:)(?<invented>[^\"]+)\"/",
+        "what": "an issue labelled `{invented}`, which no queue code reads",
+        "fix": "mark it `task:origin:ad-hoc` (the /do-later skill writes the fields a run reads), or file it with no label at all"
+      }
+    ]
+  },
+  {
+    "id": "queue-mark-named-literally",
+    "on_fail": "block",
+    "since": "2026-09-22",
+    "failureMessage": "an instruction to file queue work that leaves the label unnamed is followed by inventing one, and a label outside the `task:` namespace reaches no run",
+    "scanFiles": "/^(\\.claudinite\\/(shared|local)\\/)?packs\\/[^/]+\\/(RULES\\.md|(skills|tasks)\\/[^/]+\\/(SKILL|task)\\.md)$/",
+    "matchLines": [
+      {
+        "match": "/mark(?:ed|ing)?(?:\\s+(?:it|them))?\\s+for the queue/i",
+        "unlessLineMatches": "/task:origin:/",
+        "what": "an instruction to mark an issue for the queue that names no label: \"{match}\"",
+        "fix": "name the mark literally: `task:origin:ad-hoc`, the one a scheduler run adopts"
+      },
+      {
+        "match": "/\\btagged\\s+[a-z][a-z0-9-]*\\s+issue/i",
+        "unlessLineMatches": "/task:origin:/",
+        "what": "a backlog issue asked for by a tag nothing defines: \"{match}\"",
+        "fix": "name the label literally (`task:origin:ad-hoc` files it on the queue's ad-hoc lane), or drop the tag and ask for an ordinary issue"
+      }
+    ]
+  }
+]

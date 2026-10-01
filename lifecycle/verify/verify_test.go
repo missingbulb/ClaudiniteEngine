@@ -128,7 +128,7 @@ func TestRules(t *testing.T) {
 		breaks []string
 		deps   []string
 	}{
-		{"two settings files", func(t *testing.T, d string) { write(t, d, ".claudinite/settings.json", "{}") }, []string{"settings-file"}, nil},
+		{"two settings files", func(t *testing.T, d string) { write(t, d, ".claudinite/settings.json", "{}") }, []string{"descriptor-duplicate"}, nil},
 		{"bad version", func(t *testing.T, d string) {
 			raw, _ := os.ReadFile(filepath.Join(d, ".claudinite/settings.yaml"))
 			write(t, d, ".claudinite/settings.yaml", strings.Replace(string(raw), `"60930.1.0"`, `"60930.1"`, 1))
@@ -174,7 +174,52 @@ func TestRules(t *testing.T) {
 		{"pack.yaml", func(t *testing.T, d string) {
 			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "60930.1.0"}`)
 			write(t, d, ".claudinite/shared/packs/acme-pack/pack.yaml", "version: 1\n")
+		}, []string{"descriptor-duplicate"}, nil},
+		{"pack manifest with a stray key", func(t *testing.T, d string) {
+			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "60930.1.0", "colour": "red"}`)
+		}, []string{"descriptor-format"}, nil},
+		{"pack manifest in yaml", func(t *testing.T, d string) {
+			declare(t, d, "acme-pack", "")
+			write(t, d, ".claudinite/shared/packs/acme-pack/pack.yaml", "version: \"1.0\"\nminEngineVersion: \"60930.1.0\"\n")
+		}, nil, nil},
+		{"local pack declared, no tree", func(t *testing.T, d string) {
+			declare(t, d, "local/mine", "")
 		}, []string{"pack-declared"}, nil},
+		{"local pack held", func(t *testing.T, d string) {
+			declare(t, d, "local/mine", "")
+			write(t, d, ".claudinite/local/packs/mine/pack.json", "{}")
+		}, nil, nil},
+		{"override outside the three", func(t *testing.T, d string) {
+			appendSettings(t, d, "checks:\n  rules:\n    acme-check: loud\n")
+		}, []string{"settings-checks"}, nil},
+		{"acceptance without a reason", func(t *testing.T, d string) {
+			appendSettings(t, d, "checks:\n  accept:\n    - rule: acme-check\n      path: docs/\n")
+		}, []string{"settings-checks"}, nil},
+		{"two sources disagree", func(t *testing.T, d string) {
+			appendSettings(t, d, "packs:\n  declared:\n    - id: acme-pack\n      rules: {acme-check: advise}\ncheckss: 1\n")
+			raw, _ := os.ReadFile(filepath.Join(d, ".claudinite/settings.yaml"))
+			write(t, d, ".claudinite/settings.yaml", strings.Replace(string(raw), "checkss: 1\n", "checks:\n  rules: {acme-check: block}\n", 1))
+			write(t, d, ".claudinite/shared/packs/acme-pack/pack.json", `{"version": "1.0", "minEngineVersion": "60930.1.0"}`)
+		}, []string{"settings-checks"}, nil},
+		{"good overrides", func(t *testing.T, d string) {
+			appendSettings(t, d, "checks:\n  rules:\n    acme-check: \"off\"\n  accept:\n    - rule: acme-other\n      reason: \"the fixture is meant to\"\n")
+		}, nil, nil},
+		{"prose without the index", func(t *testing.T, d string) {
+			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "60930.1.0"}`)
+			write(t, d, ".claudinite/shared/packs/acme-pack/RULES.md", "- r\n")
+		}, nil, []string{"claude-md-import", "rules-index-current"}},
+		{"a stale index", func(t *testing.T, d string) {
+			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "60930.1.0"}`)
+			write(t, d, ".claudinite/shared/packs/acme-pack/RULES.md", "- r\n")
+			write(t, d, ".claudinite/flat/claudinite-rules.GENERATED.md", "@../shared/packs/other/RULES.md\n")
+			write(t, d, "CLAUDE.md", "@.claudinite/flat/claudinite-rules.GENERATED.md\n")
+		}, []string{"rules-index-current"}, nil},
+		{"a current index", func(t *testing.T, d string) {
+			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "60930.1.0"}`)
+			write(t, d, ".claudinite/shared/packs/acme-pack/RULES.md", "- r\n")
+			write(t, d, ".claudinite/flat/claudinite-rules.GENERATED.md", "@../shared/packs/acme-pack/RULES.md\n")
+			write(t, d, "CLAUDE.md", "# mine\n@.claudinite/flat/claudinite-rules.GENERATED.md\n")
+		}, nil, nil},
 		{"license plan public", func(t *testing.T, d string) {
 			raw, _ := os.ReadFile(filepath.Join(d, ".claudinite/settings.yaml"))
 			write(t, d, ".claudinite/settings.yaml", string(raw)+"license:\n  plan: \"public\"\n")
@@ -207,6 +252,33 @@ func TestRules(t *testing.T) {
 				t.Errorf("%s: finding without a path or sentence: %+v", c.name, f)
 			}
 		}
+	}
+}
+
+func appendSettings(t *testing.T, dir, body string) {
+	t.Helper()
+	raw, _ := os.ReadFile(filepath.Join(dir, ".claudinite/settings.yaml"))
+	write(t, dir, ".claudinite/settings.yaml", string(raw)+body)
+}
+
+// A rule the settings name that no declared check carries is a
+// deprecation, read through the injected loader; a declared-checks fault
+// it reports is a descriptor break.
+func TestSettingsChecksAgainstTheDeclaredChecks(t *testing.T) {
+	dir := newShape(t)
+	appendSettings(t, dir, "checks:\n  rules:\n    acme-check: advise\n    acme-gone: \"off\"\n")
+	in := Input{Repo: dir, Launcher: launcherBytes(t), Shipped: shippedHashes(t), Declared: func(string) DeclaredChecks {
+		return DeclaredChecks{IDs: []string{"acme-check"}, Faults: []DescriptorFault{
+			{Path: "p/declared-checks.json", Sentence: "does not parse"},
+			{Path: "q", Sentence: "two spellings", Duplicate: true},
+		}}
+	}}
+	fs := Verify(in)
+	if got := strings.Join(ids(fs, findings.Deprecation), " "); got != "settings-checks" {
+		t.Errorf("deprecations %s: %v", got, fs)
+	}
+	if got := strings.Join(ids(fs, findings.Break), " "); got != "descriptor-duplicate descriptor-format" {
+		t.Errorf("breaks %s: %v", got, fs)
 	}
 }
 

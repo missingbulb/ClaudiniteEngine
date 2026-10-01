@@ -1,0 +1,92 @@
+[
+  {
+    "id": "task-phase-discipline",
+    "on_fail": "advise",
+    "failureMessage": "the precondition is the ONLY decision point — a later-phase skip hides work from the run records and re-litigates a verdict already given",
+    "scanFiles": "/(^|\\/)tasks\\/[^/]+\\/(task\\.md|[^/]+\\.mjs)$/",
+    "excludeFiles": "/(^|\\/)tasks\\/[^/]+\\/task\\.mjs$/",
+    "matchLines": [
+      {
+        "whenPathMatches": "/\\.md$/",
+        "match": "/.*\\b([Ss]kip(s|ped|ping)?|stop( here)?|[Aa]bort|[Bb]ail( out)?|[Dd]o\\s+(\\*\\*?not\\*\\*?|not)\\s+(run|proceed|continue|stack)|[Ll]eav(e|ing)\\s+(it\\s+|this\\s+)?(cycle'?s?\\s+)?(converge\\s+)?undelivered)\\b.*/",
+        "andLineMatches": "/\\b(if\\b|when\\b|unless\\b|already\\b|still\\s+(open|running|unreviewed)|(nothing|no\\s+new|not?\\s+\\w+)\\s+(changed|has\\s+changed)|before\\s+(anything|starting|researching)|unset\\s+means|absent\\b)\\b/i",
+        "unlessLineMatches": "/\\bContext\\b|\\bprecondition\\b|needs-human/",
+        "what": "instructs a conditional skip after the precondition already passed: \"{match}\"",
+        "fix": "move the run/no-run decision into the task.json precondition, or reword an empty result as an empty outcome; a required input the dispatch lacks is a failure — park the item at task:status:needs-human-action"
+      },
+      {
+        "whenPathMatches": "/\\.mjs$/",
+        "match": "/.*(skip(ping)?\\s+this\\s+(cycle|run)|leaving\\s+this\\s+cycle|cycle\\s+skips|nothing\\s+to\\s+self-refresh).*/i",
+        "what": "code-work announces a discretionary cycle skip: \"{match}\"",
+        "fix": "let the precondition make that call, or complete the work and report an empty outcome; only a genuine failure may stop a run past the precondition"
+      }
+    ]
+  },
+  {
+    "id": "legacy-check-spellings",
+    "on_fail": "advise",
+    "since": "2026-09-03",
+    "failureMessage": "the merged assertion families no longer accept their pre-merge spelling, and a spelling the engine cannot place is dropped at load — the assertion is simply not there",
+    "scanFiles": "/declared-checks\\.json$/",
+    "matchLines": [
+      {
+        "match": "/\"eachValueInParsedArray\"/",
+        "what": "{match} is the pre-merge spelling of an index-coverage assertion, which the engine no longer places",
+        "fix": "restate it as a named `extractValueSets` entry quantified over by `requireIndexCoverage`'s `eachValueOfSet` — the normalizer that rewrote it retired in #1643"
+      },
+      {
+        "match": "/\"(listedInFile|coveredByGlobLine)\"/",
+        "what": "{match} is the pre-merge spelling of an index-coverage assertion, which the engine no longer places",
+        "fix": "restate it as a `requireIndexCoverage` entry — `listFile`/`globFile` become `indexFile`, `asText` becomes `coveredByText`, `globLineMatching` becomes `coveredByGlobLinesMatching`, and the defaults the old keys implied (`whenIndexFileAbsent`, `anchorFindingsAt`) are now declared"
+      },
+      {
+        "match": "/\"(checkParsedFile|forEachParsedEntry|equalParsedValues)\"/",
+        "what": "{match} is the pre-merge spelling of a parsed-document assertion, which the engine no longer places",
+        "fix": "restate it as a `checkParsedFiles` entry — one selector (`file`, or `filesMatching` + `whereFileContains`) carrying `forEachEntryAtField`/`whereEntryFieldEquals` or `requireEqualFields`"
+      }
+    ]
+  },
+  {
+    "id": "doc-pointers-resolve",
+    "on_fail": "block",
+    "since": "2026-09-04",
+    "failureMessage": "the doc pointer is the More line a finding prints, and nothing opens it until the check fires — a stale one sits broken until a session follows it into nothing",
+    "scanIgnoringComments": true,
+    "extractValueSets": [
+      {
+        "setName": "docPointers",
+        "fromLinesMatching": "/(?:^|[{,])\\s*doc:\\s*['\"](?<value>[^'\"#]+)/",
+        "inFilesMatching": "/(^|\\/)packs\\/[^/]+\\/(?:worldRules|workRules|skills\\/[^/]+)\\/[^/]+\\.mjs$/",
+        "whenSetEmpty": "assertNothing"
+      }
+    ],
+    "checkSetValues": [
+      {
+        "setName": "docPointers",
+        "requirePathExists": "{value}",
+        "what": "doc: names {value}, which is not a path in this tree",
+        "fix": "point doc: at the file that owns the rule's depth, repo-relative (a canon pack's under packs/<pack>/), or drop the field"
+      }
+    ]
+  },
+  {
+    "id": "check-ships-with-test",
+    "on_fail": "block",
+    "since": "2026-09-04",
+    "scope": "work",
+    "failureMessage": "a check nobody watched fail meets its first false positive in a member's Stop hook, where every session pays for it",
+    "fix": "write the fixture first — a violating tree must find and a clean one must not — and land it in the same change",
+    "requireCoChange": [
+      {
+        "whenAddedLineMatches": { "inFilesMatching": "/(^|\\/)declared-checks\\.json$/", "match": "/^\\s*\"id\"\\s*:/" },
+        "requireChangedFileMatching": "/\\.test\\.[cm]?[jt]sx?$|(^|\\/)tests?\\//",
+        "what": "{path} declares a new check, and no test file changed with it"
+      },
+      {
+        "whenAddedLineMatches": { "inFilesMatching": "/(^|\\/)(worldRules|workRules)\\/[^/]+\\.mjs$|(^|\\/)skills\\/[^/]+\\/checks\\.mjs$/", "match": "/^\\s*id:\\s*['\"]/" },
+        "requireChangedFileMatching": "/\\.test\\.[cm]?[jt]sx?$|(^|\\/)tests?\\//",
+        "what": "{path} adds a rule, and no test file changed with it"
+      }
+    ]
+  }
+]

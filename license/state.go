@@ -34,7 +34,29 @@ const (
 	DefaultTail = 120 * time.Second
 	// RenewAge is the age of a landed key at which a hook renews it.
 	RenewAge = 24 * time.Hour
+	// MaxRenewals caps the renewals one session starts; the key they
+	// would replace stays in use until it expires.
+	MaxRenewals = 10
+	// renewBackoffCap bounds the wait between failed renewals.
+	renewBackoffCap = 32 * time.Minute
 )
+
+// renewDue reports whether a renewal may start now: the first at once, a
+// later one when the previous attempt's tail is over plus 1, 2, 4 ... 32
+// minutes, and none past MaxRenewals.
+func renewDue(f *File, now time.Time) bool {
+	switch {
+	case f.RenewAttempts == 0:
+		return true
+	case f.RenewAttempts >= MaxRenewals:
+		return false
+	}
+	wait := renewBackoffCap
+	if f.RenewAttempts <= 6 {
+		wait = min(time.Minute<<(f.RenewAttempts-1), renewBackoffCap)
+	}
+	return !now.Before(f.RequestedAt.Add(Cut + Tail() + wait))
+}
 
 // Tail is DefaultTail, or CLAUDINITE_LICENSE_TAIL_MS milliseconds (the
 // rehearsal shortens it).
@@ -76,6 +98,8 @@ type File struct {
 	Link        string     `json:"link,omitempty"`
 	// Noticed is the last notice a hook passed on, so it is not repeated.
 	Noticed string `json:"noticed,omitempty"`
+	// RenewAttempts counts the renewals started since a key last landed.
+	RenewAttempts int `json:"renew_attempts,omitempty"`
 }
 
 var sessionIDRe = regexp.MustCompile(`^[A-Za-z0-9._-]{1,128}$`)
@@ -205,7 +229,7 @@ func Decide(f *File, now time.Time, roots []ed25519.PublicKey) Verdict {
 		k, cause, detail := checkKey([]byte(f.Key), roots, now, f)
 		if cause == "" {
 			v.Key = &k
-			if f.LandedAt != nil && now.Sub(*f.LandedAt) >= RenewAge && !inflight {
+			if f.LandedAt != nil && now.Sub(*f.LandedAt) >= RenewAge && !inflight && renewDue(f, now) {
 				v.Renew = true
 			}
 			return v

@@ -30,9 +30,21 @@ linters:
             - "**/growth/**"
             - "**/sdkserver/**"
             - "**/shared/**"
+            - "!**/shared/descriptor/**"
           allow:
             - $gostd
             - github.com/missingbulb/ClaudiniteEngine/shared
+        descriptor:
+          # The one place the descriptor formats' parsers are imported
+          # (pack, declared-checks and settings in JSON, YAML or TOML);
+          # every other package reads descriptors through it.
+          list-mode: strict
+          files:
+            - "**/shared/descriptor/**"
+          allow:
+            - $gostd
+            - go.yaml.in/yaml/v3
+            - github.com/BurntSushi/toml
         lifecycle:
           list-mode: strict
           files:
@@ -45,10 +57,32 @@ linters:
           list-mode: strict
           files:
             - "**/checks/**"
+            - "!**/checks/declared/**"
           allow:
             - $gostd
             - github.com/missingbulb/ClaudiniteEngine/shared
             - github.com/missingbulb/ClaudiniteEngine/checks/
+        checks-declared:
+          # The declarative check engine also takes the ECMAScript regex
+          # engine the shelf's patterns are written for (lookaround,
+          # backreferences, a match timeout), which RE2 cannot express.
+          list-mode: strict
+          files:
+            - "**/checks/declared/**"
+          allow:
+            - $gostd
+            - github.com/missingbulb/ClaudiniteEngine/shared
+            - github.com/missingbulb/ClaudiniteEngine/checks/declared
+            - github.com/dlclark/regexp2
+        parity:
+          # The two-engine harness drives both engines as black boxes: it
+          # imports nothing of the engine, so a scenario cannot pass by
+          # calling the code it measures.
+          list-mode: strict
+          files:
+            - "**/parity/**"
+          allow:
+            - $gostd
         checksdk:
           # The public Go check SDK, the one package a pack's Go may import:
           # standard library only, since a pack's checks build offline.

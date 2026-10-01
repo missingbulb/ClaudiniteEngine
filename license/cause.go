@@ -21,8 +21,10 @@ const (
 	// CauseKeyRefused is a key the verifier refused; the detail names the
 	// reason.
 	CauseKeyRefused Cause = "key-refused"
-	CauseBindRepo   Cause = "bind-repo"
-	CauseBindPlan   Cause = "bind-plan"
-	CauseBindUser   Cause = "bind-user"
-	CauseBindNonce  Cause = "bind-nonce"
+	// CauseRefusedPrivate is the Public plan's refusal of a private repo.
+	CauseRefusedPrivate Cause = "refused-private"
+	CauseBindRepo       Cause = "bind-repo"
+	CauseBindPlan       Cause = "bind-plan"
+	CauseBindUser       Cause = "bind-user"
+	CauseBindNonce      Cause = "bind-nonce"
 )

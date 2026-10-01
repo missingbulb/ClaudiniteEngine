@@ -1,0 +1,32 @@
+[
+  {
+    "id": "v-checkParsedFiles",
+    "on_fail": "block",
+    "failureMessage": "the checkParsedFiles check",
+    "fix": "fix the checkParsedFiles finding",
+    "checkParsedFiles": [
+      {
+        "filesMatching": "/(^|\\/)package\\.json$/",
+        "whenFieldPresent": "devDependencies.esbuild",
+        "requireField": "dependencies.esbuild",
+        "what": "esbuild is a devDependency"
+      },
+      {
+        "file": "package.json",
+        "requireFieldMatching": {
+          "field": "name",
+          "pattern": "/^@acme\\//"
+        },
+        "what": "unscoped name"
+      },
+      {
+        "file": "package.json",
+        "forbidValueInArray": {
+          "atField": "keywords",
+          "value": "deprecated"
+        },
+        "what": "keyword deprecated"
+      }
+    ]
+  }
+]

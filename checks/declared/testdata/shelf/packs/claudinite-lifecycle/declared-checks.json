@@ -1,0 +1,104 @@
+[
+  {
+    "id": "claudinite-isolation",
+    "on_fail": "block",
+    "failureMessage": "the vendored canon is refreshed nightly and refactored upstream — code that reaches into it inherits every canon rename as a breaking change",
+    "fix": "inline the few lines you need into your own tree, remove the reference, or accept it with a reason in .claudinite-settings.json (rule \"claudinite-isolation\")",
+    "relevantWhen": { "pathExists": ".claudinite/shared" },
+    "forbidReferences": [
+      {
+        "from": ".",
+        "to": ".claudinite",
+        "matchUniqueFilenames": false,
+        "except": [".claudinite", ".claude", ".github/workflows", ".gitignore", ".gitattributes", "CLAUDE.md", ".claudinite-settings.json"],
+        "reason": "consumer files must not couple to the vendored canon — the wiring files are the reviewed exceptions (vendoring/DESIGN.md)"
+      }
+    ]
+  },
+  {
+    "id": "scheduler-workflow-shape",
+    "on_fail": "block",
+    "failureMessage": "the scheduler is the repo's only cron, so a drifted cron or a missing guard silently breaks staggering, double-run safety, or manual runs",
+    "scanFiles": ".github/workflows/claudinite-scheduler.yml",
+    "countMatchingLines": [
+      {
+        "linesMatching": "/\\bcron:\\s/",
+        "atLeast": 1,
+        "atMost": 1,
+        "what": "declares {count} cron schedules, expected exactly one",
+        "fix": "keep a single cron — the scheduler is the repo's only one, and its two daily ticks are two hours in ONE expression, never two schedule entries"
+      }
+    ],
+    "matchLines": [
+      {
+        "match": "/\\bcron:.*/",
+        "unlessLineMatches": "/\\bcron:\\s*['\"]?(1[0-9]|[2-4][0-9]|50) (([0-9]|1[0-9]|2[0-3]),([0-9]|1[0-9]|2[0-3])) \\* \\* \\*['\"]?\\s*$/",
+        "what": "{match} is not two daily ticks on a fixed minute in :10\u2013:50",
+        "fix": "use \"<minute> <hour>,<hour+12> * * *\", minute 10 to 50 and hour 0 to 11, all derived from the repo name and written once when the file was scaffolded"
+      }
+    ],
+    "checkEachFile": [
+      {
+        "require": "/^\\s*workflow_dispatch:/m",
+        "what": "has no workflow_dispatch trigger",
+        "fix": "add workflow_dispatch: so the scheduler can be run manually"
+      },
+      {
+        "require": "/^\\s*concurrency:/m",
+        "what": "has no concurrency group",
+        "fix": "add a concurrency: group so overlapping runs serialize (double-run safety)"
+      },
+      {
+        "require": "/packs\\/claudinite-tasks\\/src\\/schedule\\/run\\.mjs/",
+        "what": "does not run the vendored scheduler entry",
+        "fix": "run the vendored scheduler entry: node .claudinite/shared/packs/claudinite-tasks/src/schedule/run.mjs"
+      },
+      {
+        "require": "/^\\s*contents:\\s*write\\b/m",
+        "what": "does not grant contents: write",
+        "fix": "set permissions.contents: write — the update runner pushes its delivery branch; without it the self-refresh 403s"
+      },
+      {
+        "require": "/^\\s*pull-requests:\\s*write\\b/m",
+        "what": "does not grant pull-requests: write",
+        "fix": "set permissions.pull-requests: write — the update runner opens its PR and arms auto-merge; without it the PR create 403s"
+      }
+    ]
+  },
+  {
+    "id": "claudinite-lifecycle-declared",
+    "on_fail": "block",
+    "failureMessage": "claudinite-lifecycle carries Claudinite's own rules — the mount, the declaration, adoption, the update and the task contract — a member that does not declare it runs the machinery with none of them",
+    "checkParsedFiles": [
+      {
+        "file": ".claudinite-settings.json",
+        "requireValueInArray": { "atField": "packs", "value": "claudinite-lifecycle", "matchingEntryObjectsByField": "id" },
+        "what": "does not declare the mandatory \"claudinite-lifecycle\" pack",
+        "fix": "add \"claudinite-lifecycle\" to \"packs\" — it is basics' own dependency, so the requires closure writes it back the next time the declaration is written"
+      }
+    ]
+  },
+  {
+    "id": "shared-tree-edit-guard",
+    "on_fail": "block",
+    "since": "2026-09-06",
+    "scope": "action",
+    "failureMessage": "the update flow replaces .claudinite/shared/ whole on its next run, so an edit there is discarded — silently, and only once the mount next refreshes",
+    "guardToolCalls": [
+      {
+        "tool": "/^(Edit|Write|NotebookEdit)$/",
+        "inputField": "file_path",
+        "match": "/(?:^|\\/)\\.claudinite\\/shared\\//",
+        "what": "{tool} writes {field}, inside the vendored .claudinite/shared/ tree",
+        "fix": "make the change in the canon instead, or carry a difference this repo alone needs under .claudinite/local/packs/, which survives every update"
+      },
+      {
+        "tool": "Bash",
+        "inputField": "command",
+        "match": "/(?:\\bsed\\b[^\\n]{0,60}?\\s-i|\\btee\\b|\\brm\\b|\\btruncate\\b|>>?)[^\\n&;|]*\\.claudinite\\/shared(?:\\/|\\b)/",
+        "what": "the command writes into the vendored .claudinite/shared/ tree: {match}",
+        "fix": "make the change in the canon instead, or under .claudinite/local/packs/ for a difference this repo alone needs; reading the mount is fine and is not this"
+      }
+    ]
+  }
+]

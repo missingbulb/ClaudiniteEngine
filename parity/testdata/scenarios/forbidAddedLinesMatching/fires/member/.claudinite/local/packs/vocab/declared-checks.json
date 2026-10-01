@@ -1,0 +1,17 @@
+[
+  {
+    "id": "v-forbidAddedLinesMatching",
+    "on_fail": "block",
+    "failureMessage": "the forbidAddedLinesMatching check",
+    "fix": "fix the forbidAddedLinesMatching finding",
+    "forbidAddedLinesMatching": [
+      {
+        "inFilesMatching": "/\\.js$/",
+        "match": "/console\\.log/",
+        "unlessLineMatches": "/keep/",
+        "what": "adds {match}"
+      }
+    ],
+    "scope": "work"
+  }
+]

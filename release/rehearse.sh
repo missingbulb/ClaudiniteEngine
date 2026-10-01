@@ -24,7 +24,9 @@
 #            fixture publishes and revokes them, then refuses an index whose
 #            serial regressed or whose signature broke; cn init writes the
 #            plan its key names, and the update key's pack index serial and
-#            key ids reach the pack reader.
+#            key ids reach the pack reader; hello's declared checks fail the
+#            world and block Stop, and the member's checks block turns them
+#            off and accepts them.
 #   license  a member's session keys against release/ghstub and
 #            release/licstub: the web key, the cut and the late key, no App,
 #            no push access, refusals and bindings, resume and renewal, the
@@ -491,7 +493,10 @@ for mode in $modes; do
       step "packs init: cn init writes the plan its key names, and ends on the install link with no App"
 
       out=$(session_start) || fail "packs 2: SessionStart exited non-zero"
-      case $out in *"# hello 1.0"*) ;; *) fail "packs 2: no hello rule: $out" ;; esac
+      index=$member/.claudinite/flat/claudinite-rules.GENERATED.md
+      [ "$(cat "$index" 2>/dev/null)" = "@../shared/packs/hello/RULES.md" ] || fail "packs 2: the rules index does not import hello's rules: $(cat "$index" 2>&1)"
+      grep -q '^# hello 1.0$' "$member/.claudinite/shared/packs/hello/RULES.md" || fail "packs 2: hello's rules are not 1.0's"
+      case $out in *"# hello 1.0"*) fail "packs 2: the pack's rules reached additionalContext: $out" ;; esac
       case $out in *"[cn] packs 1/1 loaded (hello 1.0: rules 1 skills 1)"*) ;; *) fail "packs 2: self-check line: $out" ;; esac
       [ -f "$member/.claude/skills/hello/SKILL.md" ] || fail "packs 2: the skill is not mounted"
       cn_member check build --wait > "$work/build.out" 2>&1 || fail "packs 2: check build: $(cat "$work/build.out")"
@@ -501,7 +506,7 @@ for mode in $modes; do
       buildlog=$(find "$checks" -name build.log)
       [ -x "$(dirname "$buildlog")/checks" ] || fail "packs 2: no checks binary beside $buildlog"
       head -n 1 "$buildlog" | grep -q '^go version' || fail "packs 2: build.log: $(cat "$buildlog")"
-      step "packs 2: SessionStart loads hello 1.0, mounts its skill; the checks binary is built"
+      step "packs 2: hello 1.0 reaches the session through the rules index, its skill is mounted; the checks binary is built"
 
       stop_hook() { (cd "$member" && printf '{"session_id":"rehearse","hook_event_name":"Stop","stop_hook_active":false}' | CLAUDE_PROJECT_DIR=$member sh -c "$(hook_command Stop)" 2>/dev/null); }
       touch "$member/HELLO_FINDING"
@@ -538,11 +543,18 @@ for mode in $modes; do
         verdict=$(sed -n '$p' "$work/land.out")
       }
 
+      # A member from before the rules channel: CLAUDE.md without the import.
+      printf '# Member\n' > "$member/CLAUDE.md"
+      (cd "$member" && git add CLAUDE.md && git -c user.name=rehearse -c user.email=r@x -c commit.gpgsign=false commit -q -m "no import" \
+        && git -c push.negotiate=false push -q origin main) || fail "packs 5: drop the import"
+      out=$(session_start) || fail "packs 5: SessionStart without the import"
+      case $out in *"[cn] rules not loaded: CLAUDE.md does not import"*) ;; *) fail "packs 5: no missing-import line: $out" ;; esac
       fixture --publish v2
       main_run success
       update_packs
       expect_verdict "opened #1 for packs hello 1.1"
-      if git --git-dir "$origin" diff --name-only main "$branch" | grep -qv '^\.claudinite/shared/packs/hello/'; then fail "packs 5: the branch changes more than the hello pack"; fi
+      if git --git-dir "$origin" diff --name-only main "$branch" | grep -v '^CLAUDE\.md$' | grep -qv '^\.claudinite/shared/packs/hello/'; then fail "packs 5: the branch changes more than the hello pack and CLAUDE.md"; fi
+      [ "$(git --git-dir "$origin" show "$branch:CLAUDE.md")" = "$(printf '# Member\n@.claudinite/flat/claudinite-rules.GENERATED.md')" ] || fail "packs 5: the branch's CLAUDE.md: $(git --git-dir "$origin" show "$branch:CLAUDE.md")"
       [ "$(gh_count 'st.dispatches.filter(d=>d.ref==="'"$branch"'"&&d.inputs.pr==="1").length')" = 1 ] || fail "packs 5: dispatches $(gh_state)"
       head=$(git --git-dir "$origin" rev-parse "$branch")
       (cd "$member" && git fetch -q origin && git checkout -q "$head") || fail "packs 5: checkout"
@@ -553,12 +565,15 @@ for mode in $modes; do
       pull
       grep -q '"version": "1.1"' "$member/.claudinite/shared/packs/hello/pack.json" || fail "packs 5: main does not hold hello 1.1"
       out=$(session_start) || fail "packs 5: SessionStart"
-      case $out in *"# hello 1.1"*) ;; *) fail "packs 5: SessionStart on 1.1: $out" ;; esac
+      case $out in *"[cn] packs 1/1 loaded (hello 1.1: rules 2 skills 1)"*) ;; *) fail "packs 5: SessionStart on 1.1: $out" ;; esac
+      case $out in *"rules not loaded"*) fail "packs 5: the import is still missing after the pack PR: $out" ;; esac
+      grep -q '^# hello 1.1$' "$member/.claudinite/shared/packs/hello/RULES.md" || fail "packs 5: hello's rules are not 1.1's"
       cn_member check build --wait > "$work/build.out" 2>&1 || fail "packs 5: check build: $(cat "$work/build.out")"
       # The key covers the engine, the SDK and the check sources; 1.1
-      # changes only a rule, so its checks binary is 1.0's.
+      # changes a rule and adds declared checks, which cn runs itself, so
+      # its checks binary is 1.0's.
       [ "$(find "$checks" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')" = 1 ] || fail "packs 5: a rule change rebuilt the checks binary"
-      step "packs 5: opened, checked and landed hello 1.1; the session loads it on the same checks binary"
+      step "packs 5: opened, checked and landed hello 1.1 with the CLAUDE.md import restored; the session loads it on the same checks binary"
 
       fixture --publish v3
       main_run success
@@ -627,14 +642,71 @@ for mode in $modes; do
       step "packs keys: the update key's pack index serial and key ids refuse an index below or outside them"
 
       fixture --serial 1 --mirror-only
-      if cn_member update packs > "$work/update.out" 2>&1; then fail "packs 11: a regressed serial was read: $(cat "$work/update.out")"; fi
-      grep -q 'serial 1 is older than serial' "$work/update.out" || fail "packs 11: the refusal names no serial: $(cat "$work/update.out")"
+      update_packs
+      case $verdict in "skipped: pack index sources disagree (cdn serial "*", branch serial 1)") ;; *) fail "packs 11: a branch behind the CDN: verdict '$verdict'" ;; esac
       fixture --flip-sig
       if cn_member update packs > "$work/update.out" 2>&1; then fail "packs 11: a flipped signature was read: $(cat "$work/update.out")"; fi
       grep -qi 'signature\|certificate' "$work/update.out" || fail "packs 11: the refusal names no signature check: $(cat "$work/update.out")"
       [ -z "$(cd "$member" && git status --porcelain)" ] || fail "packs 11: the checkout changed: $(cd "$member" && git status --porcelain)"
       [ -z "$(git --git-dir "$origin" branch --list 'claudinite/packs-*')" ] || fail "packs 11: a branch was pushed"
-      step "packs 11: a regressed serial and a flipped signature are refused; nothing changed"
+      step "packs 11: a branch behind the CDN is a skip naming both serials; a flipped signature is refused; nothing changed"
+
+      echo hello > "$member/HELLO_DECLARED"
+      if cn_member check --tag world > "$work/check.out" 2>&1; then fail "packs 12: check --tag world passed with HELLO_DECLARED"; fi
+      grep -q '^finding hello/hello-declared HELLO_DECLARED:1: ' "$work/check.out" || fail "packs 12: no declared finding: $(cat "$work/check.out")"
+      grep -q '^  why: ' "$work/check.out" || fail "packs 12: no why line: $(cat "$work/check.out")"
+      grep -q '^  fix: delete HELLO_DECLARED$' "$work/check.out" || fail "packs 12: no fix line: $(cat "$work/check.out")"
+      if cn_member check world > "$work/world.out" 2>&1; then fail "packs 12: check world passed with HELLO_DECLARED"; fi
+      grep -q 'hello/hello-declared' "$work/world.out" || fail "packs 12: check world names no declared finding: $(cat "$work/world.out")"
+      rm "$member/HELLO_DECLARED"
+      cn_member check --tag world > "$work/check.out" 2>&1 || fail "packs 12: check --tag world without the file: $(cat "$work/check.out")"
+      cn_member check world > "$work/world.out" 2>&1 || fail "packs 12: check world without the file: $(cat "$work/world.out")"
+      step "packs 12: hello-declared fails check --tag world and check world while HELLO_DECLARED holds a line"
+
+      touch "$member/HELLO_UNTRACKED"
+      out=$(stop_hook)
+      case $out in *'"decision":"block"'*hello/hello-declared-work*) ;; *) fail "packs 13: Stop did not block on HELLO_UNTRACKED: $out" ;; esac
+      (cd "$member" && git add HELLO_UNTRACKED) || fail "packs 13: git add"
+      out=$(stop_hook)
+      [ "$out" = "{}" ] || fail "packs 13: Stop blocked with HELLO_UNTRACKED tracked: $out"
+      (cd "$member" && git rm -q --cached HELLO_UNTRACKED && rm HELLO_UNTRACKED) || fail "packs 13: cleanup"
+      step "packs 13: hello-declared-work blocks Stop while HELLO_UNTRACKED is untracked"
+
+      settings=$member/.claudinite/settings.yaml
+      cp "$settings" "$work/settings.orig"
+      # with_checks BLOCK: the member's settings with BLOCK as their checks block.
+      with_checks() { { cat "$work/settings.orig"; printf 'checks:\n%s\n' "$1"; } > "$settings"; }
+      echo hello > "$member/HELLO_DECLARED"
+      with_checks '  rules:
+    hello-declared: "off"'
+      cn_member check --tag world > "$work/check.out" 2>&1 || fail "packs 14: an off rule still found: $(cat "$work/check.out")"
+      if grep -q '^\(finding\|advisory\) hello/hello-declared ' "$work/check.out"; then fail "packs 14: an off rule printed a finding: $(cat "$work/check.out")"; fi
+      with_checks '  accept:
+    - rule: hello-declared
+      path: HELLO_DECLARED'
+      if cn_member check --tag world > "$work/check.out" 2>&1; then fail "packs 14: an acceptance with no reason passed"; fi
+      [ "$(grep -c '^finding config .claudinite/settings.yaml: ' "$work/check.out")" = 1 ] || fail "packs 14: no one config finding: $(cat "$work/check.out")"
+      with_checks '  accept:
+    - rule: hello-declared
+      path: HELLO_DECLARED
+      reason: "the rehearsal holds it on purpose"'
+      cn_member check --tag world > "$work/check.out" 2>&1 || fail "packs 14: an accepted finding still failed: $(cat "$work/check.out")"
+      if grep -q '^\(finding\|advisory\) hello/hello-declared ' "$work/check.out"; then fail "packs 14: an accepted finding printed: $(cat "$work/check.out")"; fi
+      rm "$member/HELLO_DECLARED"
+      touch "$member/HELLO_FINDING"
+      with_checks '  rules:
+    hello-check: "off"'
+      out=$(stop_hook)
+      [ "$out" = "{}" ] || fail "packs 14: Stop blocked on a coded check set off: $out"
+      rm "$member/HELLO_FINDING"
+      cp "$work/settings.orig" "$settings"
+      cn_member check list > "$work/list.out" 2>&1 || fail "packs 14: check list: $(cat "$work/list.out")"
+      for want in '^hello/hello-declared declared (world, declared, hello) block$' \
+        '^hello/hello-declared-work declared (work, declared, hello) block$' '^hello/hello-check coded ('; do
+        grep -q "$want" "$work/list.out" || fail "packs 14: check list has no $want: $(cat "$work/list.out")"
+      done
+      [ -z "$(cd "$member" && git status --porcelain)" ] || fail "packs 14: the checkout changed: $(cd "$member" && git status --porcelain)"
+      step "packs 14: an off rule silences hello-declared and the coded hello-check; an acceptance needs a reason; check list names both kinds"
       ;;
     license)
       step "license: a public member on $version with a GitHub origin, ghstub and licstub"

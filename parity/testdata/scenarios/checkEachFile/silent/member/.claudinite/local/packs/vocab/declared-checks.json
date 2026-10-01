@@ -1,0 +1,24 @@
+[
+  {
+    "id": "v-checkEachFile",
+    "on_fail": "block",
+    "failureMessage": "the checkEachFile check",
+    "fix": "fix the checkEachFile finding",
+    "scanFiles": "/\\.md$/",
+    "checkEachFile": [
+      {
+        "require": "/^## Install/m",
+        "what": "no Install"
+      },
+      {
+        "forbid": "/lorem/i",
+        "what": "placeholder text"
+      },
+      {
+        "whenFileMatches": "/^# API/",
+        "require": "/^## Auth/m",
+        "what": "API without Auth"
+      }
+    ]
+  }
+]

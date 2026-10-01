@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -55,7 +56,7 @@ type Env struct {
 	// given and the environment's otherwise.
 	GitHub func(repo, token string, timeout time.Duration) GitHub
 	// Worker is the license server's client.
-	Worker func() (Worker, error)
+	Worker func(timeout time.Duration) (Worker, error)
 	// Origin is the checkout's origin URL, as configured.
 	Origin func(dir string) (string, error)
 	// Plan is the settings file's license.plan, "" when none.
@@ -180,6 +181,7 @@ func (e Env) renew(path string, f *File, dir string) {
 			return nil, false
 		}
 		cur.Nonce, cur.RequestedAt, cur.Dispatched, cur.Head = nonce, e.Now(), false, ""
+		cur.RenewAttempts++
 		started = true
 		return cur, true
 	})
@@ -296,21 +298,23 @@ func (e Env) pollOnce(path string, f *File, landedBy string, timeout time.Durati
 			return false
 		}
 		origin, _ := e.Origin(f.Dir)
-		return e.askWorker(path, f, *login, origin, landedBy)
+		return e.askWorker(path, f, *login, origin, landedBy, timeout)
 	}
 	gh := e.GitHub(f.Repo, "", timeout)
-	done, landed := e.readCheckRun(path, f, gh, landedBy)
+	done, landed, _ := e.readCheckRun(path, f, gh, landedBy)
 	return done && landed
 }
 
 // readCheckRun reads the check runs on f.Head once: a completed run whose
 // external id is the nonce either carries the key, which lands, or a
-// refusal, which degrades. done reports that the request is answered.
-func (e Env) readCheckRun(path string, f *File, gh GitHub, landedBy string) (done, landed bool) {
+// refusal, which degrades. A key for another user is another request
+// that reused the nonce, and is passed over, which stranger reports.
+// done reports that the request is answered.
+func (e Env) readCheckRun(path string, f *File, gh GitHub, landedBy string) (done, landed, stranger bool) {
 	runs, err := gh.CheckRuns(f.Head, CheckRunName)
 	if err != nil {
 		e.logf("check runs: %v", err)
-		return false, false
+		return false, false, false
 	}
 	for _, r := range runs {
 		if r.ExternalID != f.Nonce || r.Status != "completed" {
@@ -319,18 +323,32 @@ func (e Env) readCheckRun(path string, f *File, gh GitHub, landedBy string) (don
 		e.logf("check run %d (%s, app %s): %s", r.ID, r.Output.Title, r.App.Slug, r.Output.Summary)
 		switch r.Output.Title {
 		case CheckRunName:
-			return true, e.land(path, f, []byte(r.Output.Text), landedBy)
-		case CheckRunName + " refused":
-			reason, detail, _ := strings.Cut(r.Output.Summary, ":")
-			reason = strings.TrimSpace(reason)
-			if reason == "" {
-				reason = "refused"
+			if k, err := VerifyKey([]byte(r.Output.Text), e.Roots, e.Now()); err == nil && k.UserID != nil && *k.UserID != f.UserID {
+				e.logf("check run %d: a key for user %d, not %d; passed over", r.ID, *k.UserID, f.UserID)
+				stranger = true
+				continue
 			}
-			e.degrade(path, f, Cause(reason), strings.TrimSpace(detail))
-			return true, false
+			return true, e.land(path, f, []byte(r.Output.Text), landedBy), stranger
+		case CheckRunName + " refused":
+			reason, detail := refusal(r.Output.Summary)
+			e.degrade(path, f, reason, detail)
+			return true, false, stranger
 		}
 	}
-	return false, false
+	return false, false, stranger
+}
+
+var refusalPrefix = regexp.MustCompile(`^([a-z0-9-]+):\s*(.*)$`)
+
+// refusal is a refused check run's cause and detail, from its summary's
+// `<reason>: <text>`. A summary with no such prefix is the public
+// Worker's private-repo refusal as it was written before it had one.
+func refusal(summary string) (Cause, string) {
+	summary = strings.TrimSpace(summary)
+	if m := refusalPrefix.FindStringSubmatch(summary); m != nil {
+		return Cause(m[1]), strings.TrimSpace(m[2])
+	}
+	return CauseRefusedPrivate, summary
 }
 
 // land verifies and binds a key fetched for f's request and writes it;
@@ -353,6 +371,7 @@ func (e Env) land(path string, f *File, key []byte, landedBy string) bool {
 		now := e.Now()
 		cur.State, cur.Key, cur.KeyNonce, cur.LandedAt, cur.Path = StateLanded, string(key), f.Nonce, &now, landedBy
 		cur.Cause, cur.CauseDetail, cur.Link = "", "", ""
+		cur.RenewAttempts = 0
 		return true
 	})
 }
@@ -422,10 +441,11 @@ func (e Env) RunRequest(sessionID, nonce string, dir string) error {
 	if !e.startWeb(path, f, gh) {
 		return nil
 	}
-	cutWritten := false
+	cutWritten, strangers := false, false
 	end := f.RequestedAt.Add(Cut + Tail())
 	for e.Now().Before(end) {
-		done, landed := e.readCheckRun(path, f, gh, PathWeb)
+		done, landed, stranger := e.readCheckRun(path, f, gh, PathWeb)
+		strangers = strangers || stranger
 		if done {
 			if landed {
 				outcome = breadcrumb.OK
@@ -443,7 +463,11 @@ func (e Env) RunRequest(sessionID, nonce string, dir string) error {
 		if !cutWritten && !e.Now().Before(f.RequestedAt.Add(Cut)) {
 			cutWritten = true
 			e.logf("%s", breadcrumb.Line("license", "cut", breadcrumb.Timeout, e.Now().Sub(start)))
-			e.degrade(path, f, likeliest(f), "")
+			if strangers {
+				e.degrade(path, f, CauseBindUser, "only a key for another user")
+			} else {
+				e.degrade(path, f, likeliest(f), "")
+			}
 		}
 		e.Sleep(PollEvery)
 	}
@@ -524,7 +548,7 @@ func (e Env) requestDesktop(path string, f *File, dir string) bool {
 		ri, uerr = gh.RepoInfo()
 	}
 	if uerr != nil && githubapi.StatusOf(uerr) == http.StatusUnauthorized {
-		if l, ok := e.refresh(*login); ok {
+		if l, ok := e.refresh(*login, licenseapi.Timeout); ok {
 			login = &l
 			gh = e.GitHub(f.Repo, login.AccessToken, githubapi.SessionTimeout)
 			if u, uerr = gh.User(); uerr == nil {
@@ -545,15 +569,15 @@ func (e Env) requestDesktop(path string, f *File, dir string) bool {
 	f.UserID = u.ID
 	f.Identity = &RepoIdentity{ID: ri.ID, OwnerID: ri.Owner.ID, OwnerType: ri.Owner.Type, OwnerLogin: ri.Owner.Login, Private: ri.Private}
 	e.write(path, f, func(cur *File) bool { return true })
-	return e.askWorker(path, f, *login, origin, PathDesktop)
+	return e.askWorker(path, f, *login, origin, PathDesktop, licenseapi.Timeout)
 }
 
 // askWorker makes the desktop's one Worker call for f's request and lands
 // its key, refreshing a rejected token once and falling back to the cache
 // when the server cannot be reached.
-func (e Env) askWorker(path string, f *File, login Login, origin, landedBy string) bool {
+func (e Env) askWorker(path string, f *File, login Login, origin, landedBy string, timeout time.Duration) bool {
 	st := e.store()
-	w, err := e.Worker()
+	w, err := e.Worker(timeout)
 	if err != nil {
 		e.degrade(path, f, CauseServerUnreachable, err.Error())
 		return false
@@ -565,7 +589,7 @@ func (e Env) askWorker(path string, f *File, login Login, origin, landedBy strin
 	ans, err := ask(login.AccessToken, f.Repo, f.Nonce, e.Engine)
 	var ref *licenseapi.Refusal
 	if errors.As(err, &ref) && ref.Status == http.StatusUnauthorized {
-		l, ok := e.refresh(login)
+		l, ok := e.refresh(login, timeout)
 		if !ok {
 			e.degrade(path, f, CauseLoginExpired, err.Error())
 			return false
@@ -612,11 +636,11 @@ func (e Env) fromCache(path string, f *File, origin string, user int64) bool {
 
 // refresh exchanges the stored refresh token through the Worker and
 // stores GitHub's answer.
-func (e Env) refresh(l Login) (Login, bool) {
+func (e Env) refresh(l Login, timeout time.Duration) (Login, bool) {
 	if l.RefreshToken == "" {
 		return Login{}, false
 	}
-	w, err := e.Worker()
+	w, err := e.Worker(timeout)
 	if err != nil {
 		return Login{}, false
 	}

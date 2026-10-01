@@ -1,0 +1,16 @@
+[
+  {
+    "id": "node/btoa-atob-on-text",
+    "on_fail": "advise",
+    "failureMessage": "btoa and atob operate on Latin1 code units, so a string with a character beyond U+00FF (Hebrew, Cyrillic, CJK, most emoji) throws or is silently corrupted, unseen by a Latin-only fixture",
+    "scanFiles": "/\\.(m|c)?[jt]sx?$/",
+    "scanIgnoringComments": true,
+    "matchLines": [
+      {
+        "match": "/\\b(btoa|atob)\\(/",
+        "what": "\"{match}\" on text",
+        "fix": "encode as UTF-8 bytes first — Buffer.from(str, 'utf8').toString('base64') / Buffer.from(str, 'base64').toString('utf8'), or a TextEncoder/TextDecoder bridge where Buffer is absent"
+      }
+    ]
+  }
+]

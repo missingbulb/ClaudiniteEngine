@@ -1,0 +1,45 @@
+[
+  {
+    "id": "jwt-hardcoded-secret",
+    "on_fail": "block",
+    "failureMessage": "a secret in source ships with every clone and survives in git history forever, and an HMAC secret grants full token-MINTING power to anyone who reads it",
+    "scanFileClasses": ["javascriptFiles", "pythonFiles"],
+    "excludeFileClasses": ["testFiles"],
+    "fix": "load the secret from the environment or a secret store at >= 32 random bytes (RFC 7518), and rotate the committed one",
+    "matchLines": [
+      {
+        "match": "/\\.(sign|verify)\\s*\\(\\s*[^,()]+,\\s*(['\"`])(?!\\s*\\2)[^'\"`]+\\2/",
+        "whenFileMatches": "/['\"]jsonwebtoken['\"]/",
+        "unlessLineMatches": "/\\$\\{/",
+        "what": "passes a literal string as the JWT signing secret/key"
+      },
+      {
+        "match": "/\\bjwt\\.(encode|decode)\\s*\\(\\s*[^,()]+,\\s*(['\"])[^'\"]+\\2/",
+        "whenFileMatches": "/^\\s*(import\\s+jwt\\b|from\\s+jwt(\\.[\\w.]*)?\\s+import\\b)/m",
+        "what": "passes a literal string as the JWT signing secret/key"
+      }
+    ]
+  },
+  {
+    "id": "jwt-sign-sets-expiry",
+    "on_fail": "advise",
+    "failureMessage": "a token with no exp never stops being valid, and stateless validation has no revocation — a leak becomes a permanent credential",
+    "scanFileClasses": ["javascriptFiles", "pythonFiles"],
+    "excludeFileClasses": ["testFiles"],
+    "fix": "set expiresIn (or an exp claim) when signing, as short as the flow allows — pair long-lived access with a refresh token, not a long expiry",
+    "matchLines": [
+      {
+        "match": "/\\.sign\\s*\\(/",
+        "whenFileMatches": "/['\"]jsonwebtoken['\"]/",
+        "unlessFileMatches": "/\\bexpiresIn\\b|\\bexp\\b/",
+        "what": "signs a JWT with no expiry in sight (no expiresIn option or exp claim in this file)"
+      },
+      {
+        "match": "/\\bjwt\\.encode\\s*\\(/",
+        "whenFileMatches": "/^\\s*(import\\s+jwt\\b|from\\s+jwt(\\.[\\w.]*)?\\s+import\\b)/m",
+        "unlessFileMatches": "/\\bexpiresIn\\b|\\bexp\\b/",
+        "what": "signs a JWT with no expiry in sight (no expiresIn option or exp claim in this file)"
+      }
+    ]
+  }
+]

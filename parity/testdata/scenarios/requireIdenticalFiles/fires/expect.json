@@ -1,0 +1,9 @@
+{
+  "rules": "",
+  "mounts": [],
+  "world": [
+    "v-requireIdenticalFiles a/x.yml block",
+    "v-requireIdenticalFiles a/y.yml block"
+  ],
+  "work": []
+}

@@ -1,0 +1,8 @@
+[[check]]
+id = "acme-check"
+on_fail = "block"
+what = "ACME_MARKER is present"
+why = "the fixture's marker file must not be committed"
+fix = "delete ACME_MARKER"
+scanFiles = "ACME_MARKER"
+matchLines = "/./"

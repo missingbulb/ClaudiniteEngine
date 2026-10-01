@@ -1,0 +1,8 @@
+{
+  "rules": "",
+  "mounts": [],
+  "world": [],
+  "work": [
+    "v-forbidIntroducedMergeCommits change@15a76bc block"
+  ]
+}

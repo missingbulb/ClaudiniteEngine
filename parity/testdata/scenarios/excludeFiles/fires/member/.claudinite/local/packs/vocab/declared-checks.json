@@ -1,0 +1,16 @@
+[
+  {
+    "id": "v-excludeFiles",
+    "on_fail": "block",
+    "failureMessage": "the excludeFiles check",
+    "fix": "fix the excludeFiles finding",
+    "scanFiles": "/\\.txt$/",
+    "excludeFiles": "/^vendor\\//",
+    "matchLines": [
+      {
+        "match": "/MARK/",
+        "what": "mark"
+      }
+    ]
+  }
+]

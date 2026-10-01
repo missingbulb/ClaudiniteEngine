@@ -1,0 +1,8 @@
+{
+  "rules": "",
+  "mounts": [],
+  "world": [
+    "v-maxLineLength a.md:2 block"
+  ],
+  "work": []
+}

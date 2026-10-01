@@ -1,0 +1,19 @@
+engine:
+  package: "@claudinite/cli-rc"
+  version: "60930.1.0"
+  manifest: "sha512-v1shapev1shapev1shapev1shapev1shapev1shapev1shapev1shapev1shapev1shapev1shapev1shapev1=="
+packs:
+  channel: "stable"
+  declared:
+    - id: acme-pack
+      rules:
+        acme-check: "off"
+license:
+  plan: "public"
+checks:
+  rules:
+    acme-check: "off"
+  accept:
+    - rule: acme-check
+      path: docs/
+      reason: "documentation quotes the marker"

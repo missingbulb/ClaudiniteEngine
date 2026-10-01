@@ -21,6 +21,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/missingbulb/ClaudiniteEngine/lifecycle/rulesindex"
+	"github.com/missingbulb/ClaudiniteEngine/shared/descriptor"
 	"github.com/missingbulb/ClaudiniteEngine/shared/findings"
 	"github.com/missingbulb/ClaudiniteEngine/shared/packset"
 	"github.com/missingbulb/ClaudiniteEngine/shared/settings"
@@ -33,6 +35,24 @@ type Input struct {
 	Repo     string
 	Launcher []byte
 	Shipped  []string
+	// Declared reads the active packs' declared checks; nil skips the rules
+	// that need them. The caller injects it, so verify imports no checks
+	// capability.
+	Declared func(repo string) DeclaredChecks
+}
+
+// DeclaredChecks is what the declared-checks loader found in a repo's
+// active packs: every check id, and each descriptor that did not load.
+type DeclaredChecks struct {
+	IDs    []string
+	Faults []DescriptorFault
+}
+
+// DescriptorFault is a descriptor that did not load: Duplicate when its
+// folder holds two spellings, else a parse or schema fault.
+type DescriptorFault struct {
+	Path, Sentence string
+	Duplicate      bool
 }
 
 type rule struct {
@@ -52,6 +72,11 @@ var rules = []rule{
 	{"pack-declared", checkPackDeclared},
 	{"pack-min-engine", checkPackMinEngine},
 	{"license-plan", checkLicensePlan},
+	{"descriptor-format", checkDescriptorFormat},
+	{"descriptor-duplicate", checkDescriptorDuplicate},
+	{"settings-checks", checkSettingsChecks},
+	{"rules-index-current", checkRulesIndex},
+	{"claude-md-import", checkClaudeMDImport},
 }
 
 // RuleIDs lists the registered rules, sorted.
@@ -102,8 +127,8 @@ func anySettings(in Input) bool {
 }
 
 func checkSettingsFile(in Input) []findings.Finding {
-	if _, _, err := settings.Find(in.Repo); err != nil {
-		return []findings.Finding{brk("settings-file", ".claudinite", err.Error()+"; keep the one that pins the engine and delete the rest")}
+	if _, _, err := settings.Find(in.Repo); err != nil && !anySettings(in) {
+		return []findings.Finding{brk("settings-file", ".claudinite", err.Error())}
 	}
 	return nil
 }
@@ -256,11 +281,16 @@ func checkPackDeclared(in Input) []findings.Finding {
 	isDeclared := map[string]bool{}
 	for _, id := range declared {
 		isDeclared[id] = true
-		rel := packset.TreeRel(id) + "/pack.json"
 		if _, err := packset.ReadManifest(packset.Tree(in.Repo, id)); errors.Is(err, packset.ErrNoManifest) {
-			out = append(out, brk("pack-declared", rel, "the settings declare "+id+" but the repo does not hold it; vendor it with `cn adopt "+id+"`, or remove it from packs.declared"))
-		} else if err != nil {
-			out = append(out, brk("pack-declared", rel, err.Error()))
+			out = append(out, brk("pack-declared", packset.TreeRel(id), "the settings declare "+id+" but the repo does not hold it; vendor it with `cn adopt "+id+"`, or remove it from packs.declared"))
+		}
+	}
+	if p, err := packset.Declared(in.Repo); err == nil {
+		for _, name := range p.Local {
+			rel := packset.LocalDir + "/" + name
+			if st, err := os.Stat(filepath.Join(in.Repo, filepath.FromSlash(rel))); err != nil || !st.IsDir() {
+				out = append(out, brk("pack-declared", rel, "the settings declare local/"+name+" but the repo holds no "+rel+"/; create it, or remove local/"+name+" from packs.declared"))
+			}
 		}
 	}
 	vendored, _ := packset.Vendored(in.Repo)
@@ -291,7 +321,7 @@ func checkPackMinEngine(in Input) []findings.Finding {
 		if err != nil {
 			continue
 		}
-		rel := packset.TreeRel(id) + "/pack.json"
+		rel := packset.TreeRel(id) + "/" + m.File
 		legacy := PackManifest(rel, m.MinEngineVersion)
 		out = append(out, legacy...)
 		if len(legacy) != 0 || pin == "" {
@@ -314,4 +344,201 @@ func PackManifest(path, minEngineVersion string) []findings.Finding {
 		return []findings.Finding{dep("min-engine-version-legacy", path, "minEngineVersion "+minEngineVersion+" is the old two-part form, which any engine satisfies; publish a version declaring <day>.<n>.<patch>")}
 	}
 	return nil
+}
+
+// declaredTrees are the directories of the declared packs, canon and local.
+func declaredTrees(in Input) []string {
+	if _, _, err := settings.Find(in.Repo); err != nil {
+		return nil
+	}
+	p, err := packset.Declared(in.Repo)
+	if err != nil {
+		return nil
+	}
+	var out []string
+	for _, id := range p.Declared {
+		out = append(out, packset.TreeRel(id))
+	}
+	for _, name := range p.Local {
+		out = append(out, packset.LocalDir+"/"+name)
+	}
+	return out
+}
+
+// checkDescriptorFormat breaks on a declared pack's manifest or declared
+// checks that do not parse or validate: the engine does not load that pack.
+func checkDescriptorFormat(in Input) []findings.Finding {
+	var out []findings.Finding
+	for _, rel := range declaredTrees(in) {
+		_, err := packset.ReadManifest(filepath.Join(in.Repo, filepath.FromSlash(rel)))
+		if err == nil || errors.Is(err, packset.ErrNoManifest) || errors.Is(err, descriptor.ErrDuplicate) {
+			continue
+		}
+		if strings.HasSuffix(err.Error(), "has no version") && strings.HasPrefix(rel, packset.LocalDir+"/") {
+			continue
+		}
+		out = append(out, brk("descriptor-format", rel, err.Error()+"; the engine does not load this pack until it parses"))
+	}
+	if in.Declared != nil {
+		for _, f := range in.Declared(in.Repo).Faults {
+			if !f.Duplicate {
+				out = append(out, brk("descriptor-format", f.Path, f.Sentence))
+			}
+		}
+	}
+	return out
+}
+
+// checkDescriptorDuplicate breaks on two spellings of one descriptor in one
+// folder: the settings, a declared pack's manifest or its declared checks.
+func checkDescriptorDuplicate(in Input) []findings.Finding {
+	var out []findings.Finding
+	var found []string
+	for _, f := range settings.Formats {
+		if _, ok := read(in, settings.RelPath(f)); ok {
+			found = append(found, settings.RelPath(f))
+		}
+	}
+	if len(found) > 1 {
+		out = append(out, brk("descriptor-duplicate", ".claudinite", "holds "+strings.Join(found, " and ")+"; keep the one that pins the engine and delete the rest"))
+	}
+	for _, rel := range declaredTrees(in) {
+		if _, _, err := descriptor.Find(filepath.Join(in.Repo, filepath.FromSlash(rel)), packset.ManifestName); errors.Is(err, descriptor.ErrDuplicate) {
+			out = append(out, brk("descriptor-duplicate", rel, err.Error()))
+		}
+	}
+	if in.Declared != nil {
+		for _, f := range in.Declared(in.Repo).Faults {
+			if f.Duplicate {
+				out = append(out, brk("descriptor-duplicate", f.Path, f.Sentence))
+			}
+		}
+	}
+	return out
+}
+
+// checkSettingsChecks judges the settings' rule overrides and acceptances:
+// a value outside block, advise and off, an acceptance with no reason or
+// two sources setting one rule differently is a break; a rule naming no
+// check of the declared packs is a deprecation.
+func checkSettingsChecks(in Input) []findings.Finding {
+	p, f, err := settings.Find(in.Repo)
+	if err != nil {
+		return nil
+	}
+	raw, err := os.ReadFile(p)
+	if err != nil {
+		return nil
+	}
+	parsed, err := settings.ParseFile(raw, f)
+	if err != nil {
+		return nil
+	}
+	rel := settings.RelPath(f)
+	var out []findings.Finding
+	rules, accept, conflicts := parsed.Effective()
+	ids := make([]string, 0, len(rules))
+	for id := range rules {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	for _, id := range ids {
+		v := rules[id]
+		ok := false
+		for _, want := range settings.OnFailValues {
+			ok = ok || v == want
+		}
+		if !ok {
+			out = append(out, brk("settings-checks", rel, fmt.Sprintf("rules.%s is %q; an override is \"block\", \"advise\" or \"off\"", id, v)))
+		}
+	}
+	for _, c := range conflicts {
+		out = append(out, brk("settings-checks", rel, c+"; set it in one place"))
+	}
+	for _, a := range accept {
+		if strings.TrimSpace(a.Reason) == "" {
+			out = append(out, brk("settings-checks", rel, fmt.Sprintf("the acceptance of %s%s has no reason; an acceptance is reviewable only by its reason", a.Rule, onPath(a.Path))))
+		}
+	}
+	if in.Declared != nil {
+		known := map[string]bool{}
+		for _, id := range in.Declared(in.Repo).IDs {
+			known[id] = true
+		}
+		named := map[string]bool{}
+		for _, id := range ids {
+			named[id] = true
+		}
+		for _, a := range accept {
+			named[a.Rule] = true
+		}
+		var unknown []string
+		for id := range named {
+			if !known[id] {
+				unknown = append(unknown, id)
+			}
+		}
+		sort.Strings(unknown)
+		for _, id := range unknown {
+			out = append(out, dep("settings-checks", rel, fmt.Sprintf("names rule %q, which no declared pack's check carries; drop the entry, or declare the pack that carries it", id)))
+		}
+	}
+	return out
+}
+
+func onPath(p string) string {
+	if p == "" {
+		return ""
+	}
+	return " on " + p
+}
+
+func pinOf(in Input) string {
+	p, f, err := settings.Find(in.Repo)
+	if err != nil {
+		return "0.0.0"
+	}
+	raw, err := os.ReadFile(p)
+	if err != nil {
+		return "0.0.0"
+	}
+	e, err := settings.ReadEngine(raw, f)
+	if err != nil {
+		return "0.0.0"
+	}
+	return e.Version
+}
+
+// checkRulesIndex breaks when the rules index differs from what the
+// declaration produces; an absent index is a deprecation until the rules
+// channel's live measurement makes it a break.
+func checkRulesIndex(in Input) []findings.Finding {
+	if _, _, err := settings.Find(in.Repo); err != nil {
+		return nil
+	}
+	st, _, err := rulesindex.Check(in.Repo, pinOf(in))
+	switch {
+	case err != nil:
+		return nil
+	case st == rulesindex.Stale:
+		return []findings.Finding{brk("rules-index-current", rulesindex.File, "is not the import index the declared packs produce, so sessions read another set of rules; run `cn rules-index` and commit it")}
+	case st == rulesindex.Absent:
+		return []findings.Finding{dep("rules-index-current", rulesindex.File, "is missing, so no session reads the declared packs' rules; run `cn rules-index` and commit it")}
+	}
+	return nil
+}
+
+// checkClaudeMDImport deprecates a CLAUDE.md without the index's import
+// line while the declared packs have prose to import.
+func checkClaudeMDImport(in Input) []findings.Finding {
+	if _, _, err := settings.Find(in.Repo); err != nil {
+		return nil
+	}
+	if st, _, err := rulesindex.Check(in.Repo, pinOf(in)); err != nil || st == rulesindex.Empty {
+		return nil
+	}
+	if rulesindex.HasImport(in.Repo) {
+		return nil
+	}
+	return []findings.Finding{dep("claude-md-import", rulesindex.ClaudeMD, "does not import "+rulesindex.File+" on a line of its own, so sessions never read the declared packs' rules; add the line `"+rulesindex.Import+"`")}
 }

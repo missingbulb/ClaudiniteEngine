@@ -1,0 +1,8 @@
+{
+  "rules": "",
+  "mounts": [],
+  "world": [
+    "v-forbidReferences-links public/a.md:1 block"
+  ],
+  "work": []
+}

@@ -1,0 +1,16 @@
+[
+  {
+    "id": "v-scanTracked",
+    "on_fail": "block",
+    "failureMessage": "the scanTracked check",
+    "fix": "fix the scanTracked finding",
+    "scanTracked": true,
+    "scanFiles": "/\\.txt$/",
+    "matchLines": [
+      {
+        "match": "/MARK/",
+        "what": "mark"
+      }
+    ]
+  }
+]

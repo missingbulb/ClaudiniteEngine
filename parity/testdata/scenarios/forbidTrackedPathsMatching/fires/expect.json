@@ -1,0 +1,8 @@
+{
+  "rules": "",
+  "mounts": [],
+  "world": [
+    "v-forbidTrackedPathsMatching config/.env block"
+  ],
+  "work": []
+}

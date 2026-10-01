@@ -1,0 +1,6 @@
+Resources:
+  Fn:
+    Type: AWS::Serverless::Function
+    Properties:
+      Timeout: 3
+      Role: !GetAtt Role.Arn

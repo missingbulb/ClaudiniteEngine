@@ -118,12 +118,13 @@ func TestVerifiedIndexFromTheFirstSourceThatAnswers(t *testing.T) {
 	}
 }
 
-func TestVerifiedIndexReadsBothSourcesAndRefusesARegression(t *testing.T) {
+func TestVerifiedIndexReadsBothSourcesAndNamesADisagreement(t *testing.T) {
 	newer, older := indexJSON(4, "1.0", "1.1"), indexJSON(1, "1.0", "1.1")
 	cdn := &fakeSource{name: "cdn", pairs: []pair{{newer, signed(t, newer)}}}
 	branch := &fakeSource{name: "branch", pairs: []pair{{older, signed(t, older)}}}
 	_, err := newReader(&bytes.Buffer{}, cdn, branch).VerifiedIndex("hello")
-	if err == nil || !strings.Contains(err.Error(), "serial 1") || !strings.Contains(err.Error(), "serial 4") {
+	var dis *SourcesDisagree
+	if !errors.As(err, &dis) || dis.Error() != "pack index sources disagree (cdn serial 4, branch serial 1)" {
 		t.Errorf("%v", err)
 	}
 	// A branch ahead of the CDN (the upload trails the branch) is the
@@ -249,6 +250,32 @@ func TestCDNSource(t *testing.T) {
 	}
 	if _, _, err := (CDN{Base: "http://example.com", HTTP: http.DefaultClient, MaxBytes: 10}).Index("hello"); err == nil || !strings.Contains(err.Error(), "HTTPS") {
 		t.Errorf("plain http: %v", err)
+	}
+}
+
+func TestCDNRefusesARedirectOffHTTPS(t *testing.T) {
+	plain := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write([]byte("plain")) }))
+	defer plain.Close()
+	var srv *httptest.Server
+	srv = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/packs/off/index.json":
+			http.Redirect(w, r, plain.URL+"/x", http.StatusFound)
+		case "/packs/on/index.json":
+			http.Redirect(w, r, srv.URL+"/packs/hello/index.json", http.StatusFound)
+		case "/packs/hello/index.json", "/packs/on/index.sig.json":
+			_, _ = w.Write([]byte("ok"))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+	c := CDN{Base: srv.URL, HTTP: srv.Client(), MaxBytes: 1 << 20}
+	if _, _, err := c.Index("off"); err == nil || !strings.Contains(err.Error(), "HTTPS") {
+		t.Errorf("a redirect to plain http: %v", err)
+	}
+	if ix, _, err := c.Index("on"); err != nil || string(ix) != "ok" {
+		t.Errorf("a redirect that stays on https: %q %v", ix, err)
 	}
 }
 
