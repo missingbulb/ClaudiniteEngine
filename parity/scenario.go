@@ -387,7 +387,7 @@ func copyTree(src, dst string) error {
 	})
 }
 
-var gitIdentity = []string{"-c", "user.name=parity", "-c", "user.email=parity@example.invalid", "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null"}
+var gitIdentity = []string{"-c", "user.name=parity", "-c", "user.email=parity@example.invalid", "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null", "-c", "gc.auto=0", "-c", "maintenance.auto=false"}
 
 func gitDo(dir string, args ...string) error {
 	cmd := exec.Command("git", append(append([]string{}, gitIdentity...), args...)...)

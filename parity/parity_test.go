@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 // The harness runs only when CLAUDINITE_NODE_ENGINE names the frozen
@@ -110,7 +111,7 @@ func strs(fs []Finding) []string {
 
 func ask(t *testing.T, s Scenario, e Engine, canon string) Answer {
 	t.Helper()
-	dir, err := s.Materialize(t.TempDir(), canon, e)
+	dir, err := s.Materialize(memberDir(t), canon, e)
 	if err != nil {
 		t.Fatalf("%s: materialize: %v", e.Name(), err)
 	}
@@ -278,4 +279,26 @@ func TestYAML(t *testing.T) {
 	if err != nil || got != want {
 		t.Errorf("got\n%s\nwant\n%s", got, want)
 	}
+}
+
+// memberDir is a scratch directory for one engine's copy of a scenario.
+// Its removal is retried: a child an engine leaves behind (git's own
+// background maintenance among them) can still be writing under .git
+// when the test ends, which t.TempDir's cleanup reports as a failure.
+func memberDir(t *testing.T) string {
+	t.Helper()
+	dir, err := os.MkdirTemp("", "parity-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		for i := 0; i < 50; i++ {
+			if os.RemoveAll(dir) == nil {
+				return
+			}
+			time.Sleep(100 * time.Millisecond)
+		}
+		t.Logf("left %s behind", dir)
+	})
+	return dir
 }
