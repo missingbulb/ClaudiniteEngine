@@ -16,6 +16,15 @@
 # runs .claudinite/bin/cn directly. Wired to Stop, its exit 2 on a refusal
 # blocks the stop, and the next stop attempt hits it again, in a loop.
 #
+# Bootstrap: the @claudinite/cli packages carry this file as their bin, so
+# `npx --yes @claudinite/cli-rc init --packs ...` runs it from the package
+# npx unpacked, through a symlink. Run with init and no settings file beside
+# it, it takes the version and the binary's hash from the package's own
+# manifest.json, fetches and checks the binary as above, caches it with the
+# manifest and manifest.sig.json, and execs cn init, which verifies that
+# signature before it writes anything. Windows is not covered: npm's shim
+# for a sh script there is the desktop work.
+#
 # CLAUDINITE_REGISTRY overrides the registry and CLAUDINITE_MAX_DOWNLOAD_BYTES
 # the download size cap; both exist for tests and the rehearsal.
 set -u
@@ -93,10 +102,33 @@ for ext in yaml toml json; do
     count=$((count + 1))
   fi
 done
-[ "$count" -eq 1 ] || refuse "exactly one of .claudinite/settings.yaml, .claudinite/settings.toml or .claudinite/settings.json must exist, found $count"
-settings=$here/settings.$format
 
-if [ "$format" = json ]; then
+# The bootstrap reads the package npx unpacked: resolve the bin symlink.
+bootstrap=
+if [ "$count" -eq 0 ] && [ "${1:-}" = init ]; then
+  self=$0
+  while [ -L "$self" ]; do
+    link=$(readlink "$self") || break
+    case $link in
+      /*) self=$link ;;
+      *) self=$(dirname "$self")/$link ;;
+    esac
+  done
+  pkgdir=$(cd "$(dirname "$self")" && pwd) || refuse "cannot locate the package folder"
+  if [ -f "$pkgdir/manifest.json" ] && [ -f "$pkgdir/package.json" ]; then
+    bootstrap=1
+  fi
+fi
+
+if [ -n "$bootstrap" ]; then
+  settings=$pkgdir/manifest.json
+  [ -f "$pkgdir/manifest.sig.json" ] || refuse "$pkgdir holds no manifest.sig.json, and cn init never runs from an unsigned manifest"
+else
+  [ "$count" -eq 1 ] || refuse "exactly one of .claudinite/settings.yaml, .claudinite/settings.toml or .claudinite/settings.json must exist, found $count"
+  settings=$here/settings.$format
+fi
+
+if [ "$format" = json ] && [ -z "$bootstrap" ]; then
   engines=$(tr -d '\r\n' < "$settings" | grep -o '"engine"[[:blank:]]*:' | wc -l | tr -d ' ')
   [ "$engines" -eq 1 ] || refuse "$settings must hold exactly one \"engine\" object, found $engines"
 fi
@@ -123,17 +155,27 @@ engine_value() {
   printf '%s\n' "$value"
 }
 
-version=$(engine_value version)
-manifest_pin=$(engine_value manifest)
-package=$(engine_value package)
-[ -n "$package" ] || package=@claudinite/cli
+if [ -n "$bootstrap" ]; then
+  # The version and package as the package npx unpacked names them; the
+  # manifest's own hash stands in for the pin.
+  version=$(sed -n 's/^ *"version": *"\([0-9]*\.[0-9]*\.[0-9]*\)",\{0,1\}$/\1/p' "$pkgdir/manifest.json" | head -n 1)
+  package=$(sed -n 's/^ *"name": *"\(@claudinite\/cli[-a-z]*\)",\{0,1\}$/\1/p' "$pkgdir/package.json" | head -n 1)
+  matches "$version" '[0-9]+\.[0-9]+\.[0-9]+' || refuse "$pkgdir/manifest.json names no version"
+  matches "$package" '@claudinite/cli(-rc)?' \
+    || refuse "$pkgdir/package.json must name \"@claudinite/cli\" or \"@claudinite/cli-rc\""
+else
+  version=$(engine_value version)
+  manifest_pin=$(engine_value manifest)
+  package=$(engine_value package)
+  [ -n "$package" ] || package=@claudinite/cli
 
-matches "$version" '[0-9]+\.[0-9]+\.[0-9]+' \
-  || refuse "engine.version in $settings must be a quoted version like \"60928.1.0\""
-matches "$manifest_pin" 'sha512-[A-Za-z0-9+/]{86}==' \
-  || refuse "engine.manifest in $settings must be a quoted sha512-... integrity string"
-matches "$package" '@claudinite/cli(-rc)?' \
-  || refuse "engine.package in $settings must be \"@claudinite/cli\" or \"@claudinite/cli-rc\""
+  matches "$version" '[0-9]+\.[0-9]+\.[0-9]+' \
+    || refuse "engine.version in $settings must be a quoted version like \"60928.1.0\""
+  matches "$manifest_pin" 'sha512-[A-Za-z0-9+/]{86}==' \
+    || refuse "engine.manifest in $settings must be a quoted sha512-... integrity string"
+  matches "$package" '@claudinite/cli(-rc)?' \
+    || refuse "engine.package in $settings must be \"@claudinite/cli\" or \"@claudinite/cli-rc\""
+fi
 
 case $(uname -s) in
   Linux) os=linux ;;
@@ -192,6 +234,8 @@ pin_hex=$(printf '%s\n' "${manifest_pin#sha512-}" | awk '
     }
     print out
   }')
+
+[ -n "$bootstrap" ] && pin_hex=$(sha512 "$pkgdir/manifest.json")
 
 # This platform's SHA-256 from a manifest.json whose hash matched the pin.
 manifest_entry() {
@@ -289,6 +333,13 @@ fi
 
 if [ "${1:-}" = env ] && [ "${2:-}" = install ] && [ "$#" -eq 2 ]; then
   exit 0
+fi
+
+if [ -n "$bootstrap" ]; then
+  chmod u+w "$vdir/manifest.sig.json" 2>/dev/null
+  { cp "$pkgdir/manifest.sig.json" "$vdir/.manifest.sig.json.$$" && chmod 0444 "$vdir/.manifest.sig.json.$$" \
+    && mv -f "$vdir/.manifest.sig.json.$$" "$vdir/manifest.sig.json"; } || refuse "cannot place manifest.sig.json in $vdir"
+  exec "$vdir/$bin" "$@"
 fi
 
 # Step 5: link, unpack, run.

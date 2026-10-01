@@ -1,6 +1,7 @@
 #!/bin/sh
 # Builds a release into $DIST (default dist/): the five binaries, an
-# UNSIGNED manifest.json, the npm package folders of $PACKAGE and their
+# UNSIGNED manifest.json, the npm package folders of $PACKAGE (whose channel
+# package carries the launcher as its bin, for npx bootstrap) and their
 # tarballs, and SHA256SUMS over all of it, then prints the manifest's
 # integrity string, the value a member pins. release/sign.sh signs it.
 #
@@ -59,7 +60,10 @@ pkgjson() {
 cli=$DIST/npm/$name/package
 mkdir -p "$cli"
 cp "$DIST/manifest.json" "$cli/"
-pkgjson "$PACKAGE" "release manifest" "" > "$cli/package.json"
+cp launcher/launch "$cli/launch"
+chmod 0755 "$cli/launch"
+pkgjson "$PACKAGE" "release manifest and launcher" ",
+  \"bin\": {\"cn\": \"launch\"}" > "$cli/package.json"
 
 for p in $platforms; do
   bin=cn
