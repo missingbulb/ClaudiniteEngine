@@ -51,7 +51,7 @@ func repoRoot(t *testing.T) string {
 
 func writeSign(t *testing.T, dist string) {
 	t.Helper()
-	if _, e, c := tool(t, "write", "--dist", dist, "--version", "1.1.0", "--commit", "abc1234"); c != 0 {
+	if _, e, c := tool(t, "write", "--dist", dist, "--version", "1.1.0", "--commit", "abc1234", "--source", repoRoot(t)); c != 0 {
 		t.Fatalf("write: %s", e)
 	}
 	root := repoRoot(t)
@@ -71,13 +71,20 @@ func TestWriteListsExactlyTheFivePlatforms(t *testing.T) {
 	if err := json.Unmarshal(raw, &m); err != nil {
 		t.Fatal(err)
 	}
-	for _, k := range []string{"v", "version", "builtAt", "commit", "goVersion", "binaries", "testedPacks"} {
+	for _, k := range []string{"v", "version", "builtAt", "commit", "goVersion", "updaterDigest", "binaries", "testedPacks"} {
 		if _, ok := m[k]; !ok {
 			t.Errorf("manifest lacks %q", k)
 		}
 	}
-	if len(m) != 7 {
-		t.Errorf("manifest has %d keys, want 7", len(m))
+	if len(m) != 8 {
+		t.Errorf("manifest has %d keys, want 8", len(m))
+	}
+	want, err := releasefiles.UpdaterDigest(repoRoot(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := string(m["updaterDigest"]); got != `"`+want+`"` {
+		t.Errorf("updaterDigest %s, want %s", got, want)
 	}
 	parsed, err := releasefiles.ParseManifest(raw)
 	if err != nil {
@@ -105,12 +112,18 @@ func TestWriteListsExactlyTheFivePlatforms(t *testing.T) {
 	}
 }
 
+func TestWriteNeedsTheSource(t *testing.T) {
+	if _, e, c := tool(t, "write", "--dist", fakeDist(t), "--version", "1.1.0", "--commit", "x"); c == 0 || !strings.Contains(e, "--source") {
+		t.Fatalf("write without --source: exit %d %s", c, e)
+	}
+}
+
 func TestWriteRefusesAMissingPlatform(t *testing.T) {
 	dist := fakeDist(t)
 	if err := os.RemoveAll(filepath.Join(dist, "bin", "darwin-arm64")); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, c := tool(t, "write", "--dist", dist, "--version", "1.1.0", "--commit", "x"); c == 0 {
+	if _, _, c := tool(t, "write", "--dist", dist, "--version", "1.1.0", "--commit", "x", "--source", repoRoot(t)); c == 0 {
 		t.Fatal("wrote a manifest missing darwin-arm64")
 	}
 }
@@ -169,7 +182,7 @@ func TestIntegrity(t *testing.T) {
 
 func TestSignRefusesACertificateExpiringWithin14Days(t *testing.T) {
 	dist := fakeDist(t)
-	if _, e, c := tool(t, "write", "--dist", dist, "--version", "1.1.0", "--commit", "abc1234"); c != 0 {
+	if _, e, c := tool(t, "write", "--dist", dist, "--version", "1.1.0", "--commit", "abc1234", "--source", repoRoot(t)); c != 0 {
 		t.Fatal(e)
 	}
 	root := repoRoot(t)

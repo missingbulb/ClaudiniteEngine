@@ -116,7 +116,7 @@ func makeRelease(t *testing.T, o releaseOpts) release {
 			t.Fatal(err)
 		}
 	}
-	manifest := releasefiles.Format(releasefiles.Manifest{V: 1, Version: testVersion, BuiltAt: "2026-10-01T00:00:00Z", Commit: "test", GoVersion: runtime.Version(), Binaries: bins})
+	manifest := releasefiles.Format(releasefiles.Manifest{V: 1, Version: testVersion, BuiltAt: "2026-10-01T00:00:00Z", Commit: "test", GoVersion: runtime.Version(), UpdaterDigest: strings.Repeat("d", 64), Binaries: bins})
 	err = releasefiles.WriteTarball(filepath.Join(tarballs, fmt.Sprintf("%s-%s.tgz", name, testVersion)), []releasefiles.TarFile{
 		{Name: "package.json", Mode: 0o644, Data: []byte("{}\n")},
 		{Name: "manifest.json", Mode: 0o644, Data: manifest},

@@ -48,7 +48,7 @@ for p in $platforms; do
   sh release/gobuild.sh "$p" "$DIST/bin/$p/$bin"
 done
 
-"$tools/manifest" write --dist "$DIST" --version "$VERSION" --commit "$COMMIT"
+"$tools/manifest" write --dist "$DIST" --version "$VERSION" --commit "$COMMIT" --source "$root"
 
 pkgjson() {
   # name, description, extra fields

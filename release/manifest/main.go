@@ -26,7 +26,7 @@ import (
 )
 
 const usage = `usage:
-  manifest write --dist DIR --version V --commit SHA
+  manifest write --dist DIR --version V --commit SHA --source REPO
   manifest sign --dist DIR --key RELEASE.key --cert RELEASE.cert.json
   manifest verify --dist DIR --roots DIR
   manifest sums --dist DIR
@@ -48,6 +48,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	key := fs.String("key", "", "")
 	cert := fs.String("cert", "", "")
 	roots := fs.String("roots", "", "")
+	source := fs.String("source", "", "")
 	if err := fs.Parse(args[1:]); err != nil {
 		fmt.Fprintf(stderr, "manifest: %v\n%s", err, usage)
 		return 2
@@ -55,7 +56,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	var err error
 	switch args[0] {
 	case "write":
-		err = write(*dist, *ver, *commit)
+		err = write(*dist, *ver, *commit, *source)
 	case "sign":
 		err = signManifest(*dist, *key, *cert)
 	case "verify":
@@ -91,9 +92,9 @@ func builtAt() string {
 	return time.Now().UTC().Format(time.RFC3339)
 }
 
-func write(dist, ver, commit string) error {
-	if dist == "" || commit == "" {
-		return errors.New("write needs --dist, --version and --commit")
+func write(dist, ver, commit, source string) error {
+	if dist == "" || commit == "" || source == "" {
+		return errors.New("write needs --dist, --version, --commit and --source")
 	}
 	if _, err := version.Parse(ver); err != nil {
 		return err
@@ -102,7 +103,11 @@ func write(dist, ver, commit string) error {
 	if err != nil {
 		return err
 	}
-	m := releasefiles.Manifest{V: 1, Version: ver, BuiltAt: builtAt(), Commit: commit, GoVersion: runtime.Version(), Binaries: bins}
+	digest, err := releasefiles.UpdaterDigest(source)
+	if err != nil {
+		return err
+	}
+	m := releasefiles.Manifest{V: 1, Version: ver, BuiltAt: builtAt(), Commit: commit, GoVersion: runtime.Version(), UpdaterDigest: digest, Binaries: bins}
 	return os.WriteFile(filepath.Join(dist, "manifest.json"), releasefiles.Format(m), 0o644)
 }
 

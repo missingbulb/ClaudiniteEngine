@@ -17,6 +17,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -35,13 +36,17 @@ type Binary struct {
 
 // Manifest is manifest.json.
 type Manifest struct {
-	V           int                        `json:"v"`
-	Version     string                     `json:"version"`
-	BuiltAt     string                     `json:"builtAt"`
-	Commit      string                     `json:"commit"`
-	GoVersion   string                     `json:"goVersion"`
-	Binaries    map[string]Binary          `json:"binaries"`
-	TestedPacks map[string]json.RawMessage `json:"testedPacks"`
+	V         int    `json:"v"`
+	Version   string `json:"version"`
+	BuiltAt   string `json:"builtAt"`
+	Commit    string `json:"commit"`
+	GoVersion string `json:"goVersion"`
+	// UpdaterDigest is UpdaterDigest of the source the release was built
+	// from: equal digests mean equal update paths, so a hop one release
+	// completed proves the other's.
+	UpdaterDigest string                     `json:"updaterDigest"`
+	Binaries      map[string]Binary          `json:"binaries"`
+	TestedPacks   map[string]json.RawMessage `json:"testedPacks"`
 }
 
 // BinaryName is the binary's file name on a platform.
@@ -61,8 +66,8 @@ func str(s string) string {
 // then any others sorted, one binary per line.
 func Format(m Manifest) []byte {
 	var b strings.Builder
-	fmt.Fprintf(&b, "{\n  \"v\": %d,\n  \"version\": %s,\n  \"builtAt\": %s,\n  \"commit\": %s,\n  \"goVersion\": %s,\n  \"binaries\": {\n",
-		m.V, str(m.Version), str(m.BuiltAt), str(m.Commit), str(m.GoVersion))
+	fmt.Fprintf(&b, "{\n  \"v\": %d,\n  \"version\": %s,\n  \"builtAt\": %s,\n  \"commit\": %s,\n  \"goVersion\": %s,\n  \"updaterDigest\": %s,\n  \"binaries\": {\n",
+		m.V, str(m.Version), str(m.BuiltAt), str(m.Commit), str(m.GoVersion), str(m.UpdaterDigest))
 	var order []string
 	seen := map[string]bool{}
 	for _, p := range version.Platforms {
@@ -132,6 +137,47 @@ func ScanBinaries(dist string) (map[string]Binary, error) {
 		out[p] = Binary{File: name, SHA256: sum, Size: size}
 	}
 	return out, nil
+}
+
+// UpdaterSource is the source of every path that moves a member from one
+// engine to the next: the launcher today, and lifecycle/, where phase 2's
+// updater lives.
+var UpdaterSource = []string{"launcher/launch", "lifecycle"}
+
+// UpdaterDigest is the SHA-256, in hex, over every regular file of
+// UpdaterSource under root, in sorted path order, each as its slash path,
+// a NUL, its size in decimal, a NUL and its content.
+func UpdaterDigest(root string) (string, error) {
+	var files []string
+	for _, src := range UpdaterSource {
+		err := filepath.WalkDir(filepath.Join(root, filepath.FromSlash(src)), func(p string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if d.Type().IsRegular() {
+				rel, err := filepath.Rel(root, p)
+				if err != nil {
+					return err
+				}
+				files = append(files, filepath.ToSlash(rel))
+			}
+			return nil
+		})
+		if err != nil {
+			return "", fmt.Errorf("updater source: %w", err)
+		}
+	}
+	sort.Strings(files)
+	h := sha256.New()
+	for _, f := range files {
+		raw, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(f)))
+		if err != nil {
+			return "", err
+		}
+		fmt.Fprintf(h, "%s\x00%d\x00", f, len(raw))
+		h.Write(raw)
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
 // Integrity is the npm-style SHA-512 string the member's pin carries.
