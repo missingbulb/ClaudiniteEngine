@@ -31,6 +31,9 @@ type Builtin struct {
 // check, mirrored while that pack's code is unported, when basics is
 // declared.
 var builtinSpecKeys = Builtin{ID: "declared-check-spec-keys", OnFail: "advise", Tags: []string{"world", "builtin"}}
+
+// builtinBarrier stands in for basics' coded barrier check, and goes away
+// when basics' coded checks port to Go and its own check runs instead.
 var builtinBarrier = Builtin{ID: "barrier", Pack: "basics", OnFail: "block", Tags: []string{"world", "builtin", "basics"}}
 
 // Set is what a repo declares: its declared checks, the built-ins that

@@ -6,3 +6,5 @@ dist/
 /licstub
 *.test
 *.out
+/cn
+/cn.exe
