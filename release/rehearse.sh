@@ -379,6 +379,9 @@ for mode in $modes; do
       npx=$work/npx/node_modules
       mkdir -p "$npx/@claudinite" "$npx/.bin"
       cp -R "$dist1/npm/$name/package" "$npx/$package"
+      # npm marks a package's bin executable on install; a dist that came through an
+      # Actions artifact has lost its modes.
+      chmod 0755 "$npx/$package/launch"
       ln -s "../$package/launch" "$npx/.bin/cn"
       # adopt NAME: cn init through the npx bin into a new empty repo.
       adopt() {
