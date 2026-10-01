@@ -193,3 +193,17 @@ func TestNonMemberRunsNothing(t *testing.T) {
 		t.Errorf("non-member: %v %d", fs, n)
 	}
 }
+
+// A rule set to off drops its findings whatever produced them, a coded
+// check's included, so the member's `checks.rules.<id>: off` keeps Stop
+// from blocking on it.
+func TestApplyConfigDropsARuleSetOff(t *testing.T) {
+	fs := []findings.Finding{
+		{Class: findings.Coded, ID: "hello/hello-check", Path: "HELLO_FINDING"},
+		{Class: findings.Advisory, ID: "hello/other", Path: "a"},
+	}
+	got := ApplyConfig(fs, Config{Rules: map[string]string{"hello-check": "off"}})
+	if len(got) != 1 || got[0].ID != "hello/other" {
+		t.Errorf("%+v", got)
+	}
+}

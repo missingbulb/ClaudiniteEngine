@@ -306,8 +306,9 @@ func RuleID(f findings.Finding) string {
 
 // ApplyConfig applies the member's overrides, then its acceptances, to a
 // run's findings, as the Node engine's applyConfig does: an override
-// changes how a finding fails, an acceptance with a reason drops it, an
-// acceptance with none is itself a blocking finding on the settings file.
+// changes how a finding fails or, set to off, drops it; an acceptance with
+// a reason drops it, and one with none is itself a blocking finding on the
+// settings file.
 // Findings come back blocking first.
 func ApplyConfig(fs []findings.Finding, cfg Config) []findings.Finding {
 	var out []findings.Finding
@@ -315,6 +316,8 @@ func ApplyConfig(fs []findings.Finding, cfg Config) []findings.Finding {
 		if f.Class == findings.Coded || f.Class == findings.Advisory {
 			rule := RuleID(f)
 			switch cfg.Rules[rule] {
+			case "off":
+				continue
 			case "block":
 				f.Class = findings.Coded
 			case "advise":

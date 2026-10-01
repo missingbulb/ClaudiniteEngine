@@ -692,15 +692,21 @@ for mode in $modes; do
       reason: "the rehearsal holds it on purpose"'
       cn_member check --tag world > "$work/check.out" 2>&1 || fail "packs 14: an accepted finding still failed: $(cat "$work/check.out")"
       if grep -q '^\(finding\|advisory\) hello/hello-declared ' "$work/check.out"; then fail "packs 14: an accepted finding printed: $(cat "$work/check.out")"; fi
-      cp "$work/settings.orig" "$settings"
       rm "$member/HELLO_DECLARED"
+      touch "$member/HELLO_FINDING"
+      with_checks '  rules:
+    hello-check: "off"'
+      out=$(stop_hook)
+      [ "$out" = "{}" ] || fail "packs 14: Stop blocked on a coded check set off: $out"
+      rm "$member/HELLO_FINDING"
+      cp "$work/settings.orig" "$settings"
       cn_member check list > "$work/list.out" 2>&1 || fail "packs 14: check list: $(cat "$work/list.out")"
       for want in '^hello/hello-declared declared (world, declared, hello) block$' \
         '^hello/hello-declared-work declared (work, declared, hello) block$' '^hello/hello-check coded ('; do
         grep -q "$want" "$work/list.out" || fail "packs 14: check list has no $want: $(cat "$work/list.out")"
       done
       [ -z "$(cd "$member" && git status --porcelain)" ] || fail "packs 14: the checkout changed: $(cd "$member" && git status --porcelain)"
-      step "packs 14: an off rule silences hello-declared; an acceptance needs a reason; check list names both kinds"
+      step "packs 14: an off rule silences hello-declared and the coded hello-check; an acceptance needs a reason; check list names both kinds"
       ;;
     license)
       step "license: a public member on $version with a GitHub origin, ghstub and licstub"
