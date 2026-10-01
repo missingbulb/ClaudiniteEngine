@@ -62,6 +62,9 @@ func (r Repo) line(args ...string) (string, error) {
 // Head is the checked-out commit.
 func (r Repo) Head() (string, error) { return r.line("rev-parse", "HEAD") }
 
+// CurrentBranch is the checked-out branch's name.
+func (r Repo) CurrentBranch() (string, error) { return r.line("symbolic-ref", "--short", "HEAD") }
+
 // RevParse resolves ref to a commit.
 func (r Repo) RevParse(ref string) (string, error) {
 	return r.line("rev-parse", "--verify", "--quiet", ref+"^{commit}")

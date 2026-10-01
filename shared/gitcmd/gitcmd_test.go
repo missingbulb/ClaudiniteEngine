@@ -43,6 +43,9 @@ func TestBranchCommitPushDelete(t *testing.T) {
 	if err != nil || len(mainSHA) != 40 {
 		t.Fatalf("%q %v", mainSHA, err)
 	}
+	if b, err := r.CurrentBranch(); err != nil || b != "main" {
+		t.Fatalf("current branch %q %v", b, err)
+	}
 	if err := r.CreateBranch("claudinite/engine-1.2.0", "HEAD"); err != nil {
 		t.Fatal(err)
 	}
