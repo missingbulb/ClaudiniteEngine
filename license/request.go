@@ -56,7 +56,7 @@ type Env struct {
 	// given and the environment's otherwise.
 	GitHub func(repo, token string, timeout time.Duration) GitHub
 	// Worker is the license server's client.
-	Worker func() (Worker, error)
+	Worker func(timeout time.Duration) (Worker, error)
 	// Origin is the checkout's origin URL, as configured.
 	Origin func(dir string) (string, error)
 	// Plan is the settings file's license.plan, "" when none.
@@ -298,7 +298,7 @@ func (e Env) pollOnce(path string, f *File, landedBy string, timeout time.Durati
 			return false
 		}
 		origin, _ := e.Origin(f.Dir)
-		return e.askWorker(path, f, *login, origin, landedBy)
+		return e.askWorker(path, f, *login, origin, landedBy, timeout)
 	}
 	gh := e.GitHub(f.Repo, "", timeout)
 	done, landed := e.readCheckRun(path, f, gh, landedBy)
@@ -536,7 +536,7 @@ func (e Env) requestDesktop(path string, f *File, dir string) bool {
 		ri, uerr = gh.RepoInfo()
 	}
 	if uerr != nil && githubapi.StatusOf(uerr) == http.StatusUnauthorized {
-		if l, ok := e.refresh(*login); ok {
+		if l, ok := e.refresh(*login, licenseapi.Timeout); ok {
 			login = &l
 			gh = e.GitHub(f.Repo, login.AccessToken, githubapi.SessionTimeout)
 			if u, uerr = gh.User(); uerr == nil {
@@ -557,15 +557,15 @@ func (e Env) requestDesktop(path string, f *File, dir string) bool {
 	f.UserID = u.ID
 	f.Identity = &RepoIdentity{ID: ri.ID, OwnerID: ri.Owner.ID, OwnerType: ri.Owner.Type, OwnerLogin: ri.Owner.Login, Private: ri.Private}
 	e.write(path, f, func(cur *File) bool { return true })
-	return e.askWorker(path, f, *login, origin, PathDesktop)
+	return e.askWorker(path, f, *login, origin, PathDesktop, licenseapi.Timeout)
 }
 
 // askWorker makes the desktop's one Worker call for f's request and lands
 // its key, refreshing a rejected token once and falling back to the cache
 // when the server cannot be reached.
-func (e Env) askWorker(path string, f *File, login Login, origin, landedBy string) bool {
+func (e Env) askWorker(path string, f *File, login Login, origin, landedBy string, timeout time.Duration) bool {
 	st := e.store()
-	w, err := e.Worker()
+	w, err := e.Worker(timeout)
 	if err != nil {
 		e.degrade(path, f, CauseServerUnreachable, err.Error())
 		return false
@@ -577,7 +577,7 @@ func (e Env) askWorker(path string, f *File, login Login, origin, landedBy strin
 	ans, err := ask(login.AccessToken, f.Repo, f.Nonce, e.Engine)
 	var ref *licenseapi.Refusal
 	if errors.As(err, &ref) && ref.Status == http.StatusUnauthorized {
-		l, ok := e.refresh(login)
+		l, ok := e.refresh(login, timeout)
 		if !ok {
 			e.degrade(path, f, CauseLoginExpired, err.Error())
 			return false
@@ -624,11 +624,11 @@ func (e Env) fromCache(path string, f *File, origin string, user int64) bool {
 
 // refresh exchanges the stored refresh token through the Worker and
 // stores GitHub's answer.
-func (e Env) refresh(l Login) (Login, bool) {
+func (e Env) refresh(l Login, timeout time.Duration) (Login, bool) {
 	if l.RefreshToken == "" {
 		return Login{}, false
 	}
-	w, err := e.Worker()
+	w, err := e.Worker(timeout)
 	if err != nil {
 		return Login{}, false
 	}

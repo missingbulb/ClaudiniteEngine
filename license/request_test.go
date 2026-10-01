@@ -174,9 +174,11 @@ type rig struct {
 	w      *fakeWorker
 	env    Env
 	starts []string
-	origin string
-	vars   map[string]string
-	log    bytes.Buffer
+	// budgets is the timeout of each Worker client the session built.
+	budgets []time.Duration
+	origin  string
+	vars    map[string]string
+	log     bytes.Buffer
 }
 
 func newRig(t *testing.T) *rig {
@@ -189,7 +191,10 @@ func newRig(t *testing.T) *rig {
 			r.gh.record("client " + repo + " token=" + token)
 			return r.gh
 		},
-		Worker: func() (Worker, error) { return r.w, nil },
+		Worker: func(timeout time.Duration) (Worker, error) {
+			r.budgets = append(r.budgets, timeout)
+			return r.w, nil
+		},
 		Origin: func(string) (string, error) { return r.origin, nil },
 		Plan:   func(string) string { return "public" },
 		Start: func(id, nonce, dir string) error {
@@ -660,6 +665,23 @@ func TestDesktopKeyLandsAndIsCached(t *testing.T) {
 	}
 	if st, _ := os.Stat(r.env.store().LoginPath()); st.Mode().Perm() != 0o600 {
 		t.Errorf("login mode %v", st.Mode())
+	}
+}
+
+// A desktop hook's read for a pending key is bounded like a web hook's.
+func TestADesktopHookPollKeepsToTheHookBudget(t *testing.T) {
+	r := desktopRig(t)
+	r.env.SessionStart("/repo", "s1")
+	f := r.file()
+	f.UserID, f.Identity = 7, &RepoIdentity{ID: 11, OwnerID: 3, OwnerLogin: "acme"}
+	_ = UpdateState(mustPath(t, r), func(*File) (*File, bool) { return f, true })
+	r.now = r.now.Add(2 * time.Second)
+	h := r.env.Hook("/repo", "s1")
+	if h.Verdict.Key == nil || r.file().Path != PathHookPoll {
+		t.Fatalf("hook %+v file %+v", h, r.file())
+	}
+	if len(r.budgets) != 1 || r.budgets[0] != HookPollBudget {
+		t.Errorf("worker budgets %v, want [%v]", r.budgets, HookPollBudget)
 	}
 }
 

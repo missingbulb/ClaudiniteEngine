@@ -47,7 +47,7 @@ func licenseEnv(log io.Writer) (license.Env, error) {
 			c.HTTP = &http.Client{Timeout: timeout}
 			return c
 		},
-		Worker: func() (license.Worker, error) { return licenseapi.FromEnv() },
+		Worker: workerWithin,
 		Origin: originOf,
 		Plan:   planOf,
 		Start:  startRequest,
@@ -445,4 +445,15 @@ func initKey(stderr io.Writer) func(repo string) adopt.KeyGrant {
 			time.Sleep(license.PollEvery / 5)
 		}
 	}
+}
+
+// workerWithin is the license server's client with each call bounded by
+// timeout.
+func workerWithin(timeout time.Duration) (license.Worker, error) {
+	c, err := licenseapi.FromEnv()
+	if err != nil {
+		return nil, err
+	}
+	c.HTTP.Timeout = timeout
+	return c, nil
 }

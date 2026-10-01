@@ -4,9 +4,11 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/missingbulb/ClaudiniteEngine/license"
 	"github.com/missingbulb/ClaudiniteEngine/lifecycle/adopt"
+	"github.com/missingbulb/ClaudiniteEngine/shared/licenseapi"
 )
 
 func TestLicenseStatusWithNoSessionSaysSo(t *testing.T) {
@@ -66,5 +68,15 @@ func TestTheDetachedRequestGetsAnAllowlistedEnvironment(t *testing.T) {
 		if strings.Contains(got, k+"=") {
 			t.Errorf("kept %s: %s", k, got)
 		}
+	}
+}
+
+func TestTheWorkerClientKeepsToTheTimeoutAsked(t *testing.T) {
+	w, err := workerWithin(1500 * time.Millisecond)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c := w.(*licenseapi.Client); c.HTTP.Timeout != 1500*time.Millisecond {
+		t.Errorf("timeout %v", c.HTTP.Timeout)
 	}
 }
