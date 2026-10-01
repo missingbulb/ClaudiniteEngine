@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -53,11 +54,16 @@ func TestDifferential(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			ids := map[string]bool{}
+			ids, listed := map[string]bool{}, map[string]Listed{}
 			for _, l := range list {
+				listed[l.ID] = l
 				if l.Kind != "coded" && contains(l.Tags, "world") {
 					ids[l.ID] = true
 				}
+			}
+			declared, err := DeclaredIDs(nodeDir)
+			if err != nil {
+				t.Fatal(err)
 			}
 			nw, err := node.World(nodeDir)
 			if err != nil {
@@ -73,7 +79,30 @@ func TestDifferential(t *testing.T) {
 					subtracted[f.Rule]++
 				}
 			}
-			onlyNode, onlyCn, agreed := diff(Keep(nw, ids), Keep(cw, ids))
+			// A subtracted rule must be one cn knows it does not run, an
+			// action check, or one it has never heard of, a Node coded
+			// check; a declared check cn does not list failed to load.
+			for r := range subtracted {
+				l, ok := listed[r]
+				switch {
+				case ok && !contains(l.Tags, "action"):
+					t.Errorf("subtracted %s, which cn lists as %s %v", r, l.Kind, l.Tags)
+				case !ok && slices.Contains(declared, r):
+					t.Errorf("subtracted %s, a declared check cn does not list: it did not load", r)
+				}
+			}
+			kept := Keep(nw, ids)
+			perRule := map[string]int{}
+			for _, f := range kept {
+				perRule[f.Rule]++
+			}
+			var counts []string
+			for r, k := range perRule {
+				counts = append(counts, fmt.Sprintf("%s %d", r, k))
+			}
+			sort.Strings(counts)
+			t.Logf("%s: %d distinct rules found: %s", filepath.Base(tree), len(perRule), strings.Join(counts, ", "))
+			onlyNode, onlyCn, agreed := diff(kept, Keep(cw, ids))
 			for _, f := range onlyNode {
 				t.Errorf("only node: %s", f)
 			}
