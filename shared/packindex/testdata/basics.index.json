@@ -1,0 +1,21 @@
+{
+  "v": 1,
+  "pack": "basics",
+  "serial": 2,
+  "versions": [
+    {
+      "version": "60928.1",
+      "sha256": "e71a668099cf15bb38a9cb6893af7ed28dfaf4d683f13257f8da54b4ba74f1a0",
+      "size": 96779,
+      "minEngineVersion": "60928.1",
+      "requires": [
+        "claudinite-lifecycle",
+        "git-github"
+      ],
+      "channel": "stable",
+      "revoked": false,
+      "publishedAt": "2026-10-01T14:32:10Z",
+      "sourceCommit": "27612838c695d2d6704966572cd86d34485e4751"
+    }
+  ]
+}

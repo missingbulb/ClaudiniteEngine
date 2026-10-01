@@ -91,3 +91,54 @@ func TestChildEnvironmentHoldsNoToken(t *testing.T) {
 		}
 	}
 }
+
+func TestCloneBranchAndReadTree(t *testing.T) {
+	r, bare := clone(t)
+	if err := r.CreateBranch("vendored", "HEAD"); err != nil {
+		t.Fatal(err)
+	}
+	_ = os.MkdirAll(filepath.Join(r.Dir, "p", "bin"), 0o755)
+	_ = os.WriteFile(filepath.Join(r.Dir, "p", "x.txt"), []byte("x\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(r.Dir, "p", "bin", "run"), []byte("#!/bin/sh\n"), 0o755)
+	if err := r.Commit("vendor", "p"); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.Push("origin", "vendored"); err != nil {
+		t.Fatal(err)
+	}
+	dir := filepath.Join(t.TempDir(), "c")
+	if err := Clone(bare, "vendored", dir); err != nil {
+		t.Fatal(err)
+	}
+	c := Repo{Dir: dir}
+	got, ok, err := c.Show("HEAD", "p/x.txt")
+	if err != nil || !ok || string(got) != "x\n" {
+		t.Fatalf("%q %v %v", got, ok, err)
+	}
+	files, err := r.Tree("HEAD", "p")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != 2 || string(files["p/x.txt"].Data) != "x\n" || files["p/x.txt"].Executable || !files["p/bin/run"].Executable {
+		t.Errorf("%+v", files)
+	}
+	if err := Clone(filepath.Join(t.TempDir(), "nothing"), "vendored", filepath.Join(t.TempDir(), "d")); err == nil {
+		t.Error("cloned a repo that does not exist")
+	}
+}
+
+func TestDeleteBranch(t *testing.T) {
+	r, _ := clone(t)
+	if err := r.CreateBranch("side", "HEAD"); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.Checkout("main"); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.DeleteBranch("side"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.RevParse("side"); err == nil {
+		t.Error("side still exists")
+	}
+}

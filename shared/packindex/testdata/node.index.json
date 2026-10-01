@@ -1,0 +1,18 @@
+{
+  "v": 1,
+  "pack": "node",
+  "serial": 1,
+  "versions": [
+    {
+      "version": "60928.1",
+      "sha256": "e0c652775062ec00c76cc48c47d8bfa0e3c5a1640b33d2e8c75f567fcda5bb54",
+      "size": 7703,
+      "minEngineVersion": "60928.1",
+      "requires": [],
+      "channel": "canary",
+      "revoked": false,
+      "publishedAt": "2026-10-01T14:32:10Z",
+      "sourceCommit": "27612838c695d2d6704966572cd86d34485e4751"
+    }
+  ]
+}
