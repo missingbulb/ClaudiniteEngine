@@ -3,15 +3,24 @@
 # manifest.json, the npm package folders and their tarballs, then prints the
 # manifest's integrity string, the value a member pins.
 #
-# VERSION (default 0.0.0); RELEASE_KEY and RELEASE_CERT default to keys/dev/.
+# VERSION (default 0.0.0). RELEASE_KEY and RELEASE_CERT name the release key
+# and its certificate; unset, they fall back to the development keys in
+# $DEV_KEYS (default keys/dev/), and once #5 removes those both are required.
 set -eu
 cd "$(dirname "$0")/.."
 root=$(pwd)
 
 VERSION=${VERSION:-0.0.0}
 DIST=${DIST:-dist}
-RELEASE_KEY=${RELEASE_KEY:-keys/dev/release.key}
-RELEASE_CERT=${RELEASE_CERT:-keys/dev/release.cert.json}
+DEV_KEYS=${DEV_KEYS:-keys/dev}
+if [ -z "${RELEASE_KEY:-}" ] || [ -z "${RELEASE_CERT:-}" ]; then
+  if [ ! -f "$DEV_KEYS/release.key" ] || [ ! -f "$DEV_KEYS/release.cert.json" ]; then
+    echo "build: set RELEASE_KEY and RELEASE_CERT to the release key and its certificate; there are no development keys in $DEV_KEYS" >&2
+    exit 1
+  fi
+  RELEASE_KEY=$DEV_KEYS/release.key
+  RELEASE_CERT=$DEV_KEYS/release.cert.json
+fi
 COMMIT=$(git rev-parse --short=7 HEAD 2>/dev/null || echo unknown)
 export VERSION COMMIT
 platforms="linux-x64 linux-arm64 darwin-x64 darwin-arm64 windows-x64"

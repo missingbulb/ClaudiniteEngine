@@ -12,7 +12,12 @@ import (
 // with extra ldflags, and returns dir/bin.
 func buildInto(t *testing.T, extra string) string {
 	t.Helper()
-	bin := filepath.Join(t.TempDir(), "bin")
+	return buildUnder(t, t.TempDir(), extra)
+}
+
+func buildUnder(t *testing.T, parent, extra string) string {
+	t.Helper()
+	bin := filepath.Join(parent, "bin")
 	out := filepath.Join(bin, "linux-x64", "cn")
 	if err := os.MkdirAll(filepath.Dir(out), 0o755); err != nil {
 		t.Fatal(err)
@@ -51,6 +56,10 @@ func TestSecretScan(t *testing.T) {
 		if err == nil {
 			t.Errorf("%s: scan passed a planted secret\n%s", name, out)
 		}
+	}
+	spaced := filepath.Join(t.TempDir(), "a folder with spaces")
+	if out, err := scan(t, buildUnder(t, spaced, cases["npm token"])); err == nil || !strings.Contains(out, "a folder with spaces/bin/linux-x64/cn carries a string matching npm_") {
+		t.Errorf("scan passed a planted secret under a path with spaces\n%s", out)
 	}
 	if out, err := scan(t, buildInto(t, "")); err != nil {
 		t.Fatalf("clean build fails the scan: %v\n%s", err, out)

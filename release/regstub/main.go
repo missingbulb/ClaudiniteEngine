@@ -6,7 +6,8 @@
 //
 // It writes its base URL to --ready once listening, the certificate to
 // --ca-out (point curl at it with CURL_CA_BUNDLE), and one line per request
-// to --log. --status N answers every request with N instead.
+// to --log. --status N answers every request with N instead; --stall holds
+// every connection open and never answers.
 package main
 
 import (
@@ -41,6 +42,7 @@ func main() {
 	caOut := flag.String("ca-out", "", "file to write the certificate PEM to")
 	logPath := flag.String("log", "", "file to append one line per request to")
 	status := flag.Int("status", 0, "answer every request with this status")
+	stall := flag.Bool("stall", false, "hold every request open without answering")
 	flag.Parse()
 
 	cert, pemBytes, err := selfSigned()
@@ -65,6 +67,10 @@ func main() {
 				_ = f.Close()
 			}
 			mu.Unlock()
+		}
+		if *stall {
+			<-r.Context().Done()
+			return
 		}
 		if *status != 0 {
 			http.Error(w, http.StatusText(*status), *status)

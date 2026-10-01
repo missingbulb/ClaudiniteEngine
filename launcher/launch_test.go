@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"testing"
@@ -178,6 +179,7 @@ type member struct {
 	dir, home, cache string
 	registry, ca     string
 	env              []string
+	unset            []string // variables removed from the environment
 }
 
 func newMember(t *testing.T, s stub) *member {
@@ -219,6 +221,21 @@ func (m *member) run(t *testing.T, stdin string, args ...string) (string, string
 		"CURL_CA_BUNDLE=" + m.ca,
 		"NO_PROXY=127.0.0.1,localhost",
 	}, m.env...)
+	if len(m.unset) > 0 {
+		var kept []string
+		for _, kv := range cmd.Env {
+			drop := false
+			for _, u := range m.unset {
+				if strings.HasPrefix(kv, u+"=") {
+					drop = true
+				}
+			}
+			if !drop {
+				kept = append(kept, kv)
+			}
+		}
+		cmd.Env = kept
+	}
 	cmd.Stdin = strings.NewReader(stdin)
 	var out, errb bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, &errb
@@ -389,6 +406,17 @@ func TestLauncher(t *testing.T) {
 				t.Errorf("%s: made requests %v (stderr %s)", name, got, e)
 			}
 		}
+
+		s.reset(t)
+		m := newMember(t, s)
+		m.settings(t, "settings.json", fmt.Sprintf(`{"engine": {"version": %q, "manifest": %q}, "other": {}, "engine": {"version": "1.2.0", "manifest": %q}}`, testVersion, rel.pin, rel.pin))
+		_, e, code := m.run(t, "", "env", "install")
+		if code == 0 || !strings.Contains(e, "settings.json") || !strings.Contains(e, "exactly one") {
+			t.Errorf("two engine objects in json: exit %d, stderr %q", code, e)
+		}
+		if got := s.requests(t); len(got) != 0 {
+			t.Errorf("two engine objects in json: made requests %v", got)
+		}
 	})
 
 	t.Run("05 hash mismatches refuse in every context", func(t *testing.T) {
@@ -556,6 +584,37 @@ func TestLauncher(t *testing.T) {
 		}
 	})
 
+	t.Run("13 a missing download tool is refused, not an outage", func(t *testing.T) {
+		s := startStub(t, rel.dist)
+		for _, missing := range []string{"curl", "tar"} {
+			s.reset(t)
+			m := newMember(t, s)
+			m.env = []string{"PATH=" + toolsWithout(t, missing)}
+			m.settings(t, "settings.yaml", yaml(testVersion, rel.pin))
+			_, e, code := m.run(t, "", "env", "install")
+			if code == 0 || !strings.Contains(e, missing) || strings.Contains(e, "could not fetch") {
+				t.Errorf("no %s: exit %d, stderr %q", missing, code, e)
+			}
+			if got := s.requests(t); len(got) != 0 {
+				t.Errorf("no %s: made requests %v", missing, got)
+			}
+		}
+	})
+
+	t.Run("14 HOME unset", func(t *testing.T) {
+		s := startStub(t, rel.dist)
+		m := newMember(t, s)
+		m.unset = []string{"HOME", "XDG_CACHE_HOME"}
+		m.settings(t, "settings.yaml", yaml(testVersion, rel.pin))
+		out, e, code := m.run(t, sessionStartStdin, "hook", "session-start")
+		if code != 0 || !strings.HasPrefix(out, "Claudinite refused to run its engine: ") || !strings.Contains(out, "HOME") {
+			t.Errorf("exit %d, stdout %q, stderr %q", code, out, e)
+		}
+		if strings.Contains(e, "parameter not set") || strings.Contains(e, "unbound variable") {
+			t.Errorf("bare shell error: %q", e)
+		}
+	})
+
 	t.Run("12 release channel package", func(t *testing.T) {
 		r := makeRelease(t, releaseOpts{pkg: "@claudinite/cli-rc"})
 		s := startStub(t, r.dist)
@@ -572,4 +631,56 @@ func TestLauncher(t *testing.T) {
 			t.Errorf("requests %v, want %v", got, want)
 		}
 	})
+}
+
+// toolsWithout is a PATH holding every command the launcher calls except
+// the one named.
+func toolsWithout(t *testing.T, missing string) string {
+	t.Helper()
+	dir := t.TempDir()
+	for _, name := range []string{"sh", "uname", "mktemp", "sha256sum", "sha512sum", "dirname", "awk", "grep", "sed", "tr", "wc", "cut", "ls", "id", "mkdir", "chmod", "rm", "mv", "ln", "cat", "curl", "tar", "gzip"} {
+		if name == missing {
+			continue
+		}
+		p, err := exec.LookPath(name)
+		if err != nil {
+			t.Skipf("%s not installed", name)
+		}
+		if err := os.Symlink(p, filepath.Join(dir, name)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return dir
+}
+
+// A registry that accepts the connection and never answers: the launcher's
+// curl gives up at its derived --max-time, floored at 30 seconds.
+func TestLauncherStalledRegistry(t *testing.T) {
+	t.Parallel()
+	src, err := os.ReadFile(filepath.Join(repoRoot, "launcher", "launch"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !regexp.MustCompile(`(?m)^ *curl [^\n]*\\\n[^\n]*--max-time "\$max_time"`).Match(src) {
+	}
+	rel := makeRelease(t, releaseOpts{})
+	s := startStub(t, rel.dist, "--stall")
+	m := newMember(t, s)
+	// 1 MiB derives 4 seconds, which the 30-second floor raises.
+	m.env = []string{"CLAUDINITE_MAX_DOWNLOAD_BYTES=1048576"}
+	m.settings(t, "settings.yaml", yaml(testVersion, rel.pin))
+	const limit = 30 * time.Second
+	start := time.Now()
+	_, e, code := m.run(t, "", "env", "install")
+	took := time.Since(start)
+	if code == 0 || !strings.Contains(e, "could not fetch") {
+		t.Errorf("exit %d, stderr %q", code, e)
+	}
+	if took > 2*limit {
+		t.Errorf("took %v, want under %v", took, 2*limit)
+	}
+	if took < limit-time.Second {
+		t.Errorf("gave up after %v, before the %v floor", took, limit)
+	}
+	m.cachedNothing(t)
 }

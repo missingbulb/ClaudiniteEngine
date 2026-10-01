@@ -10,7 +10,8 @@ here=$(cd "$(dirname "$0")/.." && pwd)
 
 needles=$(mktemp)
 strs=$(mktemp)
-trap 'rm -f "$needles" "$strs"' EXIT
+list=$(mktemp)
+trap 'rm -f "$needles" "$strs" "$list"' EXIT
 for key in "$here"/keys/dev/*.key; do
   [ -f "$key" ] || continue
   b64url=$(tr -d '\n' < "$key")
@@ -19,10 +20,10 @@ for key in "$here"/keys/dev/*.key; do
   printf '%s' "$b64url" | tr '_-' '/+' | awk '{ n = length($0) % 4; if (n == 2) $0 = $0 "=="; else if (n == 3) $0 = $0 "="; print }' >> "$needles"
 done
 
+find "$dir" -type f -print > "$list"
+[ -s "$list" ] || { echo "secretscan: no files under $dir" >&2; exit 1; }
 found=0
-files=$(find "$dir" -type f)
-[ -n "$files" ] || { echo "secretscan: no files under $dir" >&2; exit 1; }
-for f in $files; do
+while IFS= read -r f; do
   strings -n 4 "$f" > "$strs"
   # Report which pattern hit, never the match itself, so a real secret
   # does not land in the CI log.
@@ -36,6 +37,6 @@ for f in $files; do
     echo "secretscan: $f carries a development private key" >&2
     found=1
   fi
-done
+done < "$list"
 [ "$found" -eq 0 ] || exit 1
-echo "secretscan: clean ($(printf '%s\n' "$files" | wc -l | tr -d ' ') files)"
+echo "secretscan: clean ($(wc -l < "$list" | tr -d ' ') files)"
