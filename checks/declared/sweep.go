@@ -91,9 +91,9 @@ func (j *job) excluded(path string) bool {
 
 // sweeper is one pass over the tree for a set of checks.
 type sweeper struct {
-	ctx    *Ctx
-	docs   map[string]any
-	refs   *refs.Scan
+	ctx  *Ctx
+	docs map[string]any
+	refs *refs.Scan
 }
 
 func (w *sweeper) parsed(path string) any {
