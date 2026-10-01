@@ -6,15 +6,36 @@
 # @claudinite/cli. With no canary registered the gate answers no-canaries,
 # which passes only when the dispatch's confirm input repeats the version.
 # The hourly schedule lands with the first canary (release/canaries.json).
+#
+# action hold or revoke instead marks the version on npm with a "held:" or
+# "revoked:" deprecation, which the updater and cn check world read. npm's
+# trusted publishing covers publish and dist-tag only, not deprecate
+# (https://docs.npmjs.com/trusted-publishers), so the deprecate job prints
+# the exact commands for a person with a write token and fails; a version
+# npm does not have is refused with a notice and a green run.
 name: promote
 
 on:
   workflow_dispatch:
     inputs:
+      action:
+        description: promote the version, or hold or revoke it on npm
+        required: true
+        type: choice
+        default: promote
+        options:
+          - promote
+          - hold
+          - revoke
       version:
-        description: The @claudinite/cli-rc version to promote
+        description: The @claudinite/cli-rc version to act on
         required: true
         type: string
+      reason:
+        description: For hold and revoke, the one-line reason the deprecation carries
+        required: false
+        type: string
+        default: ""
       confirm:
         description: The version again, to promote with no canary registered
         required: false
@@ -34,6 +55,7 @@ defaults:
 
 jobs:
   gate:
+    if: inputs.action == 'promote'
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -75,7 +97,7 @@ jobs:
             echo "### Promotion of @claudinite/cli-rc $VERSION"
             echo
             echo "- gate: \`$VERDICT\` ($why)"
-            echo "- hop: \`$HOP\` (advisory until \`cn update engine\` exists, phase 2)"
+            echo "- hop: \`$HOP\` (advisory until a canary runs candidates; release.yml's hop job proved this candidate's updater before it was published)"
             echo "- promoting: $allowed"
           } >> "$GITHUB_STEP_SUMMARY"
           echo "::notice::gate $VERDICT, $HOP: $why"
@@ -126,6 +148,45 @@ jobs:
           name: stable
           path: stable/
           if-no-files-found: error
+
+  deprecate:
+    if: inputs.action == 'hold' || inputs.action == 'revoke'
+    runs-on: ubuntu-24.04
+    environment: promote
+    permissions:
+      contents: read
+    env:
+      ACTION: ${{ inputs.action }}
+      VERSION: ${{ inputs.version }}
+      REASON: ${{ inputs.reason }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.24"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+      - name: the commands
+        run: |
+          npm view @claudinite/cli-rc versions --json > "$RUNNER_TEMP/rc.json" 2>/dev/null || true
+          npm view @claudinite/cli versions --json > "$RUNNER_TEMP/stable.json" 2>/dev/null || true
+          go run ./release/pipeline deprecate-commands --action "$ACTION" --version "$VERSION" --reason "$REASON" \
+            --rc-versions "$RUNNER_TEMP/rc.json" --stable-versions "$RUNNER_TEMP/stable.json" > "$RUNNER_TEMP/commands.sh"
+          if [ ! -s "$RUNNER_TEMP/commands.sh" ]; then
+            echo "### $ACTION $VERSION: npm has no such version; nothing done" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          {
+            echo "### $ACTION $VERSION: run these with an npm token that can write @claudinite"
+            echo
+            echo '```'
+            cat "$RUNNER_TEMP/commands.sh"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          cat "$RUNNER_TEMP/commands.sh"
+          echo "::error::npm trusted publishing cannot deprecate; run the commands in this job's summary by hand"
+          exit 1
 
   publish:
     needs: [gate, check]
