@@ -181,6 +181,7 @@ func (e Env) renew(path string, f *File, dir string) {
 			return nil, false
 		}
 		cur.Nonce, cur.RequestedAt, cur.Dispatched, cur.Head = nonce, e.Now(), false, ""
+		cur.RenewAttempts++
 		started = true
 		return cur, true
 	})
@@ -363,6 +364,7 @@ func (e Env) land(path string, f *File, key []byte, landedBy string) bool {
 		now := e.Now()
 		cur.State, cur.Key, cur.KeyNonce, cur.LandedAt, cur.Path = StateLanded, string(key), f.Nonce, &now, landedBy
 		cur.Cause, cur.CauseDetail, cur.Link = "", "", ""
+		cur.RenewAttempts = 0
 		return true
 	})
 }

@@ -518,6 +518,68 @@ func TestAFailedRenewalKeepsTheOldKey(t *testing.T) {
 	}
 }
 
+// A renewal that keeps failing backs off, 1, 2, 4 ... 32 minutes after
+// each attempt's tail, and stops after MaxRenewals in one session.
+func TestAFailingRenewalBacksOffAndIsCapped(t *testing.T) {
+	r := newRig(t)
+	r.start()
+	r.gh.dispatchErr = &githubapi.HTTPError{Status: 403}
+	r.now = r.now.Add(RenewAge + time.Minute)
+	fail := func() {
+		t.Helper()
+		_ = r.env.RunRequest("s1", r.file().Nonce, "/repo")
+	}
+	r.env.Hook("/repo", "s1")
+	if len(r.starts) != 2 {
+		t.Fatalf("no first renewal: %v", r.starts)
+	}
+	fail()
+	for attempt := 1; attempt < MaxRenewals; attempt++ {
+		wait := time.Minute << (attempt - 1)
+		if wait > 32*time.Minute {
+			wait = 32 * time.Minute
+		}
+		ends := r.file().RequestedAt.Add(Cut + Tail())
+		r.now = ends.Add(wait - time.Second)
+		r.env.Hook("/repo", "s1")
+		if len(r.starts) != attempt+1 {
+			t.Fatalf("attempt %d: renewed %v early (backoff %v)", attempt, r.starts, wait)
+		}
+		r.now = ends.Add(wait)
+		r.env.Hook("/repo", "s1")
+		if len(r.starts) != attempt+2 {
+			t.Fatalf("attempt %d: no renewal after %v: %v", attempt, wait, r.starts)
+		}
+		fail()
+	}
+	r.now = r.now.Add(24 * time.Hour)
+	if h := r.env.Hook("/repo", "s1"); len(r.starts) != MaxRenewals+1 || h.Verdict.Key == nil {
+		t.Errorf("past the cap: %d starts, key %v", len(r.starts), h.Verdict.Key != nil)
+	}
+	// A renewal that lands resets the count.
+	r.gh.dispatchErr = nil
+	f := r.file()
+	f.RenewAttempts = 1
+	_ = UpdateState(mustPath(t, r), func(*File) (*File, bool) { return f, true })
+	r.now = f.RequestedAt.Add(Cut + Tail() + time.Minute)
+	r.env.Hook("/repo", "s1")
+	if err := r.env.RunRequest("s1", r.file().Nonce, "/repo"); err != nil {
+		t.Fatal(err)
+	}
+	if got := r.file(); got.State != StateLanded || got.RenewAttempts != 0 {
+		t.Errorf("after a landed renewal: %+v", got)
+	}
+}
+
+func mustPath(t *testing.T, r *rig) string {
+	t.Helper()
+	p, err := StatePath(r.env.CacheRoot, "s1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
+
 func TestAMalformedStateFileDegrades(t *testing.T) {
 	r := newRig(t)
 	path, _ := StatePath(r.env.CacheRoot, "s1")
