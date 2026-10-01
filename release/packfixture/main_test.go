@@ -94,6 +94,23 @@ func TestTheFixtureIndexVerifiesAndNamesItsArchives(t *testing.T) {
 		if always != (e.Version == "1.2") {
 			t.Errorf("%s: always.go present %v", e.Version, always)
 		}
+		_, declared := files["declared-checks.json"]
+		if declared != (e.Version != "1.0") {
+			t.Errorf("%s: declared-checks.json present %v", e.Version, declared)
+		}
+		if changed := strings.Count(string(files["RULES.md"].Data), "The hello rule changed"); changed != map[bool]int{true: 0, false: 1}[e.Version == "1.0"] {
+			t.Errorf("%s: the changed bullet appears %d times", e.Version, changed)
+		}
+	}
+	if readme := string(mustVariant(t, "v1")["README.md"].Data); strings.Contains(readme, "Declared checks") || !strings.Contains(readme, "**Skill**") {
+		t.Errorf("v1 README:\n%s", readme)
+	}
+	// v2 is the source itself: hello 1.1 as ClaudinitePacks publishes it.
+	source, _ := ReadPack(src)
+	for name, f := range mustVariant(t, "v2") {
+		if name != "pack.json" && string(source[name].Data) != string(f.Data) {
+			t.Errorf("v2 differs from the source in %s", name)
+		}
 	}
 	again, _ := Archive(mustVariant(t, "v1"))
 	first, _ := os.ReadFile(filepath.Join(tree, "hello", "1.0.tar.gz"))

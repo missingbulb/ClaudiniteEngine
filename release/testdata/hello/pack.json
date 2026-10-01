@@ -1,5 +1,5 @@
 {
-  "version": "1.0",
+  "version": "1.1",
   "minEngineVersion": "61001.1.0",
   "ruleRoutingGuidance": {
     "belongs": "nothing but the pack chassis probe: proving that a declared pack's rules, skills and Go checks reach a member",

@@ -9,8 +9,9 @@
 //	packfixture --tree DIR --key K --cert C --serial N
 //	packfixture --tree DIR --flip-sig
 //
-// The labels name the hello pack's rehearsal versions: v1 is 1.0 as the
-// source holds it; v2 (1.1) changes a rule; v3 (1.2) adds a check that
+// The labels name the hello pack's rehearsal versions: v2 (1.1) is the
+// source as it is, which ClaudinitePacks publishes; v1 is 1.0, the source
+// without its 1.1 rule bullet and its declared checks; v3 (1.2) adds a check that
 // finds on every repo; v4 (1.3) drops it again; v5 (1.4) needs an engine
 // no rehearsal builds. Every publish and revoke bumps the serial; --serial
 // rewrites it, as an index that regressed would read.
@@ -132,7 +133,12 @@ var (
 	versionField = regexp.MustCompile(`"version": "[^"]*"`)
 	minField     = regexp.MustCompile(`"minEngineVersion": "[^"]*"`)
 	rulesHeading = regexp.MustCompile(`(?m)^# hello .*$`)
+	changedRule  = "- **The hello rule changed** — this bullet arrived with hello 1.1.\n"
+	declaredLine = regexp.MustCompile("(?m)^- \\*\\*Declared checks\\*\\*(.*\n)(  .*\n)*")
 )
+
+// declaredChecks is the descriptor hello 1.1 added.
+const declaredChecks = "declared-checks.json"
 
 // Variant is the hello pack's files at label, built from the source.
 func Variant(src map[string]File, label, minEngine string) (map[string]File, error) {
@@ -152,8 +158,10 @@ func Variant(src map[string]File, label, minEngine string) (map[string]File, err
 	pj = minField.ReplaceAllString(pj, `"minEngineVersion": "`+minEngine+`"`)
 	out["pack.json"] = File{Data: []byte(pj)}
 	rules := rulesHeading.ReplaceAllString(string(out["RULES.md"].Data), "# hello "+ver)
-	if label != "v1" {
-		rules += "- **The hello rule changed** — this bullet arrived with hello 1.1.\n"
+	if label == "v1" {
+		rules = strings.Replace(rules, changedRule, "", 1)
+		delete(out, declaredChecks)
+		out["README.md"] = File{Data: declaredLine.ReplaceAll(out["README.md"].Data, nil)}
 	}
 	out["RULES.md"] = File{Data: []byte(rules)}
 	if label == "v3" {
