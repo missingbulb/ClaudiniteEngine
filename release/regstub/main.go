@@ -4,6 +4,8 @@
 //
 //	/@claudinite/<name>/-/<name>-<version>.tgz  ->  <dist>/tarballs/<name>-<version>.tgz
 //
+// --dist may repeat; the first folder holding the tarball serves it.
+//
 // It writes its base URL to --ready once listening, the certificate to
 // --ca-out (point curl at it with CURL_CA_BUNDLE), and one line per request
 // to --log. --status N answers every request with N instead; --stall holds
@@ -36,7 +38,8 @@ import (
 var tarballPath = regexp.MustCompile(`^/@claudinite(?:/|%2[fF])([a-z0-9-]+)/-/([a-z0-9.-]+\.tgz)$`)
 
 func main() {
-	dist := flag.String("dist", "dist", "release folder holding tarballs/")
+	var dists distList
+	flag.Var(&dists, "dist", "release folder holding tarballs/ (repeatable; default dist)")
 	addr := flag.String("addr", "127.0.0.1:0", "listen address")
 	ready := flag.String("ready", "", "file to write the base URL to once listening")
 	caOut := flag.String("ca-out", "", "file to write the certificate PEM to")
@@ -44,6 +47,9 @@ func main() {
 	status := flag.Int("status", 0, "answer every request with this status")
 	stall := flag.Bool("stall", false, "hold every request open without answering")
 	flag.Parse()
+	if len(dists) == 0 {
+		dists = distList{"dist"}
+	}
 
 	cert, pemBytes, err := selfSigned()
 	if err != nil {
@@ -81,7 +87,14 @@ func main() {
 			http.NotFound(w, r)
 			return
 		}
-		http.ServeFile(w, r, filepath.Join(*dist, "tarballs", m[2]))
+		for _, d := range dists {
+			p := filepath.Join(d, "tarballs", m[2])
+			if _, err := os.Stat(p); err == nil {
+				http.ServeFile(w, r, p)
+				return
+			}
+		}
+		http.NotFound(w, r)
 	})
 	srv := &http.Server{Handler: h, TLSConfig: &tls.Config{Certificates: []tls.Certificate{cert}}, ReadHeaderTimeout: 10 * time.Second}
 	base := "https://" + ln.Addr().String()
@@ -103,6 +116,11 @@ func main() {
 		fail(err)
 	}
 }
+
+type distList []string
+
+func (d *distList) String() string     { return strings.Join(*d, ",") }
+func (d *distList) Set(v string) error { *d = append(*d, v); return nil }
 
 func selfSigned() (tls.Certificate, []byte, error) {
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
