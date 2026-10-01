@@ -15,9 +15,10 @@ import (
 //	  declared:                  declared = ["hello"]             "declared": ["hello"]
 //	    - hello                                                 }
 //
-// It is read with strict patterns like the pin, never a parser, until the
-// descriptor parsers arrive (phase 6) and read the same block. An absent
-// block declares nothing on the stable channel.
+// ReadPacks reads it through the descriptor parsers (see parsed.go); the
+// strict patterns below only locate where AddDeclared inserts an id, so the
+// edit changes no other byte. An absent block declares nothing on the
+// stable channel.
 
 // Channels a member may read pack versions from.
 const (
@@ -30,8 +31,14 @@ var PackIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
 
 // Packs is the packs block.
 type Packs struct {
-	Channel  string
+	Channel string
+	// Declared is the canon ids in declared order; a local pack is never
+	// fetched, so it is kept apart in Local.
 	Declared []string
+	// Local is the names declared as local/<name>, in declared order.
+	Local []string
+	// Entries is every declared entry in order, canon and local.
+	Entries []PackEntry
 	// Present is false when the file holds no packs block.
 	Present bool
 }
@@ -75,8 +82,8 @@ func (l *packsLayout) setChannel(v string) error {
 }
 
 func (l *packsLayout) addID(id string) error {
-	if !PackIDPattern.MatchString(id) {
-		return fmt.Errorf("packs.declared: %q is not a pack id (lowercase letters, digits and dashes)", id)
+	if !PackIDPattern.MatchString(id) && !localIDPattern.MatchString(id) {
+		return fmt.Errorf("packs.declared: %q is not a pack id (lowercase letters, digits and dashes) or local/<name>", id)
 	}
 	for _, d := range l.Declared {
 		if d == id {
@@ -342,13 +349,13 @@ func (l *packsLayout) readJSON(raw []byte) error {
 }
 
 // ReadPacks reads the packs block: the channel (stable when absent) and the
-// declared ids in order.
+// declared entries in order.
 func ReadPacks(raw []byte, f Format) (Packs, error) {
-	l, err := readPacksLayout(raw, f)
+	p, err := ParseFile(raw, f)
 	if err != nil {
 		return Packs{}, err
 	}
-	return l.Packs, nil
+	return p.Packs, nil
 }
 
 // AddDeclared appends id to the declared packs by inserting it, creating
@@ -357,14 +364,21 @@ func AddDeclared(raw []byte, f Format, id string) ([]byte, error) {
 	if !PackIDPattern.MatchString(id) {
 		return nil, fmt.Errorf("%q is not a pack id (lowercase letters, digits and dashes)", id)
 	}
-	l, err := readPacksLayout(raw, f)
+	p, err := ReadPacks(raw, f)
 	if err != nil {
 		return nil, err
 	}
-	for _, d := range l.Declared {
-		if d == id {
+	for _, e := range p.Entries {
+		if e.Object {
+			return nil, fmt.Errorf("packs.declared holds an entry object (%s); add %s to the list by hand, since a line edit cannot keep an object entry intact", e.Token(), id)
+		}
+		if e.Token() == id {
 			return nil, fmt.Errorf("%s is already declared", id)
 		}
+	}
+	l, err := readPacksLayout(raw, f)
+	if err != nil {
+		return nil, fmt.Errorf("packs.declared parses but is not in the one-id-per-entry layout a line edit can extend (%v); add %s by hand", err, id)
 	}
 	if l.insert < 0 {
 		return nil, errors.New("the settings hold no \"engine\" object to add a packs block beside")
