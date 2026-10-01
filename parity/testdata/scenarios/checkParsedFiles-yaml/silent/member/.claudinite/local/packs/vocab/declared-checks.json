@@ -1,0 +1,20 @@
+[
+  {
+    "id": "v-checkParsedFiles-yaml",
+    "on_fail": "block",
+    "failureMessage": "the checkParsedFiles-yaml check",
+    "fix": "fix the checkParsedFiles-yaml finding",
+    "checkParsedFiles": [
+      {
+        "file": "template.yaml",
+        "forEachEntryAtField": "Resources",
+        "whereEntryFieldEquals": {
+          "field": "Type",
+          "equals": "AWS::Serverless::Function"
+        },
+        "requireField": "Properties.Timeout",
+        "what": "a function with no Timeout"
+      }
+    ]
+  }
+]

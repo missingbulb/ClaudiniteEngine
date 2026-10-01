@@ -1,0 +1,19 @@
+[
+  {
+    "id": "v-forbidReferences",
+    "on_fail": "block",
+    "failureMessage": "the forbidReferences check",
+    "fix": "fix the forbidReferences finding",
+    "forbidReferences": [
+      {
+        "siblings": "mods",
+        "to": "*",
+        "scope": "imports",
+        "allow": [
+          "lib"
+        ],
+        "reason": "modules stay independent"
+      }
+    ]
+  }
+]

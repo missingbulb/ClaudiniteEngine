@@ -1,0 +1,10 @@
+{
+  "rules": "",
+  "mounts": [],
+  "world": [
+    "v-checkSetValues-lines LIST.md:2 block",
+    "v-checkSetValues-lines items/one/README.md:1 block",
+    "v-checkSetValues-lines items/three/README.md block"
+  ],
+  "work": []
+}

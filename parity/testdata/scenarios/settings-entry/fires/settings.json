@@ -1,0 +1,10 @@
+{
+  "packs": [
+    {
+      "id": "local/vocab",
+      "rules": {
+        "v-mark": "advise"
+      }
+    }
+  ]
+}

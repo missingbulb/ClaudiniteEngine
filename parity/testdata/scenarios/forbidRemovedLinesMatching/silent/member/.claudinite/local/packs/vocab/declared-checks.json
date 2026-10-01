@@ -1,0 +1,17 @@
+[
+  {
+    "id": "v-forbidRemovedLinesMatching",
+    "on_fail": "block",
+    "failureMessage": "the forbidRemovedLinesMatching check",
+    "fix": "fix the forbidRemovedLinesMatching finding",
+    "forbidRemovedLinesMatching": [
+      {
+        "inFilesMatching": "/\\.md$/",
+        "match": "/^- \\*\\*(?<rule>[^*]+)\\*\\*/",
+        "unlessMatchRemainsInFile": true,
+        "what": "removes the rule {rule}"
+      }
+    ],
+    "scope": "work"
+  }
+]

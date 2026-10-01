@@ -1,0 +1,8 @@
+{
+  "rules": "",
+  "mounts": [],
+  "world": [
+    "v-checkParsedFiles-yaml template.yaml block"
+  ],
+  "work": []
+}

@@ -1,0 +1,8 @@
+{
+  "rules": "@../shared/packs/claude-code-web-users-support/RULES.md\n@../local/packs/mine/RULES.md\n@../temp/packs/current_user/RULES.md\n",
+  "mounts": [
+    "me-skill"
+  ],
+  "world": [],
+  "work": []
+}

@@ -1,0 +1,19 @@
+[
+  {
+    "id": "v-forbidAddedValueInArray",
+    "on_fail": "block",
+    "failureMessage": "the forbidAddedValueInArray check",
+    "fix": "fix the forbidAddedValueInArray finding",
+    "forbidAddedValueInArray": [
+      {
+        "filesMatching": "/manifest\\.json$/",
+        "whereFileContains": "/manifest_version/",
+        "atFields": [
+          "permissions"
+        ],
+        "what": "adds the {value} permission"
+      }
+    ],
+    "scope": "work"
+  }
+]

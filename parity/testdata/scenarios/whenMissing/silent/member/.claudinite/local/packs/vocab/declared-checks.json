@@ -1,0 +1,19 @@
+[
+  {
+    "id": "v-whenMissing",
+    "on_fail": "block",
+    "failureMessage": "the whenMissing check",
+    "fix": "fix the whenMissing finding",
+    "scanFiles": "README.md",
+    "whenMissing": {
+      "what": "missing",
+      "fix": "add a README"
+    },
+    "checkEachFile": [
+      {
+        "require": "/^## Install/m",
+        "what": "no Install section"
+      }
+    ]
+  }
+]

@@ -1,0 +1,13 @@
+{
+  "rules": "",
+  "mounts": [],
+  "world": [
+    "v-mark a.txt:1 advise",
+    "v-mark c.txt:1 advise",
+    "v-mark docs/b.txt:1 advise",
+    "v-mark2 a.txt:1 advise",
+    "v-mark2 c.txt:1 advise",
+    "v-mark2 docs/b.txt:1 advise"
+  ],
+  "work": []
+}

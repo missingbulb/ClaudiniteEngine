@@ -1,0 +1,15 @@
+[
+  {
+    "id": "v-flagUntrackedFilesMatching",
+    "on_fail": "block",
+    "failureMessage": "the flagUntrackedFilesMatching check",
+    "fix": "fix the flagUntrackedFilesMatching finding",
+    "flagUntrackedFilesMatching": [
+      {
+        "match": "/\\.test\\.js$/",
+        "what": "{path} is untracked"
+      }
+    ],
+    "scope": "work"
+  }
+]

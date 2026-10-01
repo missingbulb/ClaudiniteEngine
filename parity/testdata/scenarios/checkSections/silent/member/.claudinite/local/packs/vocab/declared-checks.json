@@ -1,0 +1,35 @@
+[
+  {
+    "id": "v-checkSections",
+    "on_fail": "block",
+    "failureMessage": "the checkSections check",
+    "fix": "fix the checkSections finding",
+    "scanFiles": "/^wiki\\/.+\\.md$/",
+    "checkSections": [
+      {
+        "sections": [
+          "Key insights",
+          "Sources"
+        ],
+        "requirePresent": {
+          "what": "missing \"## {section}\""
+        }
+      },
+      {
+        "section": "Growth log",
+        "eachBulletLeadsWithDate": {
+          "whenUndated": {
+            "what": "an undated bullet"
+          },
+          "whenNotRealDate": {
+            "what": "{date} is not a date"
+          }
+        },
+        "maxBullets": {
+          "count": 2,
+          "what": "{count} bullets"
+        }
+      }
+    ]
+  }
+]

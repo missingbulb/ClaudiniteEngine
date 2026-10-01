@@ -1,0 +1,9 @@
+{
+  "rules": "",
+  "mounts": [],
+  "world": [],
+  "work": [
+    "v-requireCoChange checks.json block",
+    "v-requireCoChange src/a.js block"
+  ]
+}

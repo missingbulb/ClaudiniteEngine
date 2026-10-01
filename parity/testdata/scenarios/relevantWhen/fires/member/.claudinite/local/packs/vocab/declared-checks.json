@@ -1,0 +1,23 @@
+[
+  {
+    "id": "v-relevantWhen",
+    "on_fail": "block",
+    "failureMessage": "the relevantWhen check",
+    "fix": "fix the relevantWhen finding",
+    "relevantWhen": {
+      "pathExists": "package.json",
+      "trackedFileMatches": "/\\.js$/",
+      "someTrackedFileContains": {
+        "pathMatching": "/package\\.json$/",
+        "text": "/\"express\"/"
+      }
+    },
+    "scanFiles": "/\\.js$/",
+    "matchLines": [
+      {
+        "match": "/app\\.listen/",
+        "what": "listen"
+      }
+    ]
+  }
+]

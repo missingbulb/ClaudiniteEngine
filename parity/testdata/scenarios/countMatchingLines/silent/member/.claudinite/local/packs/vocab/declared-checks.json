@@ -1,0 +1,17 @@
+[
+  {
+    "id": "v-countMatchingLines",
+    "on_fail": "block",
+    "failureMessage": "the countMatchingLines check",
+    "fix": "fix the countMatchingLines finding",
+    "scanFiles": "/\\.yml$/",
+    "countMatchingLines": [
+      {
+        "linesMatching": "/cron:/",
+        "atLeast": 1,
+        "atMost": 1,
+        "what": "{count} crons"
+      }
+    ]
+  }
+]

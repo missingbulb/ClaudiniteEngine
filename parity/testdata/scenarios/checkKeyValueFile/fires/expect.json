@@ -1,0 +1,10 @@
+{
+  "rules": "",
+  "mounts": [],
+  "world": [
+    "v-checkKeyValueFile release.config block",
+    "v-checkKeyValueFile release.config:2 block",
+    "v-checkKeyValueFile release.config:3 block"
+  ],
+  "work": []
+}

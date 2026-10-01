@@ -1,0 +1,16 @@
+[
+  {
+    "id": "v-matchLines",
+    "on_fail": "block",
+    "failureMessage": "the matchLines check",
+    "fix": "fix the matchLines finding",
+    "scanFiles": "/\\.txt$/",
+    "matchLines": [
+      {
+        "match": "/TODO\\((?<who>\\w+)\\)/",
+        "what": "a todo for {who}: {match}",
+        "fix": "do it, {who}"
+      }
+    ]
+  }
+]

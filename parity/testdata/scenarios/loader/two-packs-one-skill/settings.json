@@ -1,0 +1,6 @@
+{
+  "packs": [
+    "local/aaa",
+    "local/bbb"
+  ]
+}

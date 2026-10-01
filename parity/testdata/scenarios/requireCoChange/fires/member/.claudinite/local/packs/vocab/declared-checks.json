@@ -1,0 +1,24 @@
+[
+  {
+    "id": "v-requireCoChange",
+    "on_fail": "block",
+    "failureMessage": "the requireCoChange check",
+    "fix": "fix the requireCoChange finding",
+    "requireCoChange": [
+      {
+        "whenAddedLineMatches": {
+          "inFilesMatching": "/checks\\.json$/",
+          "match": "/\"id\"/"
+        },
+        "requireChangedFileMatching": "/\\.test\\.js$/",
+        "what": "{path} adds a check with no test"
+      },
+      {
+        "whenChangedFileMatches": "/^src\\//",
+        "requireChangedFileMatching": "/^CHANGELOG/",
+        "what": "{path} changed without a changelog"
+      }
+    ],
+    "scope": "work"
+  }
+]

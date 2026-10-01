@@ -1,0 +1,17 @@
+{
+  "rules": "",
+  "mounts": [],
+  "world": [
+    "v-matchLines-relations ci/w.yml:1 block",
+    "v-matchLines-relations ci/w.yml:10 block",
+    "v-matchLines-relations ci/w.yml:12 block",
+    "v-matchLines-relations ci/w.yml:14 block",
+    "v-matchLines-relations ci/w.yml:16 block",
+    "v-matchLines-relations ci/w.yml:2 block",
+    "v-matchLines-relations ci/w.yml:3 block",
+    "v-matchLines-relations ci/w.yml:4 block",
+    "v-matchLines-relations ci/w.yml:6 block",
+    "v-matchLines-relations ci/w.yml:8 block"
+  ],
+  "work": []
+}

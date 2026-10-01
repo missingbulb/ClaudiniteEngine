@@ -1,0 +1,14 @@
+[
+  {
+    "id": "v-maxLines",
+    "on_fail": "block",
+    "failureMessage": "the maxLines check",
+    "fix": "fix the maxLines finding",
+    "scanFiles": "/\\.md$/",
+    "maxLines": {
+      "limit": 3,
+      "what": "{count} lines, over {limit}",
+      "fix": "split it"
+    }
+  }
+]

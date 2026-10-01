@@ -1,0 +1,8 @@
+{
+  "rules": "@../shared/packs/html/RULES.md\n@../shared/packs/python/RULES.md\n@../local/packs/mine/RULES.md\n",
+  "mounts": [
+    "python-optional-deps"
+  ],
+  "world": [],
+  "work": []
+}

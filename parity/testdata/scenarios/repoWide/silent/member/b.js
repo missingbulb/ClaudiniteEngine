@@ -1,0 +1,1 @@
+await document.fonts.ready

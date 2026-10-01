@@ -1,0 +1,8 @@
+{
+  "rules": "",
+  "mounts": [],
+  "world": [
+    "v-skipLinesMatching a.txt:2 block"
+  ],
+  "work": []
+}

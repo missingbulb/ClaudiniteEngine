@@ -1,0 +1,15 @@
+[
+  {
+    "id": "v-forbidReferences-links",
+    "on_fail": "block",
+    "failureMessage": "the forbidReferences-links check",
+    "fix": "fix the forbidReferences-links finding",
+    "forbidReferences": [
+      {
+        "from": "public",
+        "to": "internal",
+        "reason": "public docs never point inside"
+      }
+    ]
+  }
+]

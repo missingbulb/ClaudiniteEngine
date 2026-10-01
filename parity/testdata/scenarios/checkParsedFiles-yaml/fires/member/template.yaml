@@ -1,0 +1,9 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Resources:
+  Fn:
+    Type: AWS::Serverless::Function
+    Properties:
+      Role: !GetAtt Role.Arn
+      CodeUri: !Ref Bucket
+  Role:
+    Type: AWS::IAM::Role

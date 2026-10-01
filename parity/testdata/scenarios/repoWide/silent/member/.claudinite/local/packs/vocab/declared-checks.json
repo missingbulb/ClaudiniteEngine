@@ -1,0 +1,21 @@
+[
+  {
+    "id": "v-repoWide",
+    "on_fail": "block",
+    "failureMessage": "the repoWide check",
+    "fix": "fix the repoWide finding",
+    "scanFiles": "/\\.js$/",
+    "repoWide": [
+      {
+        "unlessSomeFileMatches": "/fonts\\.ready/",
+        "flagFilesMatching": [
+          [
+            "/screenshot\\(/"
+          ]
+        ],
+        "neverFlagFiles": "/^skip\\//",
+        "what": "screenshots with no font wait"
+      }
+    ]
+  }
+]

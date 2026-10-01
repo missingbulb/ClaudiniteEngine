@@ -1,0 +1,16 @@
+[
+  {
+    "id": "v-skipLinesMatching",
+    "on_fail": "block",
+    "failureMessage": "the skipLinesMatching check",
+    "fix": "fix the skipLinesMatching finding",
+    "scanFiles": "/\\.txt$/",
+    "skipLinesMatching": "/^#/",
+    "matchLines": [
+      {
+        "match": "/MARK/",
+        "what": "mark"
+      }
+    ]
+  }
+]

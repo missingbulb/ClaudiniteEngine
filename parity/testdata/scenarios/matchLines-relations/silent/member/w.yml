@@ -1,0 +1,14 @@
+on: [push]
+permissions:
+  contents: read
+jobs:
+  a:
+    timeout-minutes: 5
+    steps:
+      - run: echo
+    defaults:
+      env:
+        A: 1
+    image: node@sha256:abc
+# reviewed
+secret: x

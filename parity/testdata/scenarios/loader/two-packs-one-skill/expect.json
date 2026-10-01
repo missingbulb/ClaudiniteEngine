@@ -1,0 +1,9 @@
+{
+  "rules": "",
+  "mounts": [
+    "dup",
+    "own"
+  ],
+  "world": [],
+  "work": []
+}

@@ -1,0 +1,20 @@
+{
+  "packs": [
+    "local/vocab"
+  ],
+  "rules": {
+    "v-mark": "advise",
+    "v-mark2": "block"
+  },
+  "accept": [
+    {
+      "rule": "v-mark",
+      "path": "docs/",
+      "reason": "docs quote it"
+    },
+    {
+      "rule": "v-mark2",
+      "path": "c.txt"
+    }
+  ]
+}

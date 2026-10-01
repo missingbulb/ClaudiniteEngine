@@ -1,0 +1,14 @@
+[
+  {
+    "id": "v-requirePaths",
+    "on_fail": "block",
+    "failureMessage": "the requirePaths check",
+    "fix": "fix the requirePaths finding",
+    "requirePaths": [
+      {
+        "path": "docs/PRIVACY.md",
+        "what": "{path} is missing"
+      }
+    ]
+  }
+]

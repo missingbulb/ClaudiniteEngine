@@ -1,0 +1,16 @@
+[
+  {
+    "id": "v-scanIgnoringMarkdownFences",
+    "on_fail": "block",
+    "failureMessage": "the scanIgnoringMarkdownFences check",
+    "fix": "fix the scanIgnoringMarkdownFences finding",
+    "scanFiles": "/\\.md$/",
+    "scanIgnoringMarkdownFences": true,
+    "matchLines": [
+      {
+        "match": "/rm -rf/",
+        "what": "rm -rf"
+      }
+    ]
+  }
+]
