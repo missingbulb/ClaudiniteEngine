@@ -17,7 +17,7 @@ const usage = `usage:
   pipeline bootstrap-comment
   pipeline blocker-issue --version V --leg PLATFORM --run-url URL --log FILE
   pipeline publish-mode --channel rc|stable --signing release|dev --dry-run true|false --npm-versions FILE [--stable-test pass|fail]
-  pipeline deprecate-commands --action hold|revoke --version V --reason R --rc-versions FILE --stable-versions FILE
+  pipeline deprecate-commands --action hold|revoke|release --version V [--reason R] --rc-versions FILE --stable-versions FILE
 `
 
 func main() { os.Exit(run(os.Args[1:], os.Stdout, os.Stderr)) }

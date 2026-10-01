@@ -9,7 +9,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/shared/version"
 )
 
-// DeprecateInput is a hold or revoke dispatch of promote.yml and what npm
+// DeprecateInput is a hold, revoke or release dispatch of promote.yml and what npm
 // says exists: each channel's `npm view <pkg> versions --json`, which is
 // empty or an E404 error object when the package has no versions.
 type DeprecateInput struct {
@@ -62,14 +62,17 @@ func shellQuote(s string) string { return "'" + strings.ReplaceAll(s, "'", `'\''
 
 // DeprecateCommands renders the hold or revoke of a version as the held:
 // or revoked: deprecation every reader of npm's deprecated field
-// understands, on the channel package and its platform packages, and on
-// the stable ones when the version was promoted.
+// understands, or its release as an empty deprecation, on the channel
+// package and its platform packages, and on the stable ones when the
+// version was promoted.
 func DeprecateCommands(in DeprecateInput) (Deprecation, error) {
-	prefix := map[string]string{"hold": "held: ", "revoke": "revoked: "}[in.Action]
+	prefix, ok := map[string]string{"hold": "held: ", "revoke": "revoked: ", "release": ""}[in.Action]
 	switch {
-	case prefix == "":
-		return Deprecation{}, fmt.Errorf("action %q is not hold or revoke", in.Action)
-	case strings.TrimSpace(in.Reason) == "":
+	case !ok:
+		return Deprecation{}, fmt.Errorf("action %q is not hold, revoke or release", in.Action)
+	case in.Action == "release" && in.Reason != "":
+		return Deprecation{}, errors.New("release lifts a hold or revocation and takes no reason")
+	case in.Action != "release" && strings.TrimSpace(in.Reason) == "":
 		return Deprecation{}, errors.New("a hold or revoke needs a reason")
 	case strings.ContainsAny(in.Reason, "\r\n"):
 		return Deprecation{}, errors.New("the reason must be one line")
@@ -93,7 +96,10 @@ func DeprecateCommands(in DeprecateInput) (Deprecation, error) {
 	if stable[in.Version] {
 		bases = append(bases, "@claudinite/cli")
 	}
-	msg := shellQuote(prefix + strings.TrimSpace(in.Reason))
+	msg := "''"
+	if in.Action != "release" {
+		msg = shellQuote(prefix + strings.TrimSpace(in.Reason))
+	}
 	for _, base := range bases {
 		names := []string{base}
 		for _, p := range version.Platforms {

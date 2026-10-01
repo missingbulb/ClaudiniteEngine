@@ -31,6 +31,16 @@ func TestDeprecateCommands(t *testing.T) {
 	}
 }
 
+// release lifts a hold or revocation: the same packages, an empty
+// message, no reason needed.
+func TestUndeprecateCommands(t *testing.T) {
+	d, err := DeprecateCommands(DeprecateInput{Action: "release", Version: "60930.3.0", RCVersions: `["60930.3.0"]`})
+	if err != nil || !d.Exists {
+		t.Fatalf("%+v %v", d, err)
+	}
+	golden(t, "undeprecate-commands.txt", strings.Join(d.Commands, "\n")+"\n")
+}
+
 // A version npm does not have is not an error: nothing to hold.
 func TestDeprecateCommandsForAMissingVersion(t *testing.T) {
 	d, err := DeprecateCommands(DeprecateInput{Action: "hold", Version: "60930.9.0", Reason: "x", RCVersions: `["60930.3.0"]`})
@@ -60,9 +70,12 @@ func TestPromoteHasHoldAndRevoke(t *testing.T) {
 	}
 	s := string(raw)
 	for _, want := range []string{
-		"      action:\n", "          - promote\n          - hold\n          - revoke\n", "      reason:\n",
-		"  deprecate:\n    if: inputs.action == 'hold' || inputs.action == 'revoke'\n",
+		"      action:\n", "          - promote\n          - hold\n          - revoke\n          - release\n", "      reason:\n",
+		"  deprecate:\n    if: inputs.action == 'hold' || inputs.action == 'revoke' || inputs.action == 'release'\n",
 		"go run ./release/pipeline deprecate-commands",
+		"NPM_DEPRECATE_TOKEN: ${{ secrets.NPM_DEPRECATE_TOKEN }}",
+		"::error::the promote environment has no NPM_DEPRECATE_TOKEN",
+		`NODE_AUTH_TOKEN=$NPM_DEPRECATE_TOKEN sh "$RUNNER_TEMP/commands.sh"`,
 	} {
 		if !strings.Contains(s, want) {
 			t.Errorf("promote.yml lacks %q", want)
@@ -71,6 +84,9 @@ func TestPromoteHasHoldAndRevoke(t *testing.T) {
 	jobs := strings.Split(s, "\n  deprecate:\n")
 	if len(jobs) != 2 || !strings.Contains(strings.SplitN(jobs[1], "\n  publish:", 2)[0], "    environment: promote\n") {
 		t.Error("the deprecate job does not run in the promote environment")
+	}
+	if strings.Contains(s, "by hand") || strings.Contains(s, "for a person") {
+		t.Error("promote.yml still asks a person to run commands")
 	}
 	for _, job := range []string{"gate"} {
 		if !strings.Contains(s, "  "+job+":\n    if: inputs.action == 'promote'\n") {
