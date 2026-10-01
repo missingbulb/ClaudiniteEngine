@@ -128,9 +128,12 @@ func Write(repo, engine string) (bool, error) {
 // a line of its own.
 func HasImport(repo string) bool {
 	raw, err := os.ReadFile(filepath.Join(repo, ClaudeMD))
-	if err != nil {
-		return false
-	}
+	return err == nil && HasImportIn(raw)
+}
+
+// HasImportIn reports whether CLAUDE.md's bytes carry the import line on a
+// line of its own.
+func HasImportIn(raw []byte) bool {
 	for _, l := range strings.Split(string(raw), "\n") {
 		if strings.TrimSpace(l) == Import {
 			return true
@@ -150,9 +153,15 @@ func EnsureImport(repo string) (bool, error) {
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return false, err
 	}
-	if len(raw) > 0 && !bytes.HasSuffix(raw, []byte("\n")) {
-		raw = append(raw, '\n')
+	return true, os.WriteFile(path, WithImport(raw), 0o644)
+}
+
+// WithImport is a CLAUDE.md's bytes with the import line appended, as
+// EnsureImport writes it.
+func WithImport(raw []byte) []byte {
+	out := append([]byte{}, raw...)
+	if len(out) > 0 && !bytes.HasSuffix(out, []byte("\n")) {
+		out = append(out, '\n')
 	}
-	raw = append(raw, Import+"\n"...)
-	return true, os.WriteFile(path, raw, 0o644)
+	return append(out, Import+"\n"...)
 }

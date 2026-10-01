@@ -1,10 +1,12 @@
 package update
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
@@ -323,6 +325,15 @@ func openPackPR(d Deps, o Options, moves []move, prev *githubapi.PR) (string, er
 		if changed {
 			rels = append(rels, rulesindex.File)
 		}
+		if _, err := os.Stat(filepath.Join(d.Repo, filepath.FromSlash(rulesindex.File))); err == nil {
+			added, err := rulesindex.EnsureImport(d.Repo)
+			if err != nil {
+				return err
+			}
+			if added {
+				rels = append(rels, rulesindex.ClaudeMD)
+			}
+		}
 		return d.Git.Commit(title, rels...)
 	}()
 	checkOut, failed := "", false
@@ -356,7 +367,7 @@ func openPackPR(d Deps, o Options, moves []move, prev *githubapi.PR) (string, er
 	}
 
 	var b strings.Builder
-	fmt.Fprintf(&b, "Moves this repo's vendored Claudinite packs. Only `%s/` and the rules index `%s` change.\n\n", packset.Dir, rulesindex.File)
+	fmt.Fprintf(&b, "Moves this repo's vendored Claudinite packs. Only `%s/` and the rules index `%s` change, and `%s` gains the line importing that index when it lacks it.\n\n", packset.Dir, rulesindex.File, rulesindex.ClaudeMD)
 	b.WriteString("| Pack | From | To | Channel | Index serial | Source | Key | Archive SHA-256 |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n")
 	for _, m := range moves {
 		old := m.old
@@ -401,8 +412,27 @@ func openPackPR(d Deps, o Options, moves []move, prev *githubapi.PR) (string, er
 	return fmt.Sprintf("opened #%d for packs %s", pr.Number, set), nil
 }
 
+// onlyAppendsImport refuses a CLAUDE.md on sha that is anything but
+// base's with the rules index import appended, so a pack PR cannot carry
+// other text into every session through it.
+func onlyAppendsImport(g gitcmd.Repo, base, sha string) error {
+	old, had, err := g.Show(base, rulesindex.ClaudeMD)
+	if err != nil {
+		return err
+	}
+	cur, has, err := g.Show(sha, rulesindex.ClaudeMD)
+	if err != nil {
+		return err
+	}
+	if !has || (had && rulesindex.HasImportIn(old)) || !bytes.Equal(cur, rulesindex.WithImport(old)) {
+		return errors.New("changes more than appending the rules index import")
+	}
+	return nil
+}
+
 // landPacks checks pack PR pr is the updater's own: every changed file
-// under the vendored packs or the rules index (import lines only), each touched pack's tree exactly the archive
+// under the vendored packs, the rules index (import lines only) or
+// CLAUDE.md (the import appended only), each touched pack's tree exactly the archive
 // its index names at the tree's version, fetched and verified again now,
 // and newer than main's. Then it merges.
 func landPacks(d Deps, pr githubapi.PR, sha string) (string, error) {
@@ -426,6 +456,12 @@ func landPacks(d Deps, pr githubapi.PR, sha string) (string, error) {
 				if err := indexShape(idx); err != nil {
 					return "", fmt.Errorf("#%d: %s: %w", pr.Number, f, err)
 				}
+			}
+			continue
+		}
+		if f == rulesindex.ClaudeMD {
+			if err := onlyAppendsImport(d.Git, base, sha); err != nil {
+				return "", fmt.Errorf("#%d: %s: %w", pr.Number, f, err)
 			}
 			continue
 		}
