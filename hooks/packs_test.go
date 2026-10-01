@@ -125,7 +125,7 @@ func TestSessionStartLocalAndTempPacks(t *testing.T) {
 	repo := member(t, []string{"canon", "local/mine"}, map[string]map[string]string{
 		"canon": {"pack.json": `{"version": "1.0"}`, "skills/shared/SKILL.md": "---\nname: shared\nmetadata:\n  body: workflow\n---\nfrom canon"},
 	})
-	put(t, repo, ".claudinite/local/packs/mine/pack.json", `{}`)
+	put(t, repo, ".claudinite/local/packs/mine/pack.json", `{"requires": ["absent"]}`)
 	put(t, repo, ".claudinite/local/packs/mine/RULES.md", "- local rule\n")
 	put(t, repo, ".claudinite/local/packs/mine/skills/shared/SKILL.md", "from local")
 	put(t, repo, ".claudinite/local/packs/mine/skills/own/SKILL.md", "own")
@@ -145,6 +145,9 @@ func TestSessionStartLocalAndTempPacks(t *testing.T) {
 	m := selfCheck.FindStringSubmatch(ctx)
 	if m == nil || m[4] != "canon 1.0: rules 0 skills 1; local/mine: rules 1 skills 2; temp/current_user: rules 0 skills 1" {
 		t.Errorf("self-check %q in\n%s", m, ctx)
+	}
+	if !strings.Contains(ctx, "pack local/mine: requires absent, which is not declared;") {
+		t.Errorf("no note for the undeclared requirement:\n%s", ctx)
 	}
 	if !strings.Contains(ctx, "pack local/mine: its coded checks") {
 		t.Errorf("no coded-checks line for a skill's checks.mjs:\n%s", ctx)

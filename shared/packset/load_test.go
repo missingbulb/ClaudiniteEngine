@@ -95,7 +95,6 @@ func TestLoadNotLoaded(t *testing.T) {
 	}
 	got := notLoaded(s)
 	for _, want := range []string{
-		"needs: requires other, which is not declared",
 		"absent: .claudinite/shared/packs/absent is missing",
 		"newer: pack newer 1.0 needs engine 9.0.0 or newer; this is 1.1.0",
 		"local/gone: .claudinite/local/packs/gone is missing",
@@ -106,7 +105,10 @@ func TestLoadNotLoaded(t *testing.T) {
 			t.Errorf("missing %q in:\n%s", want, got)
 		}
 	}
-	if len(s.Packs) != 0 {
-		t.Errorf("loaded %s", tokens(s))
+	if len(s.Unmet) != 1 || s.Unmet[0].Token != "needs" || s.Unmet[0].Why != "requires other, which is not declared" {
+		t.Errorf("unmet %+v", s.Unmet)
+	}
+	if tokens(s) != "needs" {
+		t.Errorf("loaded %s; a pack whose requires is undeclared loads, as in the Node engine", tokens(s))
 	}
 }

@@ -93,7 +93,8 @@ func validateEntryShapes(spec map[string]any, where string) error {
 	}
 	for _, a := range items(spec["guardToolCalls"]) {
 		t, isStr := str(a["tool"])
-		if !(isStr && strings.TrimSpace(t) != "") && re(a["tool"]) == nil {
+		named := isStr && strings.TrimSpace(t) != ""
+		if !named && re(a["tool"]) == nil {
 			return fail(`a guardToolCalls entry needs "tool" — the tool's exact name, or a regex over names`)
 		}
 		n := 0

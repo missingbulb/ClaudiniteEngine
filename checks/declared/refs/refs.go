@@ -689,7 +689,8 @@ func applyExceptions(fs []Finding, exceptions []Exception) ([]Finding, []Stale) 
 outer:
 	for _, f := range fs {
 		for i, e := range exceptions {
-			if !(e.Path == f.File || (strings.HasSuffix(e.Path, "/") && strings.HasPrefix(f.File, e.Path))) {
+			covers := e.Path == f.File || (strings.HasSuffix(e.Path, "/") && strings.HasPrefix(f.File, e.Path))
+			if !covers {
 				continue
 			}
 			if e.To == nil {

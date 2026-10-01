@@ -75,6 +75,9 @@ func assemble(repo, engine string) assembled {
 		}
 		parts = append(parts, fmt.Sprintf("%s: rules %d skills %d", label, len(ruleLine.FindAll(body, -1)), n))
 	}
+	for _, n := range set.Unmet {
+		a.notes = append(a.notes, fmt.Sprintf("pack %s: %s; declare it, or the rules that lean on it have nothing behind them", n.Token, n.Why))
+	}
 	for _, n := range set.NotLoaded {
 		a.notes = append(a.notes, fmt.Sprintf("pack %s: not loaded: %s", n.Token, n.Why))
 		parts = append(parts, n.Token+": not loaded")

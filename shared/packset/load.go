@@ -81,14 +81,19 @@ type Set struct {
 	Declared  settings.Packs
 	Packs     []Pack
 	NotLoaded []NotLoaded
+	// Unmet are loaded packs whose requires names an undeclared pack: the
+	// Node engine resolves requires when the declaration is written and
+	// loads the pack regardless, and so does this one.
+	Unmet []NotLoaded
 }
 
 // Load reads the repo's declaration and returns its active packs in the
 // order the Node engine's registry gives them: the declared canon packs by
 // directory name, then the declared local packs by directory name, then,
 // when session is true, every temp pack present, by directory name. A
-// development engine (0.0.0) skips the minEngineVersion check. It returns
-// an error only when the declaration cannot be read.
+// pack whose requires names an undeclared pack loads, and is recorded in
+// Unmet. A development engine (0.0.0) skips the minEngineVersion check.
+// It returns an error only when the declaration cannot be read.
 func Load(repo, engine string, session bool) (Set, error) {
 	declared, err := Declared(repo)
 	if err != nil {
@@ -160,8 +165,7 @@ func Load(repo, engine string, session bool) (Set, error) {
 			}
 		}
 		if missing != "" {
-			s.NotLoaded = append(s.NotLoaded, NotLoaded{p.Token(), fmt.Sprintf("requires %s, which is not declared", missing)})
-			continue
+			s.Unmet = append(s.Unmet, NotLoaded{p.Token(), fmt.Sprintf("requires %s, which is not declared", missing)})
 		}
 		s.Packs = append(s.Packs, p)
 	}

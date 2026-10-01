@@ -33,7 +33,8 @@ func opensRegex(code []rune) bool {
 		return true
 	}
 	last := code[end-1]
-	if !(isASCIIWord(last) || last == '$' || last == ')' || last == ']') {
+	endsValue := isASCIIWord(last) || last == '$' || last == ')' || last == ']'
+	if !endsValue {
 		return true
 	}
 	for _, kw := range notAValue {
