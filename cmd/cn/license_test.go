@@ -50,3 +50,21 @@ func TestInstallLinksAgree(t *testing.T) {
 		t.Errorf("adopt.InstallURL %q, license.InstallURL %q", adopt.InstallURL, license.InstallURL)
 	}
 }
+
+func TestTheDetachedRequestGetsAnAllowlistedEnvironment(t *testing.T) {
+	in := []string{"HOME=/h", "PATH=/bin", "TMPDIR=/t", "XDG_CACHE_HOME=/c", "HTTPS_PROXY=p", "https_proxy=p", "NO_PROXY=n",
+		"SSL_CERT_FILE=s", "GH_TOKEN=g", "GITHUB_TOKEN=t", "GITHUB_ACTIONS=true", "CLAUDINITE_LICENSE_API=a", "GIT_DIR=d",
+		"SystemRoot=C:\\W", "ANTHROPIC_API_KEY=secret", "AWS_SECRET_ACCESS_KEY=secret", "GITHUB_REPOSITORY=acme/x", "OLDPWD=/o"}
+	got := strings.Join(requestEnv(in), " ")
+	for _, k := range []string{"HOME", "PATH", "TMPDIR", "XDG_CACHE_HOME", "HTTPS_PROXY", "https_proxy", "NO_PROXY", "SSL_CERT_FILE",
+		"GH_TOKEN", "GITHUB_TOKEN", "GITHUB_ACTIONS", "CLAUDINITE_LICENSE_API", "GIT_DIR", "SystemRoot"} {
+		if !strings.Contains(got, k+"=") {
+			t.Errorf("dropped %s: %s", k, got)
+		}
+	}
+	for _, k := range []string{"ANTHROPIC_API_KEY", "AWS_SECRET_ACCESS_KEY", "GITHUB_REPOSITORY", "OLDPWD"} {
+		if strings.Contains(got, k+"=") {
+			t.Errorf("kept %s: %s", k, got)
+		}
+	}
+}
