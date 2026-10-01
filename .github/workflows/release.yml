@@ -84,6 +84,8 @@ jobs:
           - { leg: darwin-x64, runs-on: macos-15-intel }
           - { leg: windows-x64, runs-on: windows-2022 }
     runs-on: ${{ matrix.runs-on }}
+    env:
+      LEG: ${{ matrix.leg }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -99,7 +101,7 @@ jobs:
       - name: shell
         run: |
           echo "uname -s: $(uname -s), uname -m: $(uname -m)"
-          if [ "${{ matrix.leg }}" = windows-x64 ]; then
+          if [ "$LEG" = windows-x64 ]; then
             case $(uname -s) in MINGW*) ;; *) echo "::error::not Git for Windows' sh"; exit 1 ;; esac
           fi
       - name: smoke-platform against regstub
@@ -113,7 +115,7 @@ jobs:
           "$stub/regstub$(go env GOEXE)" --dist dist --ready "$stub/ready" --ca-out "$stub/ca.pem" &
           for _ in $(seq 100); do [ -f "$stub/ready" ] && break; sleep 0.1; done
           [ -f "$stub/ready" ] || { echo "::error::regstub did not start"; exit 1; }
-          if [ "${{ matrix.leg }}" = windows-x64 ]; then
+          if [ "$LEG" = windows-x64 ]; then
             # Windows curl is Schannel, which ignores CURL_CA_BUNDLE by design,
             # so the stub's certificate goes where a member's corporate root
             # would: the machine's Root store. CurrentUser\Root would raise a
@@ -126,7 +128,7 @@ jobs:
           fi
           NO_PROXY=127.0.0.1,localhost \
             sh release/smoke-platform.sh --registry "$(cat "$stub/ready")" --package @claudinite/cli-rc \
-            --version "$VERSION" --pin "$INTEGRITY" --dist dist --platform "${{ matrix.leg }}"
+            --version "$VERSION" --pin "$INTEGRITY" --dist dist --platform "$LEG"
 
   sign:
     needs: [build, smoke]
@@ -216,10 +218,13 @@ jobs:
           echo "$SUMS  dist/SHA256SUMS" | sha256sum -c
           sha256sum -c --quiet dist/SHA256SUMS
       - id: mode
+        env:
+          SIGNING: ${{ needs.sign.outputs.signing }}
+          DRY_RUN: ${{ inputs.dry_run }}
         run: |
           npm view @claudinite/cli-rc versions --json > "$RUNNER_TEMP/versions.json" 2>/dev/null || true
-          go run ./release/pipeline publish-mode --channel rc --signing "${{ needs.sign.outputs.signing }}" \
-            --dry-run "${{ inputs.dry_run }}" --npm-versions "$RUNNER_TEMP/versions.json" >> "$GITHUB_OUTPUT"
+          go run ./release/pipeline publish-mode --channel rc --signing "$SIGNING" \
+            --dry-run "$DRY_RUN" --npm-versions "$RUNNER_TEMP/versions.json" >> "$GITHUB_OUTPUT"
       - if: steps.mode.outputs.mode == 'real'
         run: release/publish.sh --channel rc --auth oidc
       - if: steps.mode.outputs.mode != 'real'
@@ -257,6 +262,8 @@ jobs:
     permissions:
       contents: read
       issues: write
+    env:
+      LEG: ${{ matrix.leg }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -272,14 +279,14 @@ jobs:
         run: |
           echo "uname -s: $(uname -s), uname -m: $(uname -m)"
           sh release/smoke-platform.sh --registry https://registry.npmjs.org --package @claudinite/cli-rc \
-            --version "$VERSION" --pin "$INTEGRITY" --platform "${{ matrix.leg }}" 2>&1 | tee "$RUNNER_TEMP/smoke.log"
+            --version "$VERSION" --pin "$INTEGRITY" --platform "$LEG" 2>&1 | tee "$RUNNER_TEMP/smoke.log"
       - name: open a release-blocker issue
         if: failure()
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ needs.version.outputs.version }}
         run: |
-          go run ./release/pipeline blocker-issue --version "$VERSION" --leg "${{ matrix.leg }}" \
+          go run ./release/pipeline blocker-issue --version "$VERSION" --leg "$LEG" \
             --run-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
             --log "$RUNNER_TEMP/smoke.log" > "$RUNNER_TEMP/issue.md"
           gh label create release-blocker --repo "$GITHUB_REPOSITORY" --color B60205 \
