@@ -12,10 +12,11 @@ import (
 )
 
 // scrubbedEnv is the whole environment a new binary runs with: enough to
-// find its cache and a temp dir, never a token.
+// find its cache, a temp dir and the Go toolchain's caches (check world
+// builds the packs' checks), never a token.
 func scrubbedEnv() []string {
 	var env []string
-	for _, k := range []string{"PATH", "HOME", "XDG_CACHE_HOME", "TMPDIR", "SYSTEMROOT", "USERPROFILE"} {
+	for _, k := range []string{"PATH", "HOME", "XDG_CACHE_HOME", "TMPDIR", "SYSTEMROOT", "USERPROFILE", "GOCACHE", "GOROOT", "GOPATH", "GOMODCACHE"} {
 		if v, ok := os.LookupEnv(k); ok {
 			env = append(env, k+"="+v)
 		}
