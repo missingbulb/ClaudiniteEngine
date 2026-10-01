@@ -33,6 +33,7 @@ type fakeGH struct {
 	polls       int
 	nonce       string
 	refuse      string
+	summary     string
 	keyEdits    func(nonce string) map[string]any
 	unreachable bool
 }
@@ -100,6 +101,9 @@ func (g *fakeGH) CheckRuns(sha, name string) ([]githubapi.CheckRun, error) {
 	r := githubapi.CheckRun{ID: 1, Name: CheckRunName, ExternalID: nonce, Status: "completed", Conclusion: "neutral"}
 	if g.refuse != "" {
 		r.Output.Title, r.Output.Summary = CheckRunName+" refused", g.refuse+": the reason"
+		if g.summary != "" {
+			r.Output.Summary = g.summary
+		}
 		return []githubapi.CheckRun{r}, nil
 	}
 	edits := map[string]any{"nonce": nonce}
@@ -364,6 +368,27 @@ func TestARefusedCheckRunDegradesNamingTheReason(t *testing.T) {
 	}
 	if h := r.env.Hook("/repo", "s1"); !strings.Contains(h.Notice, "no plan") {
 		t.Errorf("%+v", h)
+	}
+}
+
+// The public Worker's private-repo refusal, with its reason prefix and
+// without it (as it was written before the prefix), is refused-private,
+// with the link where an owner picks a plan.
+func TestThePublicWorkersRefusalIsAPrivateRepoCause(t *testing.T) {
+	for _, summary := range []string{
+		"refused-private: this repo is private; the Public plan covers public repos only",
+		"this repo is private; the Public plan covers public repos only",
+	} {
+		r := newRig(t)
+		r.gh.refuse, r.gh.summary = "x", summary
+		r.start()
+		f := r.file()
+		if f.State != StateDegraded || f.Cause != CauseRefusedPrivate || f.Link != InstallURL || f.CauseDetail != "this repo is private; the Public plan covers public repos only" {
+			t.Fatalf("%q: %+v", summary, f)
+		}
+		if h := r.env.Hook("/repo", "s1"); !strings.Contains(h.Notice, "private") || !strings.Contains(h.Notice, InstallURL) {
+			t.Errorf("%q: %+v", summary, h)
+		}
 	}
 }
 

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -321,16 +322,25 @@ func (e Env) readCheckRun(path string, f *File, gh GitHub, landedBy string) (don
 		case CheckRunName:
 			return true, e.land(path, f, []byte(r.Output.Text), landedBy)
 		case CheckRunName + " refused":
-			reason, detail, _ := strings.Cut(r.Output.Summary, ":")
-			reason = strings.TrimSpace(reason)
-			if reason == "" {
-				reason = "refused"
-			}
-			e.degrade(path, f, Cause(reason), strings.TrimSpace(detail))
+			reason, detail := refusal(r.Output.Summary)
+			e.degrade(path, f, reason, detail)
 			return true, false
 		}
 	}
 	return false, false
+}
+
+var refusalPrefix = regexp.MustCompile(`^([a-z0-9-]+):\s*(.*)$`)
+
+// refusal is a refused check run's cause and detail, from its summary's
+// `<reason>: <text>`. A summary with no such prefix is the public
+// Worker's private-repo refusal as it was written before it had one.
+func refusal(summary string) (Cause, string) {
+	summary = strings.TrimSpace(summary)
+	if m := refusalPrefix.FindStringSubmatch(summary); m != nil {
+		return Cause(m[1]), strings.TrimSpace(m[2])
+	}
+	return CauseRefusedPrivate, summary
 }
 
 // land verifies and binds a key fetched for f's request and writes it;
