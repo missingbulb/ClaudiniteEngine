@@ -36,6 +36,10 @@ type fakeGH struct {
 	summary     string
 	keyEdits    func(nonce string) map[string]any
 	unreachable bool
+	// impostor puts first a run carrying the session's nonce and a key
+	// minted for another user, as one dispatched by a reader who copied
+	// the nonce; impostorOnly leaves the session's own run out.
+	impostor, impostorOnly bool
 }
 
 func (g *fakeGH) record(c string) {
@@ -114,7 +118,18 @@ func (g *fakeGH) CheckRuns(sha, name string) ([]githubapi.CheckRun, error) {
 	other := r
 	other.ExternalID = "someone-elses-nonce"
 	other.Output.Text = "not this one"
-	return []githubapi.CheckRun{other, r}, nil
+	runs := []githubapi.CheckRun{other, r}
+	if g.impostor || g.impostorOnly {
+		fake := r
+		fake.ID = 2
+		edits["user_id"] = 8
+		fake.Output.Text = string(mint(g.t, edits))
+		runs = []githubapi.CheckRun{other, fake, r}
+		if g.impostorOnly {
+			runs = runs[:2]
+		}
+	}
+	return runs, nil
 }
 
 // fakeWorker answers the desktop and Actions routes.
@@ -583,6 +598,25 @@ func mustPath(t *testing.T, r *rig) string {
 		t.Fatal(err)
 	}
 	return p
+}
+
+// A check run carrying the session's nonce with another user's key is
+// someone else's request: it is passed over, not taken as a bind failure.
+func TestThePollPassesOverAnotherUsersRunWithTheSameNonce(t *testing.T) {
+	r := newRig(t)
+	r.gh.impostor = true
+	r.start()
+	if f := r.file(); f.State != StateLanded || f.Cause != "" {
+		t.Fatalf("with both runs: %+v", f)
+	}
+
+	// With only the other user's run, the cut names it.
+	r = newRig(t)
+	r.gh.impostorOnly = true
+	r.start()
+	if f := r.file(); f.State != StateDegraded || f.Cause != CauseBindUser {
+		t.Fatalf("with only the other user's run: %+v", f)
+	}
 }
 
 func TestAMalformedStateFileDegrades(t *testing.T) {

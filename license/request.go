@@ -301,18 +301,20 @@ func (e Env) pollOnce(path string, f *File, landedBy string, timeout time.Durati
 		return e.askWorker(path, f, *login, origin, landedBy, timeout)
 	}
 	gh := e.GitHub(f.Repo, "", timeout)
-	done, landed := e.readCheckRun(path, f, gh, landedBy)
+	done, landed, _ := e.readCheckRun(path, f, gh, landedBy)
 	return done && landed
 }
 
 // readCheckRun reads the check runs on f.Head once: a completed run whose
 // external id is the nonce either carries the key, which lands, or a
-// refusal, which degrades. done reports that the request is answered.
-func (e Env) readCheckRun(path string, f *File, gh GitHub, landedBy string) (done, landed bool) {
+// refusal, which degrades. A key for another user is another request
+// that reused the nonce, and is passed over, which stranger reports.
+// done reports that the request is answered.
+func (e Env) readCheckRun(path string, f *File, gh GitHub, landedBy string) (done, landed, stranger bool) {
 	runs, err := gh.CheckRuns(f.Head, CheckRunName)
 	if err != nil {
 		e.logf("check runs: %v", err)
-		return false, false
+		return false, false, false
 	}
 	for _, r := range runs {
 		if r.ExternalID != f.Nonce || r.Status != "completed" {
@@ -321,14 +323,19 @@ func (e Env) readCheckRun(path string, f *File, gh GitHub, landedBy string) (don
 		e.logf("check run %d (%s, app %s): %s", r.ID, r.Output.Title, r.App.Slug, r.Output.Summary)
 		switch r.Output.Title {
 		case CheckRunName:
-			return true, e.land(path, f, []byte(r.Output.Text), landedBy)
+			if k, err := VerifyKey([]byte(r.Output.Text), e.Roots, e.Now()); err == nil && k.UserID != nil && *k.UserID != f.UserID {
+				e.logf("check run %d: a key for user %d, not %d; passed over", r.ID, *k.UserID, f.UserID)
+				stranger = true
+				continue
+			}
+			return true, e.land(path, f, []byte(r.Output.Text), landedBy), stranger
 		case CheckRunName + " refused":
 			reason, detail := refusal(r.Output.Summary)
 			e.degrade(path, f, reason, detail)
-			return true, false
+			return true, false, stranger
 		}
 	}
-	return false, false
+	return false, false, stranger
 }
 
 var refusalPrefix = regexp.MustCompile(`^([a-z0-9-]+):\s*(.*)$`)
@@ -434,10 +441,11 @@ func (e Env) RunRequest(sessionID, nonce string, dir string) error {
 	if !e.startWeb(path, f, gh) {
 		return nil
 	}
-	cutWritten := false
+	cutWritten, strangers := false, false
 	end := f.RequestedAt.Add(Cut + Tail())
 	for e.Now().Before(end) {
-		done, landed := e.readCheckRun(path, f, gh, PathWeb)
+		done, landed, stranger := e.readCheckRun(path, f, gh, PathWeb)
+		strangers = strangers || stranger
 		if done {
 			if landed {
 				outcome = breadcrumb.OK
@@ -455,7 +463,11 @@ func (e Env) RunRequest(sessionID, nonce string, dir string) error {
 		if !cutWritten && !e.Now().Before(f.RequestedAt.Add(Cut)) {
 			cutWritten = true
 			e.logf("%s", breadcrumb.Line("license", "cut", breadcrumb.Timeout, e.Now().Sub(start)))
-			e.degrade(path, f, likeliest(f), "")
+			if strangers {
+				e.degrade(path, f, CauseBindUser, "only a key for another user")
+			} else {
+				e.degrade(path, f, likeliest(f), "")
+			}
 		}
 		e.Sleep(PollEvery)
 	}
