@@ -59,7 +59,7 @@ func (c CDN) get(rel string) ([]byte, error) {
 	if err != nil || u.Scheme != "https" {
 		return nil, fmt.Errorf("the pack CDN is read over HTTPS only, not %s", c.Base)
 	}
-	resp, err := c.HTTP.Get(u.String())
+	resp, err := httpsOnly(c.HTTP).Get(u.String())
 	if err != nil {
 		return nil, err
 	}
@@ -79,6 +79,26 @@ func (c CDN) get(rel string) ([]byte, error) {
 		return nil, fmt.Errorf("GET %s: larger than the %d-byte cap", u, max)
 	}
 	return data, nil
+}
+
+// httpsOnly is client, refusing any redirect hop off HTTPS, on top of its
+// own redirect policy.
+func httpsOnly(client *http.Client) *http.Client {
+	cl := *client
+	own := client.CheckRedirect
+	cl.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		if req.URL.Scheme != "https" {
+			return fmt.Errorf("the pack CDN is read over HTTPS only; a redirect went to %s", req.URL.Redacted())
+		}
+		if own != nil {
+			return own(req, via)
+		}
+		if len(via) >= 10 {
+			return errors.New("stopped after 10 redirects")
+		}
+		return nil
+	}
+	return &cl
 }
 
 // Index reads the pair.

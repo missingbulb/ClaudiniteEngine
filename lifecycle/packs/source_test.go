@@ -252,6 +252,32 @@ func TestCDNSource(t *testing.T) {
 	}
 }
 
+func TestCDNRefusesARedirectOffHTTPS(t *testing.T) {
+	plain := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write([]byte("plain")) }))
+	defer plain.Close()
+	var srv *httptest.Server
+	srv = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/packs/off/index.json":
+			http.Redirect(w, r, plain.URL+"/x", http.StatusFound)
+		case "/packs/on/index.json":
+			http.Redirect(w, r, srv.URL+"/packs/hello/index.json", http.StatusFound)
+		case "/packs/hello/index.json", "/packs/on/index.sig.json":
+			_, _ = w.Write([]byte("ok"))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+	c := CDN{Base: srv.URL, HTTP: srv.Client(), MaxBytes: 1 << 20}
+	if _, _, err := c.Index("off"); err == nil || !strings.Contains(err.Error(), "HTTPS") {
+		t.Errorf("a redirect to plain http: %v", err)
+	}
+	if ix, _, err := c.Index("on"); err != nil || string(ix) != "ok" {
+		t.Errorf("a redirect that stays on https: %q %v", ix, err)
+	}
+}
+
 func gitT(t *testing.T, dir string, args ...string) {
 	t.Helper()
 	cmd := exec.Command("git", append([]string{"-c", "user.name=t", "-c", "user.email=t@x"}, args...)...)
