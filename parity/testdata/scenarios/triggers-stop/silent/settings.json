@@ -1,0 +1,6 @@
+{
+  "packs": [
+    "local/guards",
+    "claudinite-lifecycle"
+  ]
+}

@@ -1,0 +1,19 @@
+[
+  {
+    "id": "a-inputFieldAbsent",
+    "on_fail": "block",
+    "scope": "action",
+    "failureMessage": "the a-inputFieldAbsent guard",
+    "guardToolCalls": [
+      {
+        "tool": "Bash",
+        "inputFieldAbsent": [
+          "description",
+          "timeout"
+        ],
+        "what": "{tool} call lacks a field",
+        "fix": "describe it"
+      }
+    ]
+  }
+]

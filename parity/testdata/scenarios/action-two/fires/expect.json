@@ -1,0 +1,18 @@
+{
+  "rules": "",
+  "mounts": [],
+  "world": [],
+  "work": [],
+  "pretooluse": [
+    {
+      "payload": {
+        "tool_name": "Bash",
+        "tool_input": {
+          "command": "curl x"
+        }
+      },
+      "exit": 2,
+      "block": "Blocked by a-override: fetches with curl. the a-override guard. Fix: use the fetch tool"
+    }
+  ]
+}

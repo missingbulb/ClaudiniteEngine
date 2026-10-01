@@ -1,0 +1,37 @@
+{
+  "rules": "",
+  "mounts": [],
+  "world": [],
+  "work": [],
+  "pretooluse": [
+    {
+      "payload": {
+        "tool_name": "Bash",
+        "tool_input": {
+          "command": "git push origin main"
+        }
+      },
+      "exit": 2,
+      "block": "Blocked by a-match: Bash runs git push (git push) from git push origin main. the a-match guard. Fix: do not push here"
+    },
+    {
+      "payload": {
+        "tool_name": "Bash",
+        "tool_input": {
+          "command": "git pull"
+        }
+      },
+      "exit": 2,
+      "block": "Blocked by a-match: Bash runs git pull (git pull) from git pull. the a-match guard. Fix: do not pull here"
+    },
+    {
+      "payload": {
+        "tool_name": "Bash",
+        "tool_input": {
+          "command": "ls"
+        }
+      },
+      "exit": 0
+    }
+  ]
+}

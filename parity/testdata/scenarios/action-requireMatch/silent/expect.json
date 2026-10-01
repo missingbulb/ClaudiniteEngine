@@ -1,0 +1,17 @@
+{
+  "rules": "",
+  "mounts": [],
+  "world": [],
+  "work": [],
+  "pretooluse": [
+    {
+      "payload": {
+        "tool_name": "Bash",
+        "tool_input": {
+          "command": "git log"
+        }
+      },
+      "exit": 0
+    }
+  ]
+}

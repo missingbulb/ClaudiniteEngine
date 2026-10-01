@@ -1,0 +1,18 @@
+{
+  "rules": "",
+  "mounts": [],
+  "world": [],
+  "work": [],
+  "pretooluse": [
+    {
+      "payload": {
+        "tool_name": "Bash",
+        "tool_input": {
+          "command": "git push"
+        }
+      },
+      "exit": 2,
+      "block": "Blocked by a-unlessMatches: pushes. the a-unlessMatches guard. Fix: dry-run"
+    }
+  ]
+}

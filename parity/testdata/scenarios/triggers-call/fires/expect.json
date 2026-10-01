@@ -1,0 +1,77 @@
+{
+  "rules": "",
+  "mounts": [
+    "call-guide",
+    "prompt-guide",
+    "result-guide",
+    "scoped-guide"
+  ],
+  "world": [],
+  "work": [],
+  "pretooluse": [
+    {
+      "payload": {
+        "tool_name": "Bash",
+        "tool_input": {
+          "command": "make deploy"
+        }
+      },
+      "exit": 2,
+      "block": "Blocked: Bash is called only with the `call-guide` skill loaded (the guards pack's skill forces itself for Bash.command /\\bdeploy\\b/). Load it first — Skill tool, skill: \"call-guide\", or Read .claudinite/local/packs/guards/skills/call-guide/SKILL.md — then retry the call."
+    },
+    {
+      "payload": {
+        "tool_name": "Bash",
+        "tool_input": {
+          "command": "ls"
+        }
+      },
+      "exit": 0
+    },
+    {
+      "payload": {
+        "tool_name": "WebFetch",
+        "tool_input": {
+          "url": "u"
+        }
+      },
+      "exit": 2,
+      "block": "Blocked: WebFetch is called only with the `call-guide` skill loaded (the guards pack's skill forces itself for WebFetch). Load it first — Skill tool, skill: \"call-guide\", or Read .claudinite/local/packs/guards/skills/call-guide/SKILL.md — then retry the call."
+    },
+    {
+      "payload": {
+        "tool_name": "mcp__acme__thing",
+        "tool_input": {}
+      },
+      "exit": 2,
+      "block": "Blocked: mcp__acme__thing is called only with the `call-guide` skill loaded (the guards pack's skill forces itself for /^mcp__acme__/). Load it first — Skill tool, skill: \"call-guide\", or Read .claudinite/local/packs/guards/skills/call-guide/SKILL.md — then retry the call."
+    },
+    {
+      "payload": {
+        "tool_name": "mcp__other__thing",
+        "tool_input": {}
+      },
+      "exit": 0
+    },
+    {
+      "payload": {
+        "tool_name": "Grep",
+        "tool_input": {
+          "pattern": "p",
+          "glob": "*.go"
+        }
+      },
+      "exit": 2,
+      "block": "Blocked: Grep is called only with the `call-guide` skill loaded (the guards pack's skill forces itself for Grep /\"glob\"/). Load it first — Skill tool, skill: \"call-guide\", or Read .claudinite/local/packs/guards/skills/call-guide/SKILL.md — then retry the call."
+    },
+    {
+      "payload": {
+        "tool_name": "Grep",
+        "tool_input": {
+          "pattern": "p"
+        }
+      },
+      "exit": 0
+    }
+  ]
+}

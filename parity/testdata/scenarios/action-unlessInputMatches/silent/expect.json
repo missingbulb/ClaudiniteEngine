@@ -1,0 +1,18 @@
+{
+  "rules": "",
+  "mounts": [],
+  "world": [],
+  "work": [],
+  "pretooluse": [
+    {
+      "payload": {
+        "tool_name": "Write",
+        "tool_input": {
+          "file_path": "a.md",
+          "content": ""
+        }
+      },
+      "exit": 0
+    }
+  ]
+}

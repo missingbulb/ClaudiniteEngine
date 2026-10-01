@@ -1,0 +1,6 @@
+{"type":"user","message":{"role":"user","content":"go"}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"b1","name":"Bash","input":{"command":"git push origin x"}}]}}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"b1","is_error":true,"content":"Blocked by a-match: Bash runs git push (git push) from git push origin x. the a-match guard. Fix: do not push here"}]}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"b2","name":"Bash","input":{"command":"git pull"}}]}}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"b2","is_error":false,"content":"ok"}]}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"b3","name":"Read","input":{"file_path":"x"}}]}}

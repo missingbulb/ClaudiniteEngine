@@ -1,0 +1,19 @@
+{
+  "rules": "",
+  "mounts": [
+    "call-guide",
+    "prompt-guide",
+    "result-guide",
+    "scoped-guide"
+  ],
+  "world": [],
+  "work": [],
+  "prompt": [
+    {
+      "payload": {
+        "prompt": "SHIP IT"
+      },
+      "exit": 0
+    }
+  ]
+}

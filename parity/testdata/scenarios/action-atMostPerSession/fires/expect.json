@@ -1,0 +1,27 @@
+{
+  "rules": "",
+  "mounts": [],
+  "world": [],
+  "work": [],
+  "pretooluse": [
+    {
+      "payload": {
+        "tool_name": "Bash",
+        "tool_input": {
+          "command": "npm test"
+        }
+      },
+      "exit": 2,
+      "block": "Blocked by a-atMostPerSession: npm test ran again. the a-atMostPerSession guard. Fix: run it once"
+    },
+    {
+      "payload": {
+        "tool_name": "Bash",
+        "tool_input": {
+          "command": "npm run lint"
+        }
+      },
+      "exit": 0
+    }
+  ]
+}

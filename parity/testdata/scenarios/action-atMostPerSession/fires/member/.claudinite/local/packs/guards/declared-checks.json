@@ -1,0 +1,17 @@
+[
+  {
+    "id": "a-atMostPerSession",
+    "on_fail": "block",
+    "scope": "action",
+    "failureMessage": "the a-atMostPerSession guard",
+    "guardToolCalls": [
+      {
+        "tool": "Bash",
+        "inputField": "command",
+        "atMostPerSession": 1,
+        "what": "{field} ran again",
+        "fix": "run it once"
+      }
+    ]
+  }
+]

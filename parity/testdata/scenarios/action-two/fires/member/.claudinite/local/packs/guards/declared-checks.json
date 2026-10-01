@@ -1,0 +1,47 @@
+[
+  {
+    "id": "a-override",
+    "on_fail": "block",
+    "scope": "action",
+    "failureMessage": "the a-override guard",
+    "guardToolCalls": [
+      {
+        "tool": "Bash",
+        "inputField": "command",
+        "match": "/curl/",
+        "what": "fetches with curl",
+        "fix": "use the fetch tool"
+      }
+    ]
+  },
+  {
+    "id": "a-second",
+    "on_fail": "block",
+    "scope": "action",
+    "failureMessage": "the a-second guard",
+    "guardToolCalls": [
+      {
+        "tool": "Bash",
+        "inputField": "command",
+        "match": "/curl/",
+        "what": "second",
+        "fix": "f"
+      }
+    ]
+  },
+  {
+    "id": "a-third",
+    "on_fail": "advise",
+    "scope": "action",
+    "failureMessage": "the a-third guard",
+    "guardToolCalls": [
+      {
+        "tool": "Bash",
+        "inputField": "command",
+        "match": "/curl/",
+        "what": "third",
+        "fix": "f"
+      }
+    ]
+  }
+]

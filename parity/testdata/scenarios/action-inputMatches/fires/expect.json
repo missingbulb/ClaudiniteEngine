@@ -1,0 +1,32 @@
+{
+  "rules": "",
+  "mounts": [],
+  "world": [],
+  "work": [],
+  "pretooluse": [
+    {
+      "payload": {
+        "tool_name": "Grep",
+        "tool_input": {
+          "pattern": "x",
+          "output_mode": "content",
+          "nested": {
+            "z": [
+              1,
+              2.5,
+              {
+                "b": "\u003c\u0026\u003e \u00e9",
+                "a": null
+              }
+            ],
+            "y": true
+          },
+          "10": "n",
+          "2": "m"
+        }
+      },
+      "exit": 0,
+      "context": "[claudinite a-inputMatches] Grep asks for content (\"output_mode\":\"content\",\"nested\":{\"z\":[1,2.5,{\"b\":\"\u003c\u0026\u003e é\",\"a\":null}],\"y\":true}). the a-inputMatches guard. Fix: ask for files"
+    }
+  ]
+}

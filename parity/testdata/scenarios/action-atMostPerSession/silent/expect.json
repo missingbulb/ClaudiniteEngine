@@ -1,0 +1,27 @@
+{
+  "rules": "",
+  "mounts": [],
+  "world": [],
+  "work": [],
+  "pretooluse": [
+    {
+      "payload": {
+        "tool_name": "Bash",
+        "tool_input": {
+          "command": "npm run build"
+        }
+      },
+      "exit": 0
+    },
+    {
+      "payload": {
+        "tool_name": "Bash",
+        "tool_input": {
+          "command": "npm test"
+        }
+      },
+      "noTranscript": true,
+      "exit": 0
+    }
+  ]
+}

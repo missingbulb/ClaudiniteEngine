@@ -1,0 +1,17 @@
+[
+  {
+    "id": "a-requireMatch",
+    "on_fail": "block",
+    "scope": "action",
+    "failureMessage": "the a-requireMatch guard",
+    "guardToolCalls": [
+      {
+        "tool": "Bash",
+        "inputField": "command",
+        "requireMatch": "/^git /",
+        "what": "{tool}: {field} is not git",
+        "fix": "only git"
+      }
+    ]
+  }
+]

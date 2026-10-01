@@ -1,0 +1,44 @@
+{
+  "rules": "",
+  "mounts": [
+    "call-guide",
+    "prompt-guide",
+    "result-guide",
+    "scoped-guide"
+  ],
+  "world": [],
+  "work": [],
+  "prompt": [
+    {
+      "payload": {
+        "prompt": "please SHIP IT now"
+      },
+      "exit": 0,
+      "context": "Claudinite: this prompt matches the `prompt-guide` skill's trigger (/\\bSHIP IT\\b/, the guards pack) — load it before acting on the prompt: Skill tool, skill: \"prompt-guide\", or Read .claudinite/local/packs/guards/skills/prompt-guide/SKILL.md."
+    },
+    {
+      "payload": {
+        "prompt": "\u003ctask-notification\u003eSHIP IT\u003c/task-notification\u003e"
+      },
+      "exit": 0
+    },
+    {
+      "payload": {
+        "prompt": "[SYSTEM NOTIFICATION] SHIP IT"
+      },
+      "exit": 0
+    },
+    {
+      "payload": {
+        "prompt": "  "
+      },
+      "exit": 0
+    },
+    {
+      "payload": {
+        "prompt": "nothing to see"
+      },
+      "exit": 0
+    }
+  ]
+}

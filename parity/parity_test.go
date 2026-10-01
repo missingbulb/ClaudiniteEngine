@@ -26,10 +26,18 @@ const (
 )
 
 func record(s Scenario, a Answer) error {
-	x := Expect{Rules: &a.Rules, Mounts: names(a.Mounts), Only: s.Expect.Only, LoaderOnly: s.Expect.LoaderOnly}
+	x := Expect{Rules: &a.Rules, Mounts: names(a.Mounts), Only: s.Expect.Only, LoaderOnly: s.Expect.LoaderOnly, Why: s.Expect.Why}
 	if !x.LoaderOnly {
 		w, k := strs(a.World), strs(a.Work)
 		x.World, x.Work = &w, &k
+	}
+	for _, ev := range hookEvents {
+		var cases []HookCase
+		for i, c := range *s.Expect.cases(ev.key) {
+			v := a.Hooks[ev.key][i]
+			cases = append(cases, HookCase{Payload: c.Payload, NoTranscript: c.NoTranscript, Exit: v.Exit, Block: v.Block(), Context: v.Context})
+		}
+		*x.cases(ev.key) = cases
 	}
 	raw, err := jsonIndent(x)
 	if err != nil {
@@ -90,6 +98,23 @@ type Answer struct {
 	Rules       string
 	Mounts      map[string]string
 	World, Work []Finding
+	// Hooks are the per-call answers, by expect.json key, case by case.
+	Hooks map[string][]Verdict
+}
+
+// fired reports whether the answer holds any finding, block or context.
+func (a Answer) fired() bool {
+	if len(a.World)+len(a.Work) > 0 {
+		return true
+	}
+	for _, vs := range a.Hooks {
+		for _, v := range vs {
+			if v.Exit != 0 || v.Context != "" {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func names(m map[string]string) []string {
@@ -119,18 +144,35 @@ func ask(t *testing.T, s Scenario, e Engine, canon string) Answer {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var a Answer
+	transcript, err := s.Transcript(filepath.Dir(dir))
+	if err != nil {
+		t.Fatalf("%s: transcript: %v", e.Name(), err)
+	}
+	a := Answer{Hooks: map[string][]Verdict{}}
 	// The sweeps run first: the session start writes files they would see.
 	world, err := e.World(dir)
 	if err != nil {
 		t.Fatalf("%s: %v", e.Name(), err)
 	}
 	a.World = Keep(world, keep)
-	work, err := e.Work(dir)
+	work, err := e.Work(dir, transcript)
 	if err != nil {
 		t.Fatalf("%s: %v", e.Name(), err)
 	}
 	a.Work = Keep(work, keep)
+	for _, ev := range hookEvents {
+		for _, c := range *s.Expect.cases(ev.key) {
+			payload, err := c.payload(ev.name, transcript)
+			if err != nil {
+				t.Fatal(err)
+			}
+			v, err := e.Hook(dir, ev.event, payload)
+			if err != nil {
+				t.Fatalf("%s %s: %v", e.Name(), ev.event, err)
+			}
+			a.Hooks[ev.key] = append(a.Hooks[ev.key], v)
+		}
+	}
 	if a.Rules, err = e.Rules(dir); err != nil {
 		t.Fatalf("%s: %v", e.Name(), err)
 	}
@@ -147,13 +189,19 @@ func check(t *testing.T, s Scenario, e string, a Answer) {
 		e = "node (a scenario that fails on the Node engine is a wrong scenario, not a cn bug)"
 	}
 	x := s.Expect
-	if x.World != nil && x.Work != nil {
-		n := len(*x.World) + len(*x.Work)
-		if s.Name == "fires" && n == 0 {
-			t.Errorf("a fires scenario expects no finding")
-		}
-		if s.Name == "silent" && n != 0 {
-			t.Errorf("a silent scenario expects findings")
+	if s.Name == "fires" && !a.fired() {
+		t.Errorf("%s: a fires scenario found nothing", e)
+	}
+	if s.Name == "silent" && a.fired() {
+		t.Errorf("%s: a silent scenario found something", e)
+	}
+	for _, ev := range hookEvents {
+		for i, c := range *x.cases(ev.key) {
+			v := a.Hooks[ev.key][i]
+			if v.Exit != c.Exit || v.Block() != c.Block || v.Context != c.Context {
+				t.Errorf("%s %s case %d: exit %d block %q context %q\nwant exit %d block %q context %q\nstderr: %s",
+					e, ev.event, i+1, v.Exit, v.Block(), v.Context, c.Exit, c.Block, c.Context, v.Stderr)
+			}
 		}
 	}
 	if x.Rules != nil && a.Rules != *x.Rules {
@@ -180,6 +228,14 @@ func agree(t *testing.T, a, b Answer) {
 		for k, v := range a.Mounts {
 			if w, ok := b.Mounts[k]; ok && v != w {
 				t.Errorf("SKILL.md of %s differs", k)
+			}
+		}
+	}
+	for _, ev := range hookEvents {
+		for i := range a.Hooks[ev.key] {
+			x, y := a.Hooks[ev.key][i], b.Hooks[ev.key][i]
+			if x.Exit != y.Exit || x.Block() != y.Block() || x.Context != y.Context {
+				t.Errorf("%s case %d differs:\nnode exit %d block %q context %q\ncn   exit %d block %q context %q", ev.event, i+1, x.Exit, x.Block(), x.Context, y.Exit, y.Block(), y.Context)
 			}
 		}
 	}
@@ -218,6 +274,10 @@ func TestParity(t *testing.T) {
 			}
 			var answers []Answer
 			for _, e := range es {
+				if s.Expect.CnOnly && e.Name() != "cn" {
+					t.Logf("parity %s/%s: cn only (%s)", s.Group, s.Name, s.Expect.Why)
+					continue
+				}
 				a := ask(t, s, e, canon)
 				if os.Getenv(recordEnv) == "1" && e.Name() == "node" {
 					if err := record(s, a); err != nil {
@@ -227,7 +287,11 @@ func TestParity(t *testing.T) {
 				}
 				check(t, s, e.Name(), a)
 				answers = append(answers, a)
-				t.Logf("parity %s/%s %s: world %d, work %d, mounts %d", s.Group, s.Name, e.Name(), len(a.World), len(a.Work), len(a.Mounts))
+				hooks := 0
+				for _, vs := range a.Hooks {
+					hooks += len(vs)
+				}
+				t.Logf("parity %s/%s %s: world %d, work %d, mounts %d, hook calls %d", s.Group, s.Name, e.Name(), len(a.World), len(a.Work), len(a.Mounts), hooks)
 			}
 			if len(answers) == 2 {
 				agree(t, answers[0], answers[1])

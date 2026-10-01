@@ -1,0 +1,26 @@
+{
+  "rules": "",
+  "mounts": [],
+  "world": [],
+  "work": [],
+  "pretooluse": [
+    {
+      "payload": {
+        "tool_name": "Bash",
+        "tool_input": {
+          "command": "git status"
+        }
+      },
+      "exit": 0
+    },
+    {
+      "payload": {
+        "tool_name": "Read",
+        "tool_input": {
+          "file_path": "x"
+        }
+      },
+      "exit": 0
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "rules": "",
+  "mounts": [],
+  "world": [],
+  "work": [],
+  "pretooluse": [
+    {
+      "payload": {
+        "tool_name": "mcp__github__list_issues",
+        "tool_input": {
+          "owner": "o"
+        }
+      },
+      "exit": 0,
+      "context": "[claudinite a-regexTool] mcp__github__list_issues pages with no perPage. the a-regexTool guard. Fix: pass perPage"
+    }
+  ]
+}

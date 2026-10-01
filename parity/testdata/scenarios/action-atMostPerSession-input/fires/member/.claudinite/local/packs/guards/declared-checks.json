@@ -1,0 +1,16 @@
+[
+  {
+    "id": "a-atMostWhole",
+    "on_fail": "advise",
+    "scope": "action",
+    "failureMessage": "the a-atMostWhole guard",
+    "guardToolCalls": [
+      {
+        "tool": "WebFetch",
+        "atMostPerSession": 1,
+        "what": "{tool} fetched the same input twice",
+        "fix": "reuse the result"
+      }
+    ]
+  }
+]

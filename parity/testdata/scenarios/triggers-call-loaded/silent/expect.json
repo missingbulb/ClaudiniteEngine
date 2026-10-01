@@ -1,0 +1,22 @@
+{
+  "rules": "",
+  "mounts": [
+    "call-guide",
+    "prompt-guide",
+    "result-guide",
+    "scoped-guide"
+  ],
+  "world": [],
+  "work": [],
+  "pretooluse": [
+    {
+      "payload": {
+        "tool_name": "Bash",
+        "tool_input": {
+          "command": "make deploy"
+        }
+      },
+      "exit": 0
+    }
+  ]
+}

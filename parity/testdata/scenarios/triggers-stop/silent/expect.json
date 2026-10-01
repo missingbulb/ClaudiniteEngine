@@ -1,0 +1,16 @@
+{
+  "rules": "@../shared/packs/claudinite-lifecycle/RULES.md\n",
+  "mounts": [
+    "adopt-claudinite",
+    "adopt-pack",
+    "call-guide",
+    "prompt-guide",
+    "result-guide",
+    "scoped-guide"
+  ],
+  "world": [],
+  "work": [],
+  "only": [
+    "skill-loaded-before-editing"
+  ]
+}

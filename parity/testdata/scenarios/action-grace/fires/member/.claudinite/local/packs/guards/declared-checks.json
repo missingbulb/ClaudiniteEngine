@@ -1,0 +1,18 @@
+[
+  {
+    "id": "a-grace",
+    "on_fail": "block",
+    "scope": "action",
+    "failureMessage": "the a-grace guard",
+    "guardToolCalls": [
+      {
+        "tool": "Bash",
+        "inputField": "command",
+        "match": "/rm -rf/",
+        "what": "removes a tree",
+        "fix": "remove files by name"
+      }
+    ],
+    "since": "@@TODAY@@"
+  }
+]

@@ -1,0 +1,19 @@
+[
+  {
+    "id": "r-gated",
+    "on_fail": "block",
+    "scope": "work",
+    "failureMessage": "a feature adds no TODO",
+    "whenReplyClassIncludes": [
+      "feature"
+    ],
+    "forbidAddedLinesMatching": [
+      {
+        "inFilesMatching": "/\\.txt$/",
+        "match": "/TODO/",
+        "what": "{path} adds a TODO",
+        "fix": "do it now"
+      }
+    ]
+  }
+]

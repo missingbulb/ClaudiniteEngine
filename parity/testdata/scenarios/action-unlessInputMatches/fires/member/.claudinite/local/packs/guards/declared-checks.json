@@ -1,0 +1,18 @@
+[
+  {
+    "id": "a-unlessInputMatches",
+    "on_fail": "block",
+    "scope": "action",
+    "failureMessage": "the a-unlessInputMatches guard",
+    "guardToolCalls": [
+      {
+        "tool": "Write",
+        "inputField": "file_path",
+        "match": "/\\.md$/",
+        "unlessInputMatches": "/\"content\":\"\"/",
+        "what": "writes {field}",
+        "fix": "edit instead"
+      }
+    ]
+  }
+]
