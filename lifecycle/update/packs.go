@@ -225,6 +225,28 @@ func proposePacks(d Deps) ([]move, error) {
 	return moves, nil
 }
 
+// memberWant is what the member on disk takes: its packs channel and its
+// pinned engine.
+func memberWant(repo string) (packindex.Want, error) {
+	path, f, err := settings.Find(repo)
+	if err != nil {
+		return packindex.Want{}, err
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return packindex.Want{}, err
+	}
+	pin, err := settings.ReadEngine(raw, f)
+	if err != nil {
+		return packindex.Want{}, err
+	}
+	declared, err := settings.ReadPacks(raw, f)
+	if err != nil {
+		return packindex.Want{}, err
+	}
+	return packindex.Want{Channel: declared.Channel, Engine: pin.Version}, nil
+}
+
 // indexImport is one line the rules index may hold: a vendored or local
 // pack's prose, or the copied person's.
 var indexImport = regexp.MustCompile(`^@\.\./(shared/packs/[a-z0-9][a-z0-9-]*|local/packs/[A-Za-z0-9][A-Za-z0-9_.-]*)/[A-Za-z0-9_.-]+$|^@\.\./temp/packs/current_user/RULES\.md$`)
@@ -414,6 +436,10 @@ func landPacks(d Deps, pr githubapi.PR, sha string) (string, error) {
 		}
 	}
 	sort.Strings(ids)
+	want, err := memberWant(d.Repo)
+	if err != nil {
+		return "", err
+	}
 	var landed []string
 	for _, id := range ids {
 		prefix := packset.TreeRel(id) + "/"
@@ -460,6 +486,19 @@ func landPacks(d Deps, pr githubapi.PR, sha string) (string, error) {
 		}
 		if e.Revoked {
 			return "", fmt.Errorf("#%d holds %s %s, which is revoked", pr.Number, id, m.Version)
+		}
+		// The proposal selected it; landing selects it again, against the
+		// member as main holds it, in case the index or the member moved.
+		w := want
+		if held, err := packs.HeldVersion(packset.Tree(d.Repo, id)); err == nil {
+			w.Held = held
+		}
+		if c := packindex.Select(packindex.Index{Versions: []packindex.Entry{e}}, w); c.Entry == nil {
+			why := "it is not newer than what main holds"
+			if c.Skipped != nil {
+				why = c.Skipped.Reason
+			}
+			return "", fmt.Errorf("#%d holds %s %s, and this member does not take it: %s", pr.Number, id, m.Version, why)
 		}
 		archive, err := d.Packs.Archive(id, e)
 		if err != nil {

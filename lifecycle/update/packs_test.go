@@ -299,6 +299,14 @@ func TestLandRefusesAPackPRThatIsNotThePublishedSet(t *testing.T) {
 		"a tree rewritten under the bot": func(w *packWorld, t *testing.T, pr *githubapi.PR) {
 			rewrite(w, t, pr, ".claudinite/shared/packs/hello/RULES.md", "- something else\n")
 		},
+		"a version the pinned engine is too old for": func(w *packWorld, t *testing.T, pr *githubapi.PR) {
+			w.packs.entries["hello"][1].MinEngineVersion = "99999.0.0"
+		},
+		"a canary version on a stable member": func(w *packWorld, t *testing.T, pr *githubapi.PR) {
+			path := filepath.Join(w.repo, ".claudinite/settings.yaml")
+			raw, _ := os.ReadFile(path)
+			_ = os.WriteFile(path, []byte(strings.Replace(string(raw), `channel: "canary"`, `channel: "stable"`, 1)), 0o644)
+		},
 		"a version not newer than main's": func(w *packWorld, t *testing.T, pr *githubapi.PR) {
 			gitRun(t, w.repo, "fetch", "-q", "origin", pr.HeadRef)
 			gitRun(t, w.repo, "merge", "-q", "--ff-only", "FETCH_HEAD")
@@ -312,6 +320,10 @@ func TestLandRefusesAPackPRThatIsNotThePublishedSet(t *testing.T) {
 		w.hub.pulls[len(w.hub.pulls)-1].HeadSHA = pr.HeadSHA
 		if v, err := Land(w.deps(t), pr.Number, pr.HeadSHA); err == nil {
 			t.Errorf("%s: %q", name, v)
+		} else if strings.Contains(name, "engine") || strings.Contains(name, "canary") {
+			if !strings.Contains(err.Error(), "this member does not take it") {
+				t.Errorf("%s: %v", name, err)
+			}
 		}
 		if len(w.hub.called("merge")) != 0 {
 			t.Errorf("%s: merged", name)
