@@ -21,7 +21,7 @@ case $runs in ''|*[!0-9]*) echo "run.sh: --runs takes a number" >&2; exit 2 ;; e
 cd "$(dirname "$0")/../.."
 root=$(pwd)
 [ -n "$out" ] || out=$root/probe/desktop-timings/results
-case $out in /*) ;; *) out=$root/$out ;; esac
+case $out in /*|[A-Za-z]:*) ;; *) out=$root/$out ;; esac
 
 exe=
 case $(uname -s) in MINGW*|MSYS*|CYGWIN*) exe=.exe ;; esac
