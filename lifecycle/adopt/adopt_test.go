@@ -173,12 +173,18 @@ func TestInitAdoptsAnEmptyRepo(t *testing.T) {
 		t.Fatalf("%v\n%s", err, out)
 	}
 	want := []string{".claude/settings.json", ".claude/skills/.gitignore", ".claudinite/.gitignore",
-		".claudinite/launch", ".claudinite/settings.yaml",
+		".claudinite/flat/claudinite-rules.GENERATED.md", ".claudinite/launch", ".claudinite/settings.yaml",
 		".claudinite/shared/packs/base/RULES.md", ".claudinite/shared/packs/base/pack.json",
 		".claudinite/shared/packs/hello/RULES.md", ".claudinite/shared/packs/hello/pack.json",
-		".github/workflows/claudinite-ci.yml", ".github/workflows/claudinite-update.yml"}
+		".github/workflows/claudinite-ci.yml", ".github/workflows/claudinite-update.yml", "CLAUDE.md"}
 	if got := listFiles(t, repo); strings.Join(got, " ") != strings.Join(want, " ") {
 		t.Errorf("files %v", got)
+	}
+	if idx, _ := os.ReadFile(filepath.Join(repo, ".claudinite/flat/claudinite-rules.GENERATED.md")); string(idx) != "@../shared/packs/base/RULES.md\n@../shared/packs/hello/RULES.md\n" {
+		t.Errorf("index %q", idx)
+	}
+	if c, _ := os.ReadFile(filepath.Join(repo, "CLAUDE.md")); string(c) != "@.claudinite/flat/claudinite-rules.GENERATED.md\n" {
+		t.Errorf("CLAUDE.md %q", c)
 	}
 	raw, _ := os.ReadFile(filepath.Join(repo, ".claudinite/settings.yaml"))
 	e, err := settings.ReadEngine(raw, settings.YAML)
@@ -279,7 +285,7 @@ func TestAdoptDeclaresAndVendors(t *testing.T) {
 	if string(raw) != body+"    - hello\n" {
 		t.Errorf("%s", raw)
 	}
-	if got := listFiles(t, repo); strings.Join(got, " ") != ".claudinite/settings.yaml .claudinite/shared/packs/hello/RULES.md .claudinite/shared/packs/hello/pack.json" {
+	if got := listFiles(t, repo); strings.Join(got, " ") != ".claudinite/flat/claudinite-rules.GENERATED.md .claudinite/settings.yaml .claudinite/shared/packs/hello/RULES.md .claudinite/shared/packs/hello/pack.json" {
 		t.Errorf("%v", got)
 	}
 	if err := Adopt(AdoptInput{Repo: repo, ID: "hello", Reader: newPacks(t), Out: &out}); err == nil || !strings.Contains(err.Error(), "already declared") {

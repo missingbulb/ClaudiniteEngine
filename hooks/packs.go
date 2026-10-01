@@ -8,12 +8,11 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strings"
 
 	"github.com/missingbulb/ClaudiniteEngine/shared/packset"
 	"github.com/missingbulb/ClaudiniteEngine/shared/settings"
-	"github.com/missingbulb/ClaudiniteEngine/shared/version"
+	"github.com/missingbulb/ClaudiniteEngine/shared/skillfm"
 )
 
 // SkillsDir is where Claude Code reads a project's skills.
@@ -25,98 +24,76 @@ const mountMarker = ".claudinite-mount"
 
 var ruleLine = regexp.MustCompile(`(?m)^[-*] `)
 
-// jsDirs are the pack folders whose .mjs files the Node engine ran.
-var jsDirs = []string{"worldRules", "workRules", "tasks", "skills"}
-
 type assembled struct {
-	rules     string
 	notes     []string
 	selfCheck string
+	// skills are the mounted skills' metadata, by name.
+	skills map[string]skillfm.Meta
 }
 
-type loadedPack struct {
-	id, version string
-	dir         string
-	skills      []string
+// mountedSkill is one skill a loaded pack offers.
+type mountedSkill struct {
+	name, pack, dir string
 }
 
-// assemble reads the declared packs in declared order: their rules, the
-// lines naming what is not loaded or not run, the mounted skills and the
-// self-check line. A repo with no settings file has no self-check line.
+// assemble loads the active packs (canon, local, then temp) and mounts
+// their skills, returning the lines naming what is not loaded or not run
+// and the self-check line. A repo with no settings file has no self-check
+// line. The prose reaches the session through the rules index, not here.
 func assemble(repo, engine string) assembled {
 	var a assembled
 	if _, _, err := settings.Find(repo); err != nil {
 		return a
 	}
-	declared, err := packset.Declared(repo)
+	set, err := packset.Load(repo, engine, true)
 	if err != nil {
 		a.notes = append(a.notes, fmt.Sprintf("[cn] packs not loaded: %v", err))
 		a.selfCheck = "[cn] packs 0/0 loaded"
 		return a
 	}
-	var loaded []loadedPack
 	var parts []string
-	var rules strings.Builder
-	for _, id := range declared.Declared {
-		p, why := load(repo, id, engine)
-		if why != "" {
-			a.notes = append(a.notes, fmt.Sprintf("pack %s: not loaded: %s", id, why))
-			parts = append(parts, id+": not loaded")
-			continue
+	var offered []mountedSkill
+	for _, p := range set.Packs {
+		var body []byte
+		if path := p.ProsePath(); path != "" {
+			body, _ = os.ReadFile(path)
 		}
-		body, _ := os.ReadFile(filepath.Join(p.dir, "RULES.md"))
-		fmt.Fprintf(&rules, "# %s %s\n", id, p.version)
-		rules.Write(body)
-		if len(body) > 0 && !bytes.HasSuffix(body, []byte("\n")) {
-			rules.WriteString("\n")
+		if hasCoded(p.Dir) {
+			a.notes = append(a.notes, fmt.Sprintf("pack %s: its coded checks (worldRules/, workRules/, skills/*/checks.mjs) and tasks are not run by this engine; its declared checks are", p.Token()))
 		}
-		rules.WriteString("\n")
-		if hasJS(p.dir) {
-			a.notes = append(a.notes, fmt.Sprintf("pack %s: its JavaScript checks and tasks are not run by this engine (phase 6)", id))
+		n := 0
+		for _, s := range p.Skills {
+			dir := filepath.Join(p.Dir, "skills", s)
+			if st, err := os.Stat(filepath.Join(dir, "SKILL.md")); err == nil && st.Mode().IsRegular() {
+				offered = append(offered, mountedSkill{s, p.Token(), dir})
+				n++
+			}
 		}
-		loaded = append(loaded, p)
-		parts = append(parts, fmt.Sprintf("%s %s: rules %d skills %d", id, p.version, len(ruleLine.FindAll(body, -1)), len(p.skills)))
+		label := p.Token()
+		if p.Version != "" {
+			label += " " + p.Version
+		}
+		parts = append(parts, fmt.Sprintf("%s: rules %d skills %d", label, len(ruleLine.FindAll(body, -1)), n))
 	}
-	a.rules = rules.String()
-	a.notes = append(a.notes, mount(repo, loaded)...)
-	a.selfCheck = fmt.Sprintf("[cn] packs %d/%d loaded", len(loaded), len(declared.Declared))
+	for _, n := range set.NotLoaded {
+		a.notes = append(a.notes, fmt.Sprintf("pack %s: not loaded: %s", n.Token, n.Why))
+		parts = append(parts, n.Token+": not loaded")
+	}
+	var mountNotes []string
+	a.skills, mountNotes = mount(repo, offered)
+	a.notes = append(a.notes, mountNotes...)
+	a.selfCheck = fmt.Sprintf("[cn] packs %d/%d loaded", len(set.Packs), len(set.Packs)+len(set.NotLoaded))
 	if len(parts) > 0 {
 		a.selfCheck += " (" + strings.Join(parts, "; ") + ")"
 	}
 	return a
 }
 
-func load(repo, id, engine string) (loadedPack, string) {
-	dir := packset.Tree(repo, id)
-	if st, err := os.Stat(dir); err != nil || !st.IsDir() {
-		return loadedPack{}, packset.TreeRel(id) + " is missing"
-	}
-	m, err := packset.ReadManifest(dir)
-	if err != nil {
-		return loadedPack{}, err.Error()
-	}
-	// A development engine (0.0.0) loads every pack.
-	if engine != "0.0.0" {
-		min, err := version.ParseMinEngineVersion(m.MinEngineVersion)
-		if err != nil {
-			return loadedPack{}, err.Error()
-		}
-		if !min.Satisfies(engine) {
-			return loadedPack{}, fmt.Sprintf("pack %s %s needs engine %s or newer; this is %s", id, m.Version, m.MinEngineVersion, engine)
-		}
-	}
-	p := loadedPack{id: id, version: m.Version, dir: dir}
-	matches, _ := filepath.Glob(filepath.Join(dir, "skills", "*", "SKILL.md"))
-	for _, s := range matches {
-		p.skills = append(p.skills, filepath.Base(filepath.Dir(s)))
-	}
-	sort.Strings(p.skills)
-	return p, ""
-}
-
-func hasJS(dir string) bool {
+// hasCoded reports whether a pack ships modules the Node engine ran and
+// this engine does not: rule modules, tasks, or a skill's checks.mjs.
+func hasCoded(dir string) bool {
 	found := false
-	for _, sub := range jsDirs {
+	for _, sub := range []string{"worldRules", "workRules", "tasks"} {
 		_ = filepath.WalkDir(filepath.Join(dir, sub), func(path string, d fs.DirEntry, err error) error {
 			if err == nil && !d.IsDir() && strings.HasSuffix(path, ".mjs") {
 				found = true
@@ -125,59 +102,59 @@ func hasJS(dir string) bool {
 			return nil
 		})
 	}
+	if m, _ := filepath.Glob(filepath.Join(dir, "skills", "*", "checks.mjs")); len(m) > 0 {
+		found = true
+	}
 	return found
 }
 
-// mount copies each loaded pack's skills to .claude/skills/<name>/SKILL.md,
+// mount copies each offered skill to .claude/skills/<name>/SKILL.md, the
+// first pack offering a name winning (canon before local before temp),
 // writing only what changed, and removes the mounts of skills no longer
-// offered. It returns the lines naming conflicts.
-func mount(repo string, packs []loadedPack) []string {
+// offered. It returns the mounted skills' frontmatter and the lines naming
+// conflicts.
+func mount(repo string, offered []mountedSkill) (map[string]skillfm.Meta, []string) {
 	var notes []string
+	metas := map[string]skillfm.Meta{}
 	root := filepath.Join(repo, filepath.FromSlash(SkillsDir))
-	owner := map[string]string{}
-	var offeredBy = map[string][]string{}
+	first := map[string]mountedSkill{}
+	offeredBy := map[string][]string{}
 	var order []string
-	for _, p := range packs {
-		for _, s := range p.skills {
-			if _, ok := offeredBy[s]; !ok {
-				order = append(order, s)
-			}
-			offeredBy[s] = append(offeredBy[s], p.id)
-			if _, ok := owner[s]; !ok {
-				owner[s] = p.id
-			}
+	for _, s := range offered {
+		if _, ok := first[s.name]; !ok {
+			first[s.name] = s
+			order = append(order, s.name)
 		}
+		offeredBy[s.name] = append(offeredBy[s.name], s.pack)
 	}
-	dirOf := map[string]string{}
-	for _, p := range packs {
-		dirOf[p.id] = p.dir
-	}
-	for _, s := range order {
-		by := offeredBy[s]
-		if len(by) > 1 {
-			notes = append(notes, fmt.Sprintf("[cn] skill %s is offered by %s; %s's is mounted", s, joinAnd(by), by[0]))
+	for _, name := range order {
+		s := first[name]
+		if by := offeredBy[name]; len(by) > 1 {
+			notes = append(notes, fmt.Sprintf("[cn] skill %s is offered by %s; %s's is mounted", name, joinAnd(by), by[0]))
 		}
-		dst := filepath.Join(root, s)
+		dst := filepath.Join(root, name)
 		if _, err := os.Stat(dst); err == nil {
 			if _, err := os.Stat(filepath.Join(dst, mountMarker)); err != nil {
-				notes = append(notes, fmt.Sprintf("[cn] skill %s from pack %s is not mounted: %s/%s is not a pack's", s, owner[s], SkillsDir, s))
+				notes = append(notes, fmt.Sprintf("[cn] skill %s from pack %s is not mounted: %s/%s is not a pack's", name, s.pack, SkillsDir, name))
 				continue
 			}
 		}
-		src, err := os.ReadFile(filepath.Join(dirOf[owner[s]], "skills", s, "SKILL.md"))
+		src, err := os.ReadFile(filepath.Join(s.dir, "SKILL.md"))
 		if err == nil {
 			err = writeIfChanged(filepath.Join(dst, "SKILL.md"), src)
 		}
 		if err == nil {
-			err = writeIfChanged(filepath.Join(dst, mountMarker), []byte(owner[s]+"\n"))
+			err = writeIfChanged(filepath.Join(dst, mountMarker), []byte(s.pack+"\n"))
 		}
 		if err != nil {
-			notes = append(notes, fmt.Sprintf("[cn] skill %s from pack %s is not mounted: %v", s, owner[s], err))
+			notes = append(notes, fmt.Sprintf("[cn] skill %s from pack %s is not mounted: %v", name, s.pack, err))
+			continue
 		}
+		metas[name] = skillfm.Read(string(src))
 	}
 	entries, _ := os.ReadDir(root)
 	for _, e := range entries {
-		if !e.IsDir() || owner[e.Name()] != "" {
+		if _, ok := first[e.Name()]; !e.IsDir() || ok {
 			continue
 		}
 		if _, err := os.Stat(filepath.Join(root, e.Name(), mountMarker)); err == nil {
@@ -186,7 +163,7 @@ func mount(repo string, packs []loadedPack) []string {
 			}
 		}
 	}
-	return notes
+	return metas, notes
 }
 
 func joinAnd(ids []string) string {

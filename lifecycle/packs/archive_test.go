@@ -161,8 +161,8 @@ func TestHeldVersion(t *testing.T) {
 		t.Error("a tree without pack.json has a version")
 	}
 	_ = os.WriteFile(filepath.Join(dir, "pack.toml"), []byte("version = \"1\"\n"), 0o644)
-	if _, err := HeldVersion(dir); err == nil || !strings.Contains(err.Error(), "phase 6") {
-		t.Errorf("pack.toml: %v", err)
+	if v, err := HeldVersion(dir); err != nil || v != "1" {
+		t.Errorf("pack.toml: %q %v", v, err)
 	}
 }
 

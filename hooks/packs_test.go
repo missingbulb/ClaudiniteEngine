@@ -77,21 +77,33 @@ const startIn = `{"session_id":"s","hook_event_name":"SessionStart","source":"st
 
 var selfCheck = regexp.MustCompile(`(?m)^\[cn\] packs (\d+)/(\d+) loaded( \((.*)\))?$`)
 
+type fakeIndex struct{ wrote []string }
+
+func (f *fakeIndex) Write(repo, engine string) (bool, error) {
+	f.wrote = append(f.wrote, repo)
+	return true, nil
+}
+
+// The context carries the engine's own lines only: the prose reaches the
+// session through the rules index, which SessionStart writes when stale.
+// Packs load in the Node registry's order, canon by name.
 func TestSessionStartAssemblesDeclaredPacksInOrder(t *testing.T) {
 	repo := member(t, []string{"zeta", "alpha", "gone"}, map[string]map[string]string{
 		"zeta":  {"pack.json": `{"version": "2.0", "minEngineVersion": "0.0.0"}`, "RULES.md": "- zeta rule one\n- zeta rule two\n", "skills/z/SKILL.md": "z skill"},
 		"alpha": {"pack.json": `{"version": "1.0", "minEngineVersion": "0.0.0"}`},
 	})
-	fc := &fakeChecks{}
-	out, _ := hook(t, Handler{Checks: fc, ProjectDir: repo}, "session-start", startIn)
+	fc, fi := &fakeChecks{}, &fakeIndex{}
+	out, _ := hook(t, Handler{Checks: fc, Index: fi, ProjectDir: repo}, "session-start", startIn)
 	ctx := contextOf(t, out)
-	z, a, h := strings.Index(ctx, "# zeta 2.0\n- zeta rule one\n- zeta rule two\n"), strings.Index(ctx, "# alpha 1.0\n"), strings.Index(ctx, "# Claudinite engine")
-	if z < 0 || a < 0 || h < 0 || z > a || a > h {
-		t.Fatalf("order zeta %d alpha %d hello %d:\n%s", z, a, h, ctx)
+	if strings.Contains(ctx, "zeta rule one") || !strings.HasPrefix(ctx, "# Claudinite engine") {
+		t.Fatalf("pack prose in the context:\n%s", ctx)
 	}
 	m := selfCheck.FindStringSubmatch(ctx)
-	if m == nil || m[1] != "2" || m[2] != "3" || m[4] != "zeta 2.0: rules 2 skills 1; alpha 1.0: rules 0 skills 0; gone: not loaded" {
+	if m == nil || m[1] != "2" || m[2] != "3" || m[4] != "alpha 1.0: rules 0 skills 0; zeta 2.0: rules 2 skills 1; gone: not loaded" {
 		t.Errorf("self-check %q in\n%s", m, ctx)
+	}
+	if !strings.Contains(ctx, "pack gone: not loaded: .claudinite/shared/packs/gone is missing") {
+		t.Errorf("no not-loaded line:\n%s", ctx)
 	}
 	lines := strings.Split(strings.TrimRight(ctx, "\n"), "\n")
 	if !crumb.MatchString(lines[len(lines)-1]) || !selfCheck.MatchString(lines[len(lines)-2]) {
@@ -99,6 +111,47 @@ func TestSessionStartAssemblesDeclaredPacksInOrder(t *testing.T) {
 	}
 	if len(fc.started) != 1 || fc.started[0] != repo {
 		t.Errorf("checks build started %v", fc.started)
+	}
+	if len(fi.wrote) != 1 || fi.wrote[0] != repo {
+		t.Errorf("index written %v", fi.wrote)
+	}
+}
+
+// A local pack declared as local/<name> and a temp pack present both load
+// after the canon packs, and their skills mount after the canon's, so a
+// shared name resolves to the canon pack's; a skill directory without a
+// SKILL.md is never mounted.
+func TestSessionStartLocalAndTempPacks(t *testing.T) {
+	repo := member(t, []string{"canon", "local/mine"}, map[string]map[string]string{
+		"canon": {"pack.json": `{"version": "1.0"}`, "skills/shared/SKILL.md": "---\nname: shared\nmetadata:\n  body: workflow\n---\nfrom canon"},
+	})
+	put(t, repo, ".claudinite/local/packs/mine/pack.json", `{}`)
+	put(t, repo, ".claudinite/local/packs/mine/RULES.md", "- local rule\n")
+	put(t, repo, ".claudinite/local/packs/mine/skills/shared/SKILL.md", "from local")
+	put(t, repo, ".claudinite/local/packs/mine/skills/own/SKILL.md", "own")
+	put(t, repo, ".claudinite/local/packs/mine/skills/checks-only/checks.mjs", "")
+	put(t, repo, ".claudinite/temp/packs/current_user/pack.json", `{}`)
+	put(t, repo, ".claudinite/temp/packs/current_user/skills/mine-too/SKILL.md", "temp")
+	h := Handler{ProjectDir: repo}
+	out, _ := hook(t, h, "session-start", startIn)
+	ctx := contextOf(t, out)
+	read := func(rel string) string { b, _ := os.ReadFile(filepath.Join(repo, rel)); return string(b) }
+	if !strings.HasSuffix(read(".claude/skills/shared/SKILL.md"), "from canon") || read(".claude/skills/own/SKILL.md") != "own" || read(".claude/skills/mine-too/SKILL.md") != "temp" {
+		t.Errorf("mounts wrong:\n%s", ctx)
+	}
+	if _, err := os.Stat(filepath.Join(repo, ".claude/skills/checks-only")); !os.IsNotExist(err) {
+		t.Error("mounted a skill directory without SKILL.md")
+	}
+	m := selfCheck.FindStringSubmatch(ctx)
+	if m == nil || m[4] != "canon 1.0: rules 0 skills 1; local/mine: rules 1 skills 2; temp/current_user: rules 0 skills 1" {
+		t.Errorf("self-check %q in\n%s", m, ctx)
+	}
+	if !strings.Contains(ctx, "pack local/mine: its coded checks") {
+		t.Errorf("no coded-checks line for a skill's checks.mjs:\n%s", ctx)
+	}
+	a := assemble(repo, "0.0.0")
+	if a.skills["shared"].Body != "workflow" || a.skills["shared"].Name != "shared" {
+		t.Errorf("frontmatter %+v", a.skills["shared"])
 	}
 }
 
@@ -140,7 +193,7 @@ func TestSessionStartNamesJavaScriptItIgnores(t *testing.T) {
 		"basics": {"pack.json": `{"version": "60928.1", "minEngineVersion": "60928.1"}`, "worldRules/x.mjs": "export default 1", "RULES.md": "- r\n"},
 	})
 	out, _ := hook(t, Handler{ProjectDir: repo}, "session-start", startIn)
-	if ctx := contextOf(t, out); !strings.Contains(ctx, "pack basics: its JavaScript checks and tasks are not run by this engine (phase 6)") {
+	if ctx := contextOf(t, out); !strings.Contains(ctx, "pack basics: its coded checks (worldRules/, workRules/, skills/*/checks.mjs) and tasks are not run by this engine; its declared checks are") {
 		t.Errorf("%s", ctx)
 	}
 }

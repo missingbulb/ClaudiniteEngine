@@ -26,9 +26,47 @@ func TestReadManifest(t *testing.T) {
 	if err != nil || m.Version != "1.0" || m.MinEngineVersion != "1.1.0" || len(m.Requires) != 1 {
 		t.Fatalf("%+v %v", m, err)
 	}
-	write(t, filepath.Join(dir, "pack.yaml"), "version: 1\n")
-	if _, err := ReadManifest(dir); err == nil || !strings.Contains(err.Error(), "phase 6") {
-		t.Errorf("pack.yaml: %v", err)
+	write(t, filepath.Join(dir, "pack.yaml"), "version: \"1.0\"\n")
+	if _, err := ReadManifest(dir); err == nil || !strings.Contains(err.Error(), "pack.json and pack.yaml") {
+		t.Errorf("two spellings: %v", err)
+	}
+}
+
+func TestReadManifestThreeFormats(t *testing.T) {
+	for name, body := range map[string]string{
+		"pack.json": `{"version": "1.1", "minEngineVersion": "1.1.0", "requires": ["a"], "prose": null, "skills": ["s"], "seededByDefault": true, "hidden": false}`,
+		"pack.yaml": "version: \"1.1\"\nminEngineVersion: \"1.1.0\"\nrequires: [a]\nprose: null\nskills:\n  - s\nseededByDefault: true\nhidden: false\n",
+		"pack.toml": "version = \"1.1\"\nminEngineVersion = \"1.1.0\"\nrequires = [\"a\"]\nprose = \"\"\nskills = [\"s\"]\nseededByDefault = true\nhidden = false\n",
+	} {
+		dir := t.TempDir()
+		write(t, filepath.Join(dir, name), body)
+		m, err := ReadManifest(dir)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if m.File != name || m.Version != "1.1" || m.MinEngineVersion != "1.1.0" || strings.Join(m.Requires, ",") != "a" || !m.ProseSet || m.Prose != "" || !m.SkillsSet || strings.Join(m.Skills, ",") != "s" {
+			t.Errorf("%s: %+v", name, m)
+		}
+	}
+}
+
+func TestReadManifestRefuses(t *testing.T) {
+	cases := map[string]string{
+		`"extra" is not a pack manifest key`: `{"version": "1.0", "extra": 1}`,
+		`"requires" must be a list of strings`: `{"version": "1.0", "requires": "a"}`,
+		`has no version`:                      `{"minEngineVersion": "1.1.0"}`,
+	}
+	for want, body := range cases {
+		dir := t.TempDir()
+		write(t, filepath.Join(dir, "pack.json"), body)
+		if _, err := ReadManifest(dir); err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("%s: %v", want, err)
+		}
+	}
+	dir := t.TempDir()
+	write(t, filepath.Join(dir, "pack.mjs"), "export default {}\n")
+	if _, err := ReadManifest(dir); err == nil || !strings.Contains(err.Error(), "pack.mjs is a module manifest this engine does not read") {
+		t.Errorf("pack.mjs: %v", err)
 	}
 }
 

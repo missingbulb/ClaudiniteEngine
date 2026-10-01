@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/missingbulb/ClaudiniteEngine/lifecycle/packs"
+	"github.com/missingbulb/ClaudiniteEngine/lifecycle/rulesindex"
 	"github.com/missingbulb/ClaudiniteEngine/lifecycle/update"
 	"github.com/missingbulb/ClaudiniteEngine/lifecycle/verify"
 	"github.com/missingbulb/ClaudiniteEngine/lifecycle/workflows"
@@ -228,6 +229,12 @@ func Init(in Input) error {
 			return err
 		}
 	}
+	if _, err := rulesindex.Write(in.Repo, got.Version); err != nil {
+		return err
+	}
+	if _, err := rulesindex.EnsureImport(in.Repo); err != nil {
+		return err
+	}
 	g := KeyGrant{Reason: "no key request"}
 	if in.Key != nil {
 		g = in.Key(in.Repo)
@@ -372,6 +379,9 @@ func Adopt(in AdoptInput) error {
 	if err := os.WriteFile(path, raw, 0o644); err != nil {
 		return err
 	}
-	fmt.Fprintf(in.Out, "Declared in %s; commit it with %s/ and open a pull request.\n", settings.RelPath(f), packset.Dir)
+	if _, err := rulesindex.Write(in.Repo, pin.Version); err != nil {
+		return err
+	}
+	fmt.Fprintf(in.Out, "Declared in %s; commit it with %s/ and %s and open a pull request.\n", settings.RelPath(f), packset.Dir, rulesindex.File)
 	return nil
 }

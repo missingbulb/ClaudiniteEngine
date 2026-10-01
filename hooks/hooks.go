@@ -69,11 +69,18 @@ type License interface {
 	Hook(repo, sessionID string) LicenseStatus
 }
 
+// RulesIndex writes the generated index the member's CLAUDE.md imports, so
+// a session on a hand-edited declaration gets its rules on the next start.
+type RulesIndex interface {
+	Write(repo, engine string) (bool, error)
+}
+
 // Handler answers hook events. A nil Checks runs no coded checks; a nil
-// License gates nothing.
+// License gates nothing; a nil Index writes no rules index.
 type Handler struct {
 	Checks  Checks
 	License License
+	Index   RulesIndex
 	// ProjectDir overrides where the repo is found.
 	ProjectDir string
 	// Engine overrides this engine's version, for tests.
@@ -178,7 +185,6 @@ func sessionKey(id string) string {
 func (h Handler) sessionStart(repo, sessionID string, outcome breadcrumb.Outcome, stdout io.Writer, start time.Time) error {
 	ctx := assemble(repo, h.engine())
 	var b strings.Builder
-	b.WriteString(ctx.rules)
 	b.WriteString(HelloRule())
 	b.WriteString("\n")
 	for _, l := range ctx.notes {
@@ -187,6 +193,11 @@ func (h Handler) sessionStart(repo, sessionID string, outcome breadcrumb.Outcome
 	if h.Checks != nil {
 		if err := h.Checks.Start(repo); err != nil {
 			fmt.Fprintf(&b, "[cn] checks build did not start: %v\n", err)
+		}
+	}
+	if h.Index != nil && ctx.selfCheck != "" {
+		if _, err := h.Index.Write(repo, h.engine()); err != nil {
+			fmt.Fprintf(&b, "[cn] rules index not written: %v\n", err)
 		}
 	}
 	if ctx.selfCheck != "" {

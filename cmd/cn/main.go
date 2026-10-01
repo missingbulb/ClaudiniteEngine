@@ -60,6 +60,9 @@ commands:
   license request --session ID [--nonce N] [--repo DIR]
                  the session's key request: with --nonce, the background
                  request SessionStart starts; without, a foreground one
+  rules-index [--check] [--repo DIR]
+                 write the import index of the active packs' prose that
+                 CLAUDE.md imports; --check exits 1 when it is stale
   workflows diff [--repo DIR]
                  the patch that brings a member's workflows to this
                  version's templates; empty when they match
@@ -70,7 +73,7 @@ commands:
 var secretScanPlant string
 
 // runHook is a variable so a test can make a hook panic.
-var runHook = hooks.Handler{Checks: hookChecks{}, License: hookLicense{}}.Run
+var runHook = hooks.Handler{Checks: hookChecks{}, License: hookLicense{}, Index: hookIndex{}}.Run
 
 func main() {
 	os.Exit(run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr))
@@ -169,6 +172,8 @@ func dispatch(args []string, stdin io.Reader, stdout, stderr io.Writer, start ti
 		return cmdLogin(args[1:], stdout)
 	case "license":
 		return cmdLicense(args[1:], stdout, stderr)
+	case "rules-index":
+		return cmdRulesIndex(args[1:], stdout)
 	}
 	return report.New(report.Usage, fmt.Sprintf("unknown command %q", args[0]))
 }

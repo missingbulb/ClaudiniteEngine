@@ -5,13 +5,14 @@
 package packset
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
+	"github.com/missingbulb/ClaudiniteEngine/shared/descriptor"
 	"github.com/missingbulb/ClaudiniteEngine/shared/settings"
 )
 
@@ -25,45 +26,162 @@ func TreeRel(id string) string { return Dir + "/" + id }
 // Tree is pack id's vendored tree under repo.
 func Tree(repo, id string) string { return filepath.Join(repo, filepath.FromSlash(TreeRel(id))) }
 
-// Manifest is what the engine reads of a pack's pack.json.
+// Manifest is what the engine reads of a pack's manifest, pack.json,
+// pack.yaml or pack.toml.
 type Manifest struct {
-	Version          string   `json:"version"`
-	MinEngineVersion string   `json:"minEngineVersion"`
-	Requires         []string `json:"requires"`
+	// File is the manifest's file name.
+	File             string
+	ID               string
+	Version          string
+	MinEngineVersion string
+	Requires         []string
+	// Prose is the prose file the manifest names; ProseSet is false when
+	// the manifest is silent and the convention (RULES.md when present)
+	// applies, and Prose "" with ProseSet means prose: null.
+	Prose    string
+	ProseSet bool
+	// Skills is the manifest's subset; SkillsSet is false when the
+	// convention (every skills/*/ directory) applies.
+	Skills    []string
+	SkillsSet bool
 }
 
-// ErrNoManifest is returned when a tree holds no pack manifest at all.
-var ErrNoManifest = errors.New("holds no pack.json")
+// ManifestName is the manifest's descriptor name.
+const ManifestName = "pack"
 
-// ReadManifest reads dir/pack.json. Only JSON is read this chunk: a
-// pack.yaml or pack.toml is refused naming phase 6, which brings the
-// parsers.
-func ReadManifest(dir string) (Manifest, error) {
-	for _, alt := range []string{"pack.yaml", "pack.toml"} {
-		if _, err := os.Stat(filepath.Join(dir, alt)); err == nil {
-			return Manifest{}, fmt.Errorf("holds %s; this engine reads only pack.json until the descriptor parsers arrive (phase 6)", alt)
+// ModuleManifest is the Node engine's module spelling of the manifest,
+// which this engine does not read.
+const ModuleManifest = "pack.mjs"
+
+// ErrNoManifest is returned when a tree holds no pack manifest at all.
+var ErrNoManifest = errors.New("holds no pack manifest (pack.json, pack.yaml or pack.toml)")
+
+// ManifestSchema is the pack manifest's closed key vocabulary.
+var ManifestSchema = descriptor.Schema{Name: "pack manifest", Keys: map[string]descriptor.Kind{
+	"id":                  descriptor.String,
+	"version":             descriptor.String,
+	"minEngineVersion":    descriptor.String,
+	"requires":            descriptor.StringList,
+	"prose":               descriptor.StringOrNull,
+	"skills":              descriptor.StringList,
+	"pitch":               descriptor.String,
+	"ruleRoutingGuidance": descriptor.Object,
+	"relevanceDetector":   descriptor.ObjectOrNull,
+	"questions":           descriptor.List,
+	"seedOps":             descriptor.List,
+	"adoptionHandover":    descriptor.List,
+	"env":                 descriptor.Object,
+	"badge":               descriptor.String,
+	"seededByDefault":     descriptor.Bool,
+	"hidden":              descriptor.Bool,
+}}
+
+// ManifestFiles are the manifest's three spellings.
+func ManifestFiles() []string {
+	var out []string
+	for _, f := range descriptor.Formats {
+		out = append(out, ManifestName+"."+string(f))
+	}
+	return out
+}
+
+// IsManifestFile reports whether a file name is one of the manifest's
+// spellings.
+func IsManifestFile(name string) bool {
+	for _, n := range ManifestFiles() {
+		if n == name {
+			return true
 		}
 	}
-	raw, err := os.ReadFile(filepath.Join(dir, "pack.json"))
-	if errors.Is(err, os.ErrNotExist) {
+	return false
+}
+
+// ReadManifest reads dir's one manifest. A version is required: a canon
+// pack's tree always has one, and Load waives it for a local or temp pack.
+func ReadManifest(dir string) (Manifest, error) {
+	m, err := readManifestAny(dir)
+	if err == nil && m.Version == "" {
+		return Manifest{}, fmt.Errorf("%s has no version", m.File)
+	}
+	return m, err
+}
+
+func readManifestAny(dir string) (Manifest, error) {
+	path, _, err := descriptor.Find(dir, ManifestName)
+	if errors.Is(err, descriptor.ErrAbsent) {
+		if st, e := os.Stat(filepath.Join(dir, ModuleManifest)); e == nil && st.Mode().IsRegular() {
+			return Manifest{}, errors.New("pack.mjs is a module manifest this engine does not read")
+		}
 		return Manifest{}, ErrNoManifest
 	}
 	if err != nil {
 		return Manifest{}, err
 	}
-	return ParseManifest(raw)
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return Manifest{}, err
+	}
+	return parseManifest(filepath.Base(path), raw)
+}
+
+// ParseManifestFile reads a manifest's bytes, its format named by its file
+// name; a version is required.
+func ParseManifestFile(name string, raw []byte) (Manifest, error) {
+	m, err := parseManifest(name, raw)
+	if err == nil && m.Version == "" {
+		return Manifest{}, fmt.Errorf("%s has no version", name)
+	}
+	return m, err
 }
 
 // ParseManifest reads pack.json's bytes.
-func ParseManifest(raw []byte) (Manifest, error) {
-	var m Manifest
-	if err := json.Unmarshal(raw, &m); err != nil {
-		return Manifest{}, fmt.Errorf("pack.json: %w", err)
+func ParseManifest(raw []byte) (Manifest, error) { return ParseManifestFile("pack.json", raw) }
+
+func parseManifest(name string, raw []byte) (Manifest, error) {
+	f := descriptor.FormatOf(name)
+	if f == "" {
+		return Manifest{}, fmt.Errorf("%s is not a manifest spelling", name)
 	}
-	if m.Version == "" {
-		return Manifest{}, errors.New("pack.json has no version")
+	v, err := descriptor.ParseBytes(raw, f)
+	if err != nil {
+		return Manifest{}, fmt.Errorf("%s: %w", name, err)
+	}
+	obj, ok := v.(map[string]any)
+	if !ok {
+		return Manifest{}, fmt.Errorf("%s must hold an object", name)
+	}
+	if errs := ManifestSchema.Validate(obj); len(errs) > 0 {
+		var s []string
+		for _, e := range errs {
+			s = append(s, e.Error())
+		}
+		return Manifest{}, fmt.Errorf("%s: %s", name, strings.Join(s, "; "))
+	}
+	m := Manifest{File: name}
+	m.ID, _ = obj["id"].(string)
+	m.Version, _ = obj["version"].(string)
+	m.MinEngineVersion, _ = obj["minEngineVersion"].(string)
+	m.Requires = stringList(obj["requires"])
+	if p, ok := obj["prose"]; ok {
+		m.ProseSet = true
+		m.Prose, _ = p.(string)
+	}
+	if s, ok := obj["skills"]; ok {
+		m.SkillsSet = true
+		m.Skills = stringList(s)
 	}
 	return m, nil
+}
+
+func stringList(v any) []string {
+	l, _ := v.([]any)
+	var out []string
+	for _, e := range l {
+		if s, ok := e.(string); ok {
+			out = append(out, s)
+		}
+	}
+	return out
 }
 
 // Declared reads the repo's settings file and its packs block.
