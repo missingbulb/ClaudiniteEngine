@@ -1,0 +1,43 @@
+# Capability boundaries (docs/design.md, "Code structure"): each capability
+# folder imports only the standard library and shared/. Tool folders (cmd/,
+# release/, launcher/, probe/) may import capabilities. Every exception is a
+# commented entry here.
+version: "2"
+
+linters:
+  default: standard
+  enable:
+    - depguard
+  settings:
+    errcheck:
+      # Diagnostic and protocol output goes to the process's stdout and
+      # stderr; when those fail there is no channel left to report on.
+      exclude-functions:
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+    depguard:
+      rules:
+        capabilities:
+          list-mode: strict
+          files:
+            - "**/hooks/**"
+            - "**/lifecycle/**"
+            - "**/license/**"
+            - "**/checks/**"
+            - "**/tasks/**"
+            - "**/growth/**"
+            - "**/sdkserver/**"
+            - "**/shared/**"
+          allow:
+            - $gostd
+            - github.com/missingbulb/ClaudiniteEngine/shared
+        key-ceremony-tool:
+          # cn-keys runs offline as a static binary on the ceremony machine:
+          # standard library and shared/ only.
+          list-mode: strict
+          files:
+            - "**/cmd/cn-keys/**"
+          allow:
+            - $gostd
+            - github.com/missingbulb/ClaudiniteEngine/shared
