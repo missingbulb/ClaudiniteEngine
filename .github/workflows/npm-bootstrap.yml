@@ -46,8 +46,8 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_BOOTSTRAP_TOKEN }}
           VERSION: "0.0.0"
         run: |
-          DIST=dist-rc release/publish.sh --channel rc --skip-existing
-          DIST=dist-stable release/publish.sh --channel stable --skip-existing
+          DIST=dist-rc release/publish.sh --channel rc --auth token --skip-existing
+          DIST=dist-stable release/publish.sh --channel stable --auth token --skip-existing
       - if: steps.token.outputs.present == 'true'
         env:
           GH_TOKEN: ${{ github.token }}

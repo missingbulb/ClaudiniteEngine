@@ -162,6 +162,6 @@ jobs:
           go run ./release/pipeline publish-mode --channel stable --signing release --dry-run false \
             --npm-versions "$RUNNER_TEMP/versions.json" --stable-test pass >> "$GITHUB_OUTPUT"
       - if: steps.mode.outputs.mode == 'real'
-        run: DIST=stable release/publish.sh --channel stable
+        run: DIST=stable release/publish.sh --channel stable --auth oidc
       - if: steps.mode.outputs.mode != 'real'
         run: DIST=stable release/publish.sh --channel stable --dry-run

@@ -210,7 +210,7 @@ jobs:
           go run ./release/pipeline publish-mode --channel rc --signing "${{ needs.sign.outputs.signing }}" \
             --dry-run "${{ inputs.dry_run }}" --npm-versions "$RUNNER_TEMP/versions.json" >> "$GITHUB_OUTPUT"
       - if: steps.mode.outputs.mode == 'real'
-        run: release/publish.sh --channel rc
+        run: release/publish.sh --channel rc --auth oidc
       - if: steps.mode.outputs.mode != 'real'
         run: |
           release/publish.sh --channel rc --dry-run

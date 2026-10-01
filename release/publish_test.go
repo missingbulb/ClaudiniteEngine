@@ -120,3 +120,107 @@ func noNpmPath(t *testing.T) string {
 	}
 	return dir + string(os.PathListSeparator) + os.Getenv("PATH")
 }
+
+// fakeNpm is PATH with a fake npm first: whoami prints whoami (or fails 401
+// when empty), org ls prints orgJSON (or fails E404 when empty), view finds
+// nothing and publish fails E404 the way registry.npmjs.org refused the
+// first bootstrap. Every call is appended to the returned log file.
+func fakeNpm(t *testing.T, whoami, orgJSON string) (string, string) {
+	t.Helper()
+	dir := t.TempDir()
+	log := filepath.Join(dir, "calls")
+	script := `#!/bin/sh
+echo "$*" >> "` + log + `"
+case $1 in
+  whoami)
+    [ -n "` + whoami + `" ] || { echo "npm error code E401" >&2; echo "npm error 401 Unauthorized - GET https://registry.npmjs.org/-/whoami" >&2; exit 1; }
+    echo "` + whoami + `" ;;
+  org)
+    [ -n '` + orgJSON + `' ] || { echo "npm error code E404" >&2; echo "npm error 404 Not Found - GET https://registry.npmjs.org/-/org/claudinite/user" >&2; exit 1; }
+    echo '` + orgJSON + `' ;;
+  view) exit 1 ;;
+  publish)
+    echo "npm error code E404" >&2
+    echo "npm error 404 Not Found - PUT https://registry.npmjs.org/@claudinite%2fcli-rc-darwin-arm64 - Not found" >&2
+    exit 1 ;;
+esac
+`
+	if err := os.WriteFile(filepath.Join(dir, "npm"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return dir + string(os.PathListSeparator) + os.Getenv("PATH"), log
+}
+
+func readCalls(t *testing.T, log string) string {
+	t.Helper()
+	raw, err := os.ReadFile(log)
+	if err != nil && !os.IsNotExist(err) {
+		t.Fatal(err)
+	}
+	return string(raw)
+}
+
+func TestPublishTokenAuthMustAuthenticateBeforePublishing(t *testing.T) {
+	dist := fakeTarballs(t, "0.0.0", rcNames()...)
+	path, log := fakeNpm(t, "", "")
+	out, err := runScript(t, []string{"DIST=" + dist, "VERSION=0.0.0", "PATH=" + path}, "release/publish.sh", "--channel", "rc", "--auth", "token", "--skip-existing")
+	if err == nil {
+		t.Fatalf("published with a token npm whoami rejects:\n%s", out)
+	}
+	if calls := readCalls(t, log); strings.Contains(calls, "publish") {
+		t.Errorf("ran npm publish before the token authenticated:\n%s", calls)
+	}
+	if !strings.Contains(out, "does not authenticate") || strings.Contains(out, "trusted publisher") {
+		t.Errorf("message does not name the token as the cause:\n%s", out)
+	}
+}
+
+func TestPublishTokenAuthNamesTheCauseOfARefusal(t *testing.T) {
+	cases := map[string]struct {
+		whoami, org string
+		want        []string
+	}{
+		"no org or not a member":        {"ariel", "", []string{"ariel", "npm org claudinite", "does not exist or ariel is not a member"}},
+		"member, token lacks the scope": {"ariel", `{"ariel": "owner"}`, []string{"ariel", "owner of the npm org claudinite", "Packages and scopes", "read and write", "@claudinite"}},
+		"listed org, user absent":       {"ariel", `{"someone": "owner"}`, []string{"ariel is not a member of the npm org claudinite"}},
+	}
+	for name, c := range cases {
+		dist := fakeTarballs(t, "0.0.0", rcNames()...)
+		path, _ := fakeNpm(t, c.whoami, c.org)
+		out, err := runScript(t, []string{"DIST=" + dist, "VERSION=0.0.0", "PATH=" + path}, "release/publish.sh", "--channel", "rc", "--auth", "token", "--skip-existing")
+		if err == nil {
+			t.Errorf("%s: a refused publish succeeded:\n%s", name, out)
+			continue
+		}
+		for _, w := range c.want {
+			if !strings.Contains(out, w) {
+				t.Errorf("%s: message lacks %q:\n%s", name, w, out)
+			}
+		}
+		if strings.Contains(out, "trusted publisher") {
+			t.Errorf("%s: a token publish was told to attach a trusted publisher:\n%s", name, out)
+		}
+	}
+}
+
+func TestPublishOIDCRefusalPointsAtTheTrustedPublisher(t *testing.T) {
+	dist := fakeTarballs(t, "1.1.0", rcNames()...)
+	path, log := fakeNpm(t, "", "")
+	out, err := runScript(t, []string{"DIST=" + dist, "VERSION=1.1.0", "PATH=" + path}, "release/publish.sh", "--channel", "rc", "--auth", "oidc")
+	if err == nil || !strings.Contains(out, "attach its trusted publisher") {
+		t.Fatalf("err %v\n%s", err, out)
+	}
+	if calls := readCalls(t, log); strings.Contains(calls, "whoami") {
+		t.Errorf("an OIDC publish ran npm whoami, which has no token to check:\n%s", calls)
+	}
+}
+
+func TestPublishRequiresAnAuthModeToPublish(t *testing.T) {
+	dist := fakeTarballs(t, "1.1.0", rcNames()...)
+	for _, args := range [][]string{{"--channel", "rc"}, {"--channel", "rc", "--auth", "password"}} {
+		out, err := runScript(t, []string{"DIST=" + dist, "VERSION=1.1.0", "PATH=" + noNpmPath(t)}, "release/publish.sh", args...)
+		if err == nil || !strings.Contains(out, "--auth") || strings.Contains(out, "npm was called") {
+			t.Errorf("%v: err %v\n%s", args, err, out)
+		}
+	}
+}
