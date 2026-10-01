@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -66,6 +65,11 @@ type Deps struct {
 	Out io.Writer
 	// Timeout bounds each run of the candidate binary.
 	Timeout time.Duration
+	// Packs reads the pack indexes and archives (cn update packs, and
+	// landing a pack PR).
+	Packs PackReader
+	// Exe is this cn, which runs check world over a pack branch.
+	Exe string
 }
 
 // Options are cn update engine's flags.
@@ -75,7 +79,7 @@ type Options struct {
 }
 
 // VerdictForms are the shapes of the line a run ends on.
-var VerdictForms = []string{`^landed \S+$`, `^opened #\d+ for \S+$`, `^no PR: .+$`, `^skipped: .+$`, `^up to date$`}
+var VerdictForms = []string{`^landed \S+$`, `^opened #\d+ for \S+$`, `^landed packs .+$`, `^opened #\d+ for packs .+$`, `^no PR: .+$`, `^skipped: .+$`, `^up to date$`}
 
 var verdictRes = func() []*regexp.Regexp {
 	var out []*regexp.Regexp
@@ -127,24 +131,7 @@ func runState(r *githubapi.Run) string {
 // labelling call, a person removing it) and is relabelled rather than
 // duplicated by a CreatePull GitHub would refuse.
 func updatePRs(d Deps, prs []githubapi.PR) ([]githubapi.PR, error) {
-	var out []githubapi.PR
-	for _, p := range prs {
-		if !strings.HasPrefix(p.HeadRef, BranchPrefix) {
-			continue
-		}
-		if !p.HasLabel(Label) {
-			if p.Author != gitcmd.BotName {
-				continue
-			}
-			if err := d.GitHub.AddLabel(p.Number, Label); err != nil {
-				return nil, err
-			}
-			p.Labels = append(p.Labels, Label)
-		}
-		out = append(out, p)
-	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Number < out[j].Number })
-	return out, nil
+	return botPRs(d, prs, BranchPrefix)
 }
 
 // Engine is one run of cn update engine. It acts at most once: a green
@@ -374,8 +361,10 @@ func closeUpdatePR(d Deps, pr githubapi.PR, why string) error {
 }
 
 // Land squash-merges update PR n at head sha after checking it is the
-// updater's own pin-only change, deletes its branch and dispatches CI on
-// main, whose runs the next update needs green.
+// updater's own change, deletes its branch and dispatches CI on main,
+// whose runs the next update needs green. The branch says which shape the
+// PR must have: an engine PR is pin-only, a pack PR changes only the
+// vendored packs (landPacks).
 func Land(d Deps, n int, sha string) (string, error) {
 	pr, err := d.GitHub.Pull(n)
 	if err != nil {
@@ -386,8 +375,8 @@ func Land(d Deps, n int, sha string) (string, error) {
 		return "", fmt.Errorf("#%d is %s", n, pr.State)
 	case pr.Author != gitcmd.BotName:
 		return "", fmt.Errorf("#%d was opened by %s, not %s", n, pr.Author, gitcmd.BotName)
-	case !pr.HasLabel(Label) || !strings.HasPrefix(pr.HeadRef, BranchPrefix):
-		return "", fmt.Errorf("#%d is not an update PR (label %s, branch %s*)", n, Label, BranchPrefix)
+	case !pr.HasLabel(Label) || (!strings.HasPrefix(pr.HeadRef, BranchPrefix) && !strings.HasPrefix(pr.HeadRef, PackBranchPrefix)):
+		return "", fmt.Errorf("#%d is not an update PR (label %s, branch %s* or %s*)", n, Label, BranchPrefix, PackBranchPrefix)
 	case pr.BaseRef != mainBranch:
 		return "", fmt.Errorf("#%d targets %s, not %s", n, pr.BaseRef, mainBranch)
 	case pr.HeadSHA != sha:
@@ -399,6 +388,9 @@ func Land(d Deps, n int, sha string) (string, error) {
 	}
 	if got, err := d.Git.RevParse(landRef); err != nil || got != sha {
 		return "", fmt.Errorf("#%d moved: its branch is at %s, CI ran on %s", n, got, sha)
+	}
+	if strings.HasPrefix(pr.HeadRef, PackBranchPrefix) {
+		return landPacks(d, pr, sha)
 	}
 	base := remote + "/" + mainBranch
 	files, err := d.Git.ChangedFiles(base, sha)

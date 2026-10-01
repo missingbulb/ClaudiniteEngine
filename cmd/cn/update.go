@@ -1,13 +1,16 @@
 package main
 
 import (
+	"crypto/ed25519"
 	"flag"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"time"
 
 	"github.com/missingbulb/ClaudiniteEngine/license"
+	"github.com/missingbulb/ClaudiniteEngine/lifecycle/packs"
 	"github.com/missingbulb/ClaudiniteEngine/lifecycle/update"
 	"github.com/missingbulb/ClaudiniteEngine/lifecycle/workflows"
 	"github.com/missingbulb/ClaudiniteEngine/shared/gitcmd"
@@ -41,14 +44,25 @@ func updateDeps(repo string, stdout io.Writer) (update.Deps, error) {
 	if err != nil {
 		return update.Deps{}, report.Wrap(report.Internal, "update", err)
 	}
+	exe, err := os.Executable()
+	if err != nil {
+		return update.Deps{}, report.Wrap(report.Internal, "update", err)
+	}
 	return update.Deps{GitHub: gh, Registry: reg, Git: gitcmd.Repo{Dir: repo}, Roots: roots,
 		CacheRoot: paths.CacheRoot(), Platform: version.Platform(), Now: time.Now,
-		Repo: repo, Out: stdout, Timeout: childTimeout}, nil
+		Repo: repo, Out: stdout, Timeout: childTimeout, Exe: exe}, nil
+}
+
+// packReader reads the pack indexes from the CDN and the vendored branch,
+// logging which answered to out. close removes the branch's clone.
+func packReader(roots []ed25519.PublicKey, out io.Writer) (*packs.Reader, func()) {
+	cdn, branch := packs.Sources(&http.Client{Timeout: time.Minute})
+	return &packs.Reader{Sources: []packs.Source{cdn, branch}, Roots: roots, Now: time.Now, Log: out}, branch.Close
 }
 
 func cmdUpdate(args []string, stdout io.Writer) error {
-	if len(args) == 0 || (args[0] != "engine" && args[0] != "land") {
-		return report.New(report.Usage, "update takes engine or land")
+	if len(args) == 0 || (args[0] != "engine" && args[0] != "packs" && args[0] != "land") {
+		return report.New(report.Usage, "update takes engine, packs or land")
 	}
 	fs := flag.NewFlagSet("update "+args[0], flag.ContinueOnError)
 	repo := fs.String("repo", ".", "")
@@ -70,10 +84,16 @@ func cmdUpdate(args []string, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
+	reader, closeReader := packReader(d.Roots, stdout)
+	defer closeReader()
+	d.Packs = reader
 	var verdict string
-	if args[0] == "land" {
+	switch args[0] {
+	case "land":
 		verdict, err = update.Land(d, *pr, *sha)
-	} else {
+	case "packs":
+		verdict, err = update.Packs(d, update.Options{Force: *force})
+	default:
 		verdict, err = update.Engine(d, update.Options{Force: *force})
 	}
 	if err != nil {

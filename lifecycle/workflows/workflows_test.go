@@ -80,7 +80,7 @@ func TestTemplates(t *testing.T) {
 		}
 	}
 	upd := string(tpl["claudinite-update.yml"])
-	for _, w := range []string{"schedule:", "workflow_dispatch:", "sh .claudinite/launch version", ".claudinite/bin/cn update engine", "GITHUB_STEP_SUMMARY"} {
+	for _, w := range []string{"schedule:", "workflow_dispatch:", "sh .claudinite/launch version", ".claudinite/bin/cn update engine", ".claudinite/bin/cn update packs", "GITHUB_STEP_SUMMARY"} {
 		if !strings.Contains(upd, w) {
 			t.Errorf("claudinite-update.yml lacks %q", w)
 		}

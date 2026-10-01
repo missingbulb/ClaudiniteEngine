@@ -421,14 +421,15 @@ func TestLandRefusesWhatIsNotAPinOnlyUpdatePR(t *testing.T) {
 	}
 }
 
-// The verdict is the last stdout line and takes one of five forms; T9's
+// The verdict is the last stdout line and takes one of these forms; T9's
 // live steps and the workflow's summary read it.
 func TestVerdictForms(t *testing.T) {
-	want := []string{`^landed \S+$`, `^opened #\d+ for \S+$`, `^no PR: .+$`, `^skipped: .+$`, `^up to date$`}
+	want := []string{`^landed \S+$`, `^opened #\d+ for \S+$`, `^landed packs .+$`, `^opened #\d+ for packs .+$`, `^no PR: .+$`, `^skipped: .+$`, `^up to date$`}
 	if strings.Join(VerdictForms, " ") != strings.Join(want, " ") {
 		t.Errorf("forms %v", VerdictForms)
 	}
-	for _, v := range []string{"landed 1.2.0", "opened #3 for 1.2.0", "no PR: 1.2.0 would break this repo", "skipped: main is not green (failure)", "up to date"} {
+	for _, v := range []string{"landed 1.2.0", "opened #3 for 1.2.0", "no PR: 1.2.0 would break this repo", "skipped: main is not green (failure)", "up to date",
+		"landed packs hello 1.1, node 60928.2", "opened #4 for packs hello 1.1", "no PR: hello 1.2 fails this repo's checks", "skipped: engine PR #3 is open"} {
 		if !IsVerdict(v) {
 			t.Errorf("%q matches no form", v)
 		}

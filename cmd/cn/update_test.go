@@ -13,12 +13,13 @@ func TestUpdateCommandArguments(t *testing.T) {
 		code int
 		in   string
 	}{
-		{[]string{"update"}, 2, "update takes engine or land"},
-		{[]string{"update", "bogus"}, 2, "update takes engine or land"},
+		{[]string{"update"}, 2, "update takes engine, packs or land"},
+		{[]string{"update", "bogus"}, 2, "update takes engine, packs or land"},
 		{[]string{"update", "land"}, 2, "--pr"},
 		{[]string{"update", "land", "--pr", "3"}, 2, "--sha"},
 		{[]string{"update", "engine", "--bogus"}, 2, ""},
 		{[]string{"update", "engine", "--repo", t.TempDir()}, 1, "GITHUB_TOKEN"},
+		{[]string{"update", "packs", "--repo", t.TempDir()}, 1, "GITHUB_TOKEN"},
 		{[]string{"update", "land", "--pr", "3", "--sha", "abc", "--repo", t.TempDir()}, 1, "GITHUB_TOKEN"},
 	} {
 		_, errOut, code := runCN(t, bin, noToken, "", c.args...)

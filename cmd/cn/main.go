@@ -40,8 +40,12 @@ commands:
   update engine [--force] [--repo DIR]
                  propose or land the newest allowed engine version as a
                  pin-only PR; needs GITHUB_TOKEN; ends on its verdict line
+  update packs [--force] [--repo DIR]
+                 propose or land the declared packs' newest allowed
+                 versions as a pack-only PR, once this repo's check world
+                 passes over it; needs GITHUB_TOKEN
   update land --pr N --sha SHA [--repo DIR]
-                 merge update PR N, whose CI passed on SHA
+                 merge update PR N (engine or packs), whose CI passed on SHA
   workflows diff [--repo DIR]
                  the patch that brings a member's workflows to this
                  version's templates; empty when they match
