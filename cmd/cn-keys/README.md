@@ -1,86 +1,51 @@
 # Root key ceremony (#5)
 
-The runbook for creating the engine's root and standby root keys and the first release key. The
-tool is `cn-keys`, built from this folder; it needs no network and no Go on the ceremony machine.
+The ceremony runs once, as the `key-ceremony` workflow in this repository, started from the
+browser. In one run it makes the root and the standby root, certifies a working key for every
+signing use with the root, and stores each where its workflow reads it:
 
-## Before the ceremony
+| Key | Stored in |
+| --- | --- |
+| root | `ROOT_KEY`, ClaudiniteEngine environment `root` |
+| standby root | nowhere on GitHub: sealed under your passphrase, in the run summary |
+| `manifest` (365 days) | `CN_RELEASE_KEY`, `CN_RELEASE_CERT`, ClaudiniteEngine environment `release` |
+| `packs` (90 days) | `CN_PACKS_KEY`, `CN_PACKS_CERT`, ClaudinitePacks environment `release` |
+| `license-public` (90 days) | `ISSUING_KEY_PRIVATE`, `ISSUING_KEY_CERT`, ClaudiniteLicenses repository secrets |
 
-- [ ] A machine with no network connection (wired unplugged, Wi-Fi off) for the whole ceremony.
-- [ ] Two removable drives, labelled `ROOT` and `STANDBY`, plus one for the release key, labelled
-      `RELEASE`.
-- [ ] A decision on who holds the standby root, and where: a different person or place from the
-      root, and neither of them this repository.
+No private key is printed; the run summary carries the public keys, the certificates and the sealed
+standby root.
 
-## Steps
+## The ceremony
 
-1. On a networked machine with Go 1.24, from a checkout of this repo, build the tool for the
-   ceremony machine's platform (shown for Linux x64; set `GOOS`/`GOARCH` to match):
+1. Create a fine-grained token (GitHub → Settings → Developer settings → Fine-grained tokens),
+   owner `missingbulb`, repositories ClaudiniteEngine, ClaudinitePacks and ClaudiniteLicenses,
+   permissions **Secrets: read and write** and **Environments: read and write**.
+2. Make up a passphrase of at least 20 characters and save it in your password manager.
+3. In ClaudiniteEngine → Settings → Environments, create `ceremony` and `root`, each with yourself
+   as a required reviewer, and check that ClaudiniteEngine and ClaudinitePacks have a `release`
+   environment.
+4. In the `ceremony` environment add two secrets: `CEREMONY_TOKEN` (the token) and
+   `CEREMONY_PASSPHRASE` (the passphrase).
+5. Actions → key-ceremony → Run workflow, mode `ceremony`, and approve the run.
+6. From the run's summary, copy the block from `BEGIN CLAUDINITE STANDBY ROOT` to
+   `END CLAUDINITE STANDBY ROOT` into your password manager beside the passphrase. It is the only
+   copy of the standby root.
+7. Delete `CEREMONY_TOKEN` and `CEREMONY_PASSPHRASE` from the `ceremony` environment and revoke
+   the token.
+8. Comment on #5 that the ceremony ran. The root and standby public keys in the summary then
+   replace the development roots in each repository.
 
-   ```
-   CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -o cn-keys ./cmd/cn-keys
-   ```
-
-   Copy `cn-keys` to the ceremony machine.
-
-2. On the ceremony machine, with the network off, create the root on the `ROOT` drive:
-
-   ```
-   ./cn-keys root new --out /media/ROOT
-   ```
-
-3. Create the standby root on the `STANDBY` drive:
-
-   ```
-   ./cn-keys root new --out /media/STANDBY --name standby
-   ```
-
-4. Create the first release key on the `RELEASE` drive:
-
-   ```
-   ./cn-keys key new --out /media/RELEASE --name release
-   ```
-
-5. Certify the release key with the root, for use `manifest`:
-
-   ```
-   ./cn-keys certify --root /media/ROOT/root.key --subject /media/RELEASE/release.pub --use manifest --days 365 --out /media/RELEASE/release.cert.json
-   ```
-
-6. Check the certificate against the two new roots:
-
-   ```
-   mkdir roots && cp /media/ROOT/root.pub /media/STANDBY/standby.pub roots/
-   ./cn-keys verify --roots roots /media/RELEASE/release.cert.json
-   ```
-
-7. Copy the public halves out, `roots/root.pub` and `roots/standby.pub`, and nothing else from
-   `ROOT` or `STANDBY`.
-
-8. On the networked machine, in a branch of this repo, replace the development roots and remove
-   the development keys:
-
-   ```
-   cp root.pub standby.pub license/roots/
-   git rm -r keys/dev
-   go test -tags stable ./license
-   ```
-
-   The `stable` test passes only once the development roots are gone. Open the PR.
-
-9. Put the release key where the release workflow reads it: in this repo's Settings → Environments
-   → `release`, add the secrets `CN_RELEASE_KEY` (the content of `release.key`) and
-   `CN_RELEASE_CERT` (the content of `release.cert.json`).
-
-10. Paste the key ids that steps 2 to 5 printed into a comment on #5.
-
-## Storing the keys
-
-- [ ] `ROOT` drive stored offline, apart from `STANDBY`.
-- [ ] `STANDBY` drive handed to its holder.
-- [ ] `RELEASE` drive wiped once step 9 is done; the secret is the only copy.
-- [ ] No private key file was ever on a networked machine or in this repo.
+A second ceremony refuses once `ROOT_KEY` exists. A run that fails stores no root and can be run
+again; it replaces any working key it had already set.
 
 ## Rotating the release key
 
-Repeat steps 4 to 6 and 9 with the root drive. The root is needed again only to certify a new
-release key or to issue certificates for the `packs`, `license` and `license-public` uses.
+Working keys expire, the release key after a year and the others after 90 days. To replace them,
+add a token like step 1's as `CEREMONY_TOKEN` in the `root` environment, run key-ceremony with mode
+`rotate` (`uses` empty for all, or a list such as `manifest`), approve it, then delete the token.
+The root never leaves its secret.
+
+## Recovering with the standby root
+
+`cn-keys standby decrypt --in SEALED --out standby.key` opens the sealed block with the passphrase
+in `CEREMONY_PASSPHRASE`. Every verifier trusts the standby root as it trusts the root.

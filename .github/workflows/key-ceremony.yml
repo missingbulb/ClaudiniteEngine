@@ -1,0 +1,62 @@
+# The root key ceremony (#5) and later working-key rotations, run from the
+# browser. cmd/cn-keys/README.md is the owner's runbook. This repository is
+# public: nothing secret is printed, cached or uploaded, and the step
+# summary carries only public keys, certificates and the passphrase-sealed
+# standby root.
+name: key-ceremony
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: ceremony (once) or rotate (replace working keys)
+        type: choice
+        options: [ceremony, rotate]
+        required: true
+      uses:
+        description: "rotate only: comma-separated uses (manifest, packs, license-public); empty is all"
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: key-ceremony
+  cancel-in-progress: false
+
+jobs:
+  ceremony:
+    if: inputs.mode == 'ceremony'
+    runs-on: ubuntu-24.04
+    environment: ceremony
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.24"
+          cache: false
+      - env:
+          GH_TOKEN: ${{ secrets.CEREMONY_TOKEN }}
+          CEREMONY_PASSPHRASE: ${{ secrets.CEREMONY_PASSPHRASE }}
+        run: go run ./cmd/cn-keys ceremony --summary "$GITHUB_STEP_SUMMARY"
+
+  rotate:
+    if: inputs.mode == 'rotate'
+    runs-on: ubuntu-24.04
+    environment: root
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.24"
+          cache: false
+      - env:
+          GH_TOKEN: ${{ secrets.CEREMONY_TOKEN }}
+          ROOT_KEY: ${{ secrets.ROOT_KEY }}
+          USES: ${{ inputs.uses }}
+        run: go run ./cmd/cn-keys rotate --summary "$GITHUB_STEP_SUMMARY" --use "$USES"

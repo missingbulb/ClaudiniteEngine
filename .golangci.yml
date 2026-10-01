@@ -33,8 +33,8 @@ linters:
             - $gostd
             - github.com/missingbulb/ClaudiniteEngine/shared
         key-ceremony-tool:
-          # cn-keys runs offline as a static binary on the ceremony machine:
-          # standard library and shared/ only.
+          # cn-keys runs as `go run` of a pinned commit on the owner's
+          # machine: standard library and shared/ only.
           list-mode: strict
           files:
             - "**/cmd/cn-keys/**"

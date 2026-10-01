@@ -1,7 +1,9 @@
-// Command cn-keys is the offline key ceremony tool: it makes root and
-// subject keys, certifies a subject key for a use, and verifies
-// certificates. It is built locally and never published; README.md is the
-// ceremony runbook.
+// Command cn-keys is the key ceremony tool, run by the key-ceremony
+// workflow. `ceremony` makes the root and standby root and stores a
+// certified key for every working use in its GitHub secret in one run;
+// `rotate` replaces working keys later; `standby decrypt` recovers the
+// sealed standby root; the rest are single steps for keys kept as files.
+// README.md is the runbook.
 package main
 
 import (
@@ -22,6 +24,9 @@ import (
 )
 
 const usage = `usage:
+  cn-keys ceremony --summary FILE           (reads $CEREMONY_PASSPHRASE)
+  cn-keys rotate --summary FILE [--use USE[,USE]]  (reads $ROOT_KEY)
+  cn-keys standby decrypt --in SEALED --out KEY   (reads $CEREMONY_PASSPHRASE)
   cn-keys root new --out DIR [--name root]
   cn-keys key new --out DIR --name NAME
   cn-keys certify --root ROOT.key --subject SUBJECT.pub --use USE --days N --out CERT.json
@@ -58,6 +63,12 @@ func dispatch(args []string, stdout io.Writer) error {
 		return usageError{"no command"}
 	}
 	switch {
+	case args[0] == "ceremony":
+		return ceremonyCmd(args[1:], stdout)
+	case args[0] == "rotate":
+		return rotateCmd(args[1:], stdout)
+	case len(args) >= 2 && args[0] == "standby" && args[1] == "decrypt":
+		return standbyDecrypt(args[2:], stdout)
 	case len(args) >= 2 && args[0] == "root" && args[1] == "new":
 		return makeKey(args[2:], "root", stdout)
 	case len(args) >= 2 && args[0] == "key" && args[1] == "new":
