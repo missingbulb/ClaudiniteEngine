@@ -11,7 +11,8 @@
 # --dist is the release the registry serves, checked for this platform's
 # binary first; --platform names the leg (default: this host's); --keep
 # leaves the temp dir for debugging. A registry with a self-signed
-# certificate needs CURL_CA_BUNDLE from the caller.
+# certificate needs the caller to make curl trust it: CURL_CA_BUNDLE, or on
+# Windows, whose Schannel curl ignores that variable, the system Root store.
 set -eu
 cd "$(dirname "$0")/.."
 

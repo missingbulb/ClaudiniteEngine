@@ -113,7 +113,18 @@ jobs:
           "$stub/regstub$(go env GOEXE)" --dist dist --ready "$stub/ready" --ca-out "$stub/ca.pem" &
           for _ in $(seq 100); do [ -f "$stub/ready" ] && break; sleep 0.1; done
           [ -f "$stub/ready" ] || { echo "::error::regstub did not start"; exit 1; }
-          CURL_CA_BUNDLE=$stub/ca.pem NO_PROXY=127.0.0.1,localhost \
+          if [ "${{ matrix.leg }}" = windows-x64 ]; then
+            # Windows curl is Schannel, which ignores CURL_CA_BUNDLE by design,
+            # so the stub's certificate goes where a member's corporate root
+            # would: the machine's Root store. CurrentUser\Root would raise a
+            # confirmation dialog nobody is there to click.
+            powershell.exe -NoProfile -NonInteractive -Command \
+              "Import-Certificate -FilePath '$(cygpath -w "$stub/ca.pem")' -CertStoreLocation Cert:\LocalMachine\Root | Out-Null"
+            echo "curl: $(command -v curl), $(curl --version | sed -n 1p)"
+          else
+            export CURL_CA_BUNDLE=$stub/ca.pem
+          fi
+          NO_PROXY=127.0.0.1,localhost \
             sh release/smoke-platform.sh --registry "$(cat "$stub/ready")" --package @claudinite/cli-rc \
             --version "$VERSION" --pin "$INTEGRITY" --dist dist --platform "${{ matrix.leg }}"
 

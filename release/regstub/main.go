@@ -7,9 +7,10 @@
 // --dist may repeat; the first folder holding the tarball serves it.
 //
 // It writes its base URL to --ready once listening, the certificate to
-// --ca-out (point curl at it with CURL_CA_BUNDLE), and one line per request
-// to --log. --status N answers every request with N instead; --stall holds
-// every connection open and never answers.
+// --ca-out (point curl at it with CURL_CA_BUNDLE, or on Windows import it
+// into the Root store, since Schannel curl ignores that variable), and one
+// line per request to --log. --status N answers every request with N
+// instead; --stall holds every connection open and never answers.
 package main
 
 import (
