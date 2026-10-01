@@ -51,6 +51,15 @@ commands:
                  member files and vendor the packs and what they require
   adopt ID [--repo DIR]
                  declare and vendor one more pack on an adopted repo
+  login [--logout] [--force]
+                 log in to the Claudinite App on this machine (GitHub's
+                 device flow), so desktop sessions request their key
+                 directly
+  license status [--session ID] [--repo DIR]
+                 the session's license state and the surfaces it turns off
+  license request --session ID [--nonce N] [--repo DIR]
+                 the session's key request: with --nonce, the background
+                 request SessionStart starts; without, a foreground one
   workflows diff [--repo DIR]
                  the patch that brings a member's workflows to this
                  version's templates; empty when they match
@@ -61,7 +70,7 @@ commands:
 var secretScanPlant string
 
 // runHook is a variable so a test can make a hook panic.
-var runHook = hooks.Handler{Checks: hookChecks{}}.Run
+var runHook = hooks.Handler{Checks: hookChecks{}, License: hookLicense{}}.Run
 
 func main() {
 	os.Exit(run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr))
@@ -153,9 +162,13 @@ func dispatch(args []string, stdin io.Reader, stdout, stderr io.Writer, start ti
 	case "workflows":
 		return cmdWorkflows(args[1:], stdout)
 	case "init":
-		return cmdInit(args[1:], stdout)
+		return cmdInit(args[1:], stdout, stderr)
 	case "adopt":
 		return cmdAdopt(args[1:], stdout)
+	case "login":
+		return cmdLogin(args[1:], stdout)
+	case "license":
+		return cmdLicense(args[1:], stdout, stderr)
 	}
 	return report.New(report.Usage, fmt.Sprintf("unknown command %q", args[0]))
 }

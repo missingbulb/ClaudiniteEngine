@@ -46,7 +46,7 @@ func TestTemplates(t *testing.T) {
 		t.Fatalf("%d templates", len(tpl))
 	}
 	want := map[string]map[string]string{
-		"claudinite-update.yml": {"update": "actions: write,contents: write,issues: write,pull-requests: write"},
+		"claudinite-update.yml": {"update": "actions: write,contents: write,id-token: write,issues: write,pull-requests: write"},
 		"claudinite-ci.yml": {
 			"check": "contents: read,pull-requests: read",
 			"land":  "actions: write,contents: write,pull-requests: write",

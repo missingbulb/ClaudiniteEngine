@@ -352,7 +352,7 @@ func build(c Config, key string, srcs []Source, log *bytes.Buffer) error {
 // own session, and returns at once; the child outlives the hook.
 func Start(exe, repo, key string) error {
 	cmd := exec.Command(exe, "check", "build", "--repo", repo, "--key", key)
-	cmd.SysProcAttr = detached()
+	cmd.SysProcAttr = Detached()
 	cmd.Dir = os.TempDir()
 	if err := cmd.Start(); err != nil {
 		return err

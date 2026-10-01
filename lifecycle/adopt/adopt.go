@@ -41,6 +41,17 @@ type Input struct {
 	Reader  update.PackReader
 	Timeout time.Duration
 	Out     io.Writer
+	// Key makes init's one key request for the repo, in the foreground
+	// within the cut; nil makes none.
+	Key func(repo string) KeyGrant
+}
+
+// KeyGrant is what init's key request came to: the plan the key names,
+// or why no key came and the link that wants.
+type KeyGrant struct {
+	Plan   string
+	Reason string
+	Link   string
 }
 
 // vendored is one pack chosen and read, ready to unpack.
@@ -217,14 +228,41 @@ func Init(in Input) error {
 			return err
 		}
 	}
+	g := KeyGrant{Reason: "no key request"}
+	if in.Key != nil {
+		g = in.Key(in.Repo)
+	}
+	if g.Plan != "" {
+		p := filepath.Join(in.Repo, ".claudinite", "settings.yaml")
+		moved, err := settings.SetPlan(cfg.Bytes(), settings.YAML, g.Plan)
+		if err != nil {
+			return err
+		}
+		if err := os.WriteFile(p, moved, 0o644); err != nil {
+			return err
+		}
+	}
 	fmt.Fprintf(in.Out, `
 Adopted. Next:
   1. Commit everything above and open a pull request; a person merges it, since it adds workflows.
   2. In the repository's Settings > Actions > General, allow GitHub Actions to create and approve pull requests, so the nightly update can open its PRs.
-  3. The Claudinite App's install link arrives with a later engine; nothing to install yet.
 `)
+	if g.Plan != "" {
+		fmt.Fprintf(in.Out, "  3. The Claudinite App answered with this repo's license key; the settings file now names its plan.\nplan: %s\n", g.Plan)
+		return nil
+	}
+	link := g.Link
+	if link == "" {
+		link = InstallURL
+	}
+	fmt.Fprintf(in.Out, "  3. No license key came (%s): the Claudinite GitHub App is not installed on this repo or not reachable, and sessions run degraded until an owner installs it:\n     %s\n", g.Reason, link)
 	return nil
 }
+
+// InstallURL is the Claudinite App's install page; the license package's
+// own constant names the same App (a drift guard in cmd/cn's tests keeps
+// the two equal).
+const InstallURL = "https://github.com/apps/claudinite/installations/new"
 
 // mergeHooks returns .claude/settings.json with the six hook wirings
 // added where missing, creating the object when the file is absent; keys

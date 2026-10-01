@@ -286,7 +286,7 @@ func (l *packsLayout) readJSON(raw []byte) error {
 	flat := strings.NewReplacer("\r", "", "\n", "").Replace(string(raw))
 	switch n := len(jsonPacksKey.FindAllString(flat, -1)); n {
 	case 0:
-		loc := jsonBlock.FindIndex(raw)
+		loc := enginePatterns.jsonBlock.FindIndex(raw)
 		if loc == nil {
 			l.insert = -1
 			return nil

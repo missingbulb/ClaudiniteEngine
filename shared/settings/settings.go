@@ -68,12 +68,31 @@ type Engine struct {
 type span struct{ start, end int }
 
 var (
-	yamlHeader = regexp.MustCompile(`^engine:[ \t]*$`)
-	yamlEnd    = regexp.MustCompile(`^[^ \t]`)
-	tomlHeader = regexp.MustCompile(`^\[engine\][ \t]*$`)
-	tomlEnd    = regexp.MustCompile(`^[ \t]*\[`)
-	jsonEngine = regexp.MustCompile(`"engine"[ \t]*:`)
-	jsonBlock  = regexp.MustCompile(`"engine"[ \t]*:[ \t]*\{([^{}]*)\}`)
+	yamlEnd = regexp.MustCompile(`^[^ \t]`)
+	tomlEnd = regexp.MustCompile(`^[ \t]*\[`)
+)
+
+// blockPatterns are the header patterns of one top-level block.
+type blockPatterns struct {
+	name                 string
+	yamlHeader, tomlHead *regexp.Regexp
+	jsonKey, jsonBlock   *regexp.Regexp
+}
+
+func patternsFor(name string) blockPatterns {
+	q := regexp.QuoteMeta(name)
+	return blockPatterns{
+		name:       name,
+		yamlHeader: regexp.MustCompile(`^` + q + `:[ \t]*$`),
+		tomlHead:   regexp.MustCompile(`^\[` + q + `\][ \t]*$`),
+		jsonKey:    regexp.MustCompile(`"` + q + `"[ \t]*:`),
+		jsonBlock:  regexp.MustCompile(`"` + q + `"[ \t]*:[ \t]*\{([^{}]*)\}`),
+	}
+}
+
+var (
+	enginePatterns  = patternsFor("engine")
+	licensePatterns = patternsFor("license")
 )
 
 func lineSpans(raw []byte) []span {
@@ -93,12 +112,21 @@ func lineSpans(raw []byte) []span {
 
 // blockSpans returns the engine block's lines.
 func blockSpans(raw []byte, f Format) ([]span, error) {
+	spans, _, err := namedBlockSpans(raw, f, enginePatterns, true)
+	return spans, err
+}
+
+// namedBlockSpans returns a block's lines and whether the block is there;
+// required refuses a file without exactly one, otherwise an absent block
+// is no lines.
+func namedBlockSpans(raw []byte, f Format, b blockPatterns, required bool) ([]span, bool, error) {
 	switch f {
 	case YAML, TOML:
-		header, end := yamlHeader, yamlEnd
+		header, end := b.yamlHeader, yamlEnd
 		if f == TOML {
-			header, end = tomlHeader, tomlEnd
+			header, end = b.tomlHead, tomlEnd
 		}
+		found := 0
 		var out []span
 		in := false
 		for _, s := range lineSpans(raw) {
@@ -106,21 +134,29 @@ func blockSpans(raw []byte, f Format) ([]span, error) {
 			switch {
 			case header.MatchString(line):
 				in = true
+				found++
 			case in && end.MatchString(line):
 				in = false
 			case in:
 				out = append(out, s)
 			}
 		}
-		return out, nil
+		if found > 1 {
+			return nil, true, fmt.Errorf("the settings hold the %s block %d times", b.name, found)
+		}
+		return out, found == 1, nil
 	case JSON:
 		flat := strings.NewReplacer("\r", "", "\n", "").Replace(string(raw))
-		if n := len(jsonEngine.FindAllString(flat, -1)); n != 1 {
-			return nil, fmt.Errorf("the settings must hold exactly one \"engine\" object, found %d", n)
+		n := len(b.jsonKey.FindAllString(flat, -1))
+		if n == 0 && !required {
+			return nil, false, nil
 		}
-		loc := jsonBlock.FindSubmatchIndex(raw)
+		if n != 1 {
+			return nil, n > 0, fmt.Errorf("the settings must hold exactly one %q object, found %d", b.name, n)
+		}
+		loc := b.jsonBlock.FindSubmatchIndex(raw)
 		if loc == nil {
-			return nil, errors.New("the \"engine\" object must hold only plain values")
+			return nil, true, fmt.Errorf("the %q object must hold only plain values", b.name)
 		}
 		var out []span
 		start := loc[2]
@@ -130,9 +166,9 @@ func blockSpans(raw []byte, f Format) ([]span, error) {
 				start = i + 1
 			}
 		}
-		return append(out, span{start, loc[3]}), nil
+		return append(out, span{start, loc[3]}), true, nil
 	}
-	return nil, fmt.Errorf("unknown settings format %q", f)
+	return nil, false, fmt.Errorf("unknown settings format %q", f)
 }
 
 func keyPatterns(f Format, key string) (*regexp.Regexp, *regexp.Regexp) {
@@ -153,6 +189,11 @@ func keyValue(raw []byte, f Format, key string) (span, bool, error) {
 	if err != nil {
 		return span{}, false, err
 	}
+	return keyIn(raw, f, spans, "engine", key)
+}
+
+// keyIn finds key's one line among a block's spans.
+func keyIn(raw []byte, f Format, spans []span, block, key string) (span, bool, error) {
 	present, value := keyPatterns(f, key)
 	var hits []span
 	for _, s := range spans {
@@ -165,11 +206,11 @@ func keyValue(raw []byte, f Format, key string) (span, bool, error) {
 		return span{}, false, nil
 	case 1:
 	default:
-		return span{}, true, fmt.Errorf("engine.%s appears %d times", key, len(hits))
+		return span{}, true, fmt.Errorf("%s.%s appears %d times", block, key, len(hits))
 	}
 	m := value.FindSubmatchIndex(raw[hits[0].start:hits[0].end])
 	if m == nil {
-		return span{}, true, fmt.Errorf("engine.%s must be a plain quoted string", key)
+		return span{}, true, fmt.Errorf("%s.%s must be a plain quoted string", block, key)
 	}
 	return span{hits[0].start + m[4], hits[0].start + m[5]}, true, nil
 }

@@ -131,3 +131,39 @@ func TestReasonOfAForeignError(t *testing.T) {
 		t.Fatalf("ReasonOf(nil) = %q", got)
 	}
 }
+
+// The optional fields of Licenses chunk 3 decode when present, are nil when
+// absent or null, and refuse a malformed value as shape.
+func TestOptionalFields(t *testing.T) {
+	k := minted(t, map[string]any{
+		"seats": map[string]any{"paid": 3, "counted": 4, "headroom": 1}, "checkout_url": "https://polar.sh/checkout/x",
+		"portal_url": "https://polar.sh/portal/y", "notice": "over-within-headroom", "state": "grace", "grace_until": testNow.Add(48 * time.Hour).Unix(),
+	})
+	if k.Seats == nil || k.Seats.Paid != 3 || k.Seats.Counted != 4 || k.Seats.Headroom != 1 {
+		t.Errorf("seats %+v", k.Seats)
+	}
+	if k.CheckoutURL == nil || *k.CheckoutURL != "https://polar.sh/checkout/x" || k.PortalURL == nil || k.Notice == nil || *k.Notice != "over-within-headroom" {
+		t.Errorf("links %v %v %v", k.CheckoutURL, k.PortalURL, k.Notice)
+	}
+	if k := minted(t, nil); k.Seats != nil || k.CheckoutURL != nil || k.PortalURL != nil || k.Notice != nil || k.Issue != nil {
+		t.Errorf("absent fields decoded as %+v", k)
+	}
+	if k := minted(t, map[string]any{"typ": "grant", "issue": 12}); k.Issue == nil || *k.Issue != 12 {
+		t.Errorf("issue %v", k.Issue)
+	}
+	for name, edit := range map[string]map[string]any{
+		"negative seats":       {"seats": map[string]any{"paid": -1, "counted": 0, "headroom": 0}},
+		"seats missing a part": {"seats": map[string]any{"paid": 1, "counted": 0}},
+		"seats not an object":  {"seats": "3"},
+		"http checkout":        {"checkout_url": "http://polar.sh/x"},
+		"checkout not a url":   {"checkout_url": "polar"},
+		"portal not a string":  {"portal_url": 3},
+		"issue zero":           {"issue": 0},
+		"issue a string":       {"issue": "12"},
+		"notice not a string":  {"notice": 1},
+	} {
+		if _, err := VerifyKey(mint(t, edit), testRoots(), testNow); ReasonOf(err) != ReasonShape {
+			t.Errorf("%s: %v, want shape", name, err)
+		}
+	}
+}

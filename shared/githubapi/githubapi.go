@@ -35,12 +35,36 @@ import (
 // DefaultBase is GitHub's REST API.
 const DefaultBase = "https://api.github.com"
 
-// Client calls one repository's API.
+// Client calls one repository's API. Token may be empty: on a Claude Code
+// web VM the proxy adds the person's credential.
 type Client struct {
 	Base  string
 	Repo  string // owner/name
 	Token string
 	HTTP  *http.Client
+}
+
+// HTTPError is an answer outside 2xx; any other error from a call means
+// GitHub was not reached.
+type HTTPError struct {
+	Label      string
+	Status     int
+	StatusText string
+	Message    string
+}
+
+func (e *HTTPError) Error() string {
+	return fmt.Sprintf("%s: %s: %s", e.Label, e.StatusText, e.Message)
+}
+
+// StatusOf is the HTTP status an error carries, 0 when GitHub was not
+// reached.
+func StatusOf(err error) int {
+	var h *HTTPError
+	if errors.As(err, &h) {
+		return h.Status
+	}
+	return 0
 }
 
 // FromEnv builds a client from GITHUB_REPOSITORY, the token given, and
@@ -74,7 +98,9 @@ func (c *Client) do(method, path string, in, out any) error {
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Authorization", "Bearer "+c.Token)
+	if c.Token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.Token)
+	}
 	req.Header.Set("Accept", "application/vnd.github+json")
 	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
 	if in != nil {
@@ -94,7 +120,7 @@ func (c *Client) do(method, path string, in, out any) error {
 		if len(msg) > 300 {
 			msg = msg[:300]
 		}
-		return fmt.Errorf("%s: %s: %s", label, resp.Status, msg)
+		return &HTTPError{Label: label, Status: resp.StatusCode, StatusText: resp.Status, Message: msg}
 	}
 	if out != nil && len(raw) > 0 {
 		if err := json.Unmarshal(raw, out); err != nil {

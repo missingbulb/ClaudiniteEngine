@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"regexp"
 	"slices"
 	"time"
@@ -67,6 +68,20 @@ type KeyPayload struct {
 	GraceUntil *int64   `json:"grace_until"`
 	Features   []string `json:"features"`
 	Release    Release  `json:"release"`
+	// The optional fields, nil when absent or null (Licenses chunk 3).
+	Seats       *Seats  `json:"seats,omitempty"`
+	CheckoutURL *string `json:"checkout_url,omitempty"`
+	PortalURL   *string `json:"portal_url,omitempty"`
+	Notice      *string `json:"notice,omitempty"`
+	Issue       *int64  `json:"issue,omitempty"`
+}
+
+// Seats is the licensee's paid seat count, the users counted in the
+// 30-day window including this one, and the headroom.
+type Seats struct {
+	Paid     int64 `json:"paid"`
+	Counted  int64 `json:"counted"`
+	Headroom int64 `json:"headroom"`
 }
 
 // Reason names the check that refused a key, in ClaudiniteLicenses'
@@ -235,12 +250,60 @@ func decodePayload(raw []byte) (KeyPayload, error) {
 	case p.Release.PackIndexSerial < 0 || p.Release.PackIndexSerial > 1<<53-1:
 		return KeyPayload{}, fmt.Errorf("release.pack_index_serial %d", p.Release.PackIndexSerial)
 	}
+	if err := checkOptional(fields); err != nil {
+		return KeyPayload{}, err
+	}
 	for _, k := range p.Release.PackKeys {
 		if !keyIDRe.MatchString(k) {
 			return KeyPayload{}, fmt.Errorf("release.pack_keys entry %q is not a key id", k)
 		}
 	}
 	return p, nil
+}
+
+// checkOptional refuses an optional field that is present, not null and
+// outside the Keys table.
+func checkOptional(fields map[string]json.RawMessage) error {
+	present := func(f string) (json.RawMessage, bool) {
+		v, ok := fields[f]
+		return v, ok && !bytes.Equal(bytes.TrimSpace(v), []byte("null"))
+	}
+	if v, ok := present("seats"); ok {
+		var parts map[string]json.RawMessage
+		if err := json.Unmarshal(v, &parts); err != nil {
+			return fmt.Errorf("seats: %v", err)
+		}
+		for _, f := range []string{"paid", "counted", "headroom"} {
+			var n int64
+			if err := json.Unmarshal(parts[f], &n); err != nil || n < 0 {
+				return fmt.Errorf("seats.%s is not a non-negative integer", f)
+			}
+		}
+	}
+	for _, f := range []string{"checkout_url", "portal_url"} {
+		if v, ok := present(f); ok {
+			var s string
+			if err := json.Unmarshal(v, &s); err != nil {
+				return fmt.Errorf("%s is not a string", f)
+			}
+			if u, err := url.Parse(s); err != nil || u.Scheme != "https" || u.Host == "" {
+				return fmt.Errorf("%s %q is not an https URL", f, s)
+			}
+		}
+	}
+	if v, ok := present("notice"); ok {
+		var s string
+		if err := json.Unmarshal(v, &s); err != nil {
+			return errors.New("notice is not a string")
+		}
+	}
+	if v, ok := present("issue"); ok {
+		var n int64
+		if err := json.Unmarshal(v, &n); err != nil || n <= 0 {
+			return errors.New("issue is not a positive integer")
+		}
+	}
+	return nil
 }
 
 func nonEmpty(list []string) bool {
