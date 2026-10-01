@@ -419,3 +419,98 @@ func TestVerdictForms(t *testing.T) {
 		t.Error("a non-verdict matched")
 	}
 }
+
+const sampleDiff = "--- a/.github/workflows/claudinite-ci.yml\n+++ b/.github/workflows/claudinite-ci.yml\n@@ -1,1 +1,1 @@\n-old\n+new\n"
+
+func TestAWorkflowChangeIsFiledAsAnIssue(t *testing.T) {
+	w := newWorld(t, settings.YAML)
+	w.publish(t, v2, relOpts{binary: cnScript(v2, "exit 0", sampleDiff)})
+	if v, err := Engine(w.deps(t), Options{}); err != nil || v != "opened #1 for "+v2 {
+		t.Fatalf("%q %v\n%s", v, err, w.out)
+	}
+	if got := w.hub.called("create-issue"); len(got) != 1 || got[0] != "create-issue Claudinite engine "+v2+" needs a workflow change|claudinite-update" {
+		t.Fatalf("issues %v", got)
+	}
+	body := w.hub.issues[0].Body
+	if !strings.Contains(body, "```diff\n"+sampleDiff+"```") || !strings.Contains(body, "stays on the current workflows until a person commits") {
+		t.Errorf("body:\n%s", body)
+	}
+	if idx := strings.Index(strings.Join(w.hub.calls, "\n"), "create-issue"); idx < strings.Index(strings.Join(w.hub.calls, "\n"), "create-pull") {
+		t.Error("the issue was filed before the PR")
+	}
+}
+
+func TestAnOpenWorkflowIssueIsUpdatedNotDuplicated(t *testing.T) {
+	w := newWorld(t, settings.YAML)
+	w.publish(t, v2, relOpts{binary: cnScript(v2, "exit 0", sampleDiff)})
+	w.hub.issues = []githubapi.Issue{{Number: 9, Title: "Claudinite engine " + v2 + " needs a workflow change", Body: "stale"}}
+	w.hub.next = 10
+	if v, err := Engine(w.deps(t), Options{}); err != nil || v != "opened #10 for "+v2 {
+		t.Fatalf("%q %v\n%s", v, err, w.out)
+	}
+	if len(w.hub.called("create-issue")) != 0 || len(w.hub.called("update-issue 9")) != 1 || !strings.Contains(w.hub.issues[0].Body, sampleDiff) {
+		t.Errorf("calls %v", w.hub.calls)
+	}
+}
+
+func TestEqualWorkflowsFileNoIssue(t *testing.T) {
+	w := newWorld(t, settings.YAML)
+	w.publish(t, v2, relOpts{})
+	if _, err := Engine(w.deps(t), Options{}); err != nil {
+		t.Fatal(err)
+	}
+	if len(w.hub.called("create-issue")) != 0 || len(w.hub.called("issues")) != 0 {
+		t.Errorf("calls %v", w.hub.calls)
+	}
+}
+
+func TestARevokedPinFilesOneIssue(t *testing.T) {
+	w := newWorld(t, settings.YAML)
+	w.publish(t, v1, relOpts{deprecated: "revoked: leaks a token"})
+	w.publish(t, v2, relOpts{})
+	if v, err := Engine(w.deps(t), Options{}); err != nil || v != "opened #1 for "+v2 {
+		t.Fatalf("%q %v\n%s", v, err, w.out)
+	}
+	if got := w.hub.called("create-issue"); len(got) != 1 || got[0] != "create-issue Claudinite engine "+v1+" is revoked|claudinite-update" {
+		t.Fatalf("issues %v", got)
+	}
+	body := w.hub.issues[0].Body
+	for _, s := range []string{"leaks a token", v2, "#1"} {
+		if !strings.Contains(body, s) {
+			t.Errorf("body lacks %q:\n%s", s, body)
+		}
+	}
+	// The next night: the PR is open and still waiting; the issue is
+	// updated, not duplicated.
+	w.hub.runs[w.hub.pulls[0].HeadSHA] = nil
+	if v, err := Engine(w.deps(t), Options{}); err != nil || !strings.HasPrefix(v, "skipped: #1") {
+		t.Fatalf("%q %v", v, err)
+	}
+	if len(w.hub.called("create-issue")) != 1 {
+		t.Errorf("duplicated: %v", w.hub.calls)
+	}
+}
+
+func TestARevokedPinWithNothingNewerStillFilesTheIssue(t *testing.T) {
+	w := newWorld(t, settings.YAML)
+	w.publish(t, v1, relOpts{deprecated: "revoked: rehearsal"})
+	w.publish(t, v2, relOpts{deprecated: "held: rehearsal"})
+	if v, err := Engine(w.deps(t), Options{}); err != nil || v != "up to date" {
+		t.Fatalf("%q %v", v, err)
+	}
+	if got := w.hub.called("create-issue"); len(got) != 1 || !strings.Contains(w.hub.issues[0].Body, "No allowed version") {
+		t.Errorf("%v %+v", got, w.hub.issues)
+	}
+}
+
+func TestAPinNotRevokedFilesNoRevocationIssue(t *testing.T) {
+	w := newWorld(t, settings.YAML)
+	w.publish(t, v1, relOpts{})
+	w.publish(t, v2, relOpts{deprecated: "revoked: x"})
+	if _, err := Engine(w.deps(t), Options{}); err != nil {
+		t.Fatal(err)
+	}
+	if len(w.hub.called("create-issue")) != 0 {
+		t.Errorf("%v", w.hub.calls)
+	}
+}

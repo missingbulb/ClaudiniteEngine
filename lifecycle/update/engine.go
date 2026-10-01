@@ -193,12 +193,29 @@ func Engine(d Deps, o Options) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	c := Candidate(pin.Version, p, StatesFromPackument(p))
+	states := StatesFromPackument(p)
+	next, verdict, err := propose(d, o, f, raw, pin, p, states, prev, prevState)
+	if err != nil {
+		return "", err
+	}
+	if k, reason := states.Of(pin.Version); k == npmreg.Revoked {
+		if err := fileRevoked(d, pin.Version, reason, next, verdict); err != nil {
+			return "", err
+		}
+	}
+	return verdict, nil
+}
+
+// propose picks the candidate and, unless an open PR already carries it
+// or its verify breaks this repo, opens its update PR. It returns the
+// candidate, empty for none, and the verdict.
+func propose(d Deps, o Options, f settings.Format, raw []byte, pin settings.Engine, p *npmreg.Packument, states States, prev *githubapi.PR, prevState string) (string, string, error) {
+	c := Candidate(pin.Version, p, states)
 	if c.Skipped != nil {
 		fmt.Fprintf(d.Out, "%s skipped: %s\n", c.Skipped.Version, c.Skipped.Reason)
 	}
 	if c.Version == "" {
-		return "up to date", nil
+		return "", "up to date", nil
 	}
 	if prev != nil && prev.HeadRef == BranchPrefix+c.Version {
 		why := "its CI concluded " + prevState
@@ -208,44 +225,47 @@ func Engine(d Deps, o Options) (string, error) {
 		case "queued", "in_progress", "waiting", "pending", "requested":
 			why = "its CI is " + prevState
 		}
-		return fmt.Sprintf("skipped: #%d for %s is open and %s", prev.Number, c.Version, why), nil
+		return c.Version, fmt.Sprintf("skipped: #%d for %s is open and %s", prev.Number, c.Version, why), nil
 	}
 
 	got, err := Fetch(FetchInput{Registry: d.Registry, Package: pin.Package, Version: c.Version, Packument: p,
 		Roots: d.Roots, CacheRoot: d.CacheRoot, Platform: d.Platform, Now: d.Now()})
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	self, err := Selftest(got.Binary, c.Version, d.Timeout)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	verifyOut, broke, err := RunVerify(got.Binary, d.Repo, d.Timeout)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	fmt.Fprint(d.Out, verifyOut)
 	if broke && !o.Force {
-		return "no PR: " + c.Version + " would break this repo", nil
+		return c.Version, "no PR: " + c.Version + " would break this repo", nil
 	}
 
-	n, err := propose(d, f, raw, got, self, verifyOut, broke)
+	n, err := openPR(d, f, raw, got, self, verifyOut, broke)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	if prev != nil {
 		if err := supersede(d, *prev, n, c.Version); err != nil {
-			return "", err
+			return "", "", err
 		}
 	}
-	return fmt.Sprintf("opened #%d for %s", n, c.Version), nil
+	if err := fileWorkflowChange(d, got); err != nil {
+		return "", "", err
+	}
+	return c.Version, fmt.Sprintf("opened #%d for %s", n, c.Version), nil
 }
 
 func title(ver string) string { return "Claudinite engine " + ver }
 
-// propose commits the pin on a fresh update branch, pushes it, opens and
+// openPR commits the pin on a fresh update branch, pushes it, opens and
 // labels the PR and dispatches its CI, leaving the checkout where it was.
-func propose(d Deps, f settings.Format, raw []byte, got Fetched, self, verifyOut string, forced bool) (int, error) {
+func openPR(d Deps, f settings.Format, raw []byte, got Fetched, self, verifyOut string, forced bool) (int, error) {
 	moved, err := settings.SetPin(raw, f, got.Version, got.Integrity)
 	if err != nil {
 		return 0, err
@@ -382,4 +402,61 @@ func Land(d Deps, n int, sha string) (string, error) {
 		return "", err
 	}
 	return "landed " + e.Version, nil
+}
+
+// upsertIssue opens an issue labelled Label with title, or updates the
+// body of the open one already carrying that title.
+func upsertIssue(d Deps, title, body string) error {
+	open, err := d.GitHub.OpenIssues(Label)
+	if err != nil {
+		return err
+	}
+	for _, is := range open {
+		if is.Title == title {
+			if is.Body == body {
+				return nil
+			}
+			return d.GitHub.UpdateIssueBody(is.Number, body)
+		}
+	}
+	_, err = d.GitHub.CreateIssue(title, body, Label)
+	return err
+}
+
+// fence is a code fence longer than any backtick run in s.
+func fence(s string) string {
+	f := "```"
+	for strings.Contains(s, f) {
+		f += "`"
+	}
+	return f
+}
+
+// fileWorkflowChange files the patch that brings the member's workflows to
+// the new release's templates, as the new binary computes it; nothing
+// writes .github/workflows/ itself.
+func fileWorkflowChange(d Deps, got Fetched) error {
+	diff, err := WorkflowsDiff(got.Binary, d.Repo, d.Timeout)
+	if err != nil || diff == "" {
+		return err
+	}
+	f := fence(diff)
+	body := fmt.Sprintf("Claudinite engine %s expects these changes to this repo's workflows:\n\n%sdiff\n%s%s\n\n"+
+		"The update job's token cannot write `.github/workflows/`, so the nightly update stays on the current workflows until a person commits this patch (`git apply` at the repo root).\n",
+		got.Version, f, diff, f)
+	return upsertIssue(d, "Claudinite engine "+got.Version+" needs a workflow change", body)
+}
+
+// fileRevoked keeps one issue open per revoked pin, naming the reason, the
+// next allowed version and what this run did about it.
+func fileRevoked(d Deps, pin, reason, next, verdict string) error {
+	var b strings.Builder
+	fmt.Fprintf(&b, "Claudinite engine %s, the version this repo pins, is revoked: %s.\n\n", pin, reason)
+	if next == "" {
+		fmt.Fprintf(&b, "No allowed version newer than %s is published yet; the nightly update moves this repo off it as soon as one is.\n\n", pin)
+	} else {
+		fmt.Fprintf(&b, "The next allowed version is %s.\n\n", next)
+	}
+	fmt.Fprintf(&b, "The latest update run: `%s`.\n", verdict)
+	return upsertIssue(d, "Claudinite engine "+pin+" is revoked", b.String())
 }
