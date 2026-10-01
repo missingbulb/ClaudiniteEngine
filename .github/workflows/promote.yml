@@ -111,7 +111,7 @@ jobs:
           for f in rc/claudinite-*.tgz; do mv "$f" "rc/$(basename "$f" | sed 's/^claudinite-//')"; done
           ls -l rc
       - id: check
-        run: go run ./release/promote check --version "$VERSION" --tarballs rc --roots candidate/license/roots --source candidate >> "$GITHUB_OUTPUT"
+        run: go run ./release/promote check --version "$VERSION" --tarballs rc --roots license/roots --source candidate >> "$GITHUB_OUTPUT"
       - if: steps.check.outputs.check == 'pass'
         run: release/repack.sh rc stable/tarballs
       - id: sums

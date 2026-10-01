@@ -95,7 +95,7 @@ func TestCheck(t *testing.T) {
 	}
 	for _, c := range cases {
 		dir := rcTarballs(t, c.how)
-		got, reason := Check(dir, ver, "../../license/roots", c.stable)
+		got, reason := Check(dir, ver, "../../license/roots", "abc1234ffffffffffffffffffffffffffffffff", c.stable)
 		if got != c.want {
 			t.Errorf("%s: %s (%s), want %s", c.name, got, reason, c.want)
 		}
@@ -108,7 +108,18 @@ func TestCheck(t *testing.T) {
 func TestCheckRefusesAMissingPlatform(t *testing.T) {
 	dir := rcTarballs(t, tamper{})
 	_ = os.Remove(filepath.Join(dir, "cli-rc-windows-x64-"+ver+".tgz"))
-	if got, reason := Check(dir, ver, "../../license/roots", passing); got != "refuse" || !strings.Contains(reason, "windows-x64") {
+	if got, reason := Check(dir, ver, "../../license/roots", "abc1234ffffffffffffffffffffffffffffffff", passing); got != "refuse" || !strings.Contains(reason, "windows-x64") {
+		t.Errorf("%s %s", got, reason)
+	}
+}
+
+// A moved v<version> tag must not test a different commit than the bytes
+// were built from.
+func TestCheckRefusesACandidateCheckoutAtAnotherCommit(t *testing.T) {
+	dir := rcTarballs(t, tamper{})
+	head := "def5678000000000000000000000000000000000"
+	got, reason := Check(dir, ver, "../../license/roots", head, passing)
+	if got != "refuse" || !strings.Contains(reason, head) || !strings.Contains(reason, "abc1234") {
 		t.Errorf("%s %s", got, reason)
 	}
 }

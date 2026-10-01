@@ -67,7 +67,12 @@ func run(args []string, stdout, stderr io.Writer) int {
 			fmt.Fprint(stderr, usage)
 			return 2
 		}
-		result, reason := Check(*tarballs, *ver, *roots, func() error { return stableTest(*source, stderr) })
+		head, err := exec.Command("git", "-C", *source, "rev-parse", "HEAD").Output()
+		if err != nil {
+			fmt.Fprintf(stderr, "promote check: reading the candidate checkout's HEAD: %v\n", err)
+			return 1
+		}
+		result, reason := Check(*tarballs, *ver, *roots, strings.TrimSpace(string(head)), func() error { return stableTest(*source, stderr) })
 		fmt.Fprintf(stderr, "promote check: %s: %s\n", result, reason)
 		fmt.Fprintf(stdout, "check=%s\n", result)
 		return 0
