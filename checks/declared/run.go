@@ -12,6 +12,8 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/shared/findings"
 	"github.com/missingbulb/ClaudiniteEngine/shared/packset"
 	"github.com/missingbulb/ClaudiniteEngine/shared/settings"
+	"github.com/missingbulb/ClaudiniteEngine/shared/skilltriggers"
+	"github.com/missingbulb/ClaudiniteEngine/shared/transcript"
 )
 
 // GraceDays is how long a new blocking check only advises: its first
@@ -52,6 +54,8 @@ type Set struct {
 	// Member is false for a repo with no settings file, which runs
 	// nothing.
 	Member bool
+	// Triggers are the active packs' skills' force-load declarations.
+	Triggers []skilltriggers.Trigger
 }
 
 // LoadSet reads the repo's settings and the declared checks of its active
@@ -87,6 +91,7 @@ func LoadSet(repo, engine string) (*Set, error) {
 	if err != nil {
 		return nil, err
 	}
+	s.Triggers, _ = skilltriggers.FromPacks(set.Packs)
 	for _, p := range set.Packs {
 		cs, err := Load(repo, p.Rel, p.ID)
 		if err != nil {
@@ -103,7 +108,7 @@ func LoadSet(repo, engine string) (*Set, error) {
 			s.Builtins = append(s.Builtins, builtinBarrier)
 		}
 	}
-	s.Builtins = append(s.Builtins, builtinSpecKeys)
+	s.Builtins = append(s.Builtins, builtinSpecKeys, builtinSkillLoaded, builtinRemoteDelete)
 	sort.SliceStable(s.Checks, func(i, k int) bool { return s.Checks[i].ID < s.Checks[k].ID })
 	return s, nil
 }
@@ -130,55 +135,84 @@ func (s *Set) IDs() []string {
 }
 
 // Selection is which checks one run takes: every check whose tags
-// include all of Tags, from Pack when set.
+// include all of Tags, from Pack when set. Session is the session's
+// transcript, nil for none (CI, cn check world). SkipForcedLoading is the
+// license gate's forced-skill-loading row turned off, which turns off the
+// Stop-time half of forced loading.
 type Selection struct {
-	Tags []string
-	Pack string
+	Tags              []string
+	Pack              string
+	Session           *transcript.Session
+	SkipForcedLoading bool
 }
 
 func (sel Selection) takes(tags []string, pack string) bool {
 	return hasAll(tags, sel.Tags) && (sel.Pack == "" || sel.Pack == pack)
 }
 
-// Run runs the selected declared and built-in checks. A check reading the
-// session (action scope, or work gated on the reply class) is loaded and
-// runs nothing here; stderr says so once. Findings come back with the
-// grace window applied; the configuration is the caller's to apply, over
-// these and the coded checks' findings together.
+// Run runs the selected declared and built-in checks. An action check
+// judges the session's recorded calls, every finding advisory; a work
+// check gated on the reply class asserts nothing unless the session's
+// replies declared one of its classes; with no transcript both assert
+// nothing, which stderr says once. Findings come back with the grace
+// window applied; the configuration is the caller's to apply, over these
+// and the coded checks' findings together.
 func (s *Set) Run(sel Selection, now time.Time, stderr io.Writer) ([]findings.Finding, int) {
 	if !s.Member {
 		return nil, 0
 	}
 	out := append([]findings.Finding{}, s.Faults...)
-	var world, work []*Check
-	gated := 0
+	var world, work, action []*Check
+	unread := 0
 	ran := 0
 	for _, c := range s.Checks {
 		if !sel.takes(c.Tags, c.Pack) || s.Config.Rules[c.ID] == "off" {
 			continue
 		}
+		if readsSession(c) && !sel.Session.Present() {
+			unread++
+			continue
+		}
 		switch {
 		case c.Scope == "action":
-			gated++
-		case c.Scope == "work" && has(c.Spec, "whenReplyClassIncludes"):
-			gated++
+			action = append(action, c)
 		case c.Scope == "work":
+			if !replyGateOpen(c, sel.Session) {
+				ran++
+				continue
+			}
 			work = append(work, c)
 		default:
 			world = append(world, c)
 		}
 	}
-	if gated > 0 && stderr != nil {
-		fmt.Fprintf(stderr, "[cn] declared: %d check(s) read the session (action scope or a reply-class gate) and run with the guards slice, not here\n", gated)
+	if unread > 0 && stderr != nil {
+		fmt.Fprintf(stderr, "[cn] declared: %d check(s) read the session transcript (action scope or a reply-class gate) and assert nothing without one\n", unread)
+	}
+	for _, c := range action {
+		ran++
+		hs, err := ActionFindings(c, sel.Session.Calls())
+		if err != nil {
+			out = append(out, findings.Finding{Class: findings.Break, ID: "checks-run", Path: c.File,
+				Sentence: fmt.Sprintf("the declared check %s/%s could not run: %v", c.Pack, c.ID, err)})
+			continue
+		}
+		for _, h := range hs {
+			out = append(out, s.actionFinding(c, h))
+		}
 	}
 	var builtins []Builtin
 	for _, b := range s.Builtins {
-		if sel.takes(b.Tags, b.Pack) && s.Config.Rules[b.ID] != "off" {
-			builtins = append(builtins, b)
+		if !sel.takes(b.Tags, b.Pack) || s.Config.Rules[b.ID] == "off" || contains(b.Tags, "action") {
+			continue
 		}
+		if b.ID == BuiltinSkillLoaded && sel.SkipForcedLoading {
+			continue
+		}
+		builtins = append(builtins, b)
 	}
 	if len(world)+len(work)+len(builtins) == 0 {
-		return out, 0
+		return out, ran
 	}
 	ctx := NewCtx(s.Repo, s.Config)
 	ctx.Now = now
@@ -207,7 +241,7 @@ func (s *Set) Run(sel Selection, now time.Time, stderr io.Writer) ([]findings.Fi
 	}
 	for _, b := range builtins {
 		ran++
-		out = append(out, s.runBuiltin(b, ctx)...)
+		out = append(out, s.runBuiltin(b, ctx, sel.Session)...)
 	}
 	return out, ran
 }
