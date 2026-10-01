@@ -1,0 +1,144 @@
+package main
+
+import (
+	"archive/tar"
+	"compress/gzip"
+	"crypto/ed25519"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"time"
+
+	"github.com/missingbulb/ClaudiniteEngine/release"
+	"github.com/missingbulb/ClaudiniteEngine/release/releasefiles"
+	"github.com/missingbulb/ClaudiniteEngine/shared/sign"
+	"github.com/missingbulb/ClaudiniteEngine/shared/version"
+)
+
+// Check verifies the downloaded rc tarballs of ver in dir before they are
+// republished: the manifest's signature against the roots in rootsDir,
+// every platform binary against its manifest entry, and stableTest, the
+// candidate's `go test -tags stable ./license`. It returns pass or refuse
+// and why.
+func Check(dir, ver, rootsDir string, stableTest func() error) (string, string) {
+	if reason := checkBytes(dir, ver, rootsDir); reason != "" {
+		return "refuse", reason
+	}
+	result := "pass"
+	if err := stableTest(); err != nil {
+		result = "fail"
+	}
+	m := release.PublishMode(release.ModeInput{Channel: "stable", Signing: "release", NpmVersions: `"` + ver + `"`, StableTest: result})
+	if m.Name == "refuse" {
+		return "refuse", m.Notice
+	}
+	return "pass", fmt.Sprintf("%s: signature, five binaries and the stable build check verified", ver)
+}
+
+func checkBytes(dir, ver, rootsDir string) string {
+	channel := filepath.Join(dir, "cli-rc-"+ver+".tgz")
+	manifest, err := tarFile(channel, "package/manifest.json")
+	if err != nil {
+		return err.Error()
+	}
+	rawSig, err := tarFile(channel, "package/manifest.sig.json")
+	if err != nil {
+		return err.Error()
+	}
+	roots, err := readRoots(rootsDir)
+	if err != nil {
+		return err.Error()
+	}
+	var signed sign.SignedManifest
+	if err := json.Unmarshal(rawSig, &signed); err != nil {
+		return "manifest.sig.json: " + err.Error()
+	}
+	if _, err := sign.VerifyManifest(signed, manifest, roots, time.Now()); err != nil {
+		return "the manifest signature does not verify: " + err.Error()
+	}
+	m, err := releasefiles.ParseManifest(manifest)
+	if err != nil {
+		return err.Error()
+	}
+	if m.Version != ver {
+		return fmt.Sprintf("the manifest is for %s, not %s", m.Version, ver)
+	}
+	for _, p := range version.Platforms {
+		e, ok := m.Binaries[p]
+		if !ok {
+			return "the manifest lists no " + p + " binary"
+		}
+		bin, err := tarFile(filepath.Join(dir, "cli-rc-"+p+"-"+ver+".tgz"), "package/bin/"+e.File)
+		if err != nil {
+			return p + ": " + err.Error()
+		}
+		sum := sha256.Sum256(bin)
+		if hex.EncodeToString(sum[:]) != e.SHA256 || int64(len(bin)) != e.Size {
+			return "the " + p + " binary does not match its manifest entry"
+		}
+	}
+	return ""
+}
+
+func readRoots(dir string) ([]ed25519.PublicKey, error) {
+	names, err := filepath.Glob(filepath.Join(dir, "*.pub"))
+	if err != nil {
+		return nil, err
+	}
+	var roots []ed25519.PublicKey
+	for _, n := range names {
+		raw, err := os.ReadFile(n)
+		if err != nil {
+			return nil, err
+		}
+		p, err := sign.ParsePublicKey(string(raw))
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", n, err)
+		}
+		roots = append(roots, p)
+	}
+	return roots, nil
+}
+
+// maxTarFile bounds one extracted file, above the launcher's 64 MiB cap.
+const maxTarFile = 128 << 20
+
+func tarFile(tgz, name string) ([]byte, error) {
+	f, err := os.Open(tgz)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = f.Close() }()
+	return tarFileFrom(f, tgz, name)
+}
+
+func tarFileFrom(r io.Reader, label, name string) ([]byte, error) {
+	gz, err := gzip.NewReader(r)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", label, err)
+	}
+	tr := tar.NewReader(gz)
+	for {
+		h, err := tr.Next()
+		if err == io.EOF {
+			return nil, fmt.Errorf("%s holds no %s", label, name)
+		}
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", label, err)
+		}
+		if h.Name == name && h.Typeflag == tar.TypeReg {
+			data, err := io.ReadAll(io.LimitReader(tr, maxTarFile+1))
+			if err != nil {
+				return nil, err
+			}
+			if len(data) > maxTarFile {
+				return nil, fmt.Errorf("%s: %s is too large", label, name)
+			}
+			return data, nil
+		}
+	}
+}
