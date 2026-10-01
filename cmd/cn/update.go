@@ -9,6 +9,7 @@ import (
 
 	"github.com/missingbulb/ClaudiniteEngine/license"
 	"github.com/missingbulb/ClaudiniteEngine/lifecycle/update"
+	"github.com/missingbulb/ClaudiniteEngine/lifecycle/workflows"
 	"github.com/missingbulb/ClaudiniteEngine/shared/gitcmd"
 	"github.com/missingbulb/ClaudiniteEngine/shared/githubapi"
 	"github.com/missingbulb/ClaudiniteEngine/shared/npmreg"
@@ -79,5 +80,22 @@ func cmdUpdate(args []string, stdout io.Writer) error {
 		return report.Wrap(report.IO, "update "+args[0], err)
 	}
 	fmt.Fprintln(stdout, verdict)
+	return nil
+}
+
+func cmdWorkflows(args []string, stdout io.Writer) error {
+	if len(args) == 0 || args[0] != "diff" {
+		return report.New(report.Usage, "workflows takes diff")
+	}
+	fs := flag.NewFlagSet("workflows diff", flag.ContinueOnError)
+	repo := fs.String("repo", ".", "")
+	if err := flags(fs, args[1:]); err != nil {
+		return err
+	}
+	d, err := workflows.Diff(*repo)
+	if err != nil {
+		return report.Wrap(report.IO, "workflows diff", err)
+	}
+	fmt.Fprint(stdout, d)
 	return nil
 }

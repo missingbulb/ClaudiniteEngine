@@ -36,6 +36,9 @@ commands:
                  pin-only PR; needs GITHUB_TOKEN; ends on its verdict line
   update land --pr N --sha SHA [--repo DIR]
                  merge update PR N, whose CI passed on SHA
+  workflows diff [--repo DIR]
+                 the patch that brings a member's workflows to this
+                 version's templates; empty when they match
 `
 
 // secretScanPlant is set only by the secret scan's own test build, to prove
@@ -132,6 +135,8 @@ func dispatch(args []string, stdin io.Reader, stdout, stderr io.Writer, start ti
 		return cmdCheck(args[1:], stdout)
 	case "update":
 		return cmdUpdate(args[1:], stdout)
+	case "workflows":
+		return cmdWorkflows(args[1:], stdout)
 	}
 	return report.New(report.Usage, fmt.Sprintf("unknown command %q", args[0]))
 }

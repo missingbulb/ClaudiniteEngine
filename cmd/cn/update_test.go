@@ -30,3 +30,14 @@ func TestUpdateCommandArguments(t *testing.T) {
 		t.Errorf("usage lacks update: %s", errOut)
 	}
 }
+
+func TestWorkflowsDiffCommand(t *testing.T) {
+	bin := buildCN(t, "")
+	out, _, code := runCN(t, bin, nil, "", "workflows", "diff", "--repo", t.TempDir())
+	if code != 0 || !strings.Contains(out, "+++ b/.github/workflows/claudinite-update.yml") {
+		t.Errorf("exit %d\n%s", code, out)
+	}
+	if _, _, code := runCN(t, bin, nil, "", "workflows"); code != 2 {
+		t.Errorf("no subcommand: exit %d", code)
+	}
+}
