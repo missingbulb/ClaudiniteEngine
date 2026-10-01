@@ -80,6 +80,13 @@ until [ -f "$work/ready" ]; do
   [ "$tries" -le 100 ] || { say "regstub did not start"; exit 1; }
   sleep 1
 done
+if [ -n "$exe" ] && [ "${GITHUB_ACTIONS:-}" = true ]; then
+  # Windows curl is Schannel, which ignores CURL_CA_BUNDLE; on a disposable runner the stub's
+  # certificate goes into the machine's Root store, as in release.yml's smoke leg. A person's
+  # own machine is left alone and needs the certificate trusted by hand.
+  powershell.exe -NoProfile -NonInteractive -Command \
+    "Import-Certificate -FilePath '$(cygpath -w "$work/ca.pem")' -CertStoreLocation Cert:\LocalMachine\Root | Out-Null"
+fi
 member=$work/member
 mkdir -p "$member/.claudinite" "$work/home"
 cp launcher/launch "$member/.claudinite/launch"
