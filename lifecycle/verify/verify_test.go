@@ -23,6 +23,23 @@ func launcherBytes(t *testing.T) []byte {
 	return raw
 }
 
+// shippedHashes reads launcher/shipped.sha256 as cn does, so a fixture holding
+// a launcher an earlier release shipped is accepted exactly when cn accepts it.
+func shippedHashes(t *testing.T) []string {
+	t.Helper()
+	raw, err := os.ReadFile("../../launcher/shipped.sha256")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out []string
+	for _, l := range strings.Split(string(raw), "\n") {
+		if f := strings.Fields(l); len(f) > 0 && !strings.HasPrefix(f[0], "#") {
+			out = append(out, f[0])
+		}
+	}
+	return out
+}
+
 func copyTree(t *testing.T, src string) string {
 	t.Helper()
 	dst := t.TempDir()
@@ -63,6 +80,7 @@ func newShape(t *testing.T) string {
 	dir := copyTree(t, filepath.Join(shapes, "v1-yaml"))
 	_ = os.Remove(filepath.Join(dir, ".gitignore"))
 	write(t, dir, ".claudinite/.gitignore", "bin/\n")
+	write(t, dir, ".claudinite/launch", string(launcherBytes(t)))
 	write(t, dir, ".github/workflows/claudinite-update.yml", "name: claudinite-update\n")
 	write(t, dir, ".github/workflows/claudinite-ci.yml", "name: claudinite-ci\n")
 	return dir
@@ -78,7 +96,7 @@ func write(t *testing.T, dir, rel, body string) {
 }
 
 func run(t *testing.T, dir string) []findings.Finding {
-	return Verify(Input{Repo: dir, Launcher: launcherBytes(t)})
+	return Verify(Input{Repo: dir, Launcher: launcherBytes(t), Shipped: shippedHashes(t)})
 }
 
 func TestNewShapeHasNoFinding(t *testing.T) {
@@ -192,7 +210,7 @@ func declare(t *testing.T, dir, id, manifest string) {
 }
 
 func TestTwoPartMinEngineShapeRaisesOnlyItsDeprecation(t *testing.T) {
-	fs := Verify(Input{Repo: filepath.Join(shapes, "v3-two-part-min-engine"), Launcher: launcherBytes(t)})
+	fs := Verify(Input{Repo: filepath.Join(shapes, "v3-two-part-min-engine"), Launcher: launcherBytes(t), Shipped: shippedHashes(t)})
 	if findings.AnyBreak(fs) {
 		t.Fatalf("%v", fs)
 	}
@@ -247,7 +265,7 @@ func TestShapeCorpus(t *testing.T) {
 		t.Fatalf("shape corpus holds %d fixtures", len(dirs))
 	}
 	for _, d := range dirs {
-		fs := Verify(Input{Repo: d, Launcher: launcherBytes(t)})
+		fs := Verify(Input{Repo: d, Launcher: launcherBytes(t), Shipped: shippedHashes(t)})
 		if findings.AnyBreak(fs) {
 			t.Errorf("%s: a shape an earlier release accepted now breaks: %v", filepath.Base(d), fs)
 		}
