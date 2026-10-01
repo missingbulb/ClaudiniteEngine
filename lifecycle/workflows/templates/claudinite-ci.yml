@@ -48,6 +48,9 @@ jobs:
             pull_request) author=$PR_AUTHOR ;;
             workflow_dispatch)
               if [ -n "$PR" ]; then
+                case $PR in
+                  *[!0-9]*) echo "::error::input pr must be a PR number, not $PR"; exit 1 ;;
+                esac
                 author=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR" --jq .user.login)
               else
                 author=$ACTOR base=HEAD
