@@ -26,8 +26,9 @@ jobs:
           version: v2.5.0
       - run: go test ./...
       - run: shellcheck -s sh launcher/launch release/*.sh probe/desktop-timings/run.sh
-      # actionlint v1.7.12; it runs shellcheck over every run: body too.
-      - run: go run github.com/rhysd/actionlint/cmd/actionlint@914e7df21a07ef503a81201c76d2b11c789d3fca
+      # actionlint v1.7.12, over the engine's workflows and the member
+      # templates; it runs shellcheck over every run: body too.
+      - run: go run github.com/rhysd/actionlint/cmd/actionlint@914e7df21a07ef503a81201c76d2b11c789d3fca .github/workflows/*.yml lifecycle/workflows/templates/*.yml
 
   build:
     runs-on: ubuntu-24.04

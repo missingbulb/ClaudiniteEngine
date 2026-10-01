@@ -81,6 +81,11 @@ func TestCIRunsActionlintPinnedBySHA(t *testing.T) {
 	if !regexp.MustCompile(`go run github\.com/rhysd/actionlint/cmd/actionlint@[0-9a-f]{40}\b`).Match(raw) {
 		t.Error("ci.yml does not run actionlint at a commit SHA")
 	}
+	// The member workflow templates ship inside the binary; CI lints them
+	// beside the engine's own.
+	if !regexp.MustCompile(`actionlint@[0-9a-f]{40} \.github/workflows/\*\.yml lifecycle/workflows/templates/\*\.yml`).Match(raw) {
+		t.Error("ci.yml's actionlint does not lint both .github/workflows and the member templates")
+	}
 	conf, err := os.ReadFile("../.github/actionlint.yaml")
 	if err != nil {
 		t.Fatal(err)
