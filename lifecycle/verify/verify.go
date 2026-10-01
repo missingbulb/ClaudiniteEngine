@@ -11,6 +11,8 @@ package verify
 
 import (
 	"bytes"
+	"errors"
+	"fmt"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -20,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/missingbulb/ClaudiniteEngine/shared/findings"
+	"github.com/missingbulb/ClaudiniteEngine/shared/packset"
 	"github.com/missingbulb/ClaudiniteEngine/shared/settings"
 	"github.com/missingbulb/ClaudiniteEngine/shared/version"
 )
@@ -46,6 +49,8 @@ var rules = []rule{
 	{"member-workflows", checkWorkflows},
 	{"bin-ignore", checkBinIgnore},
 	{"min-engine-version-legacy", nil},
+	{"pack-declared", checkPackDeclared},
+	{"pack-min-engine", checkPackMinEngine},
 }
 
 // RuleIDs lists the registered rules, sorted.
@@ -210,8 +215,75 @@ func checkBinIgnore(in Input) []findings.Finding {
 	return []findings.Finding{brk("bin-ignore", ".claudinite/.gitignore", "nothing ignores .claudinite/bin/, so the linked engine binary can be committed: add .claudinite/.gitignore holding `bin/`")}
 }
 
-// PackManifest checks a declared pack's minEngineVersion. Phase 3 reaches
-// it, once the engine reads pack declarations.
+// declaredPacks reads the packs block, or nil when the settings file is
+// missing or unreadable (settings-file and pack-declared report that).
+func declaredPacks(in Input) ([]string, error) {
+	if _, _, err := settings.Find(in.Repo); err != nil {
+		return nil, nil
+	}
+	p, err := packset.Declared(in.Repo)
+	return p.Declared, err
+}
+
+func checkPackDeclared(in Input) []findings.Finding {
+	declared, err := declaredPacks(in)
+	if err != nil {
+		_, f, _ := settings.Find(in.Repo)
+		return []findings.Finding{brk("pack-declared", settings.RelPath(f), err.Error())}
+	}
+	var out []findings.Finding
+	isDeclared := map[string]bool{}
+	for _, id := range declared {
+		isDeclared[id] = true
+		rel := packset.TreeRel(id) + "/pack.json"
+		if _, err := packset.ReadManifest(packset.Tree(in.Repo, id)); errors.Is(err, packset.ErrNoManifest) {
+			out = append(out, brk("pack-declared", rel, "the settings declare "+id+" but the repo does not hold it; vendor it with `cn adopt "+id+"`, or remove it from packs.declared"))
+		} else if err != nil {
+			out = append(out, brk("pack-declared", rel, err.Error()))
+		}
+	}
+	vendored, _ := packset.Vendored(in.Repo)
+	for _, id := range vendored {
+		if !isDeclared[id] {
+			out = append(out, dep("pack-declared", packset.TreeRel(id), "the repo holds "+id+" but the settings do not declare it, so nothing loads it; delete the folder, or declare it"))
+		}
+	}
+	return out
+}
+
+func checkPackMinEngine(in Input) []findings.Finding {
+	declared, err := declaredPacks(in)
+	if err != nil {
+		return nil
+	}
+	pin := ""
+	if p, f, err := settings.Find(in.Repo); err == nil {
+		if raw, err := os.ReadFile(p); err == nil {
+			if e, err := settings.ReadEngine(raw, f); err == nil {
+				pin = e.Version
+			}
+		}
+	}
+	var out []findings.Finding
+	for _, id := range declared {
+		m, err := packset.ReadManifest(packset.Tree(in.Repo, id))
+		if err != nil {
+			continue
+		}
+		rel := packset.TreeRel(id) + "/pack.json"
+		legacy := PackManifest(rel, m.MinEngineVersion)
+		out = append(out, legacy...)
+		if len(legacy) != 0 || pin == "" {
+			continue
+		}
+		if min, _ := version.ParseMinEngineVersion(m.MinEngineVersion); !min.Satisfies(pin) {
+			out = append(out, brk("pack-min-engine", rel, fmt.Sprintf("%s %s needs engine %s or newer, but the repo pins %s; the engine refuses to load it until the pin moves past that or the pack moves back", id, m.Version, m.MinEngineVersion, pin)))
+		}
+	}
+	return out
+}
+
+// PackManifest checks a declared pack's minEngineVersion.
 func PackManifest(path, minEngineVersion string) []findings.Finding {
 	m, err := version.ParseMinEngineVersion(minEngineVersion)
 	if err != nil {
