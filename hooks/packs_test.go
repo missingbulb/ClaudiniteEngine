@@ -77,7 +77,12 @@ const startIn = `{"session_id":"s","hook_event_name":"SessionStart","source":"st
 
 var selfCheck = regexp.MustCompile(`(?m)^\[cn\] packs (\d+)/(\d+) loaded( \((.*)\))?$`)
 
-type fakeIndex struct{ wrote []string }
+type fakeIndex struct {
+	wrote    []string
+	imported bool
+}
+
+func (f *fakeIndex) HasImport(string) bool { return f.imported }
 
 func (f *fakeIndex) Write(repo, engine string) (bool, error) {
 	f.wrote = append(f.wrote, repo)
@@ -114,6 +119,34 @@ func TestSessionStartAssemblesDeclaredPacksInOrder(t *testing.T) {
 	}
 	if len(fi.wrote) != 1 || fi.wrote[0] != repo {
 		t.Errorf("index written %v", fi.wrote)
+	}
+}
+
+// A member whose CLAUDE.md lacks the import gets no pack rules at all, so
+// SessionStart says so and names the line to add; with the import, or with
+// no prose to import, it says nothing.
+func TestSessionStartNamesAMissingClaudeMDImport(t *testing.T) {
+	const missing = `[cn] rules not loaded: CLAUDE.md does not import .claudinite/flat/claudinite-rules.GENERATED.md; add the line "@.claudinite/flat/claudinite-rules.GENERATED.md"`
+	withProse := member(t, []string{"zeta"}, map[string]map[string]string{
+		"zeta": {"pack.json": `{"version": "1.0"}`, "RULES.md": "- zeta rule\n"},
+	})
+	noProse := member(t, []string{"alpha"}, map[string]map[string]string{
+		"alpha": {"pack.json": `{"version": "1.0", "prose": null}`},
+	})
+	for _, c := range []struct {
+		name     string
+		repo     string
+		imported bool
+		want     bool
+	}{
+		{"no import", withProse, false, true},
+		{"imported", withProse, true, false},
+		{"nothing to import", noProse, false, false},
+	} {
+		out, _ := hook(t, Handler{Index: &fakeIndex{imported: c.imported}, ProjectDir: c.repo}, "session-start", startIn)
+		if got := strings.Contains(contextOf(t, out), missing); got != c.want {
+			t.Errorf("%s: line present %v, want %v:\n%s", c.name, got, c.want, contextOf(t, out))
+		}
 	}
 }
 

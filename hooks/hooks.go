@@ -73,7 +73,13 @@ type License interface {
 // a session on a hand-edited declaration gets its rules on the next start.
 type RulesIndex interface {
 	Write(repo, engine string) (bool, error)
+	// HasImport reports whether the member's CLAUDE.md imports the index.
+	HasImport(repo string) bool
 }
+
+// MissingImport is SessionStart's line for a member whose CLAUDE.md does
+// not import the rules index, which leaves the session with no pack rules.
+const MissingImport = `[cn] rules not loaded: CLAUDE.md does not import .claudinite/flat/claudinite-rules.GENERATED.md; add the line "@.claudinite/flat/claudinite-rules.GENERATED.md"`
 
 // Handler answers hook events. A nil Checks runs no coded checks; a nil
 // License gates nothing; a nil Index writes no rules index.
@@ -198,6 +204,9 @@ func (h Handler) sessionStart(repo, sessionID string, outcome breadcrumb.Outcome
 	if h.Index != nil && ctx.selfCheck != "" {
 		if _, err := h.Index.Write(repo, h.engine()); err != nil {
 			fmt.Fprintf(&b, "[cn] rules index not written: %v\n", err)
+		}
+		if ctx.prose && !h.Index.HasImport(repo) {
+			b.WriteString(MissingImport + "\n")
 		}
 	}
 	if ctx.selfCheck != "" {

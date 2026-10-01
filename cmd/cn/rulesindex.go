@@ -15,6 +15,8 @@ type hookIndex struct{}
 
 func (hookIndex) Write(repo, engine string) (bool, error) { return rulesindex.Write(repo, engine) }
 
+func (hookIndex) HasImport(repo string) bool { return rulesindex.HasImport(repo) }
+
 func cmdRulesIndex(args []string, stdout io.Writer) error {
 	fs := flag.NewFlagSet("rules-index", flag.ContinueOnError)
 	check := fs.Bool("check", false, "")

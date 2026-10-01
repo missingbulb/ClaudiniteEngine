@@ -5,6 +5,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/missingbulb/ClaudiniteEngine/hooks"
+	"github.com/missingbulb/ClaudiniteEngine/lifecycle/rulesindex"
 )
 
 func TestRulesIndexCommand(t *testing.T) {
@@ -33,5 +36,13 @@ func TestRulesIndexCommand(t *testing.T) {
 	}
 	if out, _, code := runCN(t, bin, nil, "", "rules-index", "--check", "--repo", repo); code != 0 || !strings.Contains(out, "current") {
 		t.Errorf("current: exit %d %s", code, out)
+	}
+}
+
+// hooks cannot import rulesindex, so its line spells the index and the
+// import itself; this keeps both spellings equal to the writer's.
+func TestTheMissingImportLineNamesTheWritersIndex(t *testing.T) {
+	if !strings.Contains(hooks.MissingImport, " import "+rulesindex.File+";") || !strings.Contains(hooks.MissingImport, `"`+rulesindex.Import+`"`) {
+		t.Errorf("hooks.MissingImport %q drifted from %s / %s", hooks.MissingImport, rulesindex.File, rulesindex.Import)
 	}
 }
