@@ -94,3 +94,44 @@ func TestCIRunsActionlintPinnedBySHA(t *testing.T) {
 		t.Errorf(".github/actionlint.yaml does not declare macos-15-intel:\n%s", conf)
 	}
 }
+
+// jobBlock is one job's text in a workflow: from "  <name>:" to the next
+// job at the same indentation.
+func jobBlock(t *testing.T, wf, name string) string {
+	t.Helper()
+	raw, err := os.ReadFile(wf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(raw)
+	i := strings.Index(s, "\n  "+name+":\n")
+	if i < 0 {
+		return ""
+	}
+	rest := s[i+1:]
+	if j := regexp.MustCompile(`\n  [a-z][a-z0-9-]*:\n`).FindStringIndex(rest[1:]); j != nil {
+		rest = rest[:j[0]+1]
+	}
+	return rest
+}
+
+func TestReleaseRunsTheHopBeforeSign(t *testing.T) {
+	const wf = "../.github/workflows/release.yml"
+	hop := jobBlock(t, wf, "hop")
+	if hop == "" {
+		t.Fatal("release.yml has no hop job")
+	}
+	for _, want := range []string{"    needs: [build, smoke]\n", "    permissions:\n      contents: read\n", "release/hop.sh"} {
+		if !strings.Contains(hop, want) {
+			t.Errorf("the hop job lacks %q:\n%s", want, hop)
+		}
+	}
+	for _, not := range []string{"secrets.", "environment:"} {
+		if strings.Contains(hop, not) {
+			t.Errorf("the hop job has %q", not)
+		}
+	}
+	if !strings.Contains(jobBlock(t, wf, "sign"), "    needs: [build, smoke, hop]\n") {
+		t.Error("sign does not wait for the hop")
+	}
+}

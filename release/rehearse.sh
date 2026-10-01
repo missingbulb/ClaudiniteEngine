@@ -19,6 +19,9 @@
 #
 #   release/rehearse.sh [--mode fresh|current|stale|update]   (default: all four)
 #
+# UPDATE_STEPS=4 stops the update mode after the landing and the session on
+# the landed version (release/hop.sh); the default, 8, runs every step.
+#
 # Needs go, node, curl, git and a release from release/build.sh.
 set -eu
 cd "$(dirname "$0")/.."
@@ -38,6 +41,9 @@ case $# in
     case $2 in fresh|current|stale|update) modes=$2 ;; *) fail "unknown mode $2" ;; esac ;;
   *) fail "$usage" ;;
 esac
+
+update_steps=${UPDATE_STEPS:-8}
+case $update_steps in 4|8) ;; *) fail "UPDATE_STEPS must be 4 or 8, not $update_steps" ;; esac
 
 [ -f "$DIST/manifest.integrity" ] || fail "no release in $DIST; run release/build.sh first"
 DIST=$DIST sh release/smoke.sh
@@ -78,13 +84,16 @@ esac
 mkdir -p "$dist3/tarballs"
 case " $modes " in
   *" update "*)
-    step "building $third into dist3/ with verify broken (rehearsal_break)"
-    DIST=$dist3build VERSION=$third PACKAGE=$package REHEARSAL=1 BUILD_TAGS=rehearsal_break sh release/build.sh > "$work/build3.out" \
-      || fail "build of $third: $(cat "$work/build3.out")"
+    if [ "$update_steps" -ge 5 ]; then
+      step "building $third into dist3/ with verify broken (rehearsal_break)"
+      DIST=$dist3build VERSION=$third PACKAGE=$package REHEARSAL=1 BUILD_TAGS=rehearsal_break sh release/build.sh > "$work/build3.out" \
+        || fail "build of $third: $(cat "$work/build3.out")"
+      DIST=$dist3build sh release/sign.sh > "$work/sign.out" 2>&1 || fail "signing $third: $(cat "$work/sign.out")"
+    fi
     # The caller's dist stays as it was: sign a copy.
     dist1=$work/dist1
     cp -R "$DIST" "$dist1"
-    for d in "$dist1" "$dist2" "$dist3build"; do
+    for d in "$dist1" "$dist2"; do
       DIST=$d sh release/sign.sh > "$work/sign.out" 2>&1 || fail "signing $d: $(cat "$work/sign.out")"
     done
     ;;
@@ -261,6 +270,10 @@ for mode in $modes; do
       case $out in *"# Claudinite engine $next"*) ;; *) fail "update 4: SessionStart on $next: $out" ;; esac
       [ ! -s "$work/requests.log" ] || fail "update 4: SessionStart downloaded: $(cat "$work/requests.log")"
       step "update 4: SessionStart runs $next with no download"
+      if [ "$update_steps" -eq 4 ]; then
+        step "update: stopped after step 4 (UPDATE_STEPS=4)"
+        continue
+      fi
 
       cp "$dist3build"/tarballs/* "$dist3/tarballs/"
       main_run success
