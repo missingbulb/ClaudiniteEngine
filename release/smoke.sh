@@ -32,8 +32,11 @@ for p in linux-x64 linux-arm64 darwin-x64 darwin-arm64 windows-x64; do
   # shellcheck disable=SC2254 # $want is a glob pattern on purpose
   case $desc in $want) ;; *) fail "$f: $desc" ;; esac
   [ -f "$DIST/npm/$name-$p/package/bin/$bin" ] || fail "npm package for $p lacks bin/$bin"
+  cmp -s release/THIRD_PARTY_LICENSES "$DIST/npm/$name-$p/package/THIRD_PARTY_LICENSES" || fail "npm package for $p lacks THIRD_PARTY_LICENSES"
   [ -f "$DIST/tarballs/$name-$p-$version.tgz" ] || fail "no tarball for $p"
 done
+
+cmp -s release/THIRD_PARTY_LICENSES "$DIST/npm/$name/package/THIRD_PARTY_LICENSES" || fail "the cli package lacks THIRD_PARTY_LICENSES"
 
 printed=$(cat "$DIST/manifest.integrity")
 actual="sha512-$(openssl dgst -sha512 -binary < "$DIST/npm/$name/package/manifest.json" | openssl base64 -A)"
