@@ -134,7 +134,7 @@ type MinEngine struct {
 // every pack carried before the binary existed and so can only mean "any
 // engine of the new kind". Anything else is refused.
 //
-// @legacy-tolerance advisory:min-engine-version-legacy retire:#TBD
+// @legacy-tolerance advisory:min-engine-version-legacy retire:#18
 func ParseMinEngineVersion(s string) (MinEngine, error) {
 	parts := strings.Split(s, ".")
 	if len(parts) == 2 {
