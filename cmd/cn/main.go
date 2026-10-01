@@ -46,6 +46,11 @@ commands:
                  passes over it; needs GITHUB_TOKEN
   update land --pr N --sha SHA [--repo DIR]
                  merge update PR N (engine or packs), whose CI passed on SHA
+  init --packs ID[,ID] [--channel stable|canary] [--package PKG] [--repo DIR]
+                 adopt a repo: pin the newest allowed engine, write the
+                 member files and vendor the packs and what they require
+  adopt ID [--repo DIR]
+                 declare and vendor one more pack on an adopted repo
   workflows diff [--repo DIR]
                  the patch that brings a member's workflows to this
                  version's templates; empty when they match
@@ -147,6 +152,10 @@ func dispatch(args []string, stdin io.Reader, stdout, stderr io.Writer, start ti
 		return cmdUpdate(args[1:], stdout)
 	case "workflows":
 		return cmdWorkflows(args[1:], stdout)
+	case "init":
+		return cmdInit(args[1:], stdout)
+	case "adopt":
+		return cmdAdopt(args[1:], stdout)
 	}
 	return report.New(report.Usage, fmt.Sprintf("unknown command %q", args[0]))
 }

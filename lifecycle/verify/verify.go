@@ -141,8 +141,11 @@ func checkLauncher(in Input) []findings.Finding {
 	return []findings.Finding{brk("launcher", ".claudinite/launch", "the launcher is not one a Claudinite release shipped; only the update and cn init write it, so restore it unchanged")}
 }
 
-// hookCommands are the wirings the member fixture and cn init write.
-var hookCommands = []struct{ event, command string }{
+// HookWiring is one hook event and the command a member wires to it.
+type HookWiring struct{ Event, Command string }
+
+// Hooks are the wirings the member fixture and cn init write.
+var Hooks = []HookWiring{
 	{"SessionStart", `sh "$CLAUDE_PROJECT_DIR/.claudinite/launch" hook session-start`},
 	{"PreToolUse", ".claudinite/bin/cn hook pre-tool-use"},
 	{"PostToolUse", ".claudinite/bin/cn hook post-tool-use"},
@@ -164,20 +167,20 @@ func checkHooks(in Input) []findings.Finding {
 		_ = json.Unmarshal(raw, &cfg)
 	}
 	var out []findings.Finding
-	for _, h := range hookCommands {
+	for _, h := range Hooks {
 		wired := false
-		for _, group := range cfg.Hooks[h.event] {
+		for _, group := range cfg.Hooks[h.Event] {
 			for _, c := range group.Hooks {
-				wired = wired || strings.TrimSpace(c.Command) == h.command
+				wired = wired || strings.TrimSpace(c.Command) == h.Command
 			}
 		}
 		if wired {
 			continue
 		}
-		if h.event == "SessionStart" {
-			out = append(out, brk("hooks", ".claude/settings.json", "SessionStart does not run `"+h.command+"`, so no session loads the engine; add that hook"))
+		if h.Event == "SessionStart" {
+			out = append(out, brk("hooks", ".claude/settings.json", "SessionStart does not run `"+h.Command+"`, so no session loads the engine; add that hook"))
 		} else {
-			out = append(out, dep("hooks", ".claude/settings.json", h.event+" does not run `"+h.command+"`; Claude Code runs without it, but that hook's checks never run"))
+			out = append(out, dep("hooks", ".claude/settings.json", h.Event+" does not run `"+h.Command+"`; Claude Code runs without it, but that hook's checks never run"))
 		}
 	}
 	return out
