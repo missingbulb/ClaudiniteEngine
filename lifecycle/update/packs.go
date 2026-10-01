@@ -133,6 +133,10 @@ func Packs(d Deps, o Options) (string, error) {
 	}
 
 	moves, err := proposePacks(d)
+	var dis *packs.SourcesDisagree
+	if errors.As(err, &dis) {
+		return "skipped: " + dis.Error(), nil
+	}
 	if err != nil {
 		return "", err
 	}

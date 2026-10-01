@@ -634,14 +634,14 @@ for mode in $modes; do
       step "packs keys: the update key's pack index serial and key ids refuse an index below or outside them"
 
       fixture --serial 1 --mirror-only
-      if cn_member update packs > "$work/update.out" 2>&1; then fail "packs 11: a regressed serial was read: $(cat "$work/update.out")"; fi
-      grep -q 'serial 1 is older than serial' "$work/update.out" || fail "packs 11: the refusal names no serial: $(cat "$work/update.out")"
+      update_packs
+      case $verdict in "skipped: pack index sources disagree (cdn serial "*", branch serial 1)") ;; *) fail "packs 11: a branch behind the CDN: verdict '$verdict'" ;; esac
       fixture --flip-sig
       if cn_member update packs > "$work/update.out" 2>&1; then fail "packs 11: a flipped signature was read: $(cat "$work/update.out")"; fi
       grep -qi 'signature\|certificate' "$work/update.out" || fail "packs 11: the refusal names no signature check: $(cat "$work/update.out")"
       [ -z "$(cd "$member" && git status --porcelain)" ] || fail "packs 11: the checkout changed: $(cd "$member" && git status --porcelain)"
       [ -z "$(git --git-dir "$origin" branch --list 'claudinite/packs-*')" ] || fail "packs 11: a branch was pushed"
-      step "packs 11: a regressed serial and a flipped signature are refused; nothing changed"
+      step "packs 11: a branch behind the CDN is a skip naming both serials; a flipped signature is refused; nothing changed"
 
       echo hello > "$member/HELLO_DECLARED"
       if cn_member check --tag world > "$work/check.out" 2>&1; then fail "packs 12: check --tag world passed with HELLO_DECLARED"; fi

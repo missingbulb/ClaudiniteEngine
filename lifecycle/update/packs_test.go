@@ -57,6 +57,7 @@ type fakePacks struct {
 	entries  map[string][]packindex.Entry
 	archives map[string][]byte
 	reads    int
+	disagree *packs.SourcesDisagree
 }
 
 func newFakePacks(t *testing.T) *fakePacks {
@@ -74,6 +75,9 @@ func (f *fakePacks) publish(id, ver, channel string, files map[string]string) {
 
 func (f *fakePacks) VerifiedIndex(id string) (packs.Verified, error) {
 	f.reads++
+	if f.disagree != nil {
+		return packs.Verified{}, f.disagree
+	}
 	if _, ok := f.entries[id]; !ok {
 		return packs.Verified{}, fmt.Errorf("no index for %s", id)
 	}
@@ -223,6 +227,18 @@ func TestPacksSkipAPackWhoseRequiresIsNotDeclared(t *testing.T) {
 	v, err := Packs(w.deps(t), Options{})
 	if err != nil || v != "up to date" || !strings.Contains(w.out.String(), "hello 1.1 skipped: requires basics, which is not declared") {
 		t.Errorf("%q %v\n%s", v, err, w.out)
+	}
+}
+
+func TestPacksSkipWhileTheSourcesDisagree(t *testing.T) {
+	w := newPackWorld(t)
+	w.packs.disagree = &packs.SourcesDisagree{Serials: []packs.SourceSerial{{Source: "cdn", Serial: 5}, {Source: "branch", Serial: 4}}}
+	v, err := Packs(w.deps(t), Options{})
+	if err != nil || v != "skipped: pack index sources disagree (cdn serial 5, branch serial 4)" {
+		t.Errorf("%q %v", v, err)
+	}
+	if len(w.hub.called("create-pull")) != 0 {
+		t.Error("opened a PR")
 	}
 }
 

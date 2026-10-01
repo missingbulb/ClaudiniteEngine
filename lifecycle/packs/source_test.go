@@ -118,12 +118,13 @@ func TestVerifiedIndexFromTheFirstSourceThatAnswers(t *testing.T) {
 	}
 }
 
-func TestVerifiedIndexReadsBothSourcesAndRefusesARegression(t *testing.T) {
+func TestVerifiedIndexReadsBothSourcesAndNamesADisagreement(t *testing.T) {
 	newer, older := indexJSON(4, "1.0", "1.1"), indexJSON(1, "1.0", "1.1")
 	cdn := &fakeSource{name: "cdn", pairs: []pair{{newer, signed(t, newer)}}}
 	branch := &fakeSource{name: "branch", pairs: []pair{{older, signed(t, older)}}}
 	_, err := newReader(&bytes.Buffer{}, cdn, branch).VerifiedIndex("hello")
-	if err == nil || !strings.Contains(err.Error(), "serial 1") || !strings.Contains(err.Error(), "serial 4") {
+	var dis *SourcesDisagree
+	if !errors.As(err, &dis) || dis.Error() != "pack index sources disagree (cdn serial 4, branch serial 1)" {
 		t.Errorf("%v", err)
 	}
 	// A branch ahead of the CDN (the upload trails the branch) is the

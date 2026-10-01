@@ -265,10 +265,32 @@ func (r *Reader) fromSource(src Source, id string) (Verified, error) {
 
 type errUnreachable struct{ error }
 
+// SourceSerial is the serial one source's index carried.
+type SourceSerial struct {
+	Source string
+	Serial int64
+}
+
+// SourcesDisagree is a read in which a later source's index is older than
+// an earlier one's: the window while the CDN is ahead of the vendored
+// branch (or the branch has regressed). Nothing reads either until they
+// agree.
+type SourcesDisagree struct{ Serials []SourceSerial }
+
+func (e *SourcesDisagree) Error() string {
+	var parts []string
+	for _, s := range e.Serials {
+		parts = append(parts, fmt.Sprintf("%s serial %d", s.Source, s.Serial))
+	}
+	return "pack index sources disagree (" + strings.Join(parts, ", ") + ")"
+}
+
 // VerifiedIndex reads pack id's index from every source that answers,
-// verifies each pair, and refuses a serial lower than one already seen for
-// that pack in this run, so the CDN's and the branch's copies never
-// regress each other; it returns the copy with the highest serial. A pair
+// verifies each pair, and refuses a serial lower than one an earlier read
+// of that pack saw in this run; a source whose serial is lower than an
+// earlier source's in this read is a *SourcesDisagree, so the CDN's and the
+// branch's copies never regress each other. It returns the copy with the
+// highest serial. A pair
 // that does not verify refuses the read outright, naming the check. The
 // member keeps no record of serials until phase 4 carries the last one in
 // its key.
@@ -279,6 +301,9 @@ func (r *Reader) VerifiedIndex(id string) (Verified, error) {
 	var best *Verified
 	var unreachable []string
 	var answered []string
+	var serials []SourceSerial
+	disagree := false
+	floor, seen := r.seen[id]
 	for _, src := range r.Sources {
 		v, err := r.fromSource(src, id)
 		var u errUnreachable
@@ -295,10 +320,16 @@ func (r *Reader) VerifiedIndex(id string) (Verified, error) {
 		if len(r.AcceptedKeys) > 0 && !slices.Contains(r.AcceptedKeys, v.KeyID) {
 			return Verified{}, fmt.Errorf("pack index %s from %s refused: signed by key %s, which the license key does not list", id, src.Name(), v.KeyID)
 		}
-		if floor, ok := r.seen[id]; ok && v.Index.Serial < floor {
+		if seen && v.Index.Serial < floor {
 			return Verified{}, fmt.Errorf("pack index %s from %s refused: serial %d is older than serial %d already read in this run", id, src.Name(), v.Index.Serial, floor)
 		}
-		r.seen[id] = v.Index.Serial
+		if best != nil && v.Index.Serial < best.Index.Serial {
+			disagree = true
+		}
+		if v.Index.Serial > r.seen[id] {
+			r.seen[id] = v.Index.Serial
+		}
+		serials = append(serials, SourceSerial{src.Name(), v.Index.Serial})
 		answered = append(answered, fmt.Sprintf("%s serial %d", src.Name(), v.Index.Serial))
 		if best == nil || v.Index.Serial > best.Index.Serial {
 			vv := v
@@ -310,6 +341,9 @@ func (r *Reader) VerifiedIndex(id string) (Verified, error) {
 	}
 	if best == nil {
 		return Verified{}, fmt.Errorf("pack index %s: no source answered (%s)", id, strings.Join(unreachable, "; "))
+	}
+	if disagree {
+		return Verified{}, &SourcesDisagree{Serials: serials}
 	}
 	r.logf("%s: index serial %d from %s (read: %s)", id, best.Index.Serial, best.From, strings.Join(answered, ", "))
 	return *best, nil
