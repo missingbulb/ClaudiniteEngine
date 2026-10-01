@@ -2,6 +2,8 @@ package release
 
 import (
 	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -51,5 +53,39 @@ func TestNoExpressionInARunBody(t *testing.T) {
 				t.Errorf("%s: a run: body expands an expression; move it to env:\n%s", wf, b)
 			}
 		}
+	}
+}
+
+var pinnedUses = regexp.MustCompile(`^\s*(?:- )?uses:\s*[^@\s]+@[0-9a-f]{40}(?:\s+#.*)?$`)
+
+func TestEveryActionIsPinnedBySHA(t *testing.T) {
+	files, _ := filepath.Glob("../.github/workflows/*.yml")
+	if len(files) == 0 {
+		t.Fatal("no workflows found")
+	}
+	for _, f := range files {
+		raw, _ := os.ReadFile(f)
+		for i, l := range strings.Split(string(raw), "\n") {
+			if strings.Contains(l, "uses:") && !pinnedUses.MatchString(l) {
+				t.Errorf("%s:%d: not pinned by commit SHA: %s", f, i+1, strings.TrimSpace(l))
+			}
+		}
+	}
+}
+
+func TestCIRunsActionlintPinnedBySHA(t *testing.T) {
+	raw, err := os.ReadFile("../.github/workflows/ci.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !regexp.MustCompile(`go run github\.com/rhysd/actionlint/cmd/actionlint@[0-9a-f]{40}\b`).Match(raw) {
+		t.Error("ci.yml does not run actionlint at a commit SHA")
+	}
+	conf, err := os.ReadFile("../.github/actionlint.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !regexp.MustCompile(`(?m)^\s+- macos-15-intel$`).Match(conf) {
+		t.Errorf(".github/actionlint.yaml does not declare macos-15-intel:\n%s", conf)
 	}
 }
