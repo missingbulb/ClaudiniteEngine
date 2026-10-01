@@ -190,3 +190,46 @@ func TestKeyFilesRoundTrip(t *testing.T) {
 		t.Error("key files are unpadded base64url")
 	}
 }
+
+func TestSignedPackIndex(t *testing.T) {
+	c := mustIssue(t, UsePacks, t0, t0.AddDate(0, 0, 30))
+	roots := []ed25519.PublicKey{pub(root)}
+	index := []byte(`{"v":1,"id":"hello","versions":[]}` + "\n")
+	sig := SignPackIndex(subj, c, index)
+	if b, err := VerifyPackIndex(sig, index, roots, t0); err != nil || b.Use != UsePacks {
+		t.Fatalf("%v %+v", err, b)
+	}
+	bad := append([]byte{}, index...)
+	bad[3] ^= 1
+	if _, err := VerifyPackIndex(sig, bad, roots, t0); err == nil {
+		t.Error("flipped index byte verified")
+	}
+	s2 := sig
+	s2.Signature = flip(sig.Signature, 5)
+	if _, err := VerifyPackIndex(s2, index, roots, t0); err == nil {
+		t.Error("flipped signature byte verified")
+	}
+	mc := mustIssue(t, UseManifest, t0, t0.AddDate(0, 0, 30))
+	if _, err := VerifyPackIndex(SignPackIndex(subj, mc, index), index, roots, t0); err == nil || !strings.Contains(err.Error(), "use") {
+		t.Errorf("manifest-use certificate signed an index: %v", err)
+	}
+	// The same key and certificate, but the manifest domain: the domain
+	// separates the two messages, so neither verifies as the other.
+	if _, err := VerifyPackIndex(SignManifest(subj, c, index), index, roots, t0); err == nil {
+		t.Error("an index signed under the manifest domain verified")
+	}
+	if _, err := VerifyManifest(SignPackIndex(subj, mc, index), index, roots, t0); err == nil {
+		t.Error("a manifest signed under the pack index domain verified")
+	}
+}
+
+// The reader of index.json decodes without DisallowUnknownFields, so Packs
+// can add a field without an engine release; the signature covers the
+// bytes as they are, whatever fields they hold.
+func TestVerifyPackIndexAcceptsAnExtraField(t *testing.T) {
+	c := mustIssue(t, UsePacks, t0, t0.AddDate(0, 0, 30))
+	index := []byte(`{"v":1,"id":"hello","versions":[],"addedLater":{"x":1}}` + "\n")
+	if _, err := VerifyPackIndex(SignPackIndex(subj, c, index), index, []ed25519.PublicKey{pub(root)}, t0); err != nil {
+		t.Fatal(err)
+	}
+}

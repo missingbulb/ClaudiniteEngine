@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/missingbulb/ClaudiniteEngine/release"
@@ -21,12 +22,16 @@ import (
 
 // Check verifies the downloaded rc tarballs of ver in dir before they are
 // republished: the manifest's signature against the roots in rootsDir,
-// every platform binary against its manifest entry, and stableTest, the
-// candidate's `go test -tags stable ./license`. It returns pass or refuse
-// and why.
-func Check(dir, ver, rootsDir string, stableTest func() error) (string, string) {
-	if reason := checkBytes(dir, ver, rootsDir); reason != "" {
-		return "refuse", reason
+// every platform binary against its manifest entry, the candidate
+// checkout's head against the commit the manifest names, and stableTest,
+// the candidate's `go test -tags stable ./license`. rootsDir is the
+// dispatching checkout's, never the candidate's, so the candidate cannot
+// bring its own trust. It returns pass or refuse, why, and the stable
+// test's own verdict (pass, fail, or not-run when the bytes were refused
+// first), which the publish job hands to publish-mode.
+func Check(dir, ver, rootsDir, head string, stableTest func() error) (string, string, string) {
+	if reason := checkBytes(dir, ver, rootsDir, head); reason != "" {
+		return "refuse", reason, "not-run"
 	}
 	result := "pass"
 	if err := stableTest(); err != nil {
@@ -34,12 +39,12 @@ func Check(dir, ver, rootsDir string, stableTest func() error) (string, string) 
 	}
 	m := release.PublishMode(release.ModeInput{Channel: "stable", Signing: "release", NpmVersions: `"` + ver + `"`, StableTest: result})
 	if m.Name == "refuse" {
-		return "refuse", m.Notice
+		return "refuse", m.Notice, result
 	}
-	return "pass", fmt.Sprintf("%s: signature, five binaries and the stable build check verified", ver)
+	return "pass", fmt.Sprintf("%s: signature, five binaries and the stable build check verified", ver), result
 }
 
-func checkBytes(dir, ver, rootsDir string) string {
+func checkBytes(dir, ver, rootsDir, head string) string {
 	channel := filepath.Join(dir, "cli-rc-"+ver+".tgz")
 	manifest, err := tarFile(channel, "package/manifest.json")
 	if err != nil {
@@ -66,6 +71,9 @@ func checkBytes(dir, ver, rootsDir string) string {
 	}
 	if m.Version != ver {
 		return fmt.Sprintf("the manifest is for %s, not %s", m.Version, ver)
+	}
+	if len(m.Commit) < 7 || !strings.HasPrefix(head, m.Commit) {
+		return fmt.Sprintf("the candidate checkout is at %s, but the manifest was built from %s; the v%s tag moved", head, m.Commit, ver)
 	}
 	for _, p := range version.Platforms {
 		e, ok := m.Binaries[p]

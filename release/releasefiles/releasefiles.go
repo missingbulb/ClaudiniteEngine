@@ -140,9 +140,18 @@ func ScanBinaries(dist string) (map[string]Binary, error) {
 }
 
 // UpdaterSource is the source of every path that moves a member from one
-// engine to the next: the launcher today, and lifecycle/, where phase 2's
-// updater lives.
-var UpdaterSource = []string{"launcher/launch", "lifecycle"}
+// engine to the next: the launcher, the updater, the member workflows it
+// runs from, and the shared packages it reaches npm, GitHub, git and the
+// pin through.
+var UpdaterSource = []string{
+	"launcher/launch",
+	"lifecycle/update",
+	"lifecycle/workflows",
+	"shared/githubapi",
+	"shared/gitcmd",
+	"shared/npmreg",
+	"shared/settings",
+}
 
 // UpdaterDigest is the SHA-256, in hex, over every regular file of
 // UpdaterSource under root, in sorted path order, each as its slash path,

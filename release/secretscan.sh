@@ -1,6 +1,6 @@
 #!/bin/sh
 # Fails if any built binary under DIR carries a secret-shaped string: token
-# prefixes, PEM blocks, AWS key ids, or any private key under keys/dev/ in
+# prefixes, PEM private key blocks, AWS key ids, or any private key under keys/dev/ in
 # base64url or standard base64.
 # usage: release/secretscan.sh DIR
 set -eu
@@ -27,7 +27,7 @@ while IFS= read -r f; do
   strings -n 4 "$f" > "$strs"
   # Report which pattern hit, never the match itself, so a real secret
   # does not land in the CI log.
-  for pattern in 'ghp_' 'github_pat_' 'npm_' '-----BEGIN' 'AKIA[0-9A-Z]{16}'; do
+  for pattern in 'ghp_' 'github_pat_' 'npm_' '-----BEGIN ([A-Z0-9]+ )*PRIVATE KEY-----' 'AKIA[0-9A-Z]{16}'; do
     if grep -Eq -e "$pattern" "$strs"; then
       echo "secretscan: $f carries a string matching $pattern" >&2
       found=1

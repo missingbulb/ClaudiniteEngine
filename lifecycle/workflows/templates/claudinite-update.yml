@@ -1,0 +1,42 @@
+# Claudinite's nightly engine update, written by cn init. cn update engine
+# lands a green update PR, or opens one for the newest allowed engine, or
+# says why not; its last line is the verdict. No update changes this file:
+# a change it needs arrives as an issue carrying the patch.
+name: claudinite-update
+
+on:
+  schedule:
+    - cron: "41 3 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: claudinite-update
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  update:
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: write
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: download the pinned engine
+        run: sh .claudinite/launch version
+      - name: cn update engine
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          .claudinite/bin/cn update engine | tee "$RUNNER_TEMP/update.out"
+          tail -n 1 "$RUNNER_TEMP/update.out" >> "$GITHUB_STEP_SUMMARY"

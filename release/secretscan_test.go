@@ -50,6 +50,9 @@ func TestSecretScan(t *testing.T) {
 		"npm token":       plant + "npm_" + strings.Repeat("Zz09", 9),
 		"aws key":         plant + "AKIAABCDEFGHIJKLMNOP",
 		"dev private key": plant + strings.TrimSpace(string(devKey)),
+		// encoding/pem's own "-----BEGIN " is in every binary that speaks
+		// TLS; a private key block is not.
+		"pem private key": "-X 'main.secretScanPlant=-----BEGIN EC PRIVATE KEY-----'",
 	}
 	for name, flags := range cases {
 		out, err := scan(t, buildInto(t, flags))

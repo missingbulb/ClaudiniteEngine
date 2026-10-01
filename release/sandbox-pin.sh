@@ -1,8 +1,9 @@
 #!/bin/sh
 # Pins a checkout of ClaudiniteSandbox to a published @claudinite/cli-rc
 # version: the launcher verbatim, the settings with the pin, the six hook
-# wirings and the .gitignore, exactly as the rehearsal's fixture member
-# has them. The live Phase 1 gate (#8 T9) commits the result on a branch.
+# wirings, .claudinite/.gitignore and the two member workflows, exactly as
+# the rehearsal's fixture member has them. The live gates (#8 T9, #13 T9)
+# commit the result on a branch a person merges, since it adds workflows.
 # usage: release/sandbox-pin.sh VERSION INTEGRITY [CHECKOUT]   (default: .)
 set -eu
 fail() { echo "sandbox-pin: $*" >&2; exit 2; }

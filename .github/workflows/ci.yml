@@ -26,6 +26,9 @@ jobs:
           version: v2.5.0
       - run: go test ./...
       - run: shellcheck -s sh launcher/launch release/*.sh probe/desktop-timings/run.sh
+      # actionlint v1.7.11, the last release that builds on Go 1.24, over the engine's workflows and
+      # the member templates; it runs shellcheck over every run: body too.
+      - run: go run github.com/rhysd/actionlint/cmd/actionlint@393031adb9afb225ee52ae2ccd7a5af5525e03e8 .github/workflows/*.yml lifecycle/workflows/templates/*.yml
 
   build:
     runs-on: ubuntu-24.04
