@@ -241,3 +241,6 @@ func ParsePublicKey(s string) (ed25519.PublicKey, error) {
 	}
 	return ed25519.PublicKey(p), nil
 }
+
+// DecodeB64 decodes the unpadded base64url this package writes.
+func DecodeB64(s string) ([]byte, error) { return b64.DecodeString(s) }
