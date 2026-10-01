@@ -1,8 +1,8 @@
 #!/bin/sh
 # Writes a member repo's Claudinite wiring into DIR: the launcher, verbatim,
 # as .claudinite/launch; .claudinite/settings.yaml pinning PACKAGE at
-# VERSION and INTEGRITY; .claude/settings.json wiring the six hooks; and a
-# .gitignore for .claudinite/bin/. The smoke legs, the rehearsal and the
+# VERSION and INTEGRITY; .claude/settings.json wiring the six hooks; and
+# .claudinite/.gitignore for bin/. The smoke legs, the rehearsal and the
 # sandbox pin all write a member through this one script.
 # usage: release/member-fixture.sh DIR VERSION INTEGRITY PACKAGE
 set -eu
@@ -11,7 +11,7 @@ here=$(cd "$(dirname "$0")/.." && pwd)
 dir=$1
 mkdir -p "$dir/.claudinite" "$dir/.claude"
 cp "$here/launcher/launch" "$dir/.claudinite/launch"
-printf '.claudinite/bin/\n' > "$dir/.gitignore"
+printf 'bin/\n' > "$dir/.claudinite/.gitignore"
 cat > "$dir/.claudinite/settings.yaml" <<YAML
 engine:
   package: "$4"

@@ -28,6 +28,12 @@ func TestSandboxPinWritesTheRehearsalFixture(t *testing.T) {
 			t.Errorf("settings.yaml lacks %s:\n%s", want, settings)
 		}
 	}
+	if ignore, err := os.ReadFile(filepath.Join(sandbox, ".claudinite", ".gitignore")); err != nil || string(ignore) != "bin/\n" {
+		t.Errorf(".claudinite/.gitignore: %q %v", ignore, err)
+	}
+	if _, err := os.Stat(filepath.Join(sandbox, ".gitignore")); err == nil {
+		t.Error("the fixture writes into the repo root's .gitignore, the old shape")
+	}
 	launch, _ := os.ReadFile(filepath.Join(sandbox, ".claudinite", "launch"))
 	src, _ := os.ReadFile("../launcher/launch")
 	if string(launch) != string(src) {
