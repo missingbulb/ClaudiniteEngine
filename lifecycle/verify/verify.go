@@ -51,6 +51,7 @@ var rules = []rule{
 	{"min-engine-version-legacy", nil},
 	{"pack-declared", checkPackDeclared},
 	{"pack-min-engine", checkPackMinEngine},
+	{"license-plan", checkLicensePlan},
 }
 
 // RuleIDs lists the registered rules, sorted.
@@ -119,6 +120,23 @@ func checkEnginePin(in Input) []findings.Finding {
 	}
 	if _, err := settings.ReadEngine(raw, f); err != nil {
 		return []findings.Finding{brk("engine-pin", rel, err.Error()+"; the launcher refuses to run until the engine block holds a quoted version, manifest and, if any, package")}
+	}
+	return nil
+}
+
+// checkLicensePlan breaks on a license.plan the key server does not know;
+// no block passes, since the paid plans are the default.
+func checkLicensePlan(in Input) []findings.Finding {
+	p, f, err := settings.Find(in.Repo)
+	if err != nil {
+		return nil
+	}
+	raw, err := os.ReadFile(p)
+	if err != nil {
+		return nil
+	}
+	if _, err := settings.ReadLicense(raw, f); err != nil {
+		return []findings.Finding{brk("license-plan", settings.RelPath(f), err.Error()+"; sessions ask the paid key server until it names a plan the server knows, quoted")}
 	}
 	return nil
 }

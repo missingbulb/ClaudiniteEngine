@@ -4,3 +4,4 @@
 # fixture under that prefix, for the shape the change introduces or keeps.
 v1 bin-ignore engine-pin hooks launcher member-workflows min-engine-version-legacy settings-file
 v3 bin-ignore engine-pin hooks launcher member-workflows min-engine-version-legacy pack-declared pack-min-engine settings-file
+v4 bin-ignore engine-pin hooks launcher license-plan member-workflows min-engine-version-legacy pack-declared pack-min-engine settings-file

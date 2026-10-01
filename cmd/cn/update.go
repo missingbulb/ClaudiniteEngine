@@ -7,14 +7,18 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/missingbulb/ClaudiniteEngine/license"
 	"github.com/missingbulb/ClaudiniteEngine/lifecycle/packs"
 	"github.com/missingbulb/ClaudiniteEngine/lifecycle/update"
 	"github.com/missingbulb/ClaudiniteEngine/lifecycle/workflows"
+	"github.com/missingbulb/ClaudiniteEngine/shared/breadcrumb"
 	"github.com/missingbulb/ClaudiniteEngine/shared/gitcmd"
 	"github.com/missingbulb/ClaudiniteEngine/shared/githubapi"
+	"github.com/missingbulb/ClaudiniteEngine/shared/licenseapi"
 	"github.com/missingbulb/ClaudiniteEngine/shared/npmreg"
 	"github.com/missingbulb/ClaudiniteEngine/shared/paths"
 	"github.com/missingbulb/ClaudiniteEngine/shared/report"
@@ -50,7 +54,36 @@ func updateDeps(repo string, stdout io.Writer) (update.Deps, error) {
 	}
 	return update.Deps{GitHub: gh, Registry: reg, Git: gitcmd.Repo{Dir: repo}, Roots: roots,
 		CacheRoot: paths.CacheRoot(), Platform: version.Platform(), Now: time.Now,
-		Repo: repo, Out: stdout, Timeout: childTimeout, Exe: exe}, nil
+		Repo: repo, Out: stdout, Timeout: childTimeout, Exe: exe, Key: actionsKey(roots, stdout)}, nil
+}
+
+// actionsKey requests the run's Actions key at most once per process and
+// hands the updater what it reads of it.
+func actionsKey(roots []ed25519.PublicKey, log io.Writer) func() update.KeyResult {
+	return sync.OnceValue(func() update.KeyResult {
+		start := time.Now()
+		w, err := licenseapi.FromEnv()
+		var r license.ActionsResult
+		if err != nil {
+			r = license.ActionsResult{Cause: license.CauseServerUnreachable, Detail: err.Error()}
+		} else {
+			r = license.RequestActions(w, &http.Client{Timeout: 10 * time.Second}, os.Getenv, roots, time.Now, version.Version())
+		}
+		outcome := breadcrumb.OK
+		if r.Key == nil {
+			outcome = breadcrumb.Error
+		}
+		fmt.Fprintln(log, breadcrumb.Line("license", "request-actions", outcome, time.Since(start)))
+		if r.Key == nil {
+			return update.KeyResult{Cause: string(r.Cause), Detail: r.Detail, Link: r.Link}
+		}
+		k := r.Key
+		fmt.Fprintf(log, "license key: %s plan, %s\n", k.Plan, k.State)
+		notice := strings.TrimPrefix(license.NoticeFor(k, "", "", ""), "[cn] license degraded: ")
+		return update.KeyResult{Key: &update.LicenseKey{Plan: string(k.Plan), State: k.State, Notice: notice,
+			IssuedAt: time.Unix(k.Iat, 0), Held: k.Release.Held, Revoked: k.Release.Revoked, SecurityFixes: k.Release.SecurityFixes,
+			SerialFloor: k.Release.PackIndexSerial, PackKeys: k.Release.PackKeys}}
+	})
 }
 
 // packReader reads the pack indexes from the CDN and the vendored branch,
@@ -58,6 +91,23 @@ func updateDeps(repo string, stdout io.Writer) (update.Deps, error) {
 func packReader(roots []ed25519.PublicKey, out io.Writer) (*packs.Reader, func()) {
 	cdn, branch := packs.Sources(&http.Client{Timeout: time.Minute})
 	return &packs.Reader{Sources: []packs.Source{cdn, branch}, Roots: roots, Now: time.Now, Log: out}, branch.Close
+}
+
+// keyedReader applies the run's key to the pack reader at the first index
+// read, which the updater makes only after the key was granted.
+type keyedReader struct {
+	*packs.Reader
+	key  func() update.KeyResult
+	once sync.Once
+}
+
+func (r *keyedReader) VerifiedIndex(id string) (packs.Verified, error) {
+	r.once.Do(func() {
+		if k := r.key().Key; k != nil {
+			r.SerialFloor, r.AcceptedKeys = k.SerialFloor, k.PackKeys
+		}
+	})
+	return r.Reader.VerifiedIndex(id)
 }
 
 func cmdUpdate(args []string, stdout io.Writer) error {
@@ -86,7 +136,12 @@ func cmdUpdate(args []string, stdout io.Writer) error {
 	}
 	reader, closeReader := packReader(d.Roots, stdout)
 	defer closeReader()
-	d.Packs = reader
+	if args[0] == "land" {
+		// claudinite-ci, where land runs, is not a workflow the license
+		// server issues keys to; landing re-reads npm's states instead.
+		d.Key = func() update.KeyResult { return update.KeyResult{Cause: "not-requested"} }
+	}
+	d.Packs = &keyedReader{Reader: reader, key: d.Key}
 	var verdict string
 	switch args[0] {
 	case "land":

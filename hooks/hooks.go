@@ -46,9 +46,34 @@ type Checks interface {
 	Run(repo, event string, tags []string, wait time.Duration) CheckResult
 }
 
-// Handler answers hook events. A nil Checks runs no coded checks.
+// LicenseStatus is the session's license as one hook applies it.
+type LicenseStatus struct {
+	// Line is what SessionStart's context says of the license.
+	Line string
+	// Notice is a sentence to pass on to Claude once; empty when it was
+	// already passed on or there is nothing to say.
+	Notice string
+	// WorkChecks is the gate's work-checks row.
+	WorkChecks bool
+	// State names the state for the stderr line (pending, ok, degraded).
+	State string
+	// Crumbs are license breadcrumbs this hook observed.
+	Crumbs []string
+}
+
+// License reads the session's license state; it never waits on a network.
+type License interface {
+	// SessionStart applies a usable key or starts the background request.
+	SessionStart(repo, sessionID string) LicenseStatus
+	// Hook is every later hook's read of the same state.
+	Hook(repo, sessionID string) LicenseStatus
+}
+
+// Handler answers hook events. A nil Checks runs no coded checks; a nil
+// License gates nothing.
 type Handler struct {
-	Checks Checks
+	Checks  Checks
+	License License
 	// ProjectDir overrides where the repo is found.
 	ProjectDir string
 	// Engine overrides this engine's version, for tests.
@@ -57,10 +82,15 @@ type Handler struct {
 
 type hookInput struct {
 	SessionID      string `json:"session_id"`
+	Source         string `json:"source"`
 	HookEventName  string `json:"hook_event_name"`
 	Cwd            string `json:"cwd"`
 	StopHookActive bool   `json:"stop_hook_active"`
 }
+
+// contextEvents are the events whose answer may carry additionalContext,
+// by cn's event name and Claude Code's.
+var contextEvents = map[string]string{"pre-tool-use": "PreToolUse", "post-tool-use": "PostToolUse", "user-prompt-submit": "UserPromptSubmit"}
 
 type sessionStartOutput struct {
 	HookSpecificOutput struct {
@@ -113,16 +143,39 @@ func (h Handler) Run(event string, stdin io.Reader, stdout, stderr io.Writer, st
 		if readErr != nil || parseErr != nil || in.HookEventName != "SessionStart" {
 			outcome = breadcrumb.Error
 		}
-		return h.sessionStart(h.projectDir(in), outcome, stdout, start)
+		return h.sessionStart(h.projectDir(in), in.SessionID, outcome, stdout, start)
 	case "stop":
-		return h.stop(h.projectDir(in), in.StopHookActive, stdout, stderr, start)
+		return h.stop(h.projectDir(in), in.SessionID, in.StopHookActive, stdout, stderr, start)
 	}
-	fmt.Fprintln(stdout, "{}")
+	answer := "{}"
+	if name, ok := contextEvents[event]; ok && h.License != nil {
+		st := h.License.Hook(h.projectDir(in), sessionKey(in.SessionID))
+		for _, c := range st.Crumbs {
+			fmt.Fprintln(stderr, c)
+		}
+		if st.Notice != "" {
+			var out sessionStartOutput
+			out.HookSpecificOutput.HookEventName = name
+			out.HookSpecificOutput.AdditionalContext = st.Notice
+			raw, _ := json.Marshal(out)
+			answer = string(raw)
+		}
+	}
+	fmt.Fprintln(stdout, answer)
 	fmt.Fprintln(stderr, breadcrumb.Line("hooks", event, breadcrumb.OK, time.Since(start)))
 	return nil
 }
 
-func (h Handler) sessionStart(repo string, outcome breadcrumb.Outcome, stdout io.Writer, start time.Time) error {
+// sessionKey is the state file's name for a session id; a hook input that
+// carries none shares one file.
+func sessionKey(id string) string {
+	if id == "" {
+		return "unknown"
+	}
+	return id
+}
+
+func (h Handler) sessionStart(repo, sessionID string, outcome breadcrumb.Outcome, stdout io.Writer, start time.Time) error {
 	ctx := assemble(repo, h.engine())
 	var b strings.Builder
 	b.WriteString(ctx.rules)
@@ -139,6 +192,15 @@ func (h Handler) sessionStart(repo string, outcome breadcrumb.Outcome, stdout io
 	if ctx.selfCheck != "" {
 		b.WriteString(ctx.selfCheck + "\n")
 	}
+	if h.License != nil {
+		st := h.License.SessionStart(repo, sessionKey(sessionID))
+		for _, c := range st.Crumbs {
+			b.WriteString(c + "\n")
+		}
+		if st.Line != "" {
+			b.WriteString(st.Line + "\n")
+		}
+	}
 	b.WriteString(breadcrumb.Line("hooks", "session-start", outcome, time.Since(start)) + "\n")
 	var out sessionStartOutput
 	out.HookSpecificOutput.HookEventName = "SessionStart"
@@ -152,9 +214,23 @@ func (h Handler) sessionStart(repo string, outcome breadcrumb.Outcome, stdout io
 // block form, unless Claude Code is already continuing because of a stop
 // hook (stop_hook_active), when the findings go to stderr instead so a
 // finding the session cannot clear never loops.
-func (h Handler) stop(repo string, active bool, stdout, stderr io.Writer, start time.Time) error {
+func (h Handler) stop(repo, sessionID string, active bool, stdout, stderr io.Writer, start time.Time) error {
 	answer := "{}"
-	if h.Checks != nil {
+	work := true
+	if h.License != nil {
+		st := h.License.Hook(repo, sessionKey(sessionID))
+		for _, c := range st.Crumbs {
+			fmt.Fprintln(stderr, c)
+		}
+		if st.Notice != "" {
+			fmt.Fprintln(stderr, st.Notice)
+		}
+		if !st.WorkChecks {
+			work = false
+			fmt.Fprintf(stderr, "[cn] license: work checks off (%s)\n", st.State)
+		}
+	}
+	if h.Checks != nil && work {
 		res := h.Checks.Run(repo, "stop", []string{"work"}, StopWait)
 		for _, e := range res.Errors {
 			fmt.Fprintln(stderr, "[cn] check error: "+e)

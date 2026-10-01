@@ -70,6 +70,9 @@ type Deps struct {
 	Packs PackReader
 	// Exe is this cn, which runs check world over a pack branch.
 	Exe string
+	// Key requests the run's Actions license key; cmd/cn makes it once per
+	// process.
+	Key func() KeyResult
 }
 
 // Options are cn update engine's flags.
@@ -79,7 +82,7 @@ type Options struct {
 }
 
 // VerdictForms are the shapes of the line a run ends on.
-var VerdictForms = []string{`^landed \S+$`, `^opened #\d+ for \S+$`, `^landed packs .+$`, `^opened #\d+ for packs .+$`, `^no PR: .+$`, `^skipped: .+$`, `^up to date$`}
+var VerdictForms = []string{`^landed \S+$`, `^opened #\d+ for \S+$`, `^landed packs .+$`, `^opened #\d+ for packs .+$`, `^landed plan \S+$`, `^opened #\d+ for plan \S+$`, `^no PR: .+$`, `^skipped: .+$`, `^up to date$`}
 
 var verdictRes = func() []*regexp.Regexp {
 	var out []*regexp.Regexp
@@ -152,6 +155,10 @@ func Engine(d Deps, o Options) (string, error) {
 	if s := runState(latest(runs, "")); s != "success" {
 		return "skipped: main is not green (" + s + ")", nil
 	}
+	key, skip, err := licenseGate(d)
+	if err != nil || skip != "" {
+		return skip, err
+	}
 
 	all, err := d.GitHub.OpenPulls()
 	if err != nil {
@@ -181,6 +188,9 @@ func Engine(d Deps, o Options) (string, error) {
 			return Land(d, prev.Number, prev.HeadSHA)
 		}
 	}
+	if v, err := correctPlan(d, key, all); err != nil || v != "" {
+		return v, err
+	}
 
 	path, f, err := settings.Find(d.Repo)
 	if err != nil {
@@ -198,7 +208,7 @@ func Engine(d Deps, o Options) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	states := StatesFromPackument(p)
+	states := keyStates(key, p)
 	if prev != nil {
 		ver := strings.TrimPrefix(prev.HeadRef, BranchPrefix)
 		if why := pinRefusal(p, states, ver); why != "" {
@@ -375,8 +385,8 @@ func Land(d Deps, n int, sha string) (string, error) {
 		return "", fmt.Errorf("#%d is %s", n, pr.State)
 	case pr.Author != gitcmd.BotName:
 		return "", fmt.Errorf("#%d was opened by %s, not %s", n, pr.Author, gitcmd.BotName)
-	case !pr.HasLabel(Label) || (!strings.HasPrefix(pr.HeadRef, BranchPrefix) && !strings.HasPrefix(pr.HeadRef, PackBranchPrefix)):
-		return "", fmt.Errorf("#%d is not an update PR (label %s, branch %s* or %s*)", n, Label, BranchPrefix, PackBranchPrefix)
+	case !pr.HasLabel(Label) || (!strings.HasPrefix(pr.HeadRef, BranchPrefix) && !strings.HasPrefix(pr.HeadRef, PackBranchPrefix) && !strings.HasPrefix(pr.HeadRef, PlanBranchPrefix)):
+		return "", fmt.Errorf("#%d is not an update PR (label %s, branch %s*, %s* or %s*)", n, Label, BranchPrefix, PackBranchPrefix, PlanBranchPrefix)
 	case pr.BaseRef != mainBranch:
 		return "", fmt.Errorf("#%d targets %s, not %s", n, pr.BaseRef, mainBranch)
 	case pr.HeadSHA != sha:
@@ -391,6 +401,9 @@ func Land(d Deps, n int, sha string) (string, error) {
 	}
 	if strings.HasPrefix(pr.HeadRef, PackBranchPrefix) {
 		return landPacks(d, pr, sha)
+	}
+	if strings.HasPrefix(pr.HeadRef, PlanBranchPrefix) {
+		return landPlan(d, pr, sha)
 	}
 	base := remote + "/" + mainBranch
 	files, err := d.Git.ChangedFiles(base, sha)
@@ -450,22 +463,21 @@ func Land(d Deps, n int, sha string) (string, error) {
 }
 
 // upsertIssue opens an issue labelled Label with title, or updates the
-// body of the open one already carrying that title.
-func upsertIssue(d Deps, title, body string) error {
+// body of the open one already carrying that title, and returns its number.
+func upsertIssue(d Deps, title, body string) (int, error) {
 	open, err := d.GitHub.OpenIssues(Label)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	for _, is := range open {
 		if is.Title == title {
 			if is.Body == body {
-				return nil
+				return is.Number, nil
 			}
-			return d.GitHub.UpdateIssueBody(is.Number, body)
+			return is.Number, d.GitHub.UpdateIssueBody(is.Number, body)
 		}
 	}
-	_, err = d.GitHub.CreateIssue(title, body, Label)
-	return err
+	return d.GitHub.CreateIssue(title, body, Label)
 }
 
 // fence is a code fence longer than any backtick run in s.
@@ -489,7 +501,8 @@ func fileWorkflowChange(d Deps, got Fetched) error {
 	body := fmt.Sprintf("Claudinite engine %s expects these changes to this repo's workflows:\n\n%sdiff\n%s%s\n\n"+
 		"The update job's token cannot write `.github/workflows/`, so the nightly update stays on the current workflows until a person commits this patch (`git apply` at the repo root).\n",
 		got.Version, f, diff, f)
-	return upsertIssue(d, "Claudinite engine "+got.Version+" needs a workflow change", body)
+	_, err = upsertIssue(d, "Claudinite engine "+got.Version+" needs a workflow change", body)
+	return err
 }
 
 // fileRevoked keeps one issue open per revoked pin, naming the reason, the
@@ -503,5 +516,6 @@ func fileRevoked(d Deps, pin, reason, next, verdict string) error {
 		fmt.Fprintf(&b, "The next allowed version is %s.\n\n", next)
 	}
 	fmt.Fprintf(&b, "The latest update run: `%s`.\n", verdict)
-	return upsertIssue(d, "Claudinite engine "+pin+" is revoked", b.String())
+	_, err := upsertIssue(d, "Claudinite engine "+pin+" is revoked", b.String())
+	return err
 }

@@ -64,6 +64,12 @@ func movePin(t *testing.T) func(string) {
 	return func(dir string) { write(t, dir, ".claudinite/settings.yaml", settingsBody("1.2.0", pin2)) }
 }
 
+func setPlan(t *testing.T) func(string) {
+	return func(dir string) {
+		write(t, dir, ".claudinite/settings.yaml", settingsBody("1.1.0", pin1)+"license:\n  plan: \"public\"\n")
+	}
+}
+
 type pinCheck struct {
 	called []settings.Engine
 	err    error
@@ -114,6 +120,13 @@ func TestPinGuard(t *testing.T) {
 		{"the bot moves the pin and a pack together", func(t *testing.T) func(string) {
 			return func(dir string) { movePin(t)(dir); write(t, dir, ".claudinite/shared/packs/hello/RULES.md", "x") }
 		}, bot, nil, 1, ".claudinite/shared/packs/hello/RULES.md", false},
+		{"the bot's plan PR changes only license.plan", setPlan, bot, nil, 0, "", false},
+		{"a person changes license.plan", setPlan, "someone", nil, 1, "pin-guard", false},
+		{"the bot changes the plan and the pin", func(t *testing.T) func(string) {
+			return func(dir string) {
+				write(t, dir, ".claudinite/settings.yaml", settingsBody("1.2.0", pin2)+"license:\n  plan: \"public\"\n")
+			}
+		}, bot, nil, 1, "pin-guard", false},
 		{"a person changes only a rule file", func(t *testing.T) func(string) {
 			return func(dir string) { write(t, dir, "RULES.md", "- another rule\n") }
 		}, "someone", nil, 0, "", false},

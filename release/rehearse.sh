@@ -1,6 +1,6 @@
 #!/bin/sh
-# The local Phase 1, 2 and 3 gates, against the built release in $DIST
-# (default dist/) served by regstub, in five modes:
+# The local Phase 1 to 4 gates, against the built release in $DIST
+# (default dist/) served by regstub, in six modes:
 #
 #   fresh    the host's smoke leg (release/smoke-platform.sh) on a new member
 #   current  a member warm on this release moves its pin to the next ordinal
@@ -22,9 +22,19 @@
 #            loads the pack and its Go check blocks Stop, and cn update
 #            packs proposes, refuses, skips and lands pack versions as the
 #            fixture publishes and revokes them, then refuses an index whose
-#            serial regressed or whose signature broke.
+#            serial regressed or whose signature broke; cn init writes the
+#            plan its key names, and the update key's pack index serial and
+#            key ids reach the pack reader.
+#   license  a member's session keys against release/ghstub and
+#            release/licstub: the web key, the cut and the late key, no App,
+#            no push access, refusals and bindings, resume and renewal, the
+#            desktop after cn login, and the Actions key in cn update engine
+#            with its release states, refusals and the plan correction PR.
 #
-#   release/rehearse.sh [--mode fresh|current|stale|update|packs]   (default: all five)
+# The update, packs and license modes give every member a GitHub-shaped
+# origin (url.<bare>.insteadOf), as the session's key request reads it.
+#
+#   release/rehearse.sh [--mode fresh|current|stale|update|packs|license]   (default: all six)
 #
 # UPDATE_STEPS=4 stops the update mode after the landing and the session on
 # the landed version (release/hop.sh); the default, 8, runs every step.
@@ -42,13 +52,13 @@ export GOCACHE
 fail() { echo "rehearse: FAIL: $*" >&2; exit 1; }
 step() { echo "rehearse: $*"; }
 
-usage="usage: release/rehearse.sh [--mode fresh|current|stale|update|packs]"
-modes="fresh current stale update packs"
+usage="usage: release/rehearse.sh [--mode fresh|current|stale|update|packs|license]"
+modes="fresh current stale update packs license"
 case $# in
   0) ;;
   2)
     [ "$1" = --mode ] || fail "$usage"
-    case $2 in fresh|current|stale|update|packs) modes=$2 ;; *) fail "unknown mode $2" ;; esac ;;
+    case $2 in fresh|current|stale|update|packs|license) modes=$2 ;; *) fail "unknown mode $2" ;; esac ;;
   *) fail "$usage" ;;
 esac
 
@@ -68,10 +78,12 @@ done
 work=$(mktemp -d)
 stub_pid=
 gh_pid=
+lic_pid=
 cdn_pids=
 cleanup() {
   [ -n "$stub_pid" ] && kill "$stub_pid" 2>/dev/null
   [ -n "$gh_pid" ] && kill "$gh_pid" 2>/dev/null
+  [ -n "$lic_pid" ] && kill "$lic_pid" 2>/dev/null
   for p in $cdn_pids; do kill "$p" 2>/dev/null; done
   chmod -R u+w "$work" 2>/dev/null
   rm -rf "$work"
@@ -87,7 +99,7 @@ dist3=$work/dist3
 # dist3 is built aside and served only from update step 5 on.
 dist3build=$work/dist3-build
 case " $modes " in
-  *" current "*|*" update "*)
+  *" current "*|*" update "*|*" license "*)
     step "building $next into dist2/ from the same source"
     DIST=$dist2 VERSION=$next PACKAGE=$package sh release/build.sh > "$work/build2.out" || fail "build of $next: $(cat "$work/build2.out")"
     ;;
@@ -104,9 +116,12 @@ case " $modes " in
     fi
     DIST=$dist2 sh release/sign.sh > "$work/sign.out" 2>&1 || fail "signing $dist2: $(cat "$work/sign.out")"
     ;;
+  *" license "*)
+    DIST=$dist2 sh release/sign.sh > "$work/sign.out" 2>&1 || fail "signing $dist2: $(cat "$work/sign.out")"
+    ;;
 esac
 case " $modes " in
-  *" update "*|*" packs "*)
+  *" update "*|*" packs "*|*" license "*)
     # The caller's dist stays as it was: sign a copy.
     dist1=$work/dist1
     cp -R "$DIST" "$dist1"
@@ -157,7 +172,7 @@ hook_command() {
 
 session_start() {
   cmd=$(hook_command SessionStart)
-  (cd "$member" && printf '%s' '{"session_id":"rehearse","hook_event_name":"SessionStart","source":"startup"}' \
+  (cd "$member" && printf '%s' "{\"session_id\":\"${1:-rehearse}\",\"hook_event_name\":\"SessionStart\",\"source\":\"startup\"}" \
     | CLAUDE_PROJECT_DIR=$member sh -c "$cmd")
 }
 
@@ -173,12 +188,14 @@ unset GITHUB_ACTIONS
 CLAUDINITE_REGISTRY=$registry
 export CLAUDINITE_REGISTRY
 
-# start_ghstub ORIGIN: the GitHub stub over a bare origin; sets gh.
+# start_ghstub ORIGIN: the GitHub stub over a bare origin, forwarding key
+# dispatches to licstub; sets gh.
 start_ghstub() {
   [ -x "$work/ghstub" ] || go build -o "$work/ghstub" ./release/ghstub
   [ -n "$gh_pid" ] && kill "$gh_pid" 2>/dev/null
   rm -f "$work/gh-ready"
-  "$work/ghstub" --origin "$1" --repo acme/member --token rehearsal-token --ready "$work/gh-ready" --ca-out "$work/gh-ca.pem" &
+  "$work/ghstub" --origin "$1" --repo acme/member --token rehearsal-token --ready "$work/gh-ready" --ca-out "$work/gh-ca.pem" \
+    --licstub-ready "$work/lic-ready" --licstub-ca "$work/lic-ca.pem" &
   gh_pid=$!
   tries=0
   until [ -f "$work/gh-ready" ]; do
@@ -187,6 +204,42 @@ start_ghstub() {
     sleep 0.1
   done
   gh=$(cat "$work/gh-ready")
+}
+# start_licstub: the license server stand-in, reading the user and repo
+# from ghstub; sets lic and CLAUDINITE_LICENSE_API.
+start_licstub() {
+  [ -x "$work/licstub" ] || go build -o "$work/licstub" ./release/licstub
+  [ -n "$lic_pid" ] && kill "$lic_pid" 2>/dev/null
+  rm -f "$work/lic-ready"
+  "$work/licstub" --root-key keys/dev/root.key --gh-ready "$work/gh-ready" --gh-ca "$work/gh-ca.pem" \
+    --ready "$work/lic-ready" --ca-out "$work/lic-ca.pem" &
+  lic_pid=$!
+  tries=0
+  until [ -f "$work/lic-ready" ]; do
+    tries=$((tries + 1))
+    [ "$tries" -le 100 ] || fail "licstub did not start"
+    sleep 0.1
+  done
+  lic=$(cat "$work/lic-ready")
+  CLAUDINITE_LICENSE_API=$lic
+  export CLAUDINITE_LICENSE_API
+}
+# licctl JSON: replaces the licstub config fields JSON names.
+licctl() { curl -sS --fail -X POST -H 'Content-Type: application/json' -d "$1" "$lic/_stub/config" > /dev/null || fail "licstub config $1"; }
+# github_origin BARE: the member's origin as GitHub names it, its fetches
+# and pushes going to BARE.
+github_origin() {
+  (cd "$member" && git remote add origin https://github.com/acme/member.git \
+    && git config "url.$1.insteadOf" https://github.com/acme/member.git) || fail "github_origin"
+}
+# plan_public: the member's settings name the Public plan.
+plan_public() { printf 'license:\n  plan: "public"\n' >> "$member/.claudinite/settings.yaml"; }
+# actions_env: what an Actions job with id-token: write sees, its OIDC
+# token from ghstub.
+actions_env() {
+  ACTIONS_ID_TOKEN_REQUEST_URL="$gh/_oidc/token?api-version=2.0" ACTIONS_ID_TOKEN_REQUEST_TOKEN=oidc-request-token
+  GITHUB_REPOSITORY_ID=1001 GITHUB_REPOSITORY_OWNER_ID=3 GITHUB_REPOSITORY_OWNER=acme
+  export ACTIONS_ID_TOKEN_REQUEST_URL ACTIONS_ID_TOKEN_REQUEST_TOKEN GITHUB_REPOSITORY_ID GITHUB_REPOSITORY_OWNER_ID GITHUB_REPOSITORY_OWNER
 }
 # ctl PATH JSON: a control call on the stub.
 ctl() { curl -sS --fail -X POST -H 'Content-Type: application/json' -d "$2" "$gh$1" > /dev/null || fail "ghstub $1 $2"; }
@@ -241,15 +294,19 @@ for mode in $modes; do
     update)
       step "update: a member on $version with a bare origin, and the GitHub stub"
       warm_member update
+      plan_public
       origin=$work/origin.git
       git init -q --bare -b main "$origin"
-      (cd "$member" && git init -q -b main && git add -A && git -c user.name=rehearse -c user.email=r@x commit -q -m adopt \
-        && git remote add origin "$origin" && git push -q origin main) || fail "update: git setup"
+      (cd "$member" && git init -q -b main && git add -A && git -c user.name=rehearse -c user.email=r@x commit -q -m adopt) || fail "update: git setup"
+      github_origin "$origin"
+      (cd "$member" && git push -q origin main) || fail "update: push"
       start_ghstub "$origin"
-      cat "$work/ca.pem" "$work/gh-ca.pem" > "$work/cas.pem"
+      start_licstub
+      cat "$work/ca.pem" "$work/gh-ca.pem" "$work/lic-ca.pem" > "$work/cas.pem"
       SSL_CERT_FILE=$work/cas.pem CURL_CA_BUNDLE=$work/cas.pem
       GITHUB_REPOSITORY=acme/member CLAUDINITE_GITHUB_API=$gh
       export SSL_CERT_FILE CURL_CA_BUNDLE GITHUB_REPOSITORY CLAUDINITE_GITHUB_API
+      actions_env
 
       # update_engine: the update; its verdict is the last stdout line.
       update_engine() {
@@ -368,11 +425,13 @@ for mode in $modes; do
       origin=$work/packs-origin.git
       git init -q --bare -b main "$origin"
       start_ghstub "$origin"
-      cat "$work/ca.pem" "$work/gh-ca.pem" "$work/cdn-ca.pem" "$work/cdn-down-ca.pem" > "$work/cas.pem"
+      start_licstub
+      cat "$work/ca.pem" "$work/gh-ca.pem" "$work/lic-ca.pem" "$work/cdn-ca.pem" "$work/cdn-down-ca.pem" > "$work/cas.pem"
       SSL_CERT_FILE=$work/cas.pem CURL_CA_BUNDLE=$work/cas.pem
-      GITHUB_REPOSITORY=acme/member CLAUDINITE_GITHUB_API=$gh
+      GITHUB_REPOSITORY=acme/member CLAUDINITE_GITHUB_API=$gh GH_TOKEN=rehearsal-token
       CLAUDINITE_PACKS_CDN=$cdn CLAUDINITE_PACKS_REPO=$src/mirror.git
-      export SSL_CERT_FILE CURL_CA_BUNDLE GITHUB_REPOSITORY CLAUDINITE_GITHUB_API CLAUDINITE_PACKS_CDN CLAUDINITE_PACKS_REPO
+      export SSL_CERT_FILE CURL_CA_BUNDLE GITHUB_REPOSITORY CLAUDINITE_GITHUB_API GH_TOKEN CLAUDINITE_PACKS_CDN CLAUDINITE_PACKS_REPO
+      actions_env
 
       # The npx layout: the channel package unpacked, its bin linked.
       name=${package#@claudinite/}
@@ -404,9 +463,32 @@ for mode in $modes; do
       done
       verify_out=$(cd "$member" && sh .claudinite/launch verify) || fail "packs 1: verify: $verify_out"
       [ -z "$verify_out" ] || fail "packs 1: verify reported: $verify_out"
-      (cd "$member" && git init -q -b main && git add -A && git -c user.name=rehearse -c user.email=r@x -c commit.gpgsign=false commit -q -m adopt \
-        && git remote add origin "$origin" && git -c push.negotiate=false push -q origin main) || fail "packs 1: git setup"
+      grep -q "installations/new" "$work/init.out" || fail "packs 1: init with no origin ends on no install link: $(cat "$work/init.out")"
+      (cd "$member" && git init -q -b main && git add -A && git -c user.name=rehearse -c user.email=r@x -c commit.gpgsign=false commit -q -m adopt) \
+        || fail "packs 1: git setup"
+      github_origin "$origin"
+      (cd "$member" && git -c push.negotiate=false push -q origin main) || fail "packs 1: push"
       step "packs 1: cn init through npx adopted hello 1.0 (CDN, and the branch with the CDN down)"
+
+      # init_with_origin NAME: cn init in a new repo whose origin is the
+      # member's on GitHub, so its key request reaches the stubs.
+      init_with_origin() {
+        dir=$work/$1
+        mkdir -p "$dir"
+        (cd "$dir" && git init -q -b main && git remote add origin https://github.com/acme/member.git \
+          && git config "url.$origin.insteadOf" https://github.com/acme/member.git) || fail "packs init: git setup"
+        (cd "$dir" && "$npx/.bin/cn" init --packs hello --channel canary --package "$package" --repo "$dir") > "$work/init.out" 2>&1 \
+          || fail "packs init: init exited non-zero: $(cat "$work/init.out")"
+      }
+      init_with_origin packs-init
+      [ "$(sed -n '$p' "$work/init.out")" = "plan: public" ] || fail "packs init: the checklist does not end on the plan: $(cat "$work/init.out")"
+      grep -q '^  plan: "public"$' "$work/packs-init/.claudinite/settings.yaml" || fail "packs init: no plan block: $(cat "$work/packs-init/.claudinite/settings.yaml")"
+      ctl /_stub/session '{"no_app":true}'
+      init_with_origin packs-init-no-app
+      ctl /_stub/session '{"no_app":false}'
+      sed -n '$p' "$work/init.out" | grep -q "installations/new" || fail "packs init: with no App the checklist does not end on the install link: $(cat "$work/init.out")"
+      if grep -q '^license:' "$work/packs-init-no-app/.claudinite/settings.yaml"; then fail "packs init: a plan block with no key"; fi
+      step "packs init: cn init writes the plan its key names, and ends on the install link with no App"
 
       out=$(session_start) || fail "packs 2: SessionStart exited non-zero"
       case $out in *"# hello 1.0"*) ;; *) fail "packs 2: no hello rule: $out" ;; esac
@@ -421,7 +503,7 @@ for mode in $modes; do
       head -n 1 "$buildlog" | grep -q '^go version' || fail "packs 2: build.log: $(cat "$buildlog")"
       step "packs 2: SessionStart loads hello 1.0, mounts its skill; the checks binary is built"
 
-      stop_hook() { (cd "$member" && printf '{"hook_event_name":"Stop","stop_hook_active":false}' | CLAUDE_PROJECT_DIR=$member sh -c "$(hook_command Stop)" 2>/dev/null); }
+      stop_hook() { (cd "$member" && printf '{"session_id":"rehearse","hook_event_name":"Stop","stop_hook_active":false}' | CLAUDE_PROJECT_DIR=$member sh -c "$(hook_command Stop)" 2>/dev/null); }
       touch "$member/HELLO_FINDING"
       out=$(stop_hook)
       case $out in *'"decision":"block"'*hello/hello-check*) ;; *) fail "packs 3: Stop did not block: $out" ;; esac
@@ -535,6 +617,15 @@ for mode in $modes; do
       main_run success
       step "packs 10: an open engine PR and a red main each skip the pack update before any pack read"
 
+      licctl '{"release":{"pack_index_serial":99}}'
+      if cn_member update packs > "$work/update.out" 2>&1; then fail "packs keys: an index below the key's serial was read: $(cat "$work/update.out")"; fi
+      grep -q "below the license key's pack index serial 99" "$work/update.out" || fail "packs keys: the refusal names no serial: $(cat "$work/update.out")"
+      licctl '{"release":{"pack_keys":["0123456789abcdef"]}}'
+      if cn_member update packs > "$work/update.out" 2>&1; then fail "packs keys: an index under a key the license key does not list was read: $(cat "$work/update.out")"; fi
+      grep -q "signed by key [0-9a-f]\{16\}, which the license key does not list" "$work/update.out" || fail "packs keys: the refusal names no key id: $(cat "$work/update.out")"
+      licctl '{"release":{}}'
+      step "packs keys: the update key's pack index serial and key ids refuse an index below or outside them"
+
       fixture --serial 1 --mirror-only
       if cn_member update packs > "$work/update.out" 2>&1; then fail "packs 11: a regressed serial was read: $(cat "$work/update.out")"; fi
       grep -q 'serial 1 is older than serial' "$work/update.out" || fail "packs 11: the refusal names no serial: $(cat "$work/update.out")"
@@ -544,6 +635,247 @@ for mode in $modes; do
       [ -z "$(cd "$member" && git status --porcelain)" ] || fail "packs 11: the checkout changed: $(cd "$member" && git status --porcelain)"
       [ -z "$(git --git-dir "$origin" branch --list 'claudinite/packs-*')" ] || fail "packs 11: a branch was pushed"
       step "packs 11: a regressed serial and a flipped signature are refused; nothing changed"
+      ;;
+    license)
+      step "license: a public member on $version with a GitHub origin, ghstub and licstub"
+      # The registry serves this release and $next only, none deprecated,
+      # whatever the update mode left behind.
+      rm -f "$dist3"/tarballs/*
+      printf '{}\n' > "$work/deprecations.json"
+      warm_member license
+      plan_public
+      origin=$work/license-origin.git
+      git init -q --bare -b main "$origin"
+      (cd "$member" && git init -q -b main && git add -A && git -c user.name=rehearse -c user.email=r@x -c commit.gpgsign=false commit -q -m adopt) \
+        || fail "license: git setup"
+      github_origin "$origin"
+      (cd "$member" && git -c push.negotiate=false push -q origin main) || fail "license: push"
+      start_ghstub "$origin"
+      start_licstub
+      cat "$work/ca.pem" "$work/gh-ca.pem" "$work/lic-ca.pem" > "$work/cas.pem"
+      SSL_CERT_FILE=$work/cas.pem CURL_CA_BUNDLE=$work/cas.pem
+      GITHUB_REPOSITORY=acme/member CLAUDINITE_GITHUB_API=$gh GH_TOKEN=rehearsal-token
+      # The tail is 8 s here, long enough for step 2's late key.
+      CLAUDINITE_LICENSE_TAIL_MS=8000
+      export SSL_CERT_FILE CURL_CA_BUNDLE GITHUB_REPOSITORY CLAUDINITE_GITHUB_API GH_TOKEN CLAUDINITE_LICENSE_TAIL_MS
+      sessions=$XDG_CACHE_HOME/claudinite/sessions
+
+      # field ID KEY: one field of session ID's state file, "" when absent.
+      field() {
+        node -e 'try { const f = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")); const v = f[process.argv[2]]; process.stdout.write(v === undefined || v === null ? "" : String(v)) } catch (e) {}' \
+          "$sessions/$1.json" "$2"
+      }
+      # wait_field ID KEY VALUE SECONDS: until the field reads VALUE.
+      wait_field() {
+        tries=0
+        until [ "$(field "$1" "$2")" = "$3" ]; do
+          tries=$((tries + 1))
+          [ "$tries" -le $(($4 * 10)) ] || fail "license: session $1's $2 is '$(field "$1" "$2")', not '$3', after $4 s: $(cat "$sessions/$1.json" "$sessions/$1.log" 2>&1)"
+          sleep 0.1
+        done
+      }
+      # hook EVENT ID: one hook of session ID; stdout to $work/hook.out,
+      # stderr to $work/hook.err.
+      hook() {
+        (cd "$member" && printf '{"session_id":"%s","hook_event_name":"x","stop_hook_active":false}' "$2" \
+          | CLAUDE_PROJECT_DIR=$member .claudinite/bin/cn hook "$1" > "$work/hook.out" 2> "$work/hook.err") || fail "license: hook $1 exited non-zero"
+      }
+      status() { cn_member license status --session "$1" > "$work/status.out" 2>&1 || fail "license: status $1: $(cat "$work/status.out")"; }
+      now_ms() { node -e 'process.stdout.write(String(Date.now()))'; }
+      # sleep_until T0 MS: until MS milliseconds after T0.
+      sleep_until() { node -e 'const t = Number(process.argv[1]) + Number(process.argv[2]) - Date.now(); setTimeout(() => {}, Math.max(0, t))' "$1" "$2"; }
+      work_checks_on() { hook stop "$1"; [ "$(cat "$work/hook.out")" = "{}" ] && ! grep -q 'work checks off' "$work/hook.err"; }
+
+      out=$(session_start l1) || fail "license 1: SessionStart exited non-zero"
+      case $out in *"[cn] license pending"*) ;; *) fail "license 1: no pending line: $out" ;; esac
+      ms=$(printf '%s\n' "$out" | sed -n 's/.*\[cn\] hooks session-start ok \([0-9]*\)ms.*/\1/p')
+      if [ -z "$ms" ] || [ "$ms" -ge 300 ]; then fail "license 1: SessionStart took ${ms:-?} ms: $out"; fi
+      wait_field l1 state landed 5
+      [ "$(field l1 path)" = web ] || fail "license 1: landed by $(field l1 path)"
+      status l1
+      grep -q '^key: public plan, ok' "$work/status.out" || fail "license 1: status: $(cat "$work/status.out")"
+      work_checks_on l1 || fail "license 1: work checks are off with a key: $(cat "$work/hook.out" "$work/hook.err")"
+      grep -q 'check run [0-9]* (Claudinite key, app claudinite)' "$sessions/l1.log" || fail "license 1: the log names no check run: $(cat "$sessions/l1.log")"
+      step "license 1: SessionStart answered in ${ms} ms; the web key landed; status says public ok"
+
+      licctl '{"delay_ms":15000}'
+      t0=$(now_ms)
+      out=$(session_start l2) || fail "license 2: SessionStart exited non-zero"
+      case $out in *"[cn] license pending"*) ;; *) fail "license 2: no pending line: $out" ;; esac
+      sleep_until "$t0" 11000
+      hook pre-tool-use l2
+      if ! grep -q 'App is not installed' "$work/hook.out" || ! grep -q 'installations/new' "$work/hook.out"; then
+        fail "license 2: the cut's notice: $(cat "$work/hook.out" "$work/hook.err")"
+      fi
+      if work_checks_on l2; then fail "license 2: work checks on past the cut"; fi
+      wait_field l2 state landed 9
+      licctl '{"delay_ms":0}'
+      landed_by=$(field l2 path)
+      case $landed_by in web|hook-poll) ;; *) fail "license 2: the late key landed by '$landed_by'" ;; esac
+      work_checks_on l2 || fail "license 2: work checks off after the late key: $(cat "$work/hook.err")"
+      step "license 2: degraded at the cut (app-not-installed), the late key landed by $landed_by, work checks back on"
+
+      ctl /_stub/session '{"no_app":true}'
+      t0=$(now_ms)
+      session_start l3 > /dev/null || fail "license 3: SessionStart exited non-zero"
+      sleep_until "$t0" 11000
+      hook pre-tool-use l3
+      grep -q 'installations/new' "$work/hook.out" || fail "license 3: no install link: $(cat "$work/hook.out")"
+      sleep_until "$t0" 19500
+      grep -q '\[cn\] license request-web timeout' "$sessions/l3.log" || fail "license 3: the request did not end at the tail: $(cat "$sessions/l3.log")"
+      polls=$(gh_count 'st.calls.filter(c=>c.startsWith("check-runs")).length')
+      sleep 1
+      [ "$(gh_count 'st.calls.filter(c=>c.startsWith("check-runs")).length')" = "$polls" ] || fail "license 3: still polling after the tail"
+      ctl /_stub/session '{"no_app":false}'
+      step "license 3: no App: degraded with the install link; polling stopped at the tail"
+
+      ctl /_stub/session '{"no_push":true}'
+      session_start l4 > /dev/null || fail "license 4: SessionStart exited non-zero"
+      wait_field l4 cause no-push-access 3
+      [ "$(field l4 dispatched)" = "" ] || fail "license 4: the dispatch counts as sent"
+      if grep -q 'check run' "$sessions/l4.log"; then fail "license 4: check runs read after a refused dispatch"; fi
+      ctl /_stub/session '{"no_push":false}'
+      step "license 4: no push access: degraded at once, no check runs read"
+
+      licctl '{"refuse":{"web":"no-plan"}}'
+      session_start l5a > /dev/null || fail "license 5: SessionStart"
+      wait_field l5a cause no-plan 5
+      licctl '{"refuse":{"web":""},"plan":"public"}'
+      ctl /_stub/session '{"private":true}'
+      session_start l5b > /dev/null || fail "license 5: SessionStart"
+      wait_field l5b cause bind-plan 5
+      hook pre-tool-use l5b
+      grep -q 'does not fit' "$work/hook.out" || fail "license 5: the bind-plan notice: $(cat "$work/hook.out")"
+      licctl '{"state":"unverified"}'
+      session_start l5c > /dev/null || fail "license 5: SessionStart"
+      wait_field l5c state landed 5
+      status l5c
+      grep -q '^key: public plan, unverified' "$work/status.out" || fail "license 5: unverified: $(cat "$work/status.out")"
+      ctl /_stub/session '{"private":false}'
+      licctl '{"state":"ok","plan":"","wrong_nonce":true}'
+      session_start l5d > /dev/null || fail "license 5: SessionStart"
+      wait_field l5d cause bind-nonce 5
+      licctl '{"wrong_nonce":false}'
+      step "license 5: no-plan refused; a public key on a private repo is bind-plan, unverified applies; a foreign nonce is bind-nonce"
+
+      before=$(cat "$sessions/l1.json")
+      dispatches=$(gh_count 'st.calls.filter(c=>c.startsWith("repository-dispatch")).length')
+      session_start l1 > /dev/null || fail "license 6: SessionStart"
+      [ "$(cat "$sessions/l1.json")" = "$before" ] || fail "license 6: the resume rewrote the state file"
+      [ "$(gh_count 'st.calls.filter(c=>c.startsWith("repository-dispatch")).length')" = "$dispatches" ] || fail "license 6: the resume asked again"
+      oldnonce=$(field l1 key_nonce)
+      node -e 'const fs = require("fs"), p = process.argv[1], f = JSON.parse(fs.readFileSync(p, "utf8")), day = 86400000;
+        f.requested_at = new Date(Date.parse(f.requested_at) - day).toISOString(); f.landed_at = new Date(Date.parse(f.landed_at) - day).toISOString();
+        fs.writeFileSync(p, JSON.stringify(f))' "$sessions/l1.json"
+      hook pre-tool-use l1
+      grep -q '\[cn\] license renew ok' "$work/hook.err" || fail "license 6: no renewal: $(cat "$work/hook.err")"
+      status l1
+      grep -q '^key: public plan, ok' "$work/status.out" || fail "license 6: the old key stopped applying: $(cat "$work/status.out")"
+      tries=0
+      until [ "$(field l1 key_nonce)" != "$oldnonce" ] && [ "$(field l1 key_nonce)" = "$(field l1 nonce)" ]; do
+        tries=$((tries + 1))
+        [ "$tries" -le 50 ] || fail "license 6: the renewed key did not land: $(cat "$sessions/l1.json")"
+        sleep 0.1
+      done
+      step "license 6: a resume asks nothing; a day-old key renews while it still applies"
+
+      unset GH_TOKEN
+      store=$XDG_CACHE_HOME/claudinite/license
+      (cd "$member" && .claudinite/bin/cn login) > "$work/login.out" 2>&1 || fail "license 7: cn login: $(cat "$work/login.out")"
+      if ! grep -q 'STUB-1234' "$work/login.out" || ! grep -q '^logged in as acme-dev$' "$work/login.out"; then fail "license 7: cn login: $(cat "$work/login.out")"; fi
+      # shellcheck disable=SC2012 # ls -ln is the portable way to read a mode
+      case $(ls -ln "$store/login.json" | cut -d' ' -f1) in -rw-------*) ;; *) fail "license 7: login.json is not 0600" ;; esac
+      session_start d1 > /dev/null || fail "license 7: SessionStart"
+      wait_field d1 state landed 5
+      [ "$(field d1 path)" = desktop ] || fail "license 7: landed by $(field d1 path)"
+      [ -n "$(find "$store/keys" -name '*.json')" ] || fail "license 7: no key cached"
+      licctl '{"down":true}'
+      session_start d2 > /dev/null || fail "license 7: SessionStart"
+      wait_field d2 state landed 5
+      [ "$(field d2 path)" = cache ] || fail "license 7: with the server down, landed by $(field d2 path)"
+      rm -rf "$store/keys"
+      session_start d3 > /dev/null || fail "license 7: SessionStart"
+      wait_field d3 cause server-unreachable 5
+      licctl '{"down":false,"reject_token":"ghu_login-1"}'
+      session_start d4 > /dev/null || fail "license 7: SessionStart"
+      wait_field d4 state landed 5
+      grep -q '"access_token": "ghu_refreshed-1"' "$store/login.json" || fail "license 7: no refresh stored: $(cat "$store/login.json")"
+      node -e 'const fs = require("fs"), p = process.argv[1], l = JSON.parse(fs.readFileSync(p, "utf8")); l.refresh_token = "expired"; fs.writeFileSync(p, JSON.stringify(l))' "$store/login.json"
+      licctl '{"reject_token":"ghu_refreshed-1"}'
+      session_start d5 > /dev/null || fail "license 7: SessionStart"
+      wait_field d5 cause login-expired 5
+      status d5
+      grep -q 'cn login' "$work/status.out" || fail "license 7: the login-expired notice names no cn login: $(cat "$work/status.out")"
+      licctl '{"reject_token":""}'
+      (cd "$member" && .claudinite/bin/cn login --logout) > "$work/login.out" 2>&1 || fail "license 7: logout"
+      [ ! -f "$store/login.json" ] || fail "license 7: logout left login.json"
+      GH_TOKEN=rehearsal-token
+      export GH_TOKEN
+      step "license 7: cn login; the desktop key, the cached key with the server down, a refresh on 401, login-expired, logout"
+
+      actions_env
+      update_engine() {
+        cn_member update engine > "$work/update.out" 2> "$work/update.err" || fail "update engine: $(cat "$work/update.out" "$work/update.err")"
+        verdict=$(sed -n '$p' "$work/update.out")
+      }
+      expect_verdict() { [ "$verdict" = "$1" ] || fail "license: verdict '$verdict', want '$1': $(cat "$work/update.out" "$work/update.err")"; }
+      main_run success
+      licctl "{\"release\":{\"held\":[\"$next\"]}}"
+      update_engine
+      expect_verdict "up to date"
+      grep -q "^$next skipped: held (license key)$" "$work/update.out" || fail "license 8: no held skip: $(cat "$work/update.out")"
+      grep -q '\[cn\] license request-actions ok' "$work/update.out" || fail "license 8: no Actions key: $(cat "$work/update.out")"
+      licctl '{"release":{}}'
+      update_engine
+      expect_verdict "opened #1 for $next"
+      step "license 8: the Actions key holds $next, then lets it through: $verdict"
+
+      licctl '{"refuse":{"actions":"app-not-installed"}}'
+      update_engine
+      expect_verdict "skipped: the Claudinite App is not installed (#2)"
+      update_engine
+      expect_verdict "skipped: the Claudinite App is not installed (#2)"
+      [ "$(gh_count 'st.issues.filter(i=>i.title==="Claudinite needs its GitHub App installed").length')" = 1 ] || fail "license 9: issues $(gh_state)"
+      licctl '{"refuse":{"actions":""},"state":"degraded"}'
+      : > "$work/requests.log"
+      update_engine
+      case $verdict in "skipped: license degraded ("*")") ;; *) fail "license 9: degraded verdict '$verdict'" ;; esac
+      [ ! -s "$work/requests.log" ] || fail "license 9: npm was read under a degraded key: $(cat "$work/requests.log")"
+      licctl '{"state":"ok"}'
+      saved=$ACTIONS_ID_TOKEN_REQUEST_URL
+      unset ACTIONS_ID_TOKEN_REQUEST_URL
+      update_engine
+      expect_verdict "skipped: no OIDC token (id-token: write is missing)"
+      ACTIONS_ID_TOKEN_REQUEST_URL=$saved
+      export ACTIONS_ID_TOKEN_REQUEST_URL
+      ctl /_stub/session '{"event_name":"pull_request"}'
+      update_engine
+      expect_verdict "skipped: license refused (pull-request-trigger)"
+      ctl /_stub/session '{"event_name":""}'
+      step "license 9: no App files one install issue; degraded, no OIDC token and a pull_request trigger each skip"
+
+      licctl '{"plan":"personal"}'
+      update_engine
+      expect_verdict "opened #3 for plan personal"
+      day=$(cn_member version --day)
+      pbranch=claudinite/plan-$day
+      [ "$(git --git-dir "$origin" diff --name-only main "$pbranch")" = .claudinite/settings.yaml ] || fail "license 10: the plan branch changes more than the settings file"
+      [ "$(git --git-dir "$origin" diff --numstat main "$pbranch" | cut -f1,2)" = "$(printf '1\t1')" ] || fail "license 10: not a one-line change: $(git --git-dir "$origin" diff main "$pbranch")"
+      phead=$(git --git-dir "$origin" rev-parse "$pbranch")
+      (cd "$member" && git fetch -q origin && git checkout -q "$phead") || fail "license 10: checkout"
+      cn_member check world --pr-author 'github-actions[bot]' --base-ref origin/main > "$work/world.out" 2>&1 || fail "license 10: check world refused the bot's plan PR: $(cat "$work/world.out")"
+      if cn_member check world --pr-author someone --base-ref origin/main > "$work/world.out" 2>&1; then fail "license 10: check world passed a person's plan change"; fi
+      (cd "$member" && git checkout -q main) || fail "license 10: back to main"
+      ctl /_stub/run "{\"sha\":\"$phead\",\"event\":\"workflow_dispatch\",\"conclusion\":\"success\"}"
+      cn_member update land --pr 3 --sha "$phead" > "$work/land.out" 2>&1 || fail "license 10: land: $(cat "$work/land.out")"
+      verdict=$(sed -n '$p' "$work/land.out")
+      expect_verdict "landed plan personal"
+      (cd "$member" && git fetch -q origin && git reset -q --hard origin/main) || fail "license 10: pull"
+      grep -q '^  plan: "personal"$' "$member/.claudinite/settings.yaml" || fail "license 10: main's plan: $(cat "$member/.claudinite/settings.yaml")"
+      verify_out=$(cd "$member" && .claudinite/bin/cn verify) || fail "license 10: verify: $verify_out"
+      [ -z "$verify_out" ] || fail "license 10: verify reported: $verify_out"
+      licctl '{"plan":""}'
+      step "license 10: the key's plan opened, passed check world and landed the plan PR; verify is clean"
       ;;
   esac
 done

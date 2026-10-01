@@ -67,8 +67,8 @@ func Candidate(pin string, p *npmreg.Packument, s States) Choice {
 			continue
 		}
 		reason := ""
-		if k, _ := s.Of(v); k != "" {
-			reason = string(k)
+		if k, r := s.Of(v); k != "" {
+			reason = skipReason(k, r)
 		} else if d := npmreg.ParseDeprecation(e.Deprecated); d.Kind != "" {
 			reason = string(d.Kind)
 		} else if !newer(v, pin) {

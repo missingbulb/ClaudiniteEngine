@@ -4,4 +4,5 @@ package build
 
 import "syscall"
 
-func detached() *syscall.SysProcAttr { return &syscall.SysProcAttr{Setsid: true} }
+// Detached starts a child in its own session, so it outlives the hook.
+func Detached() *syscall.SysProcAttr { return &syscall.SysProcAttr{Setsid: true} }

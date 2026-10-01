@@ -16,7 +16,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/shared/version"
 )
 
-func cmdInit(args []string, stdout io.Writer) error {
+func cmdInit(args []string, stdout, stderr io.Writer) error {
 	fs := flag.NewFlagSet("init", flag.ContinueOnError)
 	packList := fs.String("packs", "", "")
 	channel := fs.String("channel", "stable", "")
@@ -48,7 +48,7 @@ func cmdInit(args []string, stdout io.Writer) error {
 	err = adopt.Init(adopt.Input{
 		Repo: *repo, Packs: strings.Split(*packList, ","), Channel: *channel, Package: *pkg,
 		Fetch:  update.FetchInput{Registry: reg, Roots: roots, CacheRoot: paths.CacheRoot(), Platform: version.Platform(), Now: time.Now()},
-		Reader: reader, Timeout: childTimeout, Out: stdout,
+		Reader: reader, Timeout: childTimeout, Out: stdout, Key: initKey(stderr),
 	})
 	if err != nil {
 		return report.Wrap(report.IO, "init", err)

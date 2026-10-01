@@ -4,8 +4,15 @@
 // from --origin, a bare repository, and a merge squashes onto its main
 // there, as GitHub would. cn reaches it through CLAUDINITE_GITHUB_API.
 //
+// For a session's key request it answers GET /user, GET /repos/{r} and
+// its commits and check runs, and a claudinite-key repository_dispatch,
+// which it forwards to licstub (--licstub-ready, --licstub-ca) and keeps
+// licstub's answer as the key check run; the device flow pair; and an
+// Actions job's OIDC token at GET /_oidc/token (session.go).
+//
 // Control endpoints, unauthenticated, for the script driving it:
 //
+//	POST /_stub/session   replaces the session fields it names (session.go)
 //	POST /_stub/run       {"sha"|"ref", "event", "status", "conclusion"}
 //	                      adds a claudinite-ci.yml run (event push,
 //	                      status completed by default)
@@ -18,6 +25,8 @@
 package main
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -94,10 +103,26 @@ type stub struct {
 	disps    []dispatch
 	calls    []string
 	comments map[int][]string
+
+	sess        session
+	checkRuns   map[string][]checkRun
+	devicePolls int
+	rsaKey      *rsa.PrivateKey
+	licReady    string
+	licCA       string
 }
 
-func newStub(origin, repo, token string) http.Handler {
-	return &stub{origin: origin, repo: repo, token: token, next: 1, clock: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), comments: map[int][]string{}}
+// defaultSession is a public repo of a User, person 7 with push access,
+// the App installed.
+var defaultSession = session{UserID: 7, UserLogin: "acme-dev", UserType: "User", RepoID: 1001, OwnerID: 3, OwnerType: "User"}
+
+func newStub(origin, repo, token string) *stub {
+	k, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		panic(err)
+	}
+	return &stub{origin: origin, repo: repo, token: token, next: 1, clock: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), comments: map[int][]string{},
+		sess: defaultSession, checkRuns: map[string][]checkRun{}, rsaKey: k}
 }
 
 func (s *stub) git(args ...string) (string, error) {
@@ -179,7 +204,10 @@ func (s *stub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	str := func(k string) string { v, _ := body[k].(string); return v }
 
 	if strings.HasPrefix(r.URL.Path, "/_stub/") {
-		s.control(w, r, str)
+		s.control(w, r, str, body)
+		return
+	}
+	if s.serveSession(w, r, body) {
 		return
 	}
 	if r.Header.Get("Authorization") != "Bearer "+s.token {
@@ -380,8 +408,15 @@ func (s *stub) merge(w http.ResponseWriter, p *pull, sha, title, method string) 
 	reply(w, 200, map[string]any{"merged": true})
 }
 
-func (s *stub) control(w http.ResponseWriter, r *http.Request, str func(string) string) {
+func (s *stub) control(w http.ResponseWriter, r *http.Request, str func(string) string, body map[string]any) {
 	switch r.URL.Path {
+	case "/_stub/session":
+		raw, _ := json.Marshal(body)
+		if err := json.Unmarshal(raw, &s.sess); err != nil {
+			fail(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		reply(w, 200, s.sess)
 	case "/_stub/run":
 		sha := str("sha")
 		if sha == "" {
@@ -417,6 +452,19 @@ func main() {
 	addr := flag.String("addr", "127.0.0.1:0", "listen address")
 	ready := flag.String("ready", "", "file to write the base URL to once listening")
 	caOut := flag.String("ca-out", "", "file to write the certificate PEM to")
+	licReady := flag.String("licstub-ready", "", "licstub's --ready file, read when a key dispatch is forwarded")
+	licCA := flag.String("licstub-ca", "", "licstub's --ca-out file")
+	sess := defaultSession
+	flag.Int64Var(&sess.UserID, "user-id", sess.UserID, "the id GET /user answers")
+	flag.StringVar(&sess.UserLogin, "user", sess.UserLogin, "the login GET /user answers")
+	flag.Int64Var(&sess.RepoID, "repo-id", sess.RepoID, "the repo's id")
+	flag.Int64Var(&sess.OwnerID, "owner-id", sess.OwnerID, "the repo owner's id")
+	flag.StringVar(&sess.OwnerType, "owner-type", sess.OwnerType, "User or Organization")
+	flag.BoolVar(&sess.Private, "private", false, "the repo is private")
+	flag.BoolVar(&sess.NoPush, "no-push", false, "the person lacks push access: key dispatches answer 403")
+	flag.BoolVar(&sess.NoApp, "no-app", false, "no App is installed: key dispatches are accepted and no check run ever comes")
+	flag.StringVar(&sess.EventName, "event-name", "", "the OIDC token's event_name (default workflow_dispatch)")
+	flag.StringVar(&sess.WorkflowRef, "workflow-ref", "", "the OIDC token's job_workflow_ref (default the update workflow on main)")
 	flag.Parse()
 	if *origin == "" || *token == "" {
 		fmt.Fprintln(os.Stderr, "usage: ghstub --origin BARE.git --token T [--repo O/N] [--ready F] [--ca-out F]")
@@ -435,7 +483,9 @@ func main() {
 	if err != nil {
 		die(err)
 	}
-	srv := &http.Server{Handler: newStub(*origin, *repo, *token), ReadHeaderTimeout: 10 * time.Second}
+	st := newStub(*origin, *repo, *token)
+	st.sess, st.licReady, st.licCA = sess, *licReady, *licCA
+	srv := &http.Server{Handler: st, ReadHeaderTimeout: 10 * time.Second}
 	srv.TLSConfig = stubtls.Config(cert)
 	if *ready != "" {
 		if err := stubtls.WriteReady(*ready, "https://"+ln.Addr().String()); err != nil {

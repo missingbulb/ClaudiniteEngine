@@ -175,6 +175,18 @@ func TestRules(t *testing.T) {
 			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "60930.1.0"}`)
 			write(t, d, ".claudinite/shared/packs/acme-pack/pack.yaml", "version: 1\n")
 		}, []string{"pack-declared"}, nil},
+		{"license plan public", func(t *testing.T, d string) {
+			raw, _ := os.ReadFile(filepath.Join(d, ".claudinite/settings.yaml"))
+			write(t, d, ".claudinite/settings.yaml", string(raw)+"license:\n  plan: \"public\"\n")
+		}, nil, nil},
+		{"license plan unknown", func(t *testing.T, d string) {
+			raw, _ := os.ReadFile(filepath.Join(d, ".claudinite/settings.yaml"))
+			write(t, d, ".claudinite/settings.yaml", string(raw)+"license:\n  plan: \"free\"\n")
+		}, []string{"license-plan"}, nil},
+		{"license plan unquoted", func(t *testing.T, d string) {
+			raw, _ := os.ReadFile(filepath.Join(d, ".claudinite/settings.yaml"))
+			write(t, d, ".claudinite/settings.yaml", string(raw)+"license:\n  plan: public\n")
+		}, []string{"license-plan"}, nil},
 		{"malformed packs block", func(t *testing.T, d string) {
 			raw, _ := os.ReadFile(filepath.Join(d, ".claudinite/settings.yaml"))
 			write(t, d, ".claudinite/settings.yaml", string(raw)+"packs:\n  channel: \"nightly\"\n")
