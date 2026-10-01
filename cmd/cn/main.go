@@ -24,6 +24,7 @@ commands:
   hook <event>   answer a Claude Code hook: session-start, pre-tool-use,
                  post-tool-use, user-prompt-submit, stop, session-end
   version        print the engine version
+  version --day  print today's <day> version part (UTC), for release tooling
   selftest       check this machine can run the engine
 `
 
@@ -86,8 +87,12 @@ func dispatch(args []string, stdin io.Reader, stdout, stderr io.Writer, start ti
 		}
 		return runHook(args[1], stdin, stdout, stderr, start)
 	case "version":
+		if len(args) == 2 && args[1] == "--day" {
+			fmt.Fprintln(stdout, version.Today(time.Now()))
+			return nil
+		}
 		if len(args) != 1 {
-			return report.New(report.Usage, "version takes no arguments")
+			return report.New(report.Usage, "version takes no arguments but --day")
 		}
 		lifecycle.PrintVersion(stdout)
 		if secretScanPlant != "" {

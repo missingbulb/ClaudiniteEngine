@@ -45,11 +45,15 @@ func TestCompareIsNumeric(t *testing.T) {
 	}
 }
 
-func TestDayNumber(t *testing.T) {
-	if got := DayNumber(time.Date(2026, 9, 28, 23, 0, 0, 0, time.UTC)); got != 60928 {
+func TestToday(t *testing.T) {
+	if got := Today(time.Date(2026, 9, 28, 23, 0, 0, 0, time.UTC)); got != 60928 {
 		t.Fatalf("got %d", got)
 	}
-	if got := DayNumber(time.Date(2031, 1, 2, 0, 0, 0, 0, time.UTC)); got != 110102 {
+	if got := Today(time.Date(2031, 1, 2, 0, 0, 0, 0, time.UTC)); got != 110102 {
+		t.Fatalf("got %d", got)
+	}
+	// 2026-09-28 23:30 in UTC-5 is already the 29th in UTC.
+	if got := Today(time.Date(2026, 9, 28, 23, 30, 0, 0, time.FixedZone("x", -5*3600))); got != 60929 {
 		t.Fatalf("got %d", got)
 	}
 }

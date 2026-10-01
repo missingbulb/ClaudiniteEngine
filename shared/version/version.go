@@ -89,10 +89,10 @@ func Compare(a, b string) (int, error) {
 	return 0, nil
 }
 
-// DayNumber is the <day> part for a UTC date: (year-2020)*10000 + month*100 + day.
-func DayNumber(t time.Time) uint64 {
+// Today is the <day> part for t's UTC date: (year-2020)*10000 + month*100 + day.
+func Today(t time.Time) int {
 	t = t.UTC()
-	return uint64(t.Year()-2020)*10000 + uint64(t.Month())*100 + uint64(t.Day())
+	return (t.Year()-2020)*10000 + int(t.Month())*100 + t.Day()
 }
 
 // Platforms are the five platforms a release carries, in manifest order.

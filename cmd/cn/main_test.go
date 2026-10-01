@@ -5,8 +5,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/missingbulb/ClaudiniteEngine/shared/version"
 )
 
 // buildCN builds the real binary with extra ldflags and returns its path.
@@ -50,6 +54,19 @@ func TestVersionPrintsInjectedVersion(t *testing.T) {
 	}
 	if len(lines) < 2 || !strings.Contains(lines[1], "abc1234") {
 		t.Fatalf("second line must carry the commit: %q", out)
+	}
+}
+
+func TestVersionDayPrintsTodaysDayNumber(t *testing.T) {
+	before := version.Today(time.Now())
+	out, errOut, code := runInProc([]string{"version", "--day"}, "")
+	after := version.Today(time.Now())
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	got := strings.TrimSpace(out)
+	if got != strconv.Itoa(before) && got != strconv.Itoa(after) {
+		t.Fatalf("version --day printed %q, want %d", out, before)
 	}
 }
 
