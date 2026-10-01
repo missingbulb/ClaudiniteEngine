@@ -3,8 +3,13 @@
 // certificate, for the launcher tests, the rehearsal and the timing probe:
 //
 //	/@claudinite/<name>/-/<name>-<version>.tgz  ->  <dist>/tarballs/<name>-<version>.tgz
+//	/@claudinite%2f<name> (or /@claudinite/<name>)  ->  a packument of every
+//	                                                  <name>-<version>.tgz served
 //
 // --dist may repeat; the first folder holding the tarball serves it.
+// --deprecations names a JSON file {"<version>": "<message>"}, read on every
+// packument request, whose messages become those versions' deprecated
+// field, as npm deprecate would set them.
 //
 // It writes its base URL to --ready once listening, the certificate to
 // --ca-out (point curl at it with CURL_CA_BUNDLE, or on Windows import it
@@ -17,9 +22,12 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/sha512"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/base64"
+	"encoding/json"
 	"encoding/pem"
 	"flag"
 	"fmt"
@@ -30,13 +38,18 @@ import (
 	"os/signal"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
 	"time"
 )
 
-var tarballPath = regexp.MustCompile(`^/@claudinite(?:/|%2[fF])([a-z0-9-]+)/-/([a-z0-9.-]+\.tgz)$`)
+var (
+	tarballPath   = regexp.MustCompile(`^/@claudinite(?:/|%2[fF])([a-z0-9-]+)/-/([a-z0-9.-]+\.tgz)$`)
+	packumentPath = regexp.MustCompile(`^/@claudinite(?:/|%2[fF])([a-z0-9-]+)$`)
+	versionRe     = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+$`)
+)
 
 func main() {
 	var dists distList
@@ -47,6 +60,7 @@ func main() {
 	logPath := flag.String("log", "", "file to append one line per request to")
 	status := flag.Int("status", 0, "answer every request with this status")
 	stall := flag.Bool("stall", false, "hold every request open without answering")
+	deprecations := flag.String("deprecations", "", "JSON file of version -> deprecation message")
 	flag.Parse()
 	if len(dists) == 0 {
 		dists = distList{"dist"}
@@ -83,6 +97,10 @@ func main() {
 			http.Error(w, http.StatusText(*status), *status)
 			return
 		}
+		if pm := packumentPath.FindStringSubmatch(r.URL.EscapedPath()); pm != nil {
+			servePackument(w, r, dists, pm[1], *deprecations)
+			return
+		}
 		m := tarballPath.FindStringSubmatch(r.URL.EscapedPath())
 		if m == nil || !strings.HasPrefix(m[2], m[1]+"-") {
 			http.NotFound(w, r)
@@ -116,6 +134,74 @@ func main() {
 	if err := srv.ServeTLS(ln, "", ""); err != nil && err != http.ErrServerClosed {
 		fail(err)
 	}
+}
+
+// servePackument answers npm's packument for @claudinite/<name>: every
+// version some dist folder holds a <name>-<version>.tgz of, with the
+// tarball's URL and SHA-512 integrity and any deprecation message.
+func servePackument(w http.ResponseWriter, r *http.Request, dists distList, name, deprecationsFile string) {
+	deprecated := map[string]string{}
+	if deprecationsFile != "" {
+		if raw, err := os.ReadFile(deprecationsFile); err == nil {
+			if err := json.Unmarshal(raw, &deprecated); err != nil {
+				http.Error(w, "deprecations file: "+err.Error(), http.StatusInternalServerError)
+				return
+			}
+		}
+	}
+	type dist struct {
+		Tarball   string `json:"tarball"`
+		Integrity string `json:"integrity"`
+	}
+	type ver struct {
+		Name       string `json:"name"`
+		Version    string `json:"version"`
+		Deprecated string `json:"deprecated,omitempty"`
+		Dist       dist   `json:"dist"`
+	}
+	versions := map[string]ver{}
+	latest := ""
+	for _, d := range dists {
+		files, _ := filepath.Glob(filepath.Join(d, "tarballs", name+"-*.tgz"))
+		for _, f := range files {
+			v := strings.TrimSuffix(strings.TrimPrefix(filepath.Base(f), name+"-"), ".tgz")
+			if !versionRe.MatchString(v) {
+				continue
+			}
+			if _, seen := versions[v]; seen {
+				continue
+			}
+			raw, err := os.ReadFile(f)
+			if err != nil {
+				continue
+			}
+			sum := sha512.Sum512(raw)
+			base := "https://" + r.Host
+			versions[v] = ver{Name: "@claudinite/" + name, Version: v, Deprecated: deprecated[v],
+				Dist: dist{Tarball: base + "/@claudinite/" + name + "/-/" + filepath.Base(f), Integrity: "sha512-" + base64.StdEncoding.EncodeToString(sum[:])}}
+			if latest == "" || newer(v, latest) {
+				latest = v
+			}
+		}
+	}
+	if len(versions) == 0 {
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{"name": "@claudinite/" + name, "dist-tags": map[string]string{"latest": latest}, "versions": versions})
+}
+
+func newer(a, b string) bool {
+	pa, pb := strings.Split(a, "."), strings.Split(b, ".")
+	for i := range pa {
+		x, _ := strconv.ParseUint(pa[i], 10, 64)
+		y, _ := strconv.ParseUint(pb[i], 10, 64)
+		if x != y {
+			return x > y
+		}
+	}
+	return false
 }
 
 type distList []string
