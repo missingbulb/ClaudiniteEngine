@@ -662,6 +662,7 @@ func TestLauncherStalledRegistry(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !regexp.MustCompile(`(?m)^ *curl [^\n]*\\\n[^\n]*--max-time "\$max_time"`).Match(src) {
+		t.Error("the launcher's curl line carries no --max-time")
 	}
 	rel := makeRelease(t, releaseOpts{})
 	s := startStub(t, rel.dist, "--stall")
