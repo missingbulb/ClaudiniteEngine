@@ -5,6 +5,7 @@ import (
 	"crypto/ed25519"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -126,6 +127,8 @@ func TestCeremonyStoresEveryKey(t *testing.T) {
 		"missingbulb/ClaudiniteEngine|root|ROOT_KEY",
 		"missingbulb/ClaudiniteLicenses||ISSUING_KEY_CERT",
 		"missingbulb/ClaudiniteLicenses||ISSUING_KEY_PRIVATE",
+		"missingbulb/ClaudiniteLicenses||KEY_ISSUING_KEY_CERT",
+		"missingbulb/ClaudiniteLicenses||KEY_ISSUING_KEY_PRIVATE",
 		"missingbulb/ClaudinitePacks|release|CN_PACKS_CERT",
 		"missingbulb/ClaudinitePacks|release|CN_PACKS_KEY",
 	}
@@ -137,7 +140,8 @@ func TestCeremonyStoresEveryKey(t *testing.T) {
 	if strings.Join(got, "\n") != strings.Join(want, "\n") {
 		t.Fatalf("secrets set:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
-	for _, want := range []string{"license/roots/root.pub", "keys/dev/roots/", "ClaudiniteLicenses `keys/dev/`", "fails verification"} {
+	for _, want := range []string{"license/roots/root.pub", "keys/dev/roots/", "ClaudiniteLicenses `keys/dev/`", "fails verification",
+		"`license-public` and `license`"} {
 		if !strings.Contains(summary, want) {
 			t.Errorf("summary does not list the roots to swap: lacks %q", want)
 		}
@@ -271,8 +275,12 @@ func TestRotateReplacesOnlyTheNamedKeys(t *testing.T) {
 	if strings.Contains(summary.String(), seed) || len(masked) != 1 || masked[0] != seed {
 		t.Fatal("rotation printed or failed to mask the private key")
 	}
-	if _, err := selectKeys("license"); err == nil {
+	if _, err := selectKeys("licence"); err == nil {
 		t.Fatal("selected a use no working key has")
+	}
+	if both, err := selectKeys("license, license-public"); err != nil || len(both) != 2 ||
+		both[0].KeySecret != "KEY_ISSUING_KEY_PRIVATE" || both[1].KeySecret != "ISSUING_KEY_PRIVATE" {
+		t.Fatalf("license and license-public select %v, %v", both, err)
 	}
 	unprotected := &fakeStore{envs: map[string]*environment{"missingbulb/ClaudiniteEngine/root": {BranchPolicy: true}}}
 	if err := rotate(root, keys, unprotected, at, &summary, &log, func(string) {}); err == nil || unprotected.calls != 0 {
@@ -383,5 +391,35 @@ func TestKeyCeremonyWorkflowShape(t *testing.T) {
 		if !strings.Contains(wf, want) {
 			t.Errorf("key-ceremony.yml lacks %q", want)
 		}
+	}
+}
+
+// The runbook's table and the workflow's uses input are what the owner reads
+// before a run, so each must name every working key the tool stores.
+func TestEveryWorkingKeyIsDocumented(t *testing.T) {
+	readme, err := os.ReadFile("README.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	wf, err := os.ReadFile("../../.github/workflows/key-ceremony.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	uses := regexp.MustCompile(`(?m)^\s+description: "rotate only: comma-separated uses \(([^)]*)\)`).FindSubmatch(wf)
+	if uses == nil {
+		t.Fatal("key-ceremony.yml has no uses description listing the uses")
+	}
+	listed := strings.Split(string(uses[1]), ", ")
+	var all []string
+	for _, k := range workingKeys {
+		all = append(all, string(k.Use))
+		row := regexp.MustCompile("(?m)^\\| `" + regexp.QuoteMeta(string(k.Use)) + "` \\(" + regexp.QuoteMeta(fmt.Sprint(k.Days)) + " days\\) \\| `" +
+			regexp.QuoteMeta(k.KeySecret) + "`, `" + regexp.QuoteMeta(k.CertSecret) + "`, [^|]*\\|$")
+		if !row.Match(readme) {
+			t.Errorf("README.md has no table row for %s (%d days, %s, %s)", k.Use, k.Days, k.KeySecret, k.CertSecret)
+		}
+	}
+	if strings.Join(listed, ",") != strings.Join(all, ",") {
+		t.Errorf("key-ceremony.yml lists uses %q, want %q", listed, all)
 	}
 }

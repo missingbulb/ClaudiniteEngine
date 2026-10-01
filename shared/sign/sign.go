@@ -129,10 +129,32 @@ func issueUnchecked(root ed25519.PrivateKey, subject ed25519.PublicKey, use Use,
 	}
 }
 
+// Errors a certificate check names, so a caller can report which check
+// refused it. Any other error from Verify or VerifyAnyUse is a malformed
+// certificate.
+var (
+	ErrUntrustedRoot   = errors.New("certificate is not signed by a trusted root")
+	ErrCertUse         = errors.New("certificate use is not the one wanted")
+	ErrCertKeyID       = errors.New("certificate keyId does not match its public key")
+	ErrCertValidity    = errors.New("certificate validity exceeds 400 days")
+	ErrCertNotYetValid = errors.New("certificate is not yet valid")
+	ErrCertExpired     = errors.New("certificate has expired")
+)
+
 // Verify checks, in order: the certificate is signed by one of roots, its
 // use is want, now is within its validity, and the validity is no longer
 // than AbsoluteMaxValidity. It returns the body and the subject key.
 func (c Certificate) Verify(roots []ed25519.PublicKey, want Use, now time.Time) (Body, error) {
+	return c.verify(roots, &want, now)
+}
+
+// VerifyAnyUse is Verify accepting any of the four uses, for a caller that
+// judges the use itself once the rest of what it verifies has passed.
+func (c Certificate) VerifyAnyUse(roots []ed25519.PublicKey, now time.Time) (Body, error) {
+	return c.verify(roots, nil, now)
+}
+
+func (c Certificate) verify(roots []ed25519.PublicKey, want *Use, now time.Time) (Body, error) {
 	body, err := b64.DecodeString(c.Payload)
 	if err != nil {
 		return Body{}, fmt.Errorf("certificate payload: %w", err)
@@ -154,20 +176,23 @@ func (c Certificate) Verify(roots []ed25519.PublicKey, want Use, now time.Time) 
 		}
 	}
 	if signer == nil || !ed25519.Verify(signer, append([]byte(CertDomain), body...), sig) {
-		return Body{}, errors.New("certificate is not signed by a trusted root")
+		return Body{}, ErrUntrustedRoot
 	}
 	if b.V != 1 {
 		return Body{}, fmt.Errorf("certificate version %d is not supported", b.V)
 	}
-	if _, ok := MaxValidity(b.Use); !ok || b.Use != want {
-		return Body{}, fmt.Errorf("certificate use %q, want %q", b.Use, want)
+	if _, ok := MaxValidity(b.Use); !ok {
+		return Body{}, fmt.Errorf("certificate use %q is not one of the four", b.Use)
+	}
+	if want != nil && b.Use != *want {
+		return Body{}, fmt.Errorf("%w: certificate use %q, want %q", ErrCertUse, b.Use, *want)
 	}
 	subject, err := b.Subject()
 	if err != nil {
 		return Body{}, err
 	}
 	if KeyID(subject) != b.KeyID {
-		return Body{}, errors.New("certificate keyId does not match its public key")
+		return Body{}, ErrCertKeyID
 	}
 	nb, err1 := time.Parse(time.RFC3339, b.NotBefore)
 	na, err2 := time.Parse(time.RFC3339, b.NotAfter)
@@ -175,13 +200,13 @@ func (c Certificate) Verify(roots []ed25519.PublicKey, want Use, now time.Time) 
 		return Body{}, errors.New("certificate validity times are malformed")
 	}
 	if !na.After(nb) || na.Sub(nb) > AbsoluteMaxValidity {
-		return Body{}, errors.New("certificate validity exceeds 400 days")
+		return Body{}, ErrCertValidity
 	}
 	if now.Before(nb) {
-		return Body{}, errors.New("certificate is not yet valid")
+		return Body{}, ErrCertNotYetValid
 	}
 	if now.After(na) {
-		return Body{}, errors.New("certificate has expired")
+		return Body{}, ErrCertExpired
 	}
 	return b, nil
 }

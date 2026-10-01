@@ -30,6 +30,7 @@ var workingKeys = []workingKey{
 	{sign.UseManifest, 365, "missingbulb/ClaudiniteEngine", "release", "CN_RELEASE_KEY", "CN_RELEASE_CERT"},
 	{sign.UsePacks, 90, "missingbulb/ClaudinitePacks", "release", "CN_PACKS_KEY", "CN_PACKS_CERT"},
 	{sign.UseLicensePublic, 90, "missingbulb/ClaudiniteLicenses", "", "ISSUING_KEY_PRIVATE", "ISSUING_KEY_CERT"},
+	{sign.UseLicense, 90, "missingbulb/ClaudiniteLicenses", "", "KEY_ISSUING_KEY_PRIVATE", "KEY_ISSUING_KEY_CERT"},
 }
 
 // The root key's home: an environment secret of the engine repo, readable
@@ -50,7 +51,7 @@ the working keys are certified by roots nothing trusts yet.
 
 - ClaudiniteEngine 'license/roots/root.pub' and 'license/roots/standby.pub'; remove 'keys/dev/'.
 - ClaudinitePacks 'keys/dev/roots/', the directory 'release-packs.yml' passes to '--roots'.
-- ClaudiniteLicenses 'keys/dev/' (its 'roots/' and the development issuing key).
+- ClaudiniteLicenses 'keys/dev/': its 'roots/' and both development issuing keys, 'license-public' and 'license'.
 `, "'", "`")
 
 // masker hides a secret value from the Actions log before anything could

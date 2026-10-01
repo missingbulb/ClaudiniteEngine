@@ -11,6 +11,7 @@ signing use with the root, and stores each where its workflow reads it:
 | `manifest` (365 days) | `CN_RELEASE_KEY`, `CN_RELEASE_CERT`, ClaudiniteEngine environment `release` |
 | `packs` (90 days) | `CN_PACKS_KEY`, `CN_PACKS_CERT`, ClaudinitePacks environment `release` |
 | `license-public` (90 days) | `ISSUING_KEY_PRIVATE`, `ISSUING_KEY_CERT`, ClaudiniteLicenses repository secrets |
+| `license` (90 days) | `KEY_ISSUING_KEY_PRIVATE`, `KEY_ISSUING_KEY_CERT`, ClaudiniteLicenses repository secrets |
 
 No private key is printed; the run summary carries the public keys, the certificates and the sealed
 standby root.
@@ -38,7 +39,8 @@ standby root.
    the token.
 8. Comment on #5 that the ceremony ran. The public keys in the summary then replace the
    development roots: ClaudiniteEngine `license/roots/`, ClaudinitePacks `keys/dev/roots/` (what
-   `release-packs.yml` passes to `--roots`) and ClaudiniteLicenses `keys/dev/`. From the moment the
+   `release-packs.yml` passes to `--roots`) and ClaudiniteLicenses `keys/dev/` (its root and both
+   development issuing keys, `license-public` and `license`). From the moment the
    run sets the working keys until those land, every Engine release, Packs publish and Licenses
    deploy signs with a chain nothing trusts and fails verification.
 

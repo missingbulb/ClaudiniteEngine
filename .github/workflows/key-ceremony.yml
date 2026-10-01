@@ -14,7 +14,7 @@ on:
         options: [ceremony, rotate]
         required: true
       uses:
-        description: "rotate only: comma-separated uses (manifest, packs, license-public); empty is all"
+        description: "rotate only: comma-separated uses (manifest, packs, license-public, license); empty is all"
         type: string
         default: ""
 
