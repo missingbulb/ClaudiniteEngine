@@ -148,8 +148,9 @@ func TestUnknownCommandIsUsage(t *testing.T) {
 	}
 }
 
-// The ceremony runs on an offline machine from a static binary: nothing
-// beyond the standard library and shared/ may be linked in.
+// The key-ceremony workflow builds cn-keys from this public tree with no
+// module downloads: nothing beyond the standard library and shared/ may be
+// linked in.
 func TestDependsOnlyOnStdlibAndShared(t *testing.T) {
 	out, err := exec.Command("go", "list", "-deps", "-f", "{{if not .Standard}}{{.ImportPath}}{{end}}", ".").Output()
 	if err != nil {
