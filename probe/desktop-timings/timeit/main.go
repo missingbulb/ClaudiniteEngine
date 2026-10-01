@@ -37,7 +37,7 @@ type item struct {
 
 func main() {
 	if len(os.Args) < 2 {
-		fail(errors.New("usage: timeit run|report ..."))
+		fail(errors.New("usage: timeit run|report"))
 	}
 	var err error
 	switch os.Args[1] {
