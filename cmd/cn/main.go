@@ -31,6 +31,11 @@ commands:
                  exit 1 on a break
   check world --pr-author LOGIN --base-ref REF [--repo DIR]
                  the CI gate: the pin and launcher guard, then verify
+  update engine [--force] [--repo DIR]
+                 propose or land the newest allowed engine version as a
+                 pin-only PR; needs GITHUB_TOKEN; ends on its verdict line
+  update land --pr N --sha SHA [--repo DIR]
+                 merge update PR N, whose CI passed on SHA
 `
 
 // secretScanPlant is set only by the secret scan's own test build, to prove
@@ -125,6 +130,8 @@ func dispatch(args []string, stdin io.Reader, stdout, stderr io.Writer, start ti
 		return cmdVerify(args[1:], stdout)
 	case "check":
 		return cmdCheck(args[1:], stdout)
+	case "update":
+		return cmdUpdate(args[1:], stdout)
 	}
 	return report.New(report.Usage, fmt.Sprintf("unknown command %q", args[0]))
 }
