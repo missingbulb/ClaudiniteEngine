@@ -85,7 +85,7 @@ The engine is one binary, `cn`, and it contains everything that runs Claudinite:
 
 A task is a `task.json` the binary executes. Its optional `worker.mjs`, and a precondition script when it has one, are the only parts that run outside the binary, as a Node process for that step. The skills, rules and provenance files of the folded packs are content Claude reads, so they remain packs and ship like any other.
 
-**Hooks and the session's rules.** The packs' prose does not travel in a hook's answer. Each member tracks `.claudinite/flat/claudinite-rules.GENERATED.md`, a file of nothing but `@` imports of the active packs' `RULES.md`, and its `CLAUDE.md` imports that index, so Claude Code reads the rules whole as project memory; `init`, `adopt` and the pack update write the index, and SessionStart rewrites it when the declaration has moved. A hook's stdout is previewed at about 2 KB, which the Node engine measured in its #807, and the 38 canon packs' rules total about 160 KB. SessionStart's `additionalContext` carries the engine's own lines only: the self-check, the not-loaded notes, the license line and the breadcrumb. Declared checks run inside `cn` itself, by tag, with no checks binary and no Node; only coded checks need the compiled checks binary.
+**Hooks and the session's rules.** The packs' prose does not travel in a hook's answer. Each member tracks `.claudinite/flat/claudinite-rules.GENERATED.md`, a file of nothing but `@` imports of the active packs' `RULES.md`, and its `CLAUDE.md` imports that index, so Claude Code reads the rules whole as project memory; `init`, `adopt` and the pack update write the index and append the import line to a `CLAUDE.md` that lacks it, and SessionStart rewrites the index when the declaration has moved and names a missing import line, since without it the session has no pack rules. A hook's stdout is previewed at about 2 KB, which the Node engine measured in its #807, and the 38 canon packs' rules total about 160 KB. SessionStart's `additionalContext` carries the engine's own lines only: the self-check, the not-loaded notes, the license line and the breadcrumb. Declared checks run inside `cn` itself, by tag, with no checks binary and no Node; only coded checks need the compiled checks binary.
 
 **Command surface.** The command is cn. Hooks call `cn hook <event>`; workflows and the tasks they run call `cn schedule run`, `cn schedule drain`, `cn execute loop`, `cn update engine`, `cn update packs` and `cn check world`; people call `cn init`, `cn adopt <pack>` and `cn login`. The full list is settled with the command reference.
 
@@ -469,7 +469,7 @@ sequenceDiagram
   B->>R2: Read each declared pack index
   B->>B: Pick the newest packs whose minEngineVersion fits the pin
   B->>R2: Download archives, verify hashes
-  B->>GH: Pack PR, pack changes only
+  B->>GH: Pack PR: pack changes, the rules index, the CLAUDE.md import if missing
   GH->>GH: CI runs the pinned engine with the new packs, green auto-merges
 ```
 
