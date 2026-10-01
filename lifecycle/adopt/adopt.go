@@ -201,7 +201,7 @@ func Init(in Input) error {
 		{".claudinite/launch", got.Launcher, 0o755},
 		{".claudinite/settings.yaml", cfg.Bytes(), 0o644},
 		{".claudinite/.gitignore", []byte("bin/\n"), 0o644},
-		{".claude/skills/.gitignore", []byte("*\n!.gitignore\n"), 0o644},
+		{SkillsIgnore, []byte(skillsIgnoreBody), 0o644},
 		{".claude/settings.json", claudeSettings, 0o644},
 	}
 	tmpl := workflows.Templates()
@@ -331,9 +331,27 @@ type AdoptInput struct {
 	Out    io.Writer
 }
 
+// SkillsIgnore keeps the skills SessionStart mounts out of git.
+const SkillsIgnore = ".claude/skills/.gitignore"
+
+const skillsIgnoreBody = "*\n!.gitignore\n"
+
+// ensureSkillsIgnore writes SkillsIgnore when the repo has none.
+func ensureSkillsIgnore(repo string) error {
+	path := filepath.Join(repo, filepath.FromSlash(SkillsIgnore))
+	if _, err := os.Lstat(path); err == nil {
+		return nil
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(path, []byte(skillsIgnoreBody), 0o644)
+}
+
 // Adopt declares one more pack on an adopted repo, with what it requires,
-// and vendors them for the pinned engine. Skills mount at the next
-// SessionStart.
+// and vendors them for the pinned engine; it regenerates the rules index
+// and writes what a member adopted before them lacks: the CLAUDE.md
+// import and the skills ignore. Skills mount at the next SessionStart.
 func Adopt(in AdoptInput) error {
 	if err := checkIDs([]string{in.ID}); err != nil {
 		return err
@@ -382,6 +400,12 @@ func Adopt(in AdoptInput) error {
 	if _, err := rulesindex.Write(in.Repo, pin.Version); err != nil {
 		return err
 	}
-	fmt.Fprintf(in.Out, "Declared in %s; commit it with %s/ and %s and open a pull request.\n", settings.RelPath(f), packset.Dir, rulesindex.File)
+	if _, err := rulesindex.EnsureImport(in.Repo); err != nil {
+		return err
+	}
+	if err := ensureSkillsIgnore(in.Repo); err != nil {
+		return err
+	}
+	fmt.Fprintf(in.Out, "Declared in %s; commit it with %s/, %s, %s and %s and open a pull request.\n", settings.RelPath(f), packset.Dir, rulesindex.File, rulesindex.ClaudeMD, SkillsIgnore)
 	return nil
 }

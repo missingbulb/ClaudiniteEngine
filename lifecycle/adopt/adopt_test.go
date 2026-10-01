@@ -285,10 +285,30 @@ func TestAdoptDeclaresAndVendors(t *testing.T) {
 	if string(raw) != body+"    - hello\n" {
 		t.Errorf("%s", raw)
 	}
-	if got := listFiles(t, repo); strings.Join(got, " ") != ".claudinite/flat/claudinite-rules.GENERATED.md .claudinite/settings.yaml .claudinite/shared/packs/hello/RULES.md .claudinite/shared/packs/hello/pack.json" {
+	if got := listFiles(t, repo); strings.Join(got, " ") != ".claude/skills/.gitignore .claudinite/flat/claudinite-rules.GENERATED.md .claudinite/settings.yaml .claudinite/shared/packs/hello/RULES.md .claudinite/shared/packs/hello/pack.json CLAUDE.md" {
 		t.Errorf("%v", got)
+	}
+	if g, _ := os.ReadFile(filepath.Join(repo, ".claude/skills/.gitignore")); string(g) != "*\n!.gitignore\n" {
+		t.Errorf("skills ignore %q", g)
 	}
 	if err := Adopt(AdoptInput{Repo: repo, ID: "hello", Reader: newPacks(t), Out: &out}); err == nil || !strings.Contains(err.Error(), "already declared") {
 		t.Errorf("%v", err)
+	}
+}
+
+// A member's own skills ignore is left as it is.
+func TestAdoptKeepsAnExistingSkillsIgnore(t *testing.T) {
+	repo := t.TempDir()
+	_ = os.MkdirAll(filepath.Join(repo, ".claudinite"), 0o755)
+	_ = os.MkdirAll(filepath.Join(repo, ".claude/skills"), 0o755)
+	_ = os.WriteFile(filepath.Join(repo, ".claude/skills/.gitignore"), []byte("mine\n"), 0o644)
+	body := "engine:\n  version: \"" + ver + "\"\n  manifest: \"sha512-" + strings.Repeat("A", 86) + "==\"\npacks:\n  channel: \"canary\"\n  declared:\n    - base\n"
+	_ = os.WriteFile(filepath.Join(repo, ".claudinite/settings.yaml"), []byte(body), 0o644)
+	var out bytes.Buffer
+	if err := Adopt(AdoptInput{Repo: repo, ID: "hello", Reader: newPacks(t), Out: &out}); err != nil {
+		t.Fatalf("%v\n%s", err, out.String())
+	}
+	if g, _ := os.ReadFile(filepath.Join(repo, ".claude/skills/.gitignore")); string(g) != "mine\n" {
+		t.Errorf("skills ignore %q", g)
 	}
 }
