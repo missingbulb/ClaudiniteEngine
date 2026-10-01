@@ -253,7 +253,10 @@ func (h Handler) stop(repo, sessionID string, active bool, stdout, stderr io.Wri
 			var reason strings.Builder
 			reason.WriteString("Claudinite checks found work to finish before stopping:\n")
 			for _, f := range res.Findings {
-				fmt.Fprintf(&reason, "- %s %s: %s\n", f.ID, f.Path, f.Sentence)
+				fmt.Fprintf(&reason, "- %s %s: %s\n", f.Name(), f.Location(), f.Sentence)
+				if f.Fix != "" {
+					fmt.Fprintf(&reason, "  fix: %s\n", f.Fix)
+				}
 			}
 			out, _ := json.Marshal(struct {
 				Decision string `json:"decision"`

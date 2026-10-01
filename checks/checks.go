@@ -3,13 +3,18 @@ package checks
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/missingbulb/ClaudiniteEngine/checks/build"
+	"github.com/missingbulb/ClaudiniteEngine/checks/declared"
 	"github.com/missingbulb/ClaudiniteEngine/checks/run"
 	"github.com/missingbulb/ClaudiniteEngine/shared/breadcrumb"
+	"github.com/missingbulb/ClaudiniteEngine/shared/findings"
 	"github.com/missingbulb/ClaudiniteEngine/shared/packset"
 	"github.com/missingbulb/ClaudiniteEngine/shared/settings"
 )
@@ -128,4 +133,91 @@ func hasSettings(repo string) bool {
 		}
 	}
 	return false
+}
+
+// Outcome is one run of both kinds of checks: the declared and built-in
+// checks interpreted here, and the coded ones in the checks binary.
+type Outcome struct {
+	// Findings are both kinds' findings with the member's overrides and
+	// acceptances applied, blocking first.
+	Findings []findings.Finding
+	// Errors are coded checks that failed inside a completed run.
+	Errors []string
+	// Err is a coded run that could not happen.
+	Err error
+	// Crumb is the checks breadcrumb; DeclaredCrumb the declared run's.
+	Crumb, DeclaredCrumb string
+}
+
+// Blocking reports whether any finding blocks.
+func (o Outcome) Blocking() bool { return findings.AnyBreak(o.Findings) }
+
+// RunAll runs the declared checks whose tags include every one of tags
+// (from pack when set) in this process, then the coded ones as Run does,
+// and applies the member's checks configuration over both.
+func (s Service) RunAll(repo, event string, tags []string, pack string, wait time.Duration, foreground bool, stderr io.Writer) Outcome {
+	start := time.Now()
+	var out Outcome
+	set, err := declared.LoadSet(repo, s.Build.Engine)
+	var cfg declared.Config
+	n := 0
+	if err != nil {
+		out.Findings = append(out.Findings, findings.Finding{Class: findings.Break, ID: "checks-run", Path: ".claudinite", Sentence: "the declared checks could not load: " + err.Error()})
+	} else {
+		var fs []findings.Finding
+		fs, n = set.Run(declared.Selection{Tags: tags, Pack: pack}, time.Now(), stderr)
+		out.Findings = append(out.Findings, fs...)
+		cfg = set.Config
+	}
+	out.DeclaredCrumb = fmt.Sprintf("[cn] declared %d checks %dms", n, time.Since(start).Milliseconds())
+	res, crumb := s.Run(repo, event, tags, pack, wait, foreground)
+	out.Crumb, out.Errors, out.Err = crumb, res.Errors, res.Err
+	out.Findings = append(out.Findings, res.Shared()...)
+	out.Findings = declared.ApplyConfig(out.Findings, cfg)
+	return out
+}
+
+// ListAll names the declared, built-in and coded checks, sorted by id.
+func (s Service) ListAll(repo string, timeout time.Duration) ([]Listed, error) {
+	var out []Listed
+	set, err := declared.LoadSet(repo, s.Build.Engine)
+	if err != nil {
+		return nil, err
+	}
+	for _, l := range set.List() {
+		out = append(out, Listed{ID: l.ID, Pack: l.Pack, Kind: l.Kind, Tags: l.Tags, OnFail: l.OnFail})
+	}
+	coded, err := s.List(repo, timeout)
+	if err != nil {
+		return nil, err
+	}
+	for _, c := range coded {
+		pack, id, ok := strings.Cut(c.Check, "/")
+		if !ok {
+			pack, id = "", c.Check
+		}
+		out = append(out, Listed{ID: id, Pack: pack, Kind: "coded", Tags: c.Tags, OnFail: "block"})
+	}
+	sort.SliceStable(out, func(i, k int) bool {
+		if out[i].ID != out[k].ID {
+			return out[i].ID < out[k].ID
+		}
+		return out[i].Pack < out[k].Pack
+	})
+	return out, nil
+}
+
+// Listed is one check as cn check list prints it.
+type Listed struct {
+	ID, Pack, Kind string
+	Tags           []string
+	OnFail         string
+}
+
+// Name is the check as a finding names it.
+func (l Listed) Name() string {
+	if l.Pack == "" {
+		return l.ID
+	}
+	return l.Pack + "/" + l.ID
 }

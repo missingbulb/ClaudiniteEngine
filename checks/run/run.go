@@ -14,6 +14,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/missingbulb/ClaudiniteEngine/shared/breadcrumb"
@@ -82,7 +83,11 @@ func (r Result) Shared() []findings.Finding {
 		if f.Class == "advisory" {
 			class = findings.Advisory
 		}
-		out = append(out, findings.Finding{Class: class, ID: f.Check, Path: f.Path, Sentence: f.Sentence})
+		pack, id, ok := strings.Cut(f.Check, "/")
+		if !ok {
+			pack, id = "", f.Check
+		}
+		out = append(out, findings.Finding{Class: class, ID: id, Pack: pack, Path: f.Path, Sentence: f.Sentence})
 	}
 	return out
 }

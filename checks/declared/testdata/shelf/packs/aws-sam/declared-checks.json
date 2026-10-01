@@ -1,0 +1,42 @@
+[
+  {
+    "id": "aws-sam/esbuild-dependency",
+    "on_fail": "block",
+    "failureMessage": "SAM's esbuild builder runs a production-only npm install, so a devDependency esbuild is skipped and the build fails",
+    "relevantWhen": {
+      "someTrackedFileContains": {
+        "pathMatching": "/(^|\\/)template\\.ya?ml$/",
+        "text": "/BuildMethod:\\s*esbuild/"
+      },
+      "exactlyOneTrackedFileMatches": "/(^|\\/)package\\.json$/"
+    },
+    "checkParsedFiles": [
+      {
+        "file": "package.json",
+        "whenFieldPresent": "devDependencies.esbuild",
+        "requireField": "dependencies.esbuild",
+        "what": "esbuild is a devDependency, but SAM BuildMethod: esbuild needs it as a regular dependency",
+        "fix": "move esbuild into \"dependencies\" (SAM's build runs a production-only npm install), or put it on the runner PATH before `sam build`"
+      }
+    ]
+  },
+  {
+    "id": "aws-sam/cloudfront-authorization",
+    "on_fail": "block",
+    "failureMessage": "CloudFront rejects a custom origin-request policy that forwards Authorization at deploy time",
+    "checkParsedFiles": [
+      {
+        "filesMatching": "/(^|\\/)template\\.ya?ml$/",
+        "forEachEntryAtField": "Resources",
+        "whereEntryFieldEquals": { "field": "Type", "equals": "AWS::CloudFront::OriginRequestPolicy" },
+        "forbidValueInArray": {
+          "atField": "Properties.OriginRequestPolicyConfig.HeadersConfig.Headers",
+          "value": "authorization",
+          "ignoreCase": true
+        },
+        "what": "{entry}: custom OriginRequestPolicy lists Authorization in its headers",
+        "fix": "drop Authorization from the custom policy and attach the managed AllViewerExceptHostHeader policy (id b689b0a8-53d0-40ab-baf2-68738e2966ac) to forward it, with a cache policy that omits it from the cache key"
+      }
+    ]
+  }
+]

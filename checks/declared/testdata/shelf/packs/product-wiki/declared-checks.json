@@ -1,0 +1,139 @@
+[
+  {
+    "id": "product-wiki-layout",
+    "on_fail": "block",
+    "failureMessage": "a declared standard with no scaffold silently enforces nothing — the isolation wall and the wiki discipline both hang off these fixed paths",
+    "fix": "scaffold it per the template in packs/product-wiki/README.md, or remove the product-wiki declaration if this repo doesn't adopt the standard",
+    "requirePaths": [
+      { "path": "product-wiki/README.md", "what": "the product-wiki standard requires {path} but it does not exist" },
+      { "path": "product-wiki/product-requirements/README.md", "what": "the product-wiki standard requires {path} but it does not exist" }
+    ]
+  },
+  {
+    "id": "product-wiki-isolation",
+    "on_fail": "block",
+    "failureMessage": "the wikis are agent-rewritten, loosely-sourced research — code, tests and docs that silently depend on them inherit unreviewed churn",
+    "fix": "depend on product-wiki/product-requirements (the one reviewed crossing point), remove the reference, or accept it with a reason in .claudinite-settings.json (rule \"product-wiki-isolation\")",
+    "forbidReferences": [
+      {
+        "from": ".",
+        "to": "product-wiki/*",
+        "allow": ["product-wiki/product-requirements"],
+        "matchUniqueFilenames": false,
+        "except": ["product-wiki", ".claudinite-settings.json"],
+        "reason": "the self-growing product wikis and their sample data are autonomous research the repo must not depend on; product-wiki/product-requirements is the one reviewed crossing point"
+      }
+    ]
+  },
+  {
+    "id": "product-wiki-page-sections",
+    "on_fail": "block",
+    "failureMessage": "the sections are the page's reader header plus the wiki's audit trail and backlog — without them compile-once/refine-in-place degrades to unsourced, unreviewable rewrites nobody can read at a glance",
+    "scanFiles": "/^product-wiki\\/.+\\/README\\.md$/",
+    "excludeFiles": "/^product-wiki\\/(product-requirements|sample-data)\\//",
+    "checkSections": [
+      {
+        "sections": ["Key insights", "Sources", "Growth log", "Open questions"],
+        "requirePresent": {
+          "what": "wiki page is missing its \"## {section}\" section",
+          "fix": "add it — the reader header plus the growth machinery: citations, dated growth log, open-questions backlog (an empty \"## Open questions\" is valid)"
+        }
+      }
+    ]
+  },
+  {
+    "id": "product-wiki-key-insights",
+    "on_fail": "block",
+    "failureMessage": "a research page whose findings can only be recovered by reading it end to end does not get read — the header is what makes a compiled wiki usable to a human",
+    "scanFiles": "/^product-wiki\\/.+\\/README\\.md$/",
+    "excludeFiles": "/^product-wiki\\/(product-requirements|sample-data)\\//",
+    "checkSections": [
+      {
+        "section": "Key insights",
+        "requireFirstOnPage": {
+          "what": "the page opens with \"## {first}\", not its \"## Key insights\" header",
+          "fix": "move \"## Key insights\" above every other section — a header a reader reaches after the body is not a header"
+        },
+        "forbidProseLines": {
+          "what": "prose in the Key insights header: \"{line}\"",
+          "fix": "the header is a bulleted list only — make it a bullet or move it into the page body below the \"## Key insights\" section"
+        },
+        "maxBulletBlockLength": {
+          "characters": 140,
+          "what": "Key insights bullet runs {characters} characters (max 140): \"{bullet}…\"",
+          "fix": "cut it to the finding in plain words — the qualifiers, the supporting detail and the citation all live in the page body"
+        },
+        "minBullets": {
+          "count": 1,
+          "what": "Key insights header carries no bullets",
+          "fix": "open the page with \"## Key insights\": 1–7 bullets, each one finding stated plainly in a line (max 140 characters)"
+        },
+        "maxBullets": {
+          "count": 7,
+          "what": "Key insights header carries {bullets} bullets (max 7) — it has grown into a second body",
+          "fix": "keep the 7 that matter most; the rest is what the page body is for"
+        }
+      }
+    ]
+  },
+  {
+    "id": "product-wiki-growth-log",
+    "on_fail": "block",
+    "failureMessage": "undated or absent log entries break the audit trail and the freshness signal every other growth mechanism keys on",
+    "fix": "lead every growth-log bullet with the run date, e.g. \"- **2026-07-15** — what changed\"; append the seed entry when the page is first committed",
+    "scanFiles": "/^product-wiki\\/.+\\/README\\.md$/",
+    "excludeFiles": "/^product-wiki\\/(product-requirements|sample-data)\\//",
+    "checkSections": [
+      {
+        "section": "Growth log",
+        "eachBulletLeadsWithDate": {
+          "whenUndated": {
+            "what": "growth-log entry does not lead with its date: \"{bullet}\""
+          },
+          "whenNotRealDate": {
+            "what": "growth-log entry \"{date}\" is not a real calendar date"
+          }
+        },
+        "minBullets": {
+          "count": 1,
+          "what": "growth log has no dated entries"
+        }
+      }
+    ]
+  },
+  {
+    "id": "product-wiki-sources",
+    "on_fail": "block",
+    "failureMessage": "a named source without its URL is an uncited citation — unverifiable by the next pass and by review",
+    "scanFiles": "/^product-wiki\\/.+\\/README\\.md$/",
+    "excludeFiles": "/^product-wiki\\/(product-requirements|sample-data)\\//",
+    "checkSections": [
+      {
+        "section": "Sources",
+        "eachBulletBlockMatches": {
+          "pattern": "/https?:\\/\\//",
+          "what": "Sources bullet carries no URL: \"{bullet}\"",
+          "fix": "every listed source carries its real URL (a markdown link or a bare URL); an honestly-unsourced page explains its status in prose instead of listing URL-less sources"
+        }
+      }
+    ]
+  },
+  {
+    "id": "product-wiki-freshness",
+    "on_fail": "advise",
+    "failureMessage": "a wiki that stopped growing silently stops being true — staleness must reach a human even when the unattended growth channel isn't firing",
+    "relevantWhen": { "scanningWholeRepo": true },
+    "scanFiles": "/^product-wiki\\/.+\\/README\\.md$/",
+    "excludeFiles": "/^product-wiki\\/(product-requirements|sample-data)\\//",
+    "checkSections": [
+      {
+        "section": "Growth log",
+        "newestDatedBulletWithinDays": {
+          "days": 45,
+          "what": "newest Growth log entry is {age} days old ({date}) — past the {days}-day freshness window",
+          "fix": "run a growth pass (in-session: \"grow the product wiki\") or confirm the scheduler's wiki-growth task is wired; silence via rules: {\"product-wiki-freshness\": \"off\"}"
+        }
+      }
+    ]
+  }
+]

@@ -1,0 +1,22 @@
+[
+  {
+    "id": "firebase/functions-node-pin",
+    "on_fail": "block",
+    "failureMessage": "without a pin the deployed runtime is whatever Firebase defaults to today, and a skew between build and runtime surfaces as a deploy-time module crash rather than a test failure",
+    "scanFiles": {
+      "inParsedFilesMatching": "/^([^/]+\\/)?firebase\\.json$/",
+      "namedByField": "functions.source",
+      "defaultingTo": "functions",
+      "withSuffix": "/package.json"
+    },
+    "scanTracked": true,
+    "checkParsedFiles": [
+      {
+        "everyScannedFile": true,
+        "requireFieldMatching": { "field": "engines.node", "pattern": "/\\S/" },
+        "what": "a deployed functions codebase declaring no engines.node",
+        "fix": "add \"engines\": { \"node\": \"<major>\" } naming the major CI and local dev already run"
+      }
+    ]
+  }
+]

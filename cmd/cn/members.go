@@ -2,9 +2,11 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"io"
 	"time"
 
+	"github.com/missingbulb/ClaudiniteEngine/checks/declared"
 	"github.com/missingbulb/ClaudiniteEngine/checks/world"
 	"github.com/missingbulb/ClaudiniteEngine/launcher"
 	"github.com/missingbulb/ClaudiniteEngine/license"
@@ -57,13 +59,25 @@ func cmdCheckWorld(args []string, stdout, stderr io.Writer) error {
 	if err := flags(fs, args); err != nil {
 		return err
 	}
-	if *author == "" || *base == "" {
-		return report.New(report.Usage, "check world needs --pr-author and --base-ref")
+	if _, _, err := settings.Find(*repo); err != nil {
+		// Not a member: there is nothing to judge.
+		return nil
 	}
-	code := world.Run(stdout, world.Input{
-		Repo: *repo, PRAuthor: *author, BaseRef: *base, Git: gitcmd.Repo{Dir: *repo},
-		CheckPin: checkPin, Findings: append(verifyFindings(*repo), codedFindings(*repo, "world", []string{"world"}, "", stderr)...),
-	})
+	g := gitcmd.Repo{Dir: *repo}
+	if *author != "" && *base == "" {
+		*base = g.BaseRef()
+	}
+	all := append(verifyFindings(*repo), allFindings(*repo, "world", []string{"world"}, "", stderr)...)
+	in := world.Input{Repo: *repo, PRAuthor: *author, BaseRef: *base, Git: g, CheckPin: checkPin, Findings: all}
+	var code int
+	if *author == "" || *base == "" {
+		code = world.Report(stdout, in)
+	} else {
+		code = world.Run(stdout, in)
+	}
+	if line := declared.Summary(all, "world"); line != "" {
+		fmt.Fprintln(stdout, line)
+	}
 	if code != 0 {
 		return report.New(report.Verify, "check world refused")
 	}

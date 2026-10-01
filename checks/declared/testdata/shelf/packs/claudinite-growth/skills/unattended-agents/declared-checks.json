@@ -1,0 +1,25 @@
+[
+  {
+    "id": "in-session-github-access",
+    "on_fail": "block",
+    "failureMessage": "a migration pass runs in an MCP-only session with no GitHub REST credential, so REST calls in its own steps cannot authenticate there",
+    "fix": "reach GitHub through the session's injected MCP-backed I/O (a gh(path) reader for reads, a semantic io object for writes); move credential-needing work into a workflow_dispatch-only executor",
+    "scanFiles": "/(^|\\/)migrations\\/.*\\.mjs$/",
+    "excludeFileClasses": ["testFiles"],
+    "scanIgnoringComments": true,
+    "matchLines": [
+      {
+        "match": "/process\\.env\\.(GITHUB_TOKEN|GH_TOKEN|FLEET_GITHUB_TOKEN)/",
+        "what": "reads a GitHub REST token from the environment — in-session routine code has no REST credential"
+      },
+      {
+        "match": "/\\bmakeGh\\s*\\(|from\\s+['\"][^'\"]*\\bfleet-api/",
+        "what": "uses the REST client (makeGh / fleet-api) — in-session routine code has no REST credential"
+      },
+      {
+        "match": "/['\"`]https?:\\/\\/api\\.github\\.com/",
+        "what": "targets the GitHub REST API (api.github.com) directly — in-session routine code has no REST credential"
+      }
+    ]
+  }
+]

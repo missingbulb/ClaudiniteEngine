@@ -1,0 +1,241 @@
+[
+  {
+    "id": "gha/secrets-in-job-if",
+    "on_fail": "block",
+    "failureMessage": "secrets are not available in a job-level if:, so the condition cannot evaluate and the job fails instead of skipping",
+    "scanFiles": "/^(?:\\.github\\/workflows|packs\\/[^/]+\\/stubs\\/workflows)\\/[^/]+\\.ya?ml$/",
+    "scanTracked": true,
+    "matchLines": [
+      {
+        "match": "/secrets\\.\\w+/",
+        "andLineMatches": "/^\\s*if:\\s/",
+        "unlessWithinBlockOpenedBy": "/^\\s*steps:\\s*$/",
+        "what": "job-level if: reads {match}",
+        "fix": "put the non-sensitive flag in a repository variable and gate with vars.* (if: ${{ vars.X != '' }}); keep the secret for the steps inside the job"
+      }
+    ]
+  },
+  {
+    "id": "gha/run-pipefail",
+    "on_fail": "block",
+    "failureMessage": "GitHub's implicit run shell is bash -e without pipefail, so a failing piped command still shows the step green",
+    "fix": "add defaults.run.shell: bash (workflow- or job-level) so the step runs with -o pipefail",
+    "scanFiles": "/^(?:\\.github\\/workflows|packs\\/[^/]+\\/stubs\\/workflows)\\/[^/]+\\.ya?ml$/",
+    "scanTracked": true,
+    "matchLines": [
+      {
+        "match": "/^\\s*(?:-\\s+)?run:\\s*\\S/",
+        "andLineMatches": "/(^|[^|])\\|([^|]|$)/",
+        "unlessLineMatches": "/run:\\s*[|>][+-]?\\s*$/",
+        "unlessFileMatches": "/shell:\\s*bash/",
+        "what": "a piped run: step in a workflow with no bash shell default"
+      },
+      {
+        "match": "/^\\s*(?:-\\s+)?run:\\s*[|>][+-]?\\s*$/",
+        "andIndentedBlockBelowMatches": "/(^|[^|])\\|([^|]|$)/",
+        "unlessFileMatches": "/shell:\\s*bash/",
+        "what": "a piped run: step in a workflow with no bash shell default (the pipe is inside its block scalar)"
+      }
+    ]
+  },
+  {
+    "id": "gha/checkout-submodules",
+    "on_fail": "block",
+    "failureMessage": "checkout does not fetch submodules by default, so any gate reading submodule content passes vacuously",
+    "relevantWhen": { "pathExists": ".gitmodules" },
+    "scanFiles": "/^(?:\\.github\\/workflows|packs\\/[^/]+\\/stubs\\/workflows)\\/[^/]+\\.ya?ml$/",
+    "scanTracked": true,
+    "matchLines": [
+      {
+        "match": "/uses:\\s*actions\\/checkout@/",
+        "unlessIndentedBlockBelowMatches": "/submodules:\\s*(true|recursive)/",
+        "what": "actions/checkout without submodules: true in a repo that has .gitmodules",
+        "fix": "add `with: submodules: true` (or recursive) to this checkout step"
+      }
+    ]
+  },
+  {
+    "id": "gha/scheduled-failure-escalation",
+    "on_fail": "advise",
+    "failureMessage": "nobody watches an unattended run — a red schedule/workflow_run/repository_dispatch run reaches no one",
+    "scanFiles": "/^\\.github\\/workflows\\/[^/]+\\.ya?ml$/",
+    "scanTracked": true,
+    "checkEachFile": [
+      {
+        "whenFileMatches": "/^\\s*(schedule|workflow_run|repository_dispatch):/m",
+        "require": "/failure\\(\\)|report-failure/",
+        "what": "triggers unattended (schedule, workflow_run, or repository_dispatch) but has no visible failure escalation (no failure() job, no report-failure call)",
+        "fix": "add a job that runs on failure() and opens a workflow-failure tracking issue a human will see (or use the shared report-failure action)"
+      }
+    ]
+  },
+  {
+    "id": "gha/label-create-before-add",
+    "on_fail": "advise",
+    "failureMessage": "--add-label fails when the label does not exist yet — GitHub will not create it on demand",
+    "scanFiles": "/^(?:\\.github\\/workflows|packs\\/[^/]+\\/stubs\\/workflows)\\/[^/]+\\.ya?ml$/",
+    "scanTracked": true,
+    "checkEachFile": [
+      {
+        "whenFileMatches": "/--add-label/",
+        "require": "/label create/",
+        "what": "uses --add-label with no idempotent `gh label create … || true` beforehand",
+        "fix": "create the label idempotently before adding it, so the workflow survives its first run"
+      }
+    ]
+  },
+  {
+    "id": "gha/unique-automation-branch",
+    "on_fail": "advise",
+    "failureMessage": "a date-keyed branch collides with itself on a repeat run for the same key",
+    "scanFiles": "/^(?:\\.github\\/workflows|packs\\/[^/]+\\/stubs\\/workflows)\\/[^/]+\\.ya?ml$/",
+    "scanTracked": true,
+    "matchLines": [
+      {
+        "match": "/checkout -b .*\\$\\(date/",
+        "unlessLineMatches": "/\\$RANDOM|github\\.run_id|github\\.run_number|\\$\\{\\{\\s*github\\.sha/",
+        "what": "creates a branch keyed only by the date",
+        "fix": "append a per-run-unique suffix ($RANDOM, github.run_id) to the branch name"
+      }
+    ]
+  },
+  {
+    "id": "gha/pages-artifact-symlinks",
+    "on_fail": "block",
+    "failureMessage": "upload-pages-artifact tars with --dereference and fails on the dangling .claude/skills/* symlinks, blocking every deploy",
+    "relevantWhen": {
+      "trackedFileMatches": "/^\\.claude\\/skills\\//",
+      "noTrackedFileMatches": "/^\\.claudinite\\/skills\\//"
+    },
+    "scanFiles": "/^(?:\\.github\\/workflows|packs\\/[^/]+\\/stubs\\/workflows)\\/[^/]+\\.ya?ml$/",
+    "scanTracked": true,
+    "checkEachFile": [
+      {
+        "whenFileMatches": [
+          "/uses:\\s*actions\\/upload-pages-artifact/",
+          "/^\\s*path:\\s*['\"]?\\.\\/?['\"]?\\s*$/m"
+        ],
+        "require": "/\\brm\\b[^\\n]*\\.claude/",
+        "what": "uploads the repo root (path: .) to actions/upload-pages-artifact with no step pruning .claude/ — its skills/* symlinks dangle in CI and the tar fails",
+        "fix": "add a step before the upload that prunes the agent tooling: `run: rm -rf .claude .claudinite` (never part of a published site)"
+      }
+    ]
+  },
+  {
+    "id": "gha/no-scheduled-fleet-executor",
+    "on_fail": "block",
+    "failureMessage": "a second cron competes with the one schedule the repo is meant to have — the per-repo scheduler, which owns every recurring Claudinite job",
+    "scanFiles": "/^\\.github\\/workflows\\/[^/]+\\.ya?ml$/",
+    "scanTracked": true,
+    "excludeFiles": ".github/workflows/claudinite-scheduler.yml",
+    "checkEachFile": [
+      {
+        "relevantWhen": { "pathExists": ".github/workflows/claudinite-scheduler.yml" },
+        "forbid": "/^\\s*schedule:/m",
+        "what": "carries a `schedule:` trigger, but the vendored claudinite-scheduler.yml is this repo's only permitted cron",
+        "fix": "port this workflow's steps into the scheduler task that owns the work and delete the workflow in the same commit"
+      },
+      {
+        "relevantWhen": { "pathAbsent": ".github/workflows/claudinite-scheduler.yml" },
+        "whenFileMatches": "/uses:\\s*\\S*\\/Claudinite\\/\\.github\\/workflows\\//i",
+        "forbid": "/^\\s*schedule:/m",
+        "what": "a Claudinite executor (it calls a canon reusable workflow) carries a `schedule:` trigger",
+        "fix": "remove the schedule: trigger — make it workflow_dispatch only, and adopt the vendored claudinite-scheduler.yml, which owns every recurring Claudinite job (packs/claudinite-growth/skills/writing-tasks/SKILL.md)"
+      }
+    ]
+  },
+  {
+    "id": "gha/cron-minute-off-the-hour",
+    "on_fail": "advise",
+    "failureMessage": "a cron on a round minute is the firing GitHub's scheduler queue most often delays or silently drops, since every repo's cron lands there at once",
+    "fix": "move the minute to a single fixed literal in :10–:50, clear of the :00 stampede and the hour boundary",
+    "scanFiles": "/^(?:\\.github\\/workflows|packs\\/[^/]+\\/stubs\\/workflows)\\/[^/]+\\.ya?ml$/",
+    "scanTracked": true,
+    "excludeFiles": ".github/workflows/claudinite-scheduler.yml",
+    "matchLines": [
+      {
+        "match": "/(?<=^\\s*-\\s*)cron\\s*:\\s*\\S.*$/",
+        "andWithinBlockOpenedBy": "/^\\s*schedule\\s*:\\s*(#.*)?$/",
+        "unlessLineMatches": "/^\\s*-\\s*cron\\s*:\\s*['\"]?(1[0-9]|[2-4][0-9]|50)\\b/",
+        "what": "cron \"{match}\" fires outside a fixed minute in :10–:50"
+      }
+    ]
+  },
+  {
+    "id": "issue-labels-overwrite",
+    "on_fail": "advise",
+    "scope": "action",
+    "failureMessage": "issue_write's labels field replaces the issue's whole label set, so naming one label silently drops every other",
+    "guardToolCalls": [
+      {
+        "tool": "mcp__github__issue_write",
+        "inputMatches": "/\"labels\":/",
+        "what": "an issue_write whose labels field replaces the issue's whole label set",
+        "fix": "read the issue's current labels first and write back the full set with your one change applied"
+      }
+    ]
+  },
+  {
+    "id": "pull-request-head-unqualified",
+    "on_fail": "block",
+    "since": "2026-09-06",
+    "scope": "action",
+    "failureMessage": "a bare branch name in list_pull_requests' head filter does not filter — it can hand back an unrelated PR as a match, with no error",
+    "guardToolCalls": [
+      {
+        "tool": "mcp__github__list_pull_requests",
+        "inputField": "head",
+        "match": "/^[^:]+$/",
+        "what": "a list_pull_requests whose head \"{field}\" names no owner",
+        "fix": "qualify it as owner:branch-name, or derive the answer from git (merge-base / diff --stat against the branch)"
+      }
+    ]
+  },
+  {
+    "id": "codeload-tarball-fetch",
+    "on_fail": "block",
+    "since": "2026-09-06",
+    "scope": "action",
+    "failureMessage": "codeload.github.com is a different host from github.com and a sandbox proxy commonly denies it while git operations against the same repo work",
+    "guardToolCalls": [
+      {
+        "tool": "Bash",
+        "inputField": "command",
+        "match": "/codeload\\.github\\.com/",
+        "what": "a fetch from codeload.github.com",
+        "fix": "git clone --depth 1 https://github.com/<owner>/<repo> yields the same tree through the allowed host"
+      }
+    ]
+  },
+  {
+    "id": "search-code-lower-bound",
+    "on_fail": "advise",
+    "scope": "action",
+    "failureMessage": "search_code's index can lag and silently undercount — one fleet-wide sweep found 3 of 11 affected repos through it — with no error or partial-result flag",
+    "guardToolCalls": [
+      {
+        "tool": "mcp__github__search_code",
+        "inputField": "query",
+        "match": "/./",
+        "what": "a code search whose result is read as a complete enumeration",
+        "fix": "treat the result as a lower bound: where the candidate set can be walked directly (each candidate's own file, a known roster), cross-check against that before scoping work off the count"
+      }
+    ]
+  },
+  {
+    "id": "branch-from-bare-main",
+    "on_fail": "block",
+    "since": "2026-09-16",
+    "scope": "action",
+    "failureMessage": "a sandboxed checkout's local `main` can sit pinned stale, so branching from it by bare name rather than `origin/main` can silently start from frozen history",
+    "guardToolCalls": [
+      {
+        "tool": "Bash",
+        "inputField": "command",
+        "match": "/git\\s+(?:checkout\\s+-b\\s+\\S+|branch\\s+(?!-)\\S+)\\s+main\\b/",
+        "what": "a branch created from bare \"main\" (\"{match}\")",
+        "fix": "git fetch origin main, then branch from origin/main explicitly"
+      }
+    ]
+  }
+]

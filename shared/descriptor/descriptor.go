@@ -126,7 +126,8 @@ func ParseBytes(raw []byte, f Format) (any, error) {
 
 // ParseDocument parses a repo document a check reads: as ParseBytes, but a
 // YAML tag the parser does not know (a CloudFormation !Ref, !Sub, !GetAtt)
-// is dropped and its value kept as if untagged.
+// is dropped and its value kept as if untagged, and a key a mapping names
+// twice takes its last value, as a document's own readers resolve it.
 func ParseDocument(raw []byte, f Format) (any, error) {
 	if f != YAML {
 		return ParseBytes(raw, f)
@@ -189,7 +190,7 @@ func fromYAML(n *yaml.Node, dropTags bool) (any, error) {
 				return nil, err
 			}
 			ks := keyString(key)
-			if seen[ks] {
+			if seen[ks] && !dropTags {
 				return nil, fmt.Errorf("line %d: key %q appears twice in one mapping", k.Line, ks)
 			}
 			seen[ks] = true

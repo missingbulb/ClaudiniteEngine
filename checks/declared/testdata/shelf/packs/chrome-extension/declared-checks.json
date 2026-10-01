@@ -1,0 +1,183 @@
+[
+  {
+    "id": "cer/template-tokens",
+    "relevantWhen": {
+      "someTrackedFileContains": {
+        "pathMatching": "/^\\.github\\/(?:workflows\\/[^/]+\\.ya?ml|release\\.config)$/",
+        "text": "/^(?:name:\\s*['\"]?(?:Release to Chrome Store|Release)['\"]?\\s*|manifest_path=.*)$/m"
+      }
+    },
+    "on_fail": "block",
+    "failureMessage": "the setup contract says: grep for __ afterwards; no token may survive",
+    "scanFiles": "/^\\.github\\/workflows\\/[^/]+\\.ya?ml$/",
+    "scanTracked": true,
+    "matchLines": [
+      {
+        "match": "/__[A-Z_]+__/",
+        "what": "unreplaced template token {match}",
+        "fix": "replace it with this repo's value (zip name, bump command, …) per the setup steps"
+      }
+    ]
+  },
+  {
+    "id": "cer/release-config",
+    "relevantWhen": {
+      "someTrackedFileContains": {
+        "pathMatching": "/^\\.github\\/(?:workflows\\/[^/]+\\.ya?ml|release\\.config)$/",
+        "text": "/^(?:name:\\s*['\"]?(?:Release to Chrome Store|Release)['\"]?\\s*|manifest_path=.*)$/m"
+      }
+    },
+    "on_fail": "block",
+    "failureMessage": "the release config is explicit with no defaults — a missing/typo'd key would ship the wrong thing with no signal",
+    "checkKeyValueFile": [
+      {
+        "file": ".github/release.config",
+        "keys": ["manifest_path", "package_json_path", "setup_command", "test_command", "ship_paths"],
+        "whenMissing": {
+          "what": "missing — the release config is required and fully explicit (no defaults)",
+          "fix": "create it with the required keys: {keys}"
+        },
+        "whenLineNotKeyValue": {
+          "what": "line is not KEY=value or a # comment: \"{line}\"",
+          "fix": "use dotenv syntax — KEY=value, one per line"
+        },
+        "whenKeyUnknown": {
+          "what": "unknown key \"{key}\"",
+          "fix": "valid keys: {keys}"
+        },
+        "whenKeyMissing": {
+          "what": "missing required key \"{key}\"",
+          "fix": "add \"{key}=...\" (every key is explicit; \"setup_command=\" may be empty to mean no install)"
+        }
+      }
+    ]
+  },
+  {
+    "id": "cer/version-sync",
+    "relevantWhen": {
+      "someTrackedFileContains": {
+        "pathMatching": "/^\\.github\\/(?:workflows\\/[^/]+\\.ya?ml|release\\.config)$/",
+        "text": "/^(?:name:\\s*['\"]?(?:Release to Chrome Store|Release)['\"]?\\s*|manifest_path=.*)$/m"
+      }
+    },
+    "on_fail": "block",
+    "failureMessage": "a version that diverges ships the wrong number to the store or refuses to publish",
+    "checkParsedFiles": [
+      {
+        "filesMatching": "/manifest\\.json$/",
+        "whereFileContains": "/\"manifest_version\"/",
+        "requireEqualFields": {
+          "field": "version",
+          "inFile": "package.json",
+          "atField": "version",
+          "whenFileMissing": {
+            "what": "missing — the release pipeline builds via npm run build at the repo root",
+            "fix": "add the root package.json with version equal to the manifest's"
+          },
+          "whenUnequal": {
+            "what": "manifest version {first} != package.json version {second}",
+            "fix": "bump both together — \"bump version\" edits the manifest and package.json in the same change"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "cer/release-layout",
+    "relevantWhen": {
+      "someTrackedFileContains": {
+        "pathMatching": "/^\\.github\\/(?:workflows\\/[^/]+\\.ya?ml|release\\.config)$/",
+        "text": "/^(?:name:\\s*['\"]?(?:Release to Chrome Store|Release)['\"]?\\s*|manifest_path=.*)$/m"
+      }
+    },
+    "on_fail": "block",
+    "failureMessage": "the privacy page deploys from PRIVACY.md, and the store listing points at that live URL",
+    "requirePaths": [
+      {
+        "path": "dev/build/release/store_artifacts/PRIVACY.md",
+        "what": "required release artifact {path} is missing",
+        "fix": "create it per the layout in the release standard (adapt from the reference repo)"
+      }
+    ]
+  },
+  {
+    "id": "cer/readme-sections",
+    "relevantWhen": {
+      "someTrackedFileContains": {
+        "pathMatching": "/^\\.github\\/(?:workflows\\/[^/]+\\.ya?ml|release\\.config)$/",
+        "text": "/^(?:name:\\s*['\"]?(?:Release to Chrome Store|Release)['\"]?\\s*|manifest_path=.*)$/m"
+      }
+    },
+    "on_fail": "block",
+    "failureMessage": "every extension repo documents install and release the same way, from the standard template",
+    "fix": "copy it from the README template in the release standard and fill in the repo values",
+    "scanFiles": "README.md",
+    "scanIgnoringMarkdownFences": true,
+    "whenMissing": {
+      "what": "missing",
+      "fix": "add a README with the standard Install and Releasing sections"
+    },
+    "checkEachFile": [
+      {
+        "require": "/^##\\s+Install\\b/m",
+        "what": "missing the standard \"## Install\" section"
+      },
+      {
+        "require": "/^##\\s+Releasing\\b/m",
+        "what": "missing the standard \"## Releasing\" section"
+      }
+    ]
+  },
+  {
+    "id": "cer/permission-added-store-issue",
+    "relevantWhen": {
+      "someTrackedFileContains": {
+        "pathMatching": "/^\\.github\\/(?:workflows\\/[^/]+\\.ya?ml|release\\.config)$/",
+        "text": "/^(?:name:\\s*['\"]?(?:Release to Chrome Store|Release)['\"]?\\s*|manifest_path=.*)$/m"
+      }
+    },
+    "on_fail": "advise",
+    "failureMessage": "the store requires a written justification per permission and blocks publishing the new version until the dashboard carries it; that step is manual, so a proactive issue beats the reactive publish failure",
+    "scope": "work",
+    "forbidAddedValueInArray": [
+      {
+        "filesMatching": "/(^|\\/)manifest\\.json$/",
+        "whereFileContains": "/\"manifest_version\"/",
+        "atFields": ["permissions", "host_permissions", "optional_permissions", "optional_host_permissions"],
+        "what": "this change adds the \"{value}\" permission",
+        "fix": "open a tracking issue for the manual Chrome Web Store dashboard step: the Privacy-practices tab needs a written justification for \"{value}\" before the next publish can ship"
+      }
+    ]
+  },
+  {
+    "id": "cer/privacy-permission-alignment",
+    "relevantWhen": {
+      "someTrackedFileContains": {
+        "pathMatching": "/^\\.github\\/(?:workflows\\/[^/]+\\.ya?ml|release\\.config)$/",
+        "text": "/^(?:name:\\s*['\"]?(?:Release to Chrome Store|Release)['\"]?\\s*|manifest_path=.*)$/m"
+      }
+    },
+    "on_fail": "block",
+    "failureMessage": "the deployed privacy policy must disclose everything the extension can access; an undisclosed permission is a store-review and trust failure",
+    "extractValueSets": [
+      {
+        "setName": "requestedPermissions",
+        "fromParsedFilesMatching": "/(^|\\/)manifest\\.json$/",
+        "whereFileContains": "/\"manifest_version\"/",
+        "valuesOfArraysAtFields": ["permissions", "host_permissions", "optional_permissions", "optional_host_permissions"],
+        "whenSetEmpty": "assertNothing"
+      }
+    ],
+    "requireIndexCoverage": [
+      {
+        "eachValueOfSet": "requestedPermissions",
+        "indexFile": "dev/build/release/store_artifacts/PRIVACY.md",
+        "coveredByText": "{value}",
+        "whenIndexFileAbsent": "assertNothing",
+        "anchorFindingsAt": "indexFile",
+        "what": "manifest requests \"{value}\" but the privacy document does not mention it",
+        "fix": "disclose what \"{value}\" accesses in PRIVACY.md, so the deployed privacy policy reflects what the extension can reach"
+      }
+    ]
+  }
+]

@@ -1,0 +1,54 @@
+[
+  {
+    "id": "headless-browser/networkidle-wait",
+    "on_fail": "block",
+    "since": "2026-09-27",
+    "failureMessage": "\"no requests for a moment\" is a guess wrong in both directions - it returns early on a slow read and never on a polling page, so the capture races the page",
+    "scanFileClasses": ["javascriptFiles"],
+    "excludeFiles": "/(^|\\/)(node_modules|dist|build|out|coverage|vendor|third_party)\\/|^packs\\/headless-browser\\//",
+    "scanIgnoringComments": true,
+    "matchLines": [
+      {
+        "match": "/\\bnetworkidle\\d?\\b/",
+        "what": "waits on the network going quiet - {match}",
+        "fix": "await something the page itself produces: a selector that exists only once data rendered, or text that appears only once the async read returned"
+      }
+    ]
+  },
+  {
+    "id": "headless-browser/capture-without-font-wait",
+    "on_fail": "advise",
+    "since": "2026-09-27",
+    "failureMessage": "text laid out before its webfonts land measures differently and wraps elsewhere, so a reference image captured without awaiting font readiness is a different picture run to run",
+    "relevantWhen": { "trackedFileMatches": "/(^|\\/)(__screenshots__|goldens?|snapshots?)\\/|\\.golden\\.png$/" },
+    "scanFileClasses": ["javascriptFiles"],
+    "excludeFiles": "/(^|\\/)(node_modules|dist|build|out|coverage|vendor|third_party)\\/|^packs\\/headless-browser\\//",
+    "scanIgnoringComments": true,
+    "repoWide": [
+      {
+        "unlessSomeFileMatches": "/\\bdocument\\.fonts\\b/",
+        "flagFilesMatching": [["/\\.screenshot\\s*\\(/"]],
+        "what": "captures against tracked reference images with nothing in the repo awaiting font readiness",
+        "fix": "await document.fonts.ready in the page before the shot, beside the signal the page itself produces"
+      }
+    ]
+  },
+  {
+    "id": "headless-browser/insecure-fake-origin",
+    "on_fail": "block",
+    "since": "2026-09-27",
+    "failureMessage": "geolocation and the other secure-origin-only capabilities silently take their denied path on an http page, and a fulfilled route needs no certificate for https to cost nothing",
+    "scanFileClasses": ["javascriptFiles"],
+    "excludeFiles": "/(^|\\/)(node_modules|dist|build|out|coverage|vendor|third_party)\\/|^packs\\/headless-browser\\//",
+    "scanIgnoringComments": true,
+    "matchLines": [
+      {
+        "match": "/['\"`]http:\\/\\/(?!localhost|127\\.0\\.0\\.1|\\[::1\\])[\\w.-]*/",
+        "whenFileMatches": "/\\.route\\s*\\(/",
+        "unlessLineMatches": "/\\.(?:route|unroute)\\s*\\(|\\b(?:href|src|action)\\s*=/",
+        "what": "gives the fake origin an insecure scheme - {match}",
+        "fix": "serve the fake origin over https; routes are fulfilled before any connection is attempted, so no certificate is involved"
+      }
+    ]
+  }
+]

@@ -1,0 +1,48 @@
+[
+  {
+    "id": "google-token-audience-pinned",
+    "on_fail": "block",
+    "failureMessage": "every Google-issued token shares the issuer, so only the audience claim scopes a token to this app — unset, any Google OAuth client's token authenticates here",
+    "fix": "configure the validator's audience to your exact OAuth web-application client id, next to the issuer; never leave it unset",
+    "scanFiles": "/\\.(ya?ml|json|toml|tf)$/",
+    "matchLines": [
+      {
+        "match": "/https:\\/\\/accounts\\.google\\.com(?![\\w/.-])/",
+        "whenFileMatches": "/issuer/i",
+        "unlessFileMatches": "/\\baud(ience)?\\b/i",
+        "what": "declares the Google accounts issuer with no (or an explicitly empty) expected audience"
+      },
+      {
+        "match": "/https:\\/\\/accounts\\.google\\.com(?![\\w/.-])/",
+        "whenFileMatches": ["/issuer/i", "/aud(ience)?[\"']?\\s*[:=]\\s*(\\[\\s*\\]|\"\"|'')/i"],
+        "what": "declares the Google accounts issuer with no (or an explicitly empty) expected audience"
+      }
+    ]
+  },
+  {
+    "id": "google-token-email-verified",
+    "on_fail": "block",
+    "failureMessage": "a Google ID token carries email regardless of verification — an action gated on the bare claim trusts an address Google has not verified",
+    "scanFileClasses": ["javascriptFiles", "pythonFiles"],
+    "excludeFileClasses": ["testFiles"],
+    "relevantWhen": { "repoContains": "/accounts\\.google\\.com|\\.apps\\.googleusercontent\\.com/" },
+    "matchLines": [
+      {
+        "match": "/\\b(claims|payload)\\??\\.email\\b(?!_)|(claims|payload)\\[['\"]email['\"]\\]/",
+        "whenFileMatches": "/requestContext\\s*\\.\\s*authorizer|jwt\\.claims|verifyIdToken|jwtVerify/",
+        "unlessFileMatches": "/email_verified/",
+        "what": "reads the token's email claim but never checks email_verified",
+        "fix": "gate any identity-bearing action on the email_verified claim being true (behind an API Gateway JWT authorizer it arrives as the string 'true')"
+      },
+      {
+        "match": "/email_verified\\W{0,4}\\s*[!=]==\\s*(true|false)\\b/",
+        "whenFileMatches": [
+          "/requestContext\\s*\\.\\s*authorizer|jwt\\.claims|verifyIdToken|jwtVerify/",
+          "/requestContext/"
+        ],
+        "what": "compares email_verified to a boolean with strict equality behind an API Gateway authorizer",
+        "fix": "compare against the string 'true' (or coerce) — the authorizer stringifies claims, so a strict boolean compare rejects every verified user"
+      }
+    ]
+  }
+]

@@ -56,6 +56,16 @@ func Run(w io.Writer, in Input) int {
 	return 0
 }
 
+// Report prints the findings without the pin guard, for a run with no
+// pull request to judge, and returns 1 on a break, else 0.
+func Report(w io.Writer, in Input) int {
+	findings.Print(w, in.Findings)
+	if findings.AnyBreak(in.Findings) {
+		return 1
+	}
+	return 0
+}
+
 func isPinFile(p string) bool {
 	if p == ".claudinite/launch" {
 		return true

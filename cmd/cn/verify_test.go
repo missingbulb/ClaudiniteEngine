@@ -53,7 +53,10 @@ func TestCheckWorldCommand(t *testing.T) {
 	if code != 1 || !strings.Contains(out, "pin-guard") {
 		t.Errorf("a person moved the pin: exit %d\n%s", code, out)
 	}
-	if _, _, code := runCN(t, bin, nil, "", "check", "world", "--repo", dir); code != 2 {
-		t.Errorf("missing flags: exit %d", code)
+	if out, _, code := runCN(t, bin, nil, "", "check", "world", "--repo", dir); code != 0 || strings.Contains(out, "pin-guard") {
+		t.Errorf("no pull request to judge: the guard runs, or the findings break: exit %d\n%s", code, out)
+	}
+	if out, _, code := runCN(t, bin, nil, "", "check", "world", "--repo", t.TempDir()); code != 0 || out != "" {
+		t.Errorf("a repo that is not a member: exit %d\n%s", code, out)
 	}
 }

@@ -27,20 +27,53 @@ const (
 
 // Finding is one problem in a member's files.
 type Finding struct {
-	Class    Class
-	ID       string
-	Path     string
+	Class Class
+	ID    string
+	Path  string
+	// Line is the 1-based line the finding is about, or 0 for the whole
+	// path.
+	Line     int
 	Sentence string
+	// Why and Fix are a declared check's reason and remedy; empty for a
+	// finding whose sentence carries its own fix.
+	Why, Fix string
+	// Pack is the pack whose check reported it; empty for the engine's own.
+	Pack string
 }
 
+// Name is the check as a finding line names it: <pack>/<id>, or the bare
+// id for the engine's own rules.
+func (f Finding) Name() string {
+	if f.Pack != "" {
+		return f.Pack + "/" + f.ID
+	}
+	return f.ID
+}
+
+// Location is the path, with the line when there is one.
+func (f Finding) Location() string {
+	if f.Line > 0 {
+		return fmt.Sprintf("%s:%d", f.Path, f.Line)
+	}
+	return f.Path
+}
+
+// String is the finding's first line.
 func (f Finding) String() string {
-	return fmt.Sprintf("%s %s %s: %s", f.Class, f.ID, f.Path, f.Sentence)
+	return fmt.Sprintf("%s %s %s: %s", f.Class, f.Name(), f.Location(), f.Sentence)
 }
 
-// Print writes one line per finding.
+// Print writes each finding's line, then its why and fix lines when it
+// has them.
 func Print(w io.Writer, fs []Finding) {
 	for _, f := range fs {
 		fmt.Fprintln(w, f.String())
+		if f.Why != "" {
+			fmt.Fprintln(w, "  why: "+f.Why)
+		}
+		if f.Fix != "" {
+			fmt.Fprintln(w, "  fix: "+f.Fix)
+		}
 	}
 }
 

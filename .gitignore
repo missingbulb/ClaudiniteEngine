@@ -4,3 +4,5 @@ dist/
 /cdnstub
 /packfixture
 /licstub
+*.test
+*.out
