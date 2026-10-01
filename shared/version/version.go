@@ -122,4 +122,3 @@ func Platform() string {
 	}
 	return runtime.GOOS + "-" + runtime.GOARCH
 }
-
