@@ -11,11 +11,11 @@ package verify
 
 import (
 	"bytes"
-	"errors"
-	"fmt"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"

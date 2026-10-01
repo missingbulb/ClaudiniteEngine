@@ -30,7 +30,13 @@ commands:
                  check a member's files against this engine version;
                  exit 1 on a break
   check world --pr-author LOGIN --base-ref REF [--repo DIR]
-                 the CI gate: the pin and launcher guard, then verify
+                 the CI gate: the pin and launcher guard, verify, then the
+                 declared packs' world-tagged checks
+  check --tag TAG | --pack ID [--repo DIR]
+                 run a slice of the declared packs' checks; exit 1 on a
+                 finding
+  check build [--wait] [--key KEY] [--repo DIR]
+                 build the repo's checks binary (session-start starts it)
   update engine [--force] [--repo DIR]
                  propose or land the newest allowed engine version as a
                  pin-only PR; needs GITHUB_TOKEN; ends on its verdict line
@@ -46,7 +52,7 @@ commands:
 var secretScanPlant string
 
 // runHook is a variable so a test can make a hook panic.
-var runHook = hooks.Run
+var runHook = hooks.Handler{Checks: hookChecks{}}.Run
 
 func main() {
 	os.Exit(run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr))
@@ -132,7 +138,7 @@ func dispatch(args []string, stdin io.Reader, stdout, stderr io.Writer, start ti
 	case "verify":
 		return cmdVerify(args[1:], stdout)
 	case "check":
-		return cmdCheck(args[1:], stdout)
+		return cmdCheck(args[1:], stdout, stderr)
 	case "update":
 		return cmdUpdate(args[1:], stdout)
 	case "workflows":

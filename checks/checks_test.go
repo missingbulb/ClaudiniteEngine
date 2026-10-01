@@ -84,3 +84,10 @@ func TestRunTimesOutWhenTheBuildNeverComes(t *testing.T) {
 		t.Errorf("%+v %q", res, crumb)
 	}
 }
+
+func TestARepoWithoutSettingsRunsNothing(t *testing.T) {
+	res, crumb := service(t).Run(t.TempDir(), "check", []string{"world"}, "", time.Second, true)
+	if res.Err != nil || len(res.Findings) != 0 || !strings.HasPrefix(crumb, "[cn] checks check ok ") {
+		t.Errorf("%+v %q", res, crumb)
+	}
+}

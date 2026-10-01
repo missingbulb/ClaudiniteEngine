@@ -3,12 +3,15 @@ package checks
 import (
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/missingbulb/ClaudiniteEngine/checks/build"
 	"github.com/missingbulb/ClaudiniteEngine/checks/run"
 	"github.com/missingbulb/ClaudiniteEngine/shared/breadcrumb"
 	"github.com/missingbulb/ClaudiniteEngine/shared/packset"
+	"github.com/missingbulb/ClaudiniteEngine/shared/settings"
 )
 
 // Service runs the declared packs' coded checks for one engine.
@@ -19,8 +22,11 @@ type Service struct {
 }
 
 // Key is the repo's checks binary key and its sources; "" when no declared
-// pack has Go checks.
+// pack has Go checks, or the repo has no settings file at all.
 func (s Service) Key(repo string) (string, []build.Source, error) {
+	if !hasSettings(repo) {
+		return "", nil, nil
+	}
 	p, err := packset.Declared(repo)
 	if err != nil {
 		return "", nil, err
@@ -113,4 +119,13 @@ func (s Service) List(repo string, timeout time.Duration) ([]run.Listed, error) 
 		return nil, err
 	}
 	return run.Runner{Binary: s.Build.Binary(key), Engine: s.Build.Engine}.List()
+}
+
+func hasSettings(repo string) bool {
+	for _, f := range settings.Formats {
+		if _, err := os.Stat(filepath.Join(repo, filepath.FromSlash(settings.RelPath(f)))); err == nil {
+			return true
+		}
+	}
+	return false
 }

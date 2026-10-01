@@ -135,7 +135,9 @@ func TestRules(t *testing.T) {
 			write(t, d, ".gitignore", "node_modules/\n.claudinite/bin/\n")
 		}, nil, []string{"bin-ignore"}},
 		{"bin not ignored", func(t *testing.T, d string) { _ = os.Remove(filepath.Join(d, ".claudinite/.gitignore")) }, []string{"bin-ignore"}, nil},
-		{"declared pack held", func(t *testing.T, d string) { declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "60930.1.0"}`) }, nil, nil},
+		{"declared pack held", func(t *testing.T, d string) {
+			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "60930.1.0"}`)
+		}, nil, nil},
 		{"declared pack missing", func(t *testing.T, d string) {
 			declare(t, d, "acme-pack", "")
 		}, []string{"pack-declared"}, nil},
