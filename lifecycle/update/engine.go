@@ -17,6 +17,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/shared/githubapi"
 	"github.com/missingbulb/ClaudiniteEngine/shared/npmreg"
 	"github.com/missingbulb/ClaudiniteEngine/shared/settings"
+	"github.com/missingbulb/ClaudiniteEngine/shared/version"
 )
 
 const (
@@ -121,15 +122,29 @@ func runState(r *githubapi.Run) string {
 	return r.Conclusion
 }
 
-func updatePRs(prs []githubapi.PR) []githubapi.PR {
+// updatePRs are the open PRs on an update branch that carry the label or
+// that the job token opened; the second kind lost its label (a failed
+// labelling call, a person removing it) and is relabelled rather than
+// duplicated by a CreatePull GitHub would refuse.
+func updatePRs(d Deps, prs []githubapi.PR) ([]githubapi.PR, error) {
 	var out []githubapi.PR
 	for _, p := range prs {
-		if p.HasLabel(Label) && strings.HasPrefix(p.HeadRef, BranchPrefix) {
-			out = append(out, p)
+		if !strings.HasPrefix(p.HeadRef, BranchPrefix) {
+			continue
 		}
+		if !p.HasLabel(Label) {
+			if p.Author != gitcmd.BotName {
+				continue
+			}
+			if err := d.GitHub.AddLabel(p.Number, Label); err != nil {
+				return nil, err
+			}
+			p.Labels = append(p.Labels, Label)
+		}
+		out = append(out, p)
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Number < out[j].Number })
-	return out
+	return out, nil
 }
 
 // Engine is one run of cn update engine. It acts at most once: a green
@@ -155,7 +170,10 @@ func Engine(d Deps, o Options) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	open := updatePRs(all)
+	open, err := updatePRs(d, all)
+	if err != nil {
+		return "", err
+	}
 	if len(open) > 1 {
 		var names []string
 		for _, p := range open {
@@ -194,6 +212,15 @@ func Engine(d Deps, o Options) (string, error) {
 		return "", err
 	}
 	states := StatesFromPackument(p)
+	if prev != nil {
+		ver := strings.TrimPrefix(prev.HeadRef, BranchPrefix)
+		if why := pinRefusal(p, states, ver); why != "" {
+			if err := closeUpdatePR(d, *prev, fmt.Sprintf("Closed: %s is now %s, so this pin is never merged.", ver, why)); err != nil {
+				return "", err
+			}
+			prev = nil
+		}
+	}
 	next, verdict, err := propose(d, o, f, raw, pin, p, states, prev, prevState)
 	if err != nil {
 		return "", err
@@ -224,6 +251,14 @@ func propose(d Deps, o Options, f settings.Format, raw []byte, pin settings.Engi
 			why = "has no CI run"
 		case "queued", "in_progress", "waiting", "pending", "requested":
 			why = "its CI is " + prevState
+		}
+		switch prevState {
+		case "no run", "cancelled", "timed_out":
+			// No verdict will ever come for this head: ask again.
+			if err := d.GitHub.Dispatch(CIWorkflow, prev.HeadRef, map[string]string{"pr": strconv.Itoa(prev.Number)}); err != nil {
+				return "", "", err
+			}
+			why += "; dispatched its CI again"
 		}
 		return c.Version, fmt.Sprintf("skipped: #%d for %s is open and %s", prev.Number, c.Version, why), nil
 	}
@@ -323,13 +358,19 @@ func openPR(d Deps, f settings.Format, raw []byte, got Fetched, self, verifyOut 
 }
 
 func supersede(d Deps, old githubapi.PR, n int, ver string) error {
-	if err := d.GitHub.Comment(old.Number, fmt.Sprintf("Superseded by #%d, which moves the pin to %s.", n, ver)); err != nil {
+	return closeUpdatePR(d, old, fmt.Sprintf("Superseded by #%d, which moves the pin to %s.", n, ver))
+}
+
+// closeUpdatePR comments why, closes the PR and deletes its branch: a pin
+// that lost its standing is never merged.
+func closeUpdatePR(d Deps, pr githubapi.PR, why string) error {
+	if err := d.GitHub.Comment(pr.Number, why); err != nil {
 		return err
 	}
-	if err := d.GitHub.ClosePull(old.Number); err != nil {
+	if err := d.GitHub.ClosePull(pr.Number); err != nil {
 		return err
 	}
-	return d.Git.DeleteRemoteBranch(remote, old.HeadRef)
+	return d.Git.DeleteRemoteBranch(remote, pr.HeadRef)
 }
 
 // Land squash-merges update PR n at head sha after checking it is the
@@ -391,6 +432,18 @@ func Land(d Deps, n int, sha string) (string, error) {
 	e, err := settings.ReadEngine(updated, f)
 	if err != nil {
 		return "", err
+	}
+	current, _, err := d.Git.Show(base, files[0])
+	if err != nil {
+		return "", err
+	}
+	if cur, err := settings.ReadEngine(current, f); err == nil {
+		if c, err := version.Compare(e.Version, cur.Version); err != nil || c <= 0 {
+			return "", fmt.Errorf("#%d pins %s, not newer than main's %s", n, e.Version, cur.Version)
+		}
+	}
+	if err := CheckPin(d, e); err != nil {
+		return "", fmt.Errorf("#%d: %w", n, err)
 	}
 	if err := d.GitHub.MergePull(n, sha, title(e.Version)); err != nil {
 		return "", err

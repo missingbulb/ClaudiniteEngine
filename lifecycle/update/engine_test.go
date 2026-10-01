@@ -249,13 +249,28 @@ func TestUpToDateNamesTheSkip(t *testing.T) {
 	}
 }
 
+// pinOf is ver's real manifest integrity when the registry serves it, else
+// a well-formed stand-in.
+func (w *world) pinOf(t *testing.T, ver string) string {
+	t.Helper()
+	p, err := w.reg.client().Packument(pkg)
+	if err != nil || p.Versions[ver].Dist.Integrity == "" {
+		return strings.Replace(pin1, "A", "C", 10)
+	}
+	got, err := Fetch(FetchInput{Registry: w.reg.client(), Package: pkg, Version: ver, Packument: p, Roots: rootsOf(testRoot, otherRoot),
+		CacheRoot: filepath.Join(t.TempDir(), "claudinite"), Platform: version.Platform(), Now: t0})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return got.Integrity
+}
+
 // openUpdatePR pushes a pin-only branch for ver and registers its PR.
 func (w *world) openUpdatePR(t *testing.T, n int, ver, ciConclusion string) string {
 	t.Helper()
 	branch := "claudinite/engine-" + ver
 	gitRun(t, w.repo, "checkout", "-q", "-b", branch)
-	pin := strings.Replace(pin1, "A", "C", 10)
-	_ = os.WriteFile(filepath.Join(w.repo, settings.RelPath(w.f)), []byte(settingsFor(w.f, ver, pin)), 0o644)
+	_ = os.WriteFile(filepath.Join(w.repo, settings.RelPath(w.f)), []byte(settingsFor(w.f, ver, w.pinOf(t, ver))), 0o644)
 	gitRun(t, w.repo, "commit", "-q", "-am", "pin")
 	gitRun(t, w.repo, "push", "-q", "origin", branch)
 	sha := w.head(t)
@@ -273,6 +288,7 @@ func (w *world) openUpdatePR(t *testing.T, n int, ver, ciConclusion string) stri
 
 func TestLandsAGreenUpdatePRFirst(t *testing.T) {
 	w := newWorld(t, settings.YAML)
+	w.publish(t, v2, relOpts{})
 	w.publish(t, v3, relOpts{})
 	sha := w.openUpdatePR(t, 4, v2, "success")
 	v, err := Engine(w.deps(t), Options{})
@@ -288,7 +304,7 @@ func TestLandsAGreenUpdatePRFirst(t *testing.T) {
 	if got := w.hub.called("dispatch"); len(got) != 1 || got[0] != "dispatch claudinite-ci.yml main pr=" {
 		t.Errorf("dispatch %v", got)
 	}
-	if len(w.hub.called("create-pull")) != 0 || len(w.reg.requests()) != 0 {
+	if len(w.hub.called("create-pull")) != 0 {
 		t.Error("considered a candidate after landing")
 	}
 }
@@ -301,7 +317,7 @@ func TestAnUpdatePRWithOnlyAGatedRunWaits(t *testing.T) {
 	sha := w.openUpdatePR(t, 4, v2, "")
 	w.hub.runs[sha] = []githubapi.Run{{HeadSHA: sha, Event: "pull_request", Status: "completed", Conclusion: "success", CreatedAt: "2026-10-01T00:00:00Z"}}
 	v, err := Engine(w.deps(t), Options{})
-	if err != nil || v != "skipped: #4 for "+v2+" is open and has no CI run" {
+	if err != nil || v != "skipped: #4 for "+v2+" is open and has no CI run; dispatched its CI again" {
 		t.Fatalf("%q %v", v, err)
 	}
 }
@@ -350,6 +366,7 @@ func TestANewerCandidateSupersedesTheOpenPR(t *testing.T) {
 
 func TestLand(t *testing.T) {
 	w := newWorld(t, settings.YAML)
+	w.publish(t, v2, relOpts{})
 	sha := w.openUpdatePR(t, 4, v2, "")
 	if _, err := Land(w.deps(t), 4, "0000000000000000000000000000000000000000"); err == nil || !strings.Contains(err.Error(), "moved") {
 		t.Errorf("a moved head landed: %v", err)
@@ -392,6 +409,7 @@ func TestLandRefusesWhatIsNotAPinOnlyUpdatePR(t *testing.T) {
 	}
 	for name, mutate := range cases {
 		w := newWorld(t, settings.YAML)
+		w.publish(t, v2, relOpts{})
 		w.openUpdatePR(t, 4, v2, "")
 		mutate(w, t)
 		if _, err := Land(w.deps(t), 4, w.hub.pulls[0].HeadSHA); err == nil {
@@ -512,5 +530,106 @@ func TestAPinNotRevokedFilesNoRevocationIssue(t *testing.T) {
 	}
 	if len(w.hub.called("create-issue")) != 0 {
 		t.Errorf("%v", w.hub.calls)
+	}
+}
+
+// Land checks trust, not only shape: the version must be newer than main's
+// pin and pass the world guard's pin check.
+func TestLandRefusesAnUntrustedPin(t *testing.T) {
+	cases := map[string]func(w *world, t *testing.T) string{
+		"held": func(w *world, t *testing.T) string {
+			w.publish(t, v2, relOpts{deprecated: "held: canary red"})
+			return "held"
+		},
+		"a lower version": func(w *world, t *testing.T) string {
+			w.publish(t, "60930.0.5", relOpts{})
+			return "not newer"
+		},
+		"a manifest the roots do not sign": func(w *world, t *testing.T) string {
+			w.publish(t, v2, relOpts{issuer: otherRoot})
+			return "signature"
+		},
+	}
+	for name, setup := range cases {
+		w := newWorld(t, settings.YAML)
+		want := setup(w, t)
+		ver := v2
+		if name == "a lower version" {
+			ver = "60930.0.5"
+		}
+		sha := w.openUpdatePR(t, 4, ver, "success")
+		if _, err := Land(w.deps(t), 4, sha); err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("%s: %v, want an error naming %q", name, err, want)
+		}
+		if len(w.hub.called("merge")) != 0 {
+			t.Errorf("%s: merged", name)
+		}
+	}
+}
+
+func TestAnUpdatePRWhoseCIDidNotRunIsDispatchedAgain(t *testing.T) {
+	for _, state := range []string{"", "cancelled", "timed_out"} {
+		w := newWorld(t, settings.YAML)
+		w.publish(t, v2, relOpts{})
+		w.openUpdatePR(t, 4, v2, state)
+		v, err := Engine(w.deps(t), Options{})
+		if err != nil || !strings.HasPrefix(v, "skipped: #4 for "+v2+" is open and ") || !strings.HasSuffix(v, "; dispatched its CI again") {
+			t.Errorf("%q: %q %v", state, v, err)
+		}
+		if got := w.hub.called("dispatch"); len(got) != 1 || got[0] != "dispatch claudinite-ci.yml claudinite/engine-"+v2+" pr=4" {
+			t.Errorf("%q: dispatches %v", state, got)
+		}
+	}
+	w := newWorld(t, settings.YAML)
+	w.publish(t, v2, relOpts{})
+	w.openUpdatePR(t, 4, v2, "failure")
+	if _, err := Engine(w.deps(t), Options{}); err != nil || len(w.hub.called("dispatch")) != 0 {
+		t.Errorf("a failed run was dispatched again: %v %v", err, w.hub.calls)
+	}
+}
+
+func TestAnUnlabelledUpdatePRIsRelabelledNotDuplicated(t *testing.T) {
+	w := newWorld(t, settings.YAML)
+	w.publish(t, v2, relOpts{})
+	w.openUpdatePR(t, 4, v2, "failure")
+	w.hub.pulls[0].Labels = nil
+	v, err := Engine(w.deps(t), Options{})
+	if err != nil || v != "skipped: #4 for "+v2+" is open and its CI concluded failure" {
+		t.Fatalf("%q %v", v, err)
+	}
+	if got := w.hub.called("label"); len(got) != 1 || got[0] != "label 4 claudinite-update" {
+		t.Errorf("labels %v", got)
+	}
+	if len(w.hub.called("create-pull")) != 0 {
+		t.Error("opened a second PR")
+	}
+	// A person's PR on such a branch is not ours.
+	w = newWorld(t, settings.YAML)
+	w.publish(t, v2, relOpts{})
+	w.openUpdatePR(t, 4, v2, "failure")
+	w.hub.pulls[0].Labels, w.hub.pulls[0].Author = nil, "someone"
+	if _, err := Engine(w.deps(t), Options{}); err != nil || len(w.hub.called("label 4")) != 0 {
+		t.Errorf("relabelled a person's PR: %v %v", err, w.hub.calls)
+	}
+}
+
+func TestAnUpdatePRForAVersionNowHeldIsClosed(t *testing.T) {
+	for reason, kind := range map[string]string{"held: canary red": "held", "revoked: leak": "revoked", "old": "deprecated"} {
+		w := newWorld(t, settings.YAML)
+		w.publish(t, v2, relOpts{deprecated: reason})
+		w.openUpdatePR(t, 4, v2, "failure")
+		v, err := Engine(w.deps(t), Options{})
+		if err != nil || v != "up to date" {
+			t.Errorf("%s: %q %v", kind, v, err)
+		}
+		if got := w.hub.called("comment 4"); len(got) != 1 || !strings.Contains(got[0], kind) {
+			t.Errorf("%s: comment %v", kind, got)
+		}
+		if got := w.hub.called("close-pull"); len(got) != 1 || got[0] != "close-pull 4" {
+			t.Errorf("%s: close %v", kind, got)
+		}
+		if out := gitRun(t, w.bare, "branch", "--list", "claudinite/*"); out != "" {
+			t.Errorf("%s: branch kept: %s", kind, out)
+		}
 	}
 }

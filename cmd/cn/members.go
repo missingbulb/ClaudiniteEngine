@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"io"
 	"time"
 
@@ -74,34 +73,15 @@ func cmdCheck(args []string, stdout io.Writer) error {
 	return nil
 }
 
-// checkPin verifies a new pin as the updater would before proposing it,
-// and refuses a version npm marks deprecated, held or revoked.
+// checkPin is the updater's own pin check, with this binary's roots.
 func checkPin(e settings.Engine) error {
 	reg, err := npmreg.FromEnv()
 	if err != nil {
 		return err
 	}
-	p, err := reg.Packument(e.Package)
-	if err != nil {
-		return err
-	}
-	if k, reason := update.StatesFromPackument(p).Of(e.Version); k != "" {
-		return fmt.Errorf("%s %s is %s: %s", e.Package, e.Version, k, reason)
-	}
-	if v, ok := p.Versions[e.Version]; ok && v.Deprecated != "" {
-		return fmt.Errorf("%s %s is deprecated on npm: %s", e.Package, e.Version, v.Deprecated)
-	}
 	roots, err := license.Roots()
 	if err != nil {
 		return err
 	}
-	got, err := update.Fetch(update.FetchInput{Registry: reg, Package: e.Package, Version: e.Version, Packument: p, Roots: roots,
-		CacheRoot: paths.CacheRoot(), Platform: version.Platform(), Now: time.Now()})
-	if err != nil {
-		return err
-	}
-	if got.Integrity != e.Manifest {
-		return fmt.Errorf("engine.manifest %s is not the SHA-512 of %s %s's manifest.json (%s)", e.Manifest, e.Package, e.Version, got.Integrity)
-	}
-	return nil
+	return update.CheckPin(update.Deps{Registry: reg, Roots: roots, CacheRoot: paths.CacheRoot(), Platform: version.Platform(), Now: time.Now}, e)
 }
