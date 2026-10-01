@@ -30,12 +30,27 @@ commands:
                  check a member's files against this engine version;
                  exit 1 on a break
   check world --pr-author LOGIN --base-ref REF [--repo DIR]
-                 the CI gate: the pin and launcher guard, then verify
+                 the CI gate: the pin and launcher guard, verify, then the
+                 declared packs' world-tagged checks
+  check --tag TAG | --pack ID [--repo DIR]
+                 run a slice of the declared packs' checks; exit 1 on a
+                 finding
+  check build [--wait] [--key KEY] [--repo DIR]
+                 build the repo's checks binary (session-start starts it)
   update engine [--force] [--repo DIR]
                  propose or land the newest allowed engine version as a
                  pin-only PR; needs GITHUB_TOKEN; ends on its verdict line
+  update packs [--force] [--repo DIR]
+                 propose or land the declared packs' newest allowed
+                 versions as a pack-only PR, once this repo's check world
+                 passes over it; needs GITHUB_TOKEN
   update land --pr N --sha SHA [--repo DIR]
-                 merge update PR N, whose CI passed on SHA
+                 merge update PR N (engine or packs), whose CI passed on SHA
+  init --packs ID[,ID] [--channel stable|canary] [--package PKG] [--repo DIR]
+                 adopt a repo: pin the newest allowed engine, write the
+                 member files and vendor the packs and what they require
+  adopt ID [--repo DIR]
+                 declare and vendor one more pack on an adopted repo
   workflows diff [--repo DIR]
                  the patch that brings a member's workflows to this
                  version's templates; empty when they match
@@ -46,7 +61,7 @@ commands:
 var secretScanPlant string
 
 // runHook is a variable so a test can make a hook panic.
-var runHook = hooks.Run
+var runHook = hooks.Handler{Checks: hookChecks{}}.Run
 
 func main() {
 	os.Exit(run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr))
@@ -132,11 +147,15 @@ func dispatch(args []string, stdin io.Reader, stdout, stderr io.Writer, start ti
 	case "verify":
 		return cmdVerify(args[1:], stdout)
 	case "check":
-		return cmdCheck(args[1:], stdout)
+		return cmdCheck(args[1:], stdout, stderr)
 	case "update":
 		return cmdUpdate(args[1:], stdout)
 	case "workflows":
 		return cmdWorkflows(args[1:], stdout)
+	case "init":
+		return cmdInit(args[1:], stdout)
+	case "adopt":
+		return cmdAdopt(args[1:], stdout)
 	}
 	return report.New(report.Usage, fmt.Sprintf("unknown command %q", args[0]))
 }

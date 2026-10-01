@@ -49,15 +49,12 @@ func cmdVerify(args []string, stdout io.Writer) error {
 	return nil
 }
 
-func cmdCheck(args []string, stdout io.Writer) error {
-	if len(args) == 0 || args[0] != "world" {
-		return report.New(report.Usage, "check takes world")
-	}
+func cmdCheckWorld(args []string, stdout, stderr io.Writer) error {
 	fs := flag.NewFlagSet("check world", flag.ContinueOnError)
 	author := fs.String("pr-author", "", "")
 	base := fs.String("base-ref", "", "")
 	repo := fs.String("repo", ".", "")
-	if err := flags(fs, args[1:]); err != nil {
+	if err := flags(fs, args); err != nil {
 		return err
 	}
 	if *author == "" || *base == "" {
@@ -65,7 +62,7 @@ func cmdCheck(args []string, stdout io.Writer) error {
 	}
 	code := world.Run(stdout, world.Input{
 		Repo: *repo, PRAuthor: *author, BaseRef: *base, Git: gitcmd.Repo{Dir: *repo},
-		CheckPin: checkPin, Findings: verifyFindings(*repo),
+		CheckPin: checkPin, Findings: append(verifyFindings(*repo), codedFindings(*repo, "world", []string{"world"}, "", stderr)...),
 	})
 	if code != 0 {
 		return report.New(report.Verify, "check world refused")

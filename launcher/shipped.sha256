@@ -2,3 +2,4 @@
 # line, when it differs from launcher/launch. A member's .claudinite/launch
 # must be launcher/launch or one of these; when launcher/launch changes after
 # a release, its old hash goes here (the shape corpus fails until it does).
+acea3bbf9f350e83855b570ee9a710cda00eca7f46855811b2af2226af660936

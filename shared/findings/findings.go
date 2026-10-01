@@ -17,6 +17,12 @@ const (
 	// Deprecation means an old shape still works and will not at the next
 	// major.
 	Deprecation Class = "deprecation"
+	// Coded is a finding a pack's coded check reported: it blocks like a
+	// break.
+	Coded Class = "finding"
+	// Advisory is an advisory a pack's coded check reported: it is shown
+	// like a deprecation and blocks nothing.
+	Advisory Class = "advisory"
 )
 
 // Finding is one problem in a member's files.
@@ -38,10 +44,11 @@ func Print(w io.Writer, fs []Finding) {
 	}
 }
 
-// AnyBreak reports whether any finding is a break.
+// AnyBreak reports whether any finding blocks: a break, or a coded
+// check's finding.
 func AnyBreak(fs []Finding) bool {
 	for _, f := range fs {
-		if f.Class == Break {
+		if f.Class == Break || f.Class == Coded {
 			return true
 		}
 	}

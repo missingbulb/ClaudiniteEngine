@@ -153,3 +153,59 @@ func (r Repo) ChangedFiles(base, head string) ([]string, error) {
 func (r Repo) DiffStat(base, head string) (string, error) {
 	return r.line("diff", "--stat", base+"..."+head)
 }
+
+// Clone makes a shallow, blobless clone of one branch of url (a URL or a
+// path) into dir, with no credential: no helper is consulted, and the
+// token variables never reach the child. Blobs arrive as they are read.
+func Clone(url, branch, dir string) error {
+	cmd := exec.Command("git", "-c", "credential.helper=", "-c", "core.askPass=", "clone", "-q", "--depth", "1",
+		"--filter=blob:none", "--no-checkout", "--single-branch", "--branch", branch, "--", url, dir)
+	cmd.Env = childEnv()
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("git clone %s (%s): %v: %s", url, branch, err, strings.TrimSpace(stderr.String()))
+	}
+	return nil
+}
+
+// File is one blob of a tree.
+type File struct {
+	Data       []byte
+	Executable bool
+}
+
+// Tree reads every file under prefix at ref, by repo-relative path. A
+// symlink or submodule under prefix is refused.
+func (r Repo) Tree(ref, prefix string) (map[string]File, error) {
+	out, err := r.run("ls-tree", "-r", "-z", ref, "--", prefix)
+	if err != nil {
+		return nil, err
+	}
+	files := map[string]File{}
+	for _, rec := range strings.Split(string(out), "\x00") {
+		if rec == "" {
+			continue
+		}
+		meta, path, ok := strings.Cut(rec, "\t")
+		f := strings.Fields(meta)
+		if !ok || len(f) != 3 {
+			return nil, fmt.Errorf("git ls-tree: unexpected line %q", rec)
+		}
+		if f[1] != "blob" || (f[0] != "100644" && f[0] != "100755") {
+			return nil, fmt.Errorf("%s at %s is a %s %s, not a regular file", path, ref, f[0], f[1])
+		}
+		data, err := r.run("cat-file", "blob", f[2])
+		if err != nil {
+			return nil, err
+		}
+		files[path] = File{Data: data, Executable: f[0] == "100755"}
+	}
+	return files, nil
+}
+
+// DeleteBranch deletes a local branch that is not checked out.
+func (r Repo) DeleteBranch(name string) error {
+	_, err := r.run("branch", "-q", "-D", name)
+	return err
+}

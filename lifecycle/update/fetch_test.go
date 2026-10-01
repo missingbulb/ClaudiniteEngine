@@ -52,6 +52,12 @@ func TestFetchPlacesTheVerifiedBinaryWhereTheLauncherLooks(t *testing.T) {
 	if got.KeyID != sign.KeyID(relKey.Public().(ed25519.PublicKey)) {
 		t.Errorf("key id %s", got.KeyID)
 	}
+	if string(got.Launcher) != "#!/bin/sh\n# launcher of 60930.2.0\n" {
+		t.Errorf("launcher %q", got.Launcher)
+	}
+	if sst, err := os.Stat(filepath.Join(dir, "manifest.sig.json")); err != nil || sst.Mode().Perm() != 0o444 {
+		t.Errorf("signature not cached: %v", err)
+	}
 }
 
 func TestFetchRefuses(t *testing.T) {

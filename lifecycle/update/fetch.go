@@ -44,6 +44,9 @@ type Fetched struct {
 	// KeyID is the release key that signed the manifest.
 	KeyID  string
 	Binary string
+	// Launcher is the release's launcher, package/launch in the channel
+	// tarball, or nil for a release that carries none.
+	Launcher []byte
 }
 
 func binaryName(platform string) string {
@@ -66,7 +69,7 @@ type manifest struct {
 // binary by the launcher's tarball URLs, checks the channel tarball against
 // the packument's integrity, the signature against the roots and the binary
 // against its manifest entry, and only then places manifest.json (0444) and
-// the binary (0555) in <cache>/<version>/, where the launcher looks, so a
+// the binary (0555) in <cache>/<version>/ beside manifest.sig.json, where the launcher looks, so a
 // session on the merged pin downloads nothing. A refusal places nothing and
 // names the check that failed.
 func Fetch(in FetchInput) (Fetched, error) {
@@ -135,6 +138,10 @@ func Fetch(in FetchInput) (Fetched, error) {
 	if err := paths.PlaceReadOnly(dir, "manifest.json", rawManifest, 0o444); err != nil {
 		return Fetched{}, fmt.Errorf("cache: %w", err)
 	}
+	if err := paths.PlaceReadOnly(dir, "manifest.sig.json", rawSig, 0o444); err != nil {
+		return Fetched{}, fmt.Errorf("cache: %w", err)
+	}
+	launcher, _ := tarFile(channel, "package/launch")
 	ms := sha512.Sum512(rawManifest)
 	return Fetched{
 		Version:   in.Version,
@@ -142,6 +149,7 @@ func Fetch(in FetchInput) (Fetched, error) {
 		Integrity: "sha512-" + base64.StdEncoding.EncodeToString(ms[:]),
 		KeyID:     body.KeyID,
 		Binary:    filepath.Join(dir, entry.File),
+		Launcher:  launcher,
 	}, nil
 }
 

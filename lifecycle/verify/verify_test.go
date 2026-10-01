@@ -23,6 +23,23 @@ func launcherBytes(t *testing.T) []byte {
 	return raw
 }
 
+// shippedHashes reads launcher/shipped.sha256 as cn does, so a fixture holding
+// a launcher an earlier release shipped is accepted exactly when cn accepts it.
+func shippedHashes(t *testing.T) []string {
+	t.Helper()
+	raw, err := os.ReadFile("../../launcher/shipped.sha256")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out []string
+	for _, l := range strings.Split(string(raw), "\n") {
+		if f := strings.Fields(l); len(f) > 0 && !strings.HasPrefix(f[0], "#") {
+			out = append(out, f[0])
+		}
+	}
+	return out
+}
+
 func copyTree(t *testing.T, src string) string {
 	t.Helper()
 	dst := t.TempDir()
@@ -63,6 +80,7 @@ func newShape(t *testing.T) string {
 	dir := copyTree(t, filepath.Join(shapes, "v1-yaml"))
 	_ = os.Remove(filepath.Join(dir, ".gitignore"))
 	write(t, dir, ".claudinite/.gitignore", "bin/\n")
+	write(t, dir, ".claudinite/launch", string(launcherBytes(t)))
 	write(t, dir, ".github/workflows/claudinite-update.yml", "name: claudinite-update\n")
 	write(t, dir, ".github/workflows/claudinite-ci.yml", "name: claudinite-ci\n")
 	return dir
@@ -78,7 +96,7 @@ func write(t *testing.T, dir, rel, body string) {
 }
 
 func run(t *testing.T, dir string) []findings.Finding {
-	return Verify(Input{Repo: dir, Launcher: launcherBytes(t)})
+	return Verify(Input{Repo: dir, Launcher: launcherBytes(t), Shipped: shippedHashes(t)})
 }
 
 func TestNewShapeHasNoFinding(t *testing.T) {
@@ -135,6 +153,32 @@ func TestRules(t *testing.T) {
 			write(t, d, ".gitignore", "node_modules/\n.claudinite/bin/\n")
 		}, nil, []string{"bin-ignore"}},
 		{"bin not ignored", func(t *testing.T, d string) { _ = os.Remove(filepath.Join(d, ".claudinite/.gitignore")) }, []string{"bin-ignore"}, nil},
+		{"declared pack held", func(t *testing.T, d string) {
+			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "60930.1.0"}`)
+		}, nil, nil},
+		{"declared pack missing", func(t *testing.T, d string) {
+			declare(t, d, "acme-pack", "")
+		}, []string{"pack-declared"}, nil},
+		{"vendored pack undeclared", func(t *testing.T, d string) {
+			write(t, d, ".claudinite/shared/packs/acme-old/pack.json", `{"version": "1.0", "minEngineVersion": "60930.1.0"}`)
+		}, nil, []string{"pack-declared"}},
+		{"pack needs a newer engine", func(t *testing.T, d string) {
+			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "60930.2.0"}`)
+		}, []string{"pack-min-engine"}, nil},
+		{"pack with two-part minimum", func(t *testing.T, d string) {
+			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "60928.1"}`)
+		}, nil, []string{"min-engine-version-legacy"}},
+		{"pack with malformed minimum", func(t *testing.T, d string) {
+			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "soon"}`)
+		}, []string{"min-engine-version-legacy"}, nil},
+		{"pack.yaml", func(t *testing.T, d string) {
+			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "60930.1.0"}`)
+			write(t, d, ".claudinite/shared/packs/acme-pack/pack.yaml", "version: 1\n")
+		}, []string{"pack-declared"}, nil},
+		{"malformed packs block", func(t *testing.T, d string) {
+			raw, _ := os.ReadFile(filepath.Join(d, ".claudinite/settings.yaml"))
+			write(t, d, ".claudinite/settings.yaml", string(raw)+"packs:\n  channel: \"nightly\"\n")
+		}, []string{"pack-declared"}, nil},
 	}
 	for _, c := range cases {
 		dir := newShape(t)
@@ -151,6 +195,33 @@ func TestRules(t *testing.T) {
 				t.Errorf("%s: finding without a path or sentence: %+v", c.name, f)
 			}
 		}
+	}
+}
+
+// declare adds id to the member's packs block and, unless manifest is
+// empty, vendors a tree holding that pack.json.
+func declare(t *testing.T, dir, id, manifest string) {
+	t.Helper()
+	raw, _ := os.ReadFile(filepath.Join(dir, ".claudinite/settings.yaml"))
+	write(t, dir, ".claudinite/settings.yaml", string(raw)+"packs:\n  declared:\n    - "+id+"\n")
+	if manifest != "" {
+		write(t, dir, ".claudinite/shared/packs/"+id+"/pack.json", manifest)
+	}
+}
+
+func TestTwoPartMinEngineShapeRaisesOnlyItsDeprecation(t *testing.T) {
+	fs := Verify(Input{Repo: filepath.Join(shapes, "v3-two-part-min-engine"), Launcher: launcherBytes(t), Shipped: shippedHashes(t)})
+	if findings.AnyBreak(fs) {
+		t.Fatalf("%v", fs)
+	}
+	var legacy int
+	for _, f := range fs {
+		if f.ID == "min-engine-version-legacy" && f.Class == findings.Deprecation && f.Path == ".claudinite/shared/packs/acme-pack/pack.json" {
+			legacy++
+		}
+	}
+	if legacy != 1 {
+		t.Errorf("want one min-engine-version-legacy deprecation: %v", fs)
 	}
 }
 
@@ -194,7 +265,7 @@ func TestShapeCorpus(t *testing.T) {
 		t.Fatalf("shape corpus holds %d fixtures", len(dirs))
 	}
 	for _, d := range dirs {
-		fs := Verify(Input{Repo: d, Launcher: launcherBytes(t)})
+		fs := Verify(Input{Repo: d, Launcher: launcherBytes(t), Shipped: shippedHashes(t)})
 		if findings.AnyBreak(fs) {
 			t.Errorf("%s: a shape an earlier release accepted now breaks: %v", filepath.Base(d), fs)
 		}

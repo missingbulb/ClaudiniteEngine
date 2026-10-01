@@ -77,6 +77,7 @@ type relOpts struct {
 	flipChannel bool               // serve a channel tarball that differs from dist.integrity
 	deprecated  string
 	binary      []byte // the host binary's bytes
+	launcher    []byte // package/launch; default a stand-in naming ver
 }
 
 // registry is a TLS stand-in for npm serving packuments and tarballs.
@@ -160,7 +161,10 @@ func (r *registry) publish(t *testing.T, pkg, ver string, o relOpts) {
 		t.Fatal(err)
 	}
 	sig, _ := json.Marshal(sign.SignManifest(relKey, cert, manifest))
-	channel := tgz(t, map[string][]byte{"package.json": []byte("{}"), "manifest.json": manifest, "manifest.sig.json": sig})
+	if o.launcher == nil {
+		o.launcher = []byte("#!/bin/sh\n# launcher of " + ver + "\n")
+	}
+	channel := tgz(t, map[string][]byte{"package.json": []byte("{}"), "manifest.json": manifest, "manifest.sig.json": sig, "launch": o.launcher})
 	path := fmt.Sprintf("/%s/-/%s-%s.tgz", pkg, name, ver)
 	served := channel
 	if o.flipChannel {

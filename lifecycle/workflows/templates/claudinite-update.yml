@@ -1,6 +1,7 @@
-# Claudinite's nightly engine update, written by cn init. cn update engine
-# lands a green update PR, or opens one for the newest allowed engine, or
-# says why not; its last line is the verdict. No update changes this file:
+# Claudinite's nightly update, written by cn init. cn update engine lands a
+# green update PR, or opens one for the newest allowed engine, or says why
+# not; cn update packs does the same for the declared packs, and waits
+# while an engine PR is open. Each one's last line is its verdict. No update changes this file:
 # a change it needs arrives as an issue carrying the patch.
 name: claudinite-update
 
@@ -40,3 +41,10 @@ jobs:
         run: |
           .claudinite/bin/cn update engine | tee "$RUNNER_TEMP/update.out"
           tail -n 1 "$RUNNER_TEMP/update.out" >> "$GITHUB_STEP_SUMMARY"
+      - name: cn update packs
+        if: ${{ !cancelled() }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          .claudinite/bin/cn update packs | tee "$RUNNER_TEMP/update-packs.out"
+          tail -n 1 "$RUNNER_TEMP/update-packs.out" >> "$GITHUB_STEP_SUMMARY"

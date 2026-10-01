@@ -105,6 +105,15 @@ func TestPinGuard(t *testing.T) {
 				write(t, dir, ".claudinite/settings.yaml", strings.Replace(settingsBody("1.2.0", pin2), "cli-rc", "cli", 1))
 			}
 		}, bot, nil, 1, "engine.package", false},
+		{"the bot's pack PR changes only the vendored packs", func(t *testing.T) func(string) {
+			return func(dir string) { write(t, dir, ".claudinite/shared/packs/hello/RULES.md", "# hello 1.1\n") }
+		}, bot, nil, 0, "", false},
+		{"a person changes the vendored packs", func(t *testing.T) func(string) {
+			return func(dir string) { write(t, dir, ".claudinite/shared/packs/hello/pack.json", "{}") }
+		}, "someone", nil, 0, "", false},
+		{"the bot moves the pin and a pack together", func(t *testing.T) func(string) {
+			return func(dir string) { movePin(t)(dir); write(t, dir, ".claudinite/shared/packs/hello/RULES.md", "x") }
+		}, bot, nil, 1, ".claudinite/shared/packs/hello/RULES.md", false},
 		{"a person changes only a rule file", func(t *testing.T) func(string) {
 			return func(dir string) { write(t, dir, "RULES.md", "- another rule\n") }
 		}, "someone", nil, 0, "", false},

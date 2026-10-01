@@ -2,8 +2,11 @@
 // pin guard, which refuses a change to the engine pin or the launcher on a
 // pull request the update bot did not open, or that moves anything but the
 // pin, or whose new pin does not verify or is held, revoked or deprecated;
-// then verify's findings. The caller injects the pin check and the
-// findings, so this capability imports neither the updater nor verify.
+// then verify's findings and the packs' world-tagged checks. A change
+// confined to .claudinite/shared/packs/ passes the guard whoever made it,
+// the bot's pack PR and a person's adoption alike: verify's pack rules
+// judge that tree. The caller injects the pin check and the findings, so
+// this capability imports neither the updater nor verify.
 package world
 
 import (
