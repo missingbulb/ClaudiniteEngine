@@ -5,7 +5,8 @@
 # integrity string, the value a member pins. release/sign.sh signs it.
 #
 # VERSION (default 0.0.0); PACKAGE @claudinite/cli (default) or
-# @claudinite/cli-rc.
+# @claudinite/cli-rc. --placeholder-sdk adds the @claudinite/sdk placeholder
+# package, at 0.0.0 only, for npm-bootstrap.yml.
 set -eu
 cd "$(dirname "$0")/.."
 root=$(pwd)
@@ -18,6 +19,16 @@ case $PACKAGE in
   *) echo "build: PACKAGE must be @claudinite/cli or @claudinite/cli-rc, not $PACKAGE" >&2; exit 2 ;;
 esac
 name=${PACKAGE#@claudinite/}
+sdk=false
+case $# in
+  0) ;;
+  1) [ "$1" = --placeholder-sdk ] || { echo "usage: release/build.sh [--placeholder-sdk]" >&2; exit 2; }; sdk=true ;;
+  *) echo "usage: release/build.sh [--placeholder-sdk]" >&2; exit 2 ;;
+esac
+if [ "$sdk" = true ] && [ "$VERSION" != 0.0.0 ]; then
+  echo "build: --placeholder-sdk reserves @claudinite/sdk at 0.0.0 only, not $VERSION" >&2
+  exit 2
+fi
 COMMIT=$(git rev-parse --short=7 HEAD 2>/dev/null || echo unknown)
 export VERSION COMMIT
 platforms="linux-x64 linux-arm64 darwin-x64 darwin-arm64 windows-x64"
@@ -63,6 +74,16 @@ for p in $platforms; do
   \"os\": [\"$os\"],
   \"cpu\": [\"$cpu\"]" > "$dir/package.json"
 done
+
+if [ "$sdk" = true ]; then
+  dir=$DIST/npm/sdk/package
+  mkdir -p "$dir"
+  pkgjson "@claudinite/sdk" "SDK" ",
+  \"type\": \"module\",
+  \"main\": \"index.mjs\"" > "$dir/package.json"
+  echo 'export {};' > "$dir/index.mjs"
+  echo 'placeholder, see ClaudiniteEngine' > "$dir/README.md"
+fi
 
 for d in "$DIST"/npm/*/package; do
   sh release/npmpack.sh "$d" "$DIST/tarballs"
