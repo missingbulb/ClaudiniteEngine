@@ -92,6 +92,8 @@ token_refusal() {
 }
 
 sort "$list" | while read -r _ name tgz; do
+  # No provenance: the repository goes private, and npm attests only public
+  # sources; the release key's manifest signature is what members verify.
   line="npm publish $tgz --access public --provenance false"
   if [ "$dry" = true ]; then
     echo "dry-run: $line"
