@@ -56,7 +56,29 @@ func TestNoExpressionInARunBody(t *testing.T) {
 	}
 }
 
-var pinnedUses = regexp.MustCompile(`^\s*(?:- )?uses:\s*[^@\s]+@[0-9a-f]{40}(?:\s+#.*)?$`)
+var (
+	stepUses   = regexp.MustCompile(`^\s*(?:- )?uses:\s*\S`)
+	pinnedUses = regexp.MustCompile(`^\s*(?:- )?uses:\s*[^@\s]+@[0-9a-f]{40}(?:\s+#.*)?$`)
+)
+
+// unpinnedUse reports a step's uses: that names an action by anything but a commit SHA. A bare
+// `uses:` key with no value is a workflow_dispatch input of that name, not a step.
+func unpinnedUse(line string) bool {
+	return stepUses.MatchString(line) && !pinnedUses.MatchString(line)
+}
+
+func TestUnpinnedUse(t *testing.T) {
+	for line, want := range map[string]bool{
+		"      - uses: actions/checkout@v4":                                                true,
+		"      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1": false,
+		"        uses: ./local-action":                                                     true,
+		"      uses:":                                                                      false,
+	} {
+		if got := unpinnedUse(line); got != want {
+			t.Errorf("unpinnedUse(%q) = %v, want %v", line, got, want)
+		}
+	}
+}
 
 func TestEveryActionIsPinnedBySHA(t *testing.T) {
 	files, _ := filepath.Glob("../.github/workflows/*.yml")
@@ -66,7 +88,7 @@ func TestEveryActionIsPinnedBySHA(t *testing.T) {
 	for _, f := range files {
 		raw, _ := os.ReadFile(f)
 		for i, l := range strings.Split(string(raw), "\n") {
-			if strings.Contains(l, "uses:") && !pinnedUses.MatchString(l) {
+			if unpinnedUse(l) {
 				t.Errorf("%s:%d: not pinned by commit SHA: %s", f, i+1, strings.TrimSpace(l))
 			}
 		}
