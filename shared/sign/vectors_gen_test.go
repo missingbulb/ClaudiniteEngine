@@ -31,6 +31,15 @@ type messageCase struct {
 	Valid   bool           `json:"valid"`
 }
 
+type packIndexCase struct {
+	Name   string   `json:"name"`
+	Index  string   `json:"index"`
+	Signed Detached `json:"signed"`
+	Root   string   `json:"root"`
+	Now    string   `json:"now"`
+	Valid  bool     `json:"valid"`
+}
+
 type vectors struct {
 	Comment []string          `json:"_comment"`
 	Domains map[string]string `json:"domains"`
@@ -43,6 +52,7 @@ type vectors struct {
 	Certificates     map[string]Certificate `json:"certificates"`
 	CertificateCases []certCase             `json:"certificateCases"`
 	MessageCases     []messageCase          `json:"messageCases"`
+	PackIndexCases   []packIndexCase        `json:"packIndexCases"`
 }
 
 func vk(k ed25519.PrivateKey) vectorKey {
@@ -64,9 +74,10 @@ func generateVectors() ([]byte, error) {
 			"Verify a certificate: issuer is the key id of a trusted root and the signature verifies; v is 1; use equals the use asked for; keyId equals the key id of publicKey; notAfter - notBefore is at most 400 days; notBefore <= now <= notAfter.",
 			"Key id: first 16 hex chars of SHA-256 over the raw 32-byte public key.",
 			"Signed manifest: signature = b64(Ed25519(domains.manifest || SHA-512(manifest bytes))) by the certificate's subject key; the certificate must verify for use manifest.",
+			"Signed pack index: signature = b64(Ed25519(domains.packIndex || SHA-512(index.json bytes))) by the certificate's subject key; the certificate must verify for use packs. The bytes are covered as published, with no canonical JSON.",
 			"Seeds here are test keys only and sign nothing anyone trusts.",
 		},
-		Domains:      map[string]string{"certificate": CertDomain, "manifest": ManifestDomain},
+		Domains:      map[string]string{"certificate": CertDomain, "manifest": ManifestDomain, "packIndex": PackIndexDomain},
 		Roots:        map[string]vectorKey{"root": vk(rootKey), "other": vk(otherRoot)},
 		Subjects:     map[string]vectorKey{},
 		Certificates: map[string]Certificate{},
@@ -124,6 +135,20 @@ func generateVectors() ([]byte, error) {
 		{"flipped signature byte", b64.EncodeToString(msg), badSig, "root", inWindow, false},
 		{"flipped certificate payload byte", b64.EncodeToString(msg), badCert, "root", inWindow, false},
 		{"signed by a license-use key", b64.EncodeToString(msg), SignManifest(subjects[UseLicense], l, msg), "root", inWindow, false},
+	}
+	index := []byte(`{"v":1,"id":"hello","versions":[{"version":"1.0.0","sha512":"x","minEngineVersion":"60928.1.0","requires":[]}]}` + "\n")
+	p := v.Certificates[string(UsePacks)]
+	signedIndex := SignPackIndex(subjects[UsePacks], p, index)
+	badIndex := append([]byte{}, index...)
+	badIndex[9] ^= 1
+	badIndexSig := signedIndex
+	badIndexSig.Signature = flip(signedIndex.Signature, 7)
+	v.PackIndexCases = []packIndexCase{
+		{"valid signed index", b64.EncodeToString(index), signedIndex, "root", inWindow, true},
+		{"flipped index byte", b64.EncodeToString(badIndex), signedIndex, "root", inWindow, false},
+		{"flipped signature byte", b64.EncodeToString(index), badIndexSig, "root", inWindow, false},
+		{"manifest-use certificate", b64.EncodeToString(index), SignPackIndex(subjects[UseManifest], m, index), "root", inWindow, false},
+		{"signed under the manifest domain", b64.EncodeToString(index), SignManifest(subjects[UsePacks], p, index), "root", inWindow, false},
 	}
 	var out bytes.Buffer
 	enc := json.NewEncoder(&out)
