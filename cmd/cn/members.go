@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -12,6 +13,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/license"
 	"github.com/missingbulb/ClaudiniteEngine/lifecycle/update"
 	"github.com/missingbulb/ClaudiniteEngine/lifecycle/verify"
+	"github.com/missingbulb/ClaudiniteEngine/shared/descriptor"
 	"github.com/missingbulb/ClaudiniteEngine/shared/findings"
 	"github.com/missingbulb/ClaudiniteEngine/shared/gitcmd"
 	"github.com/missingbulb/ClaudiniteEngine/shared/npmreg"
@@ -34,7 +36,21 @@ func flags(fs *flag.FlagSet, args []string) error {
 }
 
 func verifyFindings(repo string) []findings.Finding {
-	return verify.Verify(verify.Input{Repo: repo, Launcher: launcher.Script, Shipped: launcher.Shipped()})
+	return verify.Verify(verify.Input{Repo: repo, Launcher: launcher.Script, Shipped: launcher.Shipped(), Declared: declaredChecks})
+}
+
+// declaredChecks answers verify's questions about the active packs'
+// declared checks from the declared-checks loader.
+func declaredChecks(repo string) verify.DeclaredChecks {
+	set, err := declared.LoadSet(repo, version.Version())
+	if err != nil {
+		return verify.DeclaredChecks{}
+	}
+	out := verify.DeclaredChecks{IDs: set.IDs()}
+	for _, le := range set.LoadErrors {
+		out.Faults = append(out.Faults, verify.DescriptorFault{Path: le.Path, Sentence: le.Err.Error(), Duplicate: errors.Is(le.Err, descriptor.ErrDuplicate)})
+	}
+	return out
 }
 
 func cmdVerify(args []string, stdout io.Writer) error {

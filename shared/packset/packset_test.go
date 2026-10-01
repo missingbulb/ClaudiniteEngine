@@ -52,9 +52,9 @@ func TestReadManifestThreeFormats(t *testing.T) {
 
 func TestReadManifestRefuses(t *testing.T) {
 	cases := map[string]string{
-		`"extra" is not a pack manifest key`: `{"version": "1.0", "extra": 1}`,
+		`"extra" is not a pack manifest key`:   `{"version": "1.0", "extra": 1}`,
 		`"requires" must be a list of strings`: `{"version": "1.0", "requires": "a"}`,
-		`has no version`:                      `{"minEngineVersion": "1.1.0"}`,
+		`has no version`:                       `{"minEngineVersion": "1.1.0"}`,
 	}
 	for want, body := range cases {
 		dir := t.TempDir()

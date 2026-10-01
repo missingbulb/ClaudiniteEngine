@@ -11,7 +11,7 @@ import (
 
 // MatchTimeout bounds one match. A pattern that backtracks past it is a
 // check error, reported as a checks-run break, never a hang.
-const MatchTimeout = 2 * time.Second
+var MatchTimeout = 2 * time.Second
 
 // Regex is one compiled pattern, matched with ECMAScript semantics so a
 // declaration's lookarounds and backreferences run as written.
