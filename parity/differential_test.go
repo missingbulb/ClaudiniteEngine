@@ -94,17 +94,11 @@ func TestDifferential(t *testing.T) {
 
 // cnSettings writes cn's translation of the declaration, kept out of git.
 func cnSettings(dir string, decl map[string]any) error {
-	raw, err := Translate(decl)
+	rel, err := Cn{}.Settings(dir, decl)
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Join(dir, ".claudinite"), 0o755); err != nil {
-		return err
-	}
-	if err := os.WriteFile(filepath.Join(dir, ".claudinite/settings.json"), raw, 0o644); err != nil {
-		return err
-	}
-	return appendFile(filepath.Join(dir, ".git/info/exclude"), "/.claudinite/settings.json\n")
+	return appendFile(filepath.Join(dir, ".git/info/exclude"), "/"+rel+"\n")
 }
 
 // vendorPacks lays the declared canon packs where a member holds them,
