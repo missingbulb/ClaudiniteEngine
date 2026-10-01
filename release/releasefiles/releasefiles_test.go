@@ -31,6 +31,16 @@ func TestFormatRoundTripsWithOneLinePerBinary(t *testing.T) {
 	}
 }
 
+// Every UpdaterSource path is in the tree: one left behind by a move would
+// silently drop out of the digest.
+func TestUpdaterSourceExists(t *testing.T) {
+	for _, src := range UpdaterSource {
+		if _, err := os.Stat(filepath.Join("../..", filepath.FromSlash(src))); err != nil {
+			t.Errorf("UpdaterSource names %s: %v", src, err)
+		}
+	}
+}
+
 func TestUpdaterDigestFollowsTheUpdaterSource(t *testing.T) {
 	root := t.TempDir()
 	write := func(rel, body string) {
@@ -41,8 +51,14 @@ func TestUpdaterDigestFollowsTheUpdaterSource(t *testing.T) {
 		}
 	}
 	write("launcher/launch", "#!/bin/sh\n")
-	write("lifecycle/a.go", "package lifecycle\n")
-	write("lifecycle/sub/b.go", "package sub\n")
+	write("lifecycle/update/a.go", "package update\n")
+	write("lifecycle/update/sub/b.go", "package sub\n")
+	write("lifecycle/workflows/templates/w.yml", "on: push\n")
+	write("lifecycle/verify/v.go", "package verify\n")
+	write("shared/npmreg/n.go", "package npmreg\n")
+	write("shared/githubapi/g.go", "package githubapi\n")
+	write("shared/gitcmd/c.go", "package gitcmd\n")
+	write("shared/settings/s.go", "package settings\n")
 	write("hooks/x.go", "package hooks\n")
 	first, err := UpdaterDigest(root)
 	if err != nil {
@@ -55,14 +71,20 @@ func TestUpdaterDigestFollowsTheUpdaterSource(t *testing.T) {
 		t.Fatal("digest is not deterministic")
 	}
 	write("hooks/x.go", "package hooks // changed\n")
+	write("lifecycle/verify/v.go", "package verify // changed\n")
 	if d, _ := UpdaterDigest(root); d != first {
 		t.Error("a change outside the updater moved the digest")
 	}
 	for _, change := range []func(){
-		func() { write("lifecycle/sub/b.go", "package sub // changed\n") },
-		func() { write("lifecycle/c.go", "package lifecycle\n") },
+		func() { write("lifecycle/update/sub/b.go", "package sub // changed\n") },
+		func() { write("lifecycle/update/c.go", "package update\n") },
 		func() { write("launcher/launch", "#!/bin/sh\n# changed\n") },
-		func() { _ = os.Rename(filepath.Join(root, "lifecycle/c.go"), filepath.Join(root, "lifecycle/d.go")) },
+		func() { _ = os.Rename(filepath.Join(root, "lifecycle/update/c.go"), filepath.Join(root, "lifecycle/update/d.go")) },
+		func() { write("lifecycle/workflows/templates/w.yml", "on: pull_request\n") },
+		func() { write("shared/npmreg/n.go", "package npmreg // changed\n") },
+		func() { write("shared/githubapi/g.go", "package githubapi // changed\n") },
+		func() { write("shared/gitcmd/c.go", "package gitcmd // changed\n") },
+		func() { write("shared/settings/s.go", "package settings // changed\n") },
 	} {
 		before, _ := UpdaterDigest(root)
 		change()

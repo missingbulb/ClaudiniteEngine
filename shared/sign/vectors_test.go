@@ -45,8 +45,11 @@ func TestVectorsReplay(t *testing.T) {
 	if err := json.Unmarshal(raw, &v); err != nil {
 		t.Fatal(err)
 	}
-	if len(v.CertificateCases) == 0 || len(v.MessageCases) == 0 {
+	if len(v.CertificateCases) == 0 || len(v.MessageCases) == 0 || len(v.PackIndexCases) == 0 {
 		t.Fatal("vectors carry no cases")
+	}
+	if v.Domains["packIndex"] != PackIndexDomain {
+		t.Errorf("domains.packIndex %q, want %q", v.Domains["packIndex"], PackIndexDomain)
 	}
 	if KeyID(mustB64(t, v.KeyID.PublicKey)) != v.KeyID.KeyID {
 		t.Error("key id vector mismatch")
@@ -66,6 +69,15 @@ func TestVectorsReplay(t *testing.T) {
 		if (err == nil) != c.Valid {
 			t.Errorf("message case %q: err=%v, want valid=%v", c.Name, err, c.Valid)
 		}
+	}
+	for _, c := range v.PackIndexCases {
+		t.Run("packIndex/"+c.Name, func(t *testing.T) {
+			now, _ := time.Parse(time.RFC3339, c.Now)
+			_, err := VerifyPackIndex(c.Signed, mustB64(t, c.Index), []ed25519.PublicKey{rootPub(c.Root)}, now)
+			if (err == nil) != c.Valid {
+				t.Errorf("err=%v, want valid=%v", err, c.Valid)
+			}
+		})
 	}
 }
 

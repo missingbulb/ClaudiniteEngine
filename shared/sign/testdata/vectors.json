@@ -7,11 +7,13 @@
     "Verify a certificate: issuer is the key id of a trusted root and the signature verifies; v is 1; use equals the use asked for; keyId equals the key id of publicKey; notAfter - notBefore is at most 400 days; notBefore <= now <= notAfter.",
     "Key id: first 16 hex chars of SHA-256 over the raw 32-byte public key.",
     "Signed manifest: signature = b64(Ed25519(domains.manifest || SHA-512(manifest bytes))) by the certificate's subject key; the certificate must verify for use manifest.",
+    "Signed pack index: signature = b64(Ed25519(domains.packIndex || SHA-512(index.json bytes))) by the certificate's subject key; the certificate must verify for use packs. The bytes are covered as published, with no canonical JSON.",
     "Seeds here are test keys only and sign nothing anyone trusts."
   ],
   "domains": {
     "certificate": "claudinite-cert-v1\n",
-    "manifest": "claudinite-manifest-v1\n"
+    "manifest": "claudinite-manifest-v1\n",
+    "packIndex": "claudinite-packindex-v1\n"
   },
   "keyIdVector": {
     "publicKey": "0EqyMnQrtKs6E2i9RhXk5tAiSrcaAWuvhSCjMsl3hzc",
@@ -280,6 +282,78 @@
           "signature": "B4eXAIG21JxPWvOrsvAFN9KRzEYsuTIEA-sHGtFiYNXvY2Mad1pHG192P77Qa8eFDuXrEqBMtFppVxOEOqhwBA"
         },
         "signature": "4EWmbrLISrzrKGDK8UuceSaH7gkKy8B-ICvMLGHQHiN_JtoNYMa-6bCwpP7t7ICn5cebdKxUhBGbc7-AodIjBw"
+      },
+      "root": "root",
+      "now": "2026-01-31T00:00:00Z",
+      "valid": false
+    }
+  ],
+  "packIndexCases": [
+    {
+      "name": "valid signed index",
+      "index": "eyJ2IjoxLCJpZCI6ImhlbGxvIiwidmVyc2lvbnMiOlt7InZlcnNpb24iOiIxLjAuMCIsInNoYTUxMiI6IngiLCJtaW5FbmdpbmVWZXJzaW9uIjoiNjA5MjguMS4wIiwicmVxdWlyZXMiOltdfV19Cg",
+      "signed": {
+        "certificate": {
+          "payload": "eyJ2IjoxLCJrZXlJZCI6ImVlZWM4NjIwN2Y4NzVmZjYiLCJwdWJsaWNLZXkiOiJYaUVzQ1lEa3M1X0FseUVUU3FBaENUZE8zOUpnd05QUVBMVUJ5TlpVVjZrIiwidXNlIjoicGFja3MiLCJpc3N1ZXIiOiIxMGJhNjgyYzhhZDEzNTEzIiwibm90QmVmb3JlIjoiMjAyNi0wMS0wMVQwMDowMDowMFoiLCJub3RBZnRlciI6IjIwMjYtMDQtMDFUMDA6MDA6MDBaIn0",
+          "signature": "IeVZJLwcOMHkHJozU7pfWiOxRtd4X6JFrcp-Xa_rFxC5KqBnqPfajsf7878fl3ZUrbvNfBScuiro5XW5RG8SCQ"
+        },
+        "signature": "vuWecSBeTVjGtDy02szut3nEao7Q8A6nt-ieiJRZK9-_AolL3mH9NRi0s8rXPOWJuhNeg6FBC8ek2GGeTK4kDQ"
+      },
+      "root": "root",
+      "now": "2026-01-31T00:00:00Z",
+      "valid": true
+    },
+    {
+      "name": "flipped index byte",
+      "index": "eyJ2IjoxLCJpZSI6ImhlbGxvIiwidmVyc2lvbnMiOlt7InZlcnNpb24iOiIxLjAuMCIsInNoYTUxMiI6IngiLCJtaW5FbmdpbmVWZXJzaW9uIjoiNjA5MjguMS4wIiwicmVxdWlyZXMiOltdfV19Cg",
+      "signed": {
+        "certificate": {
+          "payload": "eyJ2IjoxLCJrZXlJZCI6ImVlZWM4NjIwN2Y4NzVmZjYiLCJwdWJsaWNLZXkiOiJYaUVzQ1lEa3M1X0FseUVUU3FBaENUZE8zOUpnd05QUVBMVUJ5TlpVVjZrIiwidXNlIjoicGFja3MiLCJpc3N1ZXIiOiIxMGJhNjgyYzhhZDEzNTEzIiwibm90QmVmb3JlIjoiMjAyNi0wMS0wMVQwMDowMDowMFoiLCJub3RBZnRlciI6IjIwMjYtMDQtMDFUMDA6MDA6MDBaIn0",
+          "signature": "IeVZJLwcOMHkHJozU7pfWiOxRtd4X6JFrcp-Xa_rFxC5KqBnqPfajsf7878fl3ZUrbvNfBScuiro5XW5RG8SCQ"
+        },
+        "signature": "vuWecSBeTVjGtDy02szut3nEao7Q8A6nt-ieiJRZK9-_AolL3mH9NRi0s8rXPOWJuhNeg6FBC8ek2GGeTK4kDQ"
+      },
+      "root": "root",
+      "now": "2026-01-31T00:00:00Z",
+      "valid": false
+    },
+    {
+      "name": "flipped signature byte",
+      "index": "eyJ2IjoxLCJpZCI6ImhlbGxvIiwidmVyc2lvbnMiOlt7InZlcnNpb24iOiIxLjAuMCIsInNoYTUxMiI6IngiLCJtaW5FbmdpbmVWZXJzaW9uIjoiNjA5MjguMS4wIiwicmVxdWlyZXMiOltdfV19Cg",
+      "signed": {
+        "certificate": {
+          "payload": "eyJ2IjoxLCJrZXlJZCI6ImVlZWM4NjIwN2Y4NzVmZjYiLCJwdWJsaWNLZXkiOiJYaUVzQ1lEa3M1X0FseUVUU3FBaENUZE8zOUpnd05QUVBMVUJ5TlpVVjZrIiwidXNlIjoicGFja3MiLCJpc3N1ZXIiOiIxMGJhNjgyYzhhZDEzNTEzIiwibm90QmVmb3JlIjoiMjAyNi0wMS0wMVQwMDowMDowMFoiLCJub3RBZnRlciI6IjIwMjYtMDQtMDFUMDA6MDA6MDBaIn0",
+          "signature": "IeVZJLwcOMHkHJozU7pfWiOxRtd4X6JFrcp-Xa_rFxC5KqBnqPfajsf7878fl3ZUrbvNfBScuiro5XW5RG8SCQ"
+        },
+        "signature": "vuWecSBATVjGtDy02szut3nEao7Q8A6nt-ieiJRZK9-_AolL3mH9NRi0s8rXPOWJuhNeg6FBC8ek2GGeTK4kDQ"
+      },
+      "root": "root",
+      "now": "2026-01-31T00:00:00Z",
+      "valid": false
+    },
+    {
+      "name": "manifest-use certificate",
+      "index": "eyJ2IjoxLCJpZCI6ImhlbGxvIiwidmVyc2lvbnMiOlt7InZlcnNpb24iOiIxLjAuMCIsInNoYTUxMiI6IngiLCJtaW5FbmdpbmVWZXJzaW9uIjoiNjA5MjguMS4wIiwicmVxdWlyZXMiOltdfV19Cg",
+      "signed": {
+        "certificate": {
+          "payload": "eyJ2IjoxLCJrZXlJZCI6IjI0YWEyYTU1ODllZGNiNTciLCJwdWJsaWNLZXkiOiJTQWRhV1g1eUdoVnVMZ2VaM2x6QXhUSk54dWZxOGMzVVlsQ0dqc1V5RmQwIiwidXNlIjoibWFuaWZlc3QiLCJpc3N1ZXIiOiIxMGJhNjgyYzhhZDEzNTEzIiwibm90QmVmb3JlIjoiMjAyNi0wMS0wMVQwMDowMDowMFoiLCJub3RBZnRlciI6IjIwMjYtMDQtMDFUMDA6MDA6MDBaIn0",
+          "signature": "Emgx000TYe74y3ZockfvAOvKPZYIYVvu6GfHtHOLLRzSAUd3Zm_5d2DcoVH1K9Z3kizT3qbg-iG153ulL8R5CA"
+        },
+        "signature": "GrzhG-Jr2F7k5i0y4HyKckAhkm7Cf1RO7NuDQj-XodqLOH2LjOlTObPT7lzhBP-q7WE7KGMnK3JYYdYzBNl1CQ"
+      },
+      "root": "root",
+      "now": "2026-01-31T00:00:00Z",
+      "valid": false
+    },
+    {
+      "name": "signed under the manifest domain",
+      "index": "eyJ2IjoxLCJpZCI6ImhlbGxvIiwidmVyc2lvbnMiOlt7InZlcnNpb24iOiIxLjAuMCIsInNoYTUxMiI6IngiLCJtaW5FbmdpbmVWZXJzaW9uIjoiNjA5MjguMS4wIiwicmVxdWlyZXMiOltdfV19Cg",
+      "signed": {
+        "certificate": {
+          "payload": "eyJ2IjoxLCJrZXlJZCI6ImVlZWM4NjIwN2Y4NzVmZjYiLCJwdWJsaWNLZXkiOiJYaUVzQ1lEa3M1X0FseUVUU3FBaENUZE8zOUpnd05QUVBMVUJ5TlpVVjZrIiwidXNlIjoicGFja3MiLCJpc3N1ZXIiOiIxMGJhNjgyYzhhZDEzNTEzIiwibm90QmVmb3JlIjoiMjAyNi0wMS0wMVQwMDowMDowMFoiLCJub3RBZnRlciI6IjIwMjYtMDQtMDFUMDA6MDA6MDBaIn0",
+          "signature": "IeVZJLwcOMHkHJozU7pfWiOxRtd4X6JFrcp-Xa_rFxC5KqBnqPfajsf7878fl3ZUrbvNfBScuiro5XW5RG8SCQ"
+        },
+        "signature": "QgZvNR_2qeyKvlmuy8neNLsGRJ-ONTKb_OURafante6zspkuZQi6FSO9-G9QixRkZvX0vlWTqE8zpiWldCwdCg"
       },
       "root": "root",
       "now": "2026-01-31T00:00:00Z",

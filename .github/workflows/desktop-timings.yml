@@ -1,0 +1,46 @@
+name: desktop-timings
+
+# Runs the desktop timing probe (#4) on hosted macOS and Windows runners and keeps each
+# platform's results file as an artifact and in the job summary.
+on:
+  workflow_dispatch:
+    inputs:
+      runs:
+        description: Timed runs per item
+        default: "50"
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.24"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+      - name: Probe
+        env:
+          RUNS: ${{ inputs.runs }}
+        run: |
+          sh probe/desktop-timings/run.sh --runs "$RUNS" --out "$RUNNER_TEMP/timings"
+          cat "$RUNNER_TEMP"/timings/*.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: timings-${{ matrix.os }}
+          path: ${{ runner.temp }}/timings
+          if-no-files-found: error

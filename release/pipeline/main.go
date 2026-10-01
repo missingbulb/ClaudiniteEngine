@@ -17,6 +17,7 @@ const usage = `usage:
   pipeline bootstrap-comment
   pipeline blocker-issue --version V --leg PLATFORM --run-url URL --log FILE
   pipeline publish-mode --channel rc|stable --signing release|dev --dry-run true|false --npm-versions FILE [--stable-test pass|fail]
+  pipeline deprecate-commands --action hold|revoke|release --version V [--reason R] --rc-versions FILE --stable-versions FILE
 `
 
 func main() { os.Exit(run(os.Args[1:], os.Stdout, os.Stderr)) }
@@ -48,6 +49,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return publishMode(args[1:], stdout, stderr)
 	case "blocker-issue":
 		return blockerIssue(args[1:], stdout, stderr)
+	case "deprecate-commands":
+		return deprecateCommands(args[1:], stdout, stderr)
 	}
 	fmt.Fprintf(stderr, "pipeline: unknown command %q\n%s", args[0], usage)
 	return 2
@@ -101,5 +104,45 @@ func blockerIssue(args []string, stdout, stderr io.Writer) int {
 	}
 	title, body := release.BlockerIssue(*ver, *leg, *runURL, string(raw))
 	fmt.Fprintf(stdout, "%s\n\n%s", title, body)
+	return 0
+}
+
+// deprecateCommands prints one npm deprecate command per line, or nothing
+// and a notice when npm has no such version.
+func deprecateCommands(args []string, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("deprecate-commands", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	var in release.DeprecateInput
+	fs.StringVar(&in.Action, "action", "", "")
+	fs.StringVar(&in.Version, "version", "", "")
+	fs.StringVar(&in.Reason, "reason", "", "")
+	rc := fs.String("rc-versions", "", "")
+	stable := fs.String("stable-versions", "", "")
+	if err := fs.Parse(args); err != nil || fs.NArg() != 0 || *rc == "" || *stable == "" {
+		fmt.Fprint(stderr, usage)
+		return 2
+	}
+	for _, f := range []struct {
+		path string
+		dst  *string
+	}{{*rc, &in.RCVersions}, {*stable, &in.StableVersions}} {
+		raw, err := os.ReadFile(f.path)
+		if err != nil && !os.IsNotExist(err) {
+			fmt.Fprintf(stderr, "pipeline: %v\n", err)
+			return 1
+		}
+		*f.dst = string(raw)
+	}
+	d, err := release.DeprecateCommands(in)
+	if err != nil {
+		fmt.Fprintf(stderr, "pipeline: %v\n", err)
+		return 1
+	}
+	if d.Notice != "" {
+		fmt.Fprintf(stderr, "::notice::%s\n", d.Notice)
+	}
+	for _, c := range d.Commands {
+		fmt.Fprintln(stdout, c)
+	}
 	return 0
 }

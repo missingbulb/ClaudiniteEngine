@@ -18,6 +18,8 @@ func TestPublishMode(t *testing.T) {
 		{"rc, dev key", ModeInput{Channel: "rc", Signing: "dev", NpmVersions: reserved}, "dry-run", "development key"},
 		{"rc, dry_run input", ModeInput{Channel: "rc", Signing: "release", DryRunInput: true, NpmVersions: reserved}, "dry-run", "dry_run"},
 		{"rc, npm view 404", ModeInput{Channel: "rc", Signing: "release", NpmVersions: notFound}, "dry-run", "package not reserved; see #2"},
+		{"rc, npm view 500", ModeInput{Channel: "rc", Signing: "release", NpmVersions: `{"error": {"code": "E500", "summary": "500 Internal Server Error - GET https://registry.npmjs.org/@claudinite%2fcli-rc"}}`}, "dry-run", "E500"},
+		{"rc, npm view network failure", ModeInput{Channel: "rc", Signing: "release", NpmVersions: `{"error": {"code": "ECONNRESET", "summary": "socket hang up"}}`}, "dry-run", "ECONNRESET"},
 		{"rc, npm view empty", ModeInput{Channel: "rc", Signing: "release", NpmVersions: ""}, "dry-run", "package not reserved; see #2"},
 		{"rc, npm view empty list", ModeInput{Channel: "rc", Signing: "release", NpmVersions: "[]"}, "dry-run", "package not reserved; see #2"},
 		{"rc, npm view single string", ModeInput{Channel: "rc", Signing: "release", NpmVersions: `"0.0.0"`}, "real", ""},
@@ -35,6 +37,11 @@ func TestPublishMode(t *testing.T) {
 		}
 		if c.notice != "" && !strings.Contains(got.Notice, c.notice) {
 			t.Errorf("%s: notice %q lacks %q", c.name, got.Notice, c.notice)
+		}
+		if strings.Contains(c.name, "500") || strings.Contains(c.name, "network") {
+			if strings.Contains(got.Notice, "#2") {
+				t.Errorf("%s: notice %q blames the reservation", c.name, got.Notice)
+			}
 		}
 		if c.notice == "" && got.Notice != "" {
 			t.Errorf("%s: unexpected notice %q", c.name, got.Notice)

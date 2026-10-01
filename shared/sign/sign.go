@@ -11,8 +11,15 @@
 //
 //	{"certificate": <cert>, "signature": b64url(Ed25519(ManifestDomain || SHA-512(manifest.json)))}
 //
+// A signed pack index (index.sig.json beside a pack's index.json on the
+// ClaudinitePacks vendored branch) has the same shape, by a key certified
+// for use packs:
+//
+//	{"certificate": <cert>, "signature": b64url(Ed25519(PackIndexDomain || SHA-512(index.json)))}
+//
 // b64url is base64url without padding. testdata/vectors.json pins all of it
-// for the license Worker, which implements the same checks in JavaScript.
+// for the license Worker and ClaudinitePacks, which implement the same
+// checks in JavaScript.
 package sign
 
 import (
@@ -31,6 +38,13 @@ import (
 const (
 	CertDomain     = "claudinite-cert-v1\n"
 	ManifestDomain = "claudinite-manifest-v1\n"
+	// PackIndexDomain covers a pack's index.json bytes as published, with
+	// no canonical JSON. Its reader (phase 3) decodes index.json without
+	// DisallowUnknownFields, ignoring unknown top-level and entry fields
+	// and refusing only a "v" it does not know, so ClaudinitePacks can add
+	// a field without an engine release; the certificate keeps its strict
+	// decode.
+	PackIndexDomain = "claudinite-packindex-v1\n"
 )
 
 // AbsoluteMaxValidity bounds any certificate at verify time, whatever its use.
@@ -181,29 +195,31 @@ func (b Body) Subject() (ed25519.PublicKey, error) {
 	return ed25519.PublicKey(p), nil
 }
 
-// SignedManifest is the content of manifest.sig.json.
-type SignedManifest struct {
+// Detached is a signature that travels beside the bytes it covers, with
+// the certificate of the key that made it: manifest.sig.json and a pack's
+// index.sig.json.
+type Detached struct {
 	Certificate Certificate `json:"certificate"`
 	Signature   string      `json:"signature"`
 }
 
-func manifestMessage(manifest []byte) []byte {
-	sum := sha512.Sum512(manifest)
-	return append([]byte(ManifestDomain), sum[:]...)
+// SignedManifest is the content of manifest.sig.json.
+type SignedManifest = Detached
+
+// SignedPackIndex is the content of a pack's index.sig.json.
+type SignedPackIndex = Detached
+
+func message(domain string, data []byte) []byte {
+	sum := sha512.Sum512(data)
+	return append([]byte(domain), sum[:]...)
 }
 
-// SignManifest signs manifest.json's bytes with key, attaching cert.
-func SignManifest(key ed25519.PrivateKey, cert Certificate, manifest []byte) SignedManifest {
-	return SignedManifest{
-		Certificate: cert,
-		Signature:   b64.EncodeToString(ed25519.Sign(key, manifestMessage(manifest))),
-	}
+func signDetached(domain string, key ed25519.PrivateKey, cert Certificate, data []byte) Detached {
+	return Detached{Certificate: cert, Signature: b64.EncodeToString(ed25519.Sign(key, message(domain, data)))}
 }
 
-// VerifyManifest checks the certificate for use manifest against roots, then
-// the signature over manifest by the certificate's subject.
-func VerifyManifest(s SignedManifest, manifest []byte, roots []ed25519.PublicKey, now time.Time) (Body, error) {
-	b, err := s.Certificate.Verify(roots, UseManifest, now)
+func verifyDetached(domain string, use Use, what string, s Detached, data []byte, roots []ed25519.PublicKey, now time.Time) (Body, error) {
+	b, err := s.Certificate.Verify(roots, use, now)
 	if err != nil {
 		return Body{}, err
 	}
@@ -212,10 +228,32 @@ func VerifyManifest(s SignedManifest, manifest []byte, roots []ed25519.PublicKey
 		return Body{}, err
 	}
 	sig, err := b64.DecodeString(s.Signature)
-	if err != nil || !ed25519.Verify(subject, manifestMessage(manifest), sig) {
-		return Body{}, errors.New("manifest signature does not verify")
+	if err != nil || !ed25519.Verify(subject, message(domain, data), sig) {
+		return Body{}, errors.New(what + " signature does not verify")
 	}
 	return b, nil
+}
+
+// SignManifest signs manifest.json's bytes with key, attaching cert.
+func SignManifest(key ed25519.PrivateKey, cert Certificate, manifest []byte) SignedManifest {
+	return signDetached(ManifestDomain, key, cert, manifest)
+}
+
+// VerifyManifest checks the certificate for use manifest against roots, then
+// the signature over manifest by the certificate's subject.
+func VerifyManifest(s SignedManifest, manifest []byte, roots []ed25519.PublicKey, now time.Time) (Body, error) {
+	return verifyDetached(ManifestDomain, UseManifest, "manifest", s, manifest, roots, now)
+}
+
+// SignPackIndex signs a pack's index.json bytes with key, attaching cert.
+func SignPackIndex(key ed25519.PrivateKey, cert Certificate, index []byte) SignedPackIndex {
+	return signDetached(PackIndexDomain, key, cert, index)
+}
+
+// VerifyPackIndex checks the certificate for use packs against roots, then
+// the signature over index by the certificate's subject.
+func VerifyPackIndex(s SignedPackIndex, index []byte, roots []ed25519.PublicKey, now time.Time) (Body, error) {
+	return verifyDetached(PackIndexDomain, UsePacks, "pack index", s, index, roots, now)
 }
 
 // FormatPrivateKey renders a key file: the base64url seed and a newline.

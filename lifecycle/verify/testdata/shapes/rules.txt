@@ -1,0 +1,5 @@
+# One line per growth of the shape corpus: the fixture prefix that growth
+# added, then the rule ids verify registered at that point. A change to
+# verify's rule set needs a new line with a new prefix and at least one
+# fixture under that prefix, for the shape the change introduces or keeps.
+v1 bin-ignore engine-pin hooks launcher member-workflows min-engine-version-legacy settings-file

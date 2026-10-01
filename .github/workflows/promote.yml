@@ -6,15 +6,39 @@
 # @claudinite/cli. With no canary registered the gate answers no-canaries,
 # which passes only when the dispatch's confirm input repeats the version.
 # The hourly schedule lands with the first canary (release/canaries.json).
+#
+# action hold or revoke instead marks the version on npm with a "held:" or
+# "revoked:" deprecation, which the updater and cn check world read;
+# release clears it. npm's trusted publishing covers publish and dist-tag
+# only, not deprecate (https://docs.npmjs.com/trusted-publishers), so the
+# deprecate job runs npm deprecate with NPM_DEPRECATE_TOKEN, a token the
+# promote environment holds; without it the job fails naming the secret,
+# the commands kept in its summary. A version npm does not have is refused
+# with a notice and a green run.
 name: promote
 
 on:
   workflow_dispatch:
     inputs:
+      action:
+        description: promote the version, hold or revoke it on npm, or release a hold or revocation
+        required: true
+        type: choice
+        default: promote
+        options:
+          - promote
+          - hold
+          - revoke
+          - release
       version:
-        description: The @claudinite/cli-rc version to promote
+        description: The @claudinite/cli-rc version to act on
         required: true
         type: string
+      reason:
+        description: For hold and revoke, the one-line reason the deprecation carries (empty for release)
+        required: false
+        type: string
+        default: ""
       confirm:
         description: The version again, to promote with no canary registered
         required: false
@@ -34,6 +58,7 @@ defaults:
 
 jobs:
   gate:
+    if: inputs.action == 'promote'
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -75,7 +100,7 @@ jobs:
             echo "### Promotion of @claudinite/cli-rc $VERSION"
             echo
             echo "- gate: \`$VERDICT\` ($why)"
-            echo "- hop: \`$HOP\` (advisory until \`cn update engine\` exists, phase 2)"
+            echo "- hop: \`$HOP\` (advisory until a canary runs candidates; release.yml's hop job proved this candidate's updater before it was published)"
             echo "- promoting: $allowed"
           } >> "$GITHUB_STEP_SUMMARY"
           echo "::notice::gate $VERDICT, $HOP: $why"
@@ -87,6 +112,7 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       check: ${{ steps.check.outputs.check }}
+      stable_test: ${{ steps.check.outputs.stable_test }}
       sums: ${{ steps.sums.outputs.sums }}
     env:
       VERSION: ${{ inputs.version }}
@@ -111,7 +137,7 @@ jobs:
           for f in rc/claudinite-*.tgz; do mv "$f" "rc/$(basename "$f" | sed 's/^claudinite-//')"; done
           ls -l rc
       - id: check
-        run: go run ./release/promote check --version "$VERSION" --tarballs rc --roots candidate/license/roots --source candidate >> "$GITHUB_OUTPUT"
+        run: go run ./release/promote check --version "$VERSION" --tarballs rc --roots license/roots --source candidate >> "$GITHUB_OUTPUT"
       - if: steps.check.outputs.check == 'pass'
         run: release/repack.sh rc stable/tarballs
       - id: sums
@@ -125,6 +151,51 @@ jobs:
           name: stable
           path: stable/
           if-no-files-found: error
+
+  deprecate:
+    if: inputs.action == 'hold' || inputs.action == 'revoke' || inputs.action == 'release'
+    runs-on: ubuntu-24.04
+    environment: promote
+    permissions:
+      contents: read
+    env:
+      ACTION: ${{ inputs.action }}
+      VERSION: ${{ inputs.version }}
+      REASON: ${{ inputs.reason }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.24"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+          registry-url: https://registry.npmjs.org
+      - name: npm deprecate
+        env:
+          NPM_DEPRECATE_TOKEN: ${{ secrets.NPM_DEPRECATE_TOKEN }}
+        run: |
+          npm view @claudinite/cli-rc versions --json > "$RUNNER_TEMP/rc.json" 2>/dev/null || true
+          npm view @claudinite/cli versions --json > "$RUNNER_TEMP/stable.json" 2>/dev/null || true
+          go run ./release/pipeline deprecate-commands --action "$ACTION" --version "$VERSION" --reason "$REASON" \
+            --rc-versions "$RUNNER_TEMP/rc.json" --stable-versions "$RUNNER_TEMP/stable.json" > "$RUNNER_TEMP/commands.sh"
+          if [ ! -s "$RUNNER_TEMP/commands.sh" ]; then
+            echo "### $ACTION $VERSION: npm has no such version; nothing done" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          {
+            echo "### $ACTION $VERSION"
+            echo
+            echo '```'
+            cat "$RUNNER_TEMP/commands.sh"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ -z "$NPM_DEPRECATE_TOKEN" ]; then
+            echo "::error::the promote environment has no NPM_DEPRECATE_TOKEN secret, an npm token with write access to @claudinite; add it and dispatch again (the commands are in this job's summary)"
+            exit 1
+          fi
+          NODE_AUTH_TOKEN=$NPM_DEPRECATE_TOKEN sh "$RUNNER_TEMP/commands.sh"
+          echo "deprecated now: $(npm view "@claudinite/cli-rc@$VERSION" deprecated)" >> "$GITHUB_STEP_SUMMARY"
 
   publish:
     needs: [gate, check]
@@ -157,10 +228,12 @@ jobs:
           echo "$SUMS  stable/SHA256SUMS" | sha256sum -c
           sha256sum -c --quiet stable/SHA256SUMS
       - id: mode
+        env:
+          STABLE_TEST: ${{ needs.check.outputs.stable_test }}
         run: |
           npm view @claudinite/cli versions --json > "$RUNNER_TEMP/versions.json" 2>/dev/null || true
           go run ./release/pipeline publish-mode --channel stable --signing release --dry-run false \
-            --npm-versions "$RUNNER_TEMP/versions.json" --stable-test pass >> "$GITHUB_OUTPUT"
+            --npm-versions "$RUNNER_TEMP/versions.json" --stable-test "$STABLE_TEST" >> "$GITHUB_OUTPUT"
       - if: steps.mode.outputs.mode == 'real'
         run: DIST=stable release/publish.sh --channel stable --auth oidc
       - if: steps.mode.outputs.mode != 'real'
