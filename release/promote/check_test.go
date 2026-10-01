@@ -86,18 +86,22 @@ func TestCheck(t *testing.T) {
 		stable func() error
 		want   string
 		reason string
+		verdct string
 	}{
-		{"intact", tamper{}, passing, "pass", ""},
-		{"flipped manifest byte", tamper{manifest: true}, passing, "refuse", "signature"},
-		{"bad signature", tamper{sig: true}, passing, "refuse", "signature"},
-		{"flipped binary byte", tamper{binary: true}, passing, "refuse", "darwin-x64"},
-		{"stable test fails", tamper{}, failing, "refuse", "#5"},
+		{"intact", tamper{}, passing, "pass", "", "pass"},
+		{"flipped manifest byte", tamper{manifest: true}, passing, "refuse", "signature", "not-run"},
+		{"bad signature", tamper{sig: true}, passing, "refuse", "signature", "not-run"},
+		{"flipped binary byte", tamper{binary: true}, passing, "refuse", "darwin-x64", "not-run"},
+		{"stable test fails", tamper{}, failing, "refuse", "#5", "fail"},
 	}
 	for _, c := range cases {
 		dir := rcTarballs(t, c.how)
-		got, reason := Check(dir, ver, "../../license/roots", "abc1234ffffffffffffffffffffffffffffffff", c.stable)
+		got, reason, stable := Check(dir, ver, "../../license/roots", "abc1234ffffffffffffffffffffffffffffffff", c.stable)
 		if got != c.want {
 			t.Errorf("%s: %s (%s), want %s", c.name, got, reason, c.want)
+		}
+		if stable != c.verdct {
+			t.Errorf("%s: stable test verdict %q, want %q", c.name, stable, c.verdct)
 		}
 		if c.reason != "" && !strings.Contains(reason, c.reason) {
 			t.Errorf("%s: reason %q lacks %q", c.name, reason, c.reason)
@@ -108,7 +112,7 @@ func TestCheck(t *testing.T) {
 func TestCheckRefusesAMissingPlatform(t *testing.T) {
 	dir := rcTarballs(t, tamper{})
 	_ = os.Remove(filepath.Join(dir, "cli-rc-windows-x64-"+ver+".tgz"))
-	if got, reason := Check(dir, ver, "../../license/roots", "abc1234ffffffffffffffffffffffffffffffff", passing); got != "refuse" || !strings.Contains(reason, "windows-x64") {
+	if got, reason, _ := Check(dir, ver, "../../license/roots", "abc1234ffffffffffffffffffffffffffffffff", passing); got != "refuse" || !strings.Contains(reason, "windows-x64") {
 		t.Errorf("%s %s", got, reason)
 	}
 }
@@ -118,7 +122,7 @@ func TestCheckRefusesAMissingPlatform(t *testing.T) {
 func TestCheckRefusesACandidateCheckoutAtAnotherCommit(t *testing.T) {
 	dir := rcTarballs(t, tamper{})
 	head := "def5678000000000000000000000000000000000"
-	got, reason := Check(dir, ver, "../../license/roots", head, passing)
+	got, reason, _ := Check(dir, ver, "../../license/roots", head, passing)
 	if got != "refuse" || !strings.Contains(reason, head) || !strings.Contains(reason, "abc1234") {
 		t.Errorf("%s %s", got, reason)
 	}

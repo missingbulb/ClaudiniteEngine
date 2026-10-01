@@ -72,9 +72,9 @@ func run(args []string, stdout, stderr io.Writer) int {
 			fmt.Fprintf(stderr, "promote check: reading the candidate checkout's HEAD: %v\n", err)
 			return 1
 		}
-		result, reason := Check(*tarballs, *ver, *roots, strings.TrimSpace(string(head)), func() error { return stableTest(*source, stderr) })
+		result, reason, stable := Check(*tarballs, *ver, *roots, strings.TrimSpace(string(head)), func() error { return stableTest(*source, stderr) })
 		fmt.Fprintf(stderr, "promote check: %s: %s\n", result, reason)
-		fmt.Fprintf(stdout, "check=%s\n", result)
+		fmt.Fprintf(stdout, "check=%s\nstable_test=%s\n", result, stable)
 		return 0
 	}
 	fmt.Fprintf(stderr, "promote: unknown command %q\n%s", args[0], usage)

@@ -87,6 +87,7 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       check: ${{ steps.check.outputs.check }}
+      stable_test: ${{ steps.check.outputs.stable_test }}
       sums: ${{ steps.sums.outputs.sums }}
     env:
       VERSION: ${{ inputs.version }}
@@ -157,10 +158,12 @@ jobs:
           echo "$SUMS  stable/SHA256SUMS" | sha256sum -c
           sha256sum -c --quiet stable/SHA256SUMS
       - id: mode
+        env:
+          STABLE_TEST: ${{ needs.check.outputs.stable_test }}
         run: |
           npm view @claudinite/cli versions --json > "$RUNNER_TEMP/versions.json" 2>/dev/null || true
           go run ./release/pipeline publish-mode --channel stable --signing release --dry-run false \
-            --npm-versions "$RUNNER_TEMP/versions.json" --stable-test pass >> "$GITHUB_OUTPUT"
+            --npm-versions "$RUNNER_TEMP/versions.json" --stable-test "$STABLE_TEST" >> "$GITHUB_OUTPUT"
       - if: steps.mode.outputs.mode == 'real'
         run: DIST=stable release/publish.sh --channel stable --auth oidc
       - if: steps.mode.outputs.mode != 'real'

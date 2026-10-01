@@ -26,10 +26,12 @@ import (
 // checkout's head against the commit the manifest names, and stableTest,
 // the candidate's `go test -tags stable ./license`. rootsDir is the
 // dispatching checkout's, never the candidate's, so the candidate cannot
-// bring its own trust. It returns pass or refuse and why.
-func Check(dir, ver, rootsDir, head string, stableTest func() error) (string, string) {
+// bring its own trust. It returns pass or refuse, why, and the stable
+// test's own verdict (pass, fail, or not-run when the bytes were refused
+// first), which the publish job hands to publish-mode.
+func Check(dir, ver, rootsDir, head string, stableTest func() error) (string, string, string) {
 	if reason := checkBytes(dir, ver, rootsDir, head); reason != "" {
-		return "refuse", reason
+		return "refuse", reason, "not-run"
 	}
 	result := "pass"
 	if err := stableTest(); err != nil {
@@ -37,9 +39,9 @@ func Check(dir, ver, rootsDir, head string, stableTest func() error) (string, st
 	}
 	m := release.PublishMode(release.ModeInput{Channel: "stable", Signing: "release", NpmVersions: `"` + ver + `"`, StableTest: result})
 	if m.Name == "refuse" {
-		return "refuse", m.Notice
+		return "refuse", m.Notice, result
 	}
-	return "pass", fmt.Sprintf("%s: signature, five binaries and the stable build check verified", ver)
+	return "pass", fmt.Sprintf("%s: signature, five binaries and the stable build check verified", ver), result
 }
 
 func checkBytes(dir, ver, rootsDir, head string) string {
