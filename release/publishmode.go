@@ -48,23 +48,38 @@ func PublishMode(in ModeInput) Mode {
 	if in.DryRunInput {
 		return Mode{"dry-run", "the dispatch asked for dry_run"}
 	}
-	if !reserved(in.NpmVersions) {
+	ok, failure := reserved(in.NpmVersions)
+	if failure != "" {
+		return Mode{"dry-run", "npm view failed (" + failure + "), so whether the package is reserved is unknown; dispatch again once the registry answers"}
+	}
+	if !ok {
 		return Mode{"dry-run", "package not reserved; see #2"}
 	}
 	return Mode{"real", ""}
 }
 
 // reserved reads npm view's JSON: a list of versions, or one version as a
-// string when there is only one; an error object or nothing means absent.
-func reserved(npmView string) bool {
+// string when there is only one. An E404 error object or nothing means
+// absent; any other error object is returned as the failure, since it says
+// nothing about the package.
+func reserved(npmView string) (bool, string) {
 	s := strings.TrimSpace(npmView)
 	var list []string
 	if json.Unmarshal([]byte(s), &list) == nil {
-		return len(list) > 0
+		return len(list) > 0, ""
 	}
 	var one string
 	if json.Unmarshal([]byte(s), &one) == nil {
-		return one != ""
+		return one != "", ""
 	}
-	return false
+	var e struct {
+		Error struct {
+			Code    string `json:"code"`
+			Summary string `json:"summary"`
+		} `json:"error"`
+	}
+	if json.Unmarshal([]byte(s), &e) == nil && e.Error.Code != "" && e.Error.Code != "E404" {
+		return false, strings.TrimSpace(e.Error.Code + " " + e.Error.Summary)
+	}
+	return false, ""
 }
