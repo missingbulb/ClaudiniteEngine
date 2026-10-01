@@ -543,11 +543,18 @@ for mode in $modes; do
         verdict=$(sed -n '$p' "$work/land.out")
       }
 
+      # A member from before the rules channel: CLAUDE.md without the import.
+      printf '# Member\n' > "$member/CLAUDE.md"
+      (cd "$member" && git add CLAUDE.md && git -c user.name=rehearse -c user.email=r@x -c commit.gpgsign=false commit -q -m "no import" \
+        && git -c push.negotiate=false push -q origin main) || fail "packs 5: drop the import"
+      out=$(session_start) || fail "packs 5: SessionStart without the import"
+      case $out in *"[cn] rules not loaded: CLAUDE.md does not import"*) ;; *) fail "packs 5: no missing-import line: $out" ;; esac
       fixture --publish v2
       main_run success
       update_packs
       expect_verdict "opened #1 for packs hello 1.1"
-      if git --git-dir "$origin" diff --name-only main "$branch" | grep -qv '^\.claudinite/shared/packs/hello/'; then fail "packs 5: the branch changes more than the hello pack"; fi
+      if git --git-dir "$origin" diff --name-only main "$branch" | grep -v '^CLAUDE\.md$' | grep -qv '^\.claudinite/shared/packs/hello/'; then fail "packs 5: the branch changes more than the hello pack and CLAUDE.md"; fi
+      [ "$(git --git-dir "$origin" show "$branch:CLAUDE.md")" = "$(printf '# Member\n@.claudinite/flat/claudinite-rules.GENERATED.md')" ] || fail "packs 5: the branch's CLAUDE.md: $(git --git-dir "$origin" show "$branch:CLAUDE.md")"
       [ "$(gh_count 'st.dispatches.filter(d=>d.ref==="'"$branch"'"&&d.inputs.pr==="1").length')" = 1 ] || fail "packs 5: dispatches $(gh_state)"
       head=$(git --git-dir "$origin" rev-parse "$branch")
       (cd "$member" && git fetch -q origin && git checkout -q "$head") || fail "packs 5: checkout"
@@ -559,13 +566,14 @@ for mode in $modes; do
       grep -q '"version": "1.1"' "$member/.claudinite/shared/packs/hello/pack.json" || fail "packs 5: main does not hold hello 1.1"
       out=$(session_start) || fail "packs 5: SessionStart"
       case $out in *"[cn] packs 1/1 loaded (hello 1.1: rules 2 skills 1)"*) ;; *) fail "packs 5: SessionStart on 1.1: $out" ;; esac
+      case $out in *"rules not loaded"*) fail "packs 5: the import is still missing after the pack PR: $out" ;; esac
       grep -q '^# hello 1.1$' "$member/.claudinite/shared/packs/hello/RULES.md" || fail "packs 5: hello's rules are not 1.1's"
       cn_member check build --wait > "$work/build.out" 2>&1 || fail "packs 5: check build: $(cat "$work/build.out")"
       # The key covers the engine, the SDK and the check sources; 1.1
       # changes a rule and adds declared checks, which cn runs itself, so
       # its checks binary is 1.0's.
       [ "$(find "$checks" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')" = 1 ] || fail "packs 5: a rule change rebuilt the checks binary"
-      step "packs 5: opened, checked and landed hello 1.1; the session loads it on the same checks binary"
+      step "packs 5: opened, checked and landed hello 1.1 with the CLAUDE.md import restored; the session loads it on the same checks binary"
 
       fixture --publish v3
       main_run success
