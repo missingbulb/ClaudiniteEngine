@@ -80,12 +80,14 @@ until [ -f "$work/ready" ]; do
   [ "$tries" -le 100 ] || { say "regstub did not start"; exit 1; }
   sleep 1
 done
+say "regstub up at $(cat "$work/ready")"
 if [ -n "$exe" ] && [ "${GITHUB_ACTIONS:-}" = true ]; then
   # Windows curl is Schannel, which ignores CURL_CA_BUNDLE; on a disposable runner the stub's
   # certificate goes into the machine's Root store, as in release.yml's smoke leg. A person's
   # own machine is left alone and needs the certificate trusted by hand.
   powershell.exe -NoProfile -NonInteractive -Command \
     "Import-Certificate -FilePath '$(cygpath -w "$work/ca.pem")' -CertStoreLocation Cert:\LocalMachine\Root | Out-Null"
+  say "stub certificate trusted"
 fi
 member=$work/member
 mkdir -p "$member/.claudinite" "$work/home"
@@ -100,6 +102,7 @@ printf 'engine:\n  version: "1.1.0"\n  manifest: "%s"\n' "$pin" > "$member/.clau
   NO_PROXY=127.0.0.1,localhost
   export HOME XDG_CACHE_HOME CLAUDINITE_REGISTRY CURL_CA_BUNDLE NO_PROXY
   sh "$member/.claudinite/launch" env install
+  say "first launcher install done; timing the warm cache"
   "$timeit" run --name "launcher, warm cache (sh .claudinite/launch env install)" --runs "$runs" --log "$log" \
     -- sh "$member/.claudinite/launch" env install
 )

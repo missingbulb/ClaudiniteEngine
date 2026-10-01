@@ -34,6 +34,8 @@ jobs:
         with:
           node-version: "22"
       - name: Probe
+        # Shorter than the job's limit, so a hung probe fails the step and keeps its log.
+        timeout-minutes: 20
         env:
           RUNS: ${{ inputs.runs }}
         run: |
