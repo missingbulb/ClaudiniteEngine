@@ -1,0 +1,9 @@
+{
+  "version": "1.0",
+  "minEngineVersion": "61001.1.0",
+  "ruleRoutingGuidance": {
+    "belongs": "nothing but the pack chassis probe: proving that a declared pack's rules, skills and Go checks reach a member",
+    "excludes": "every real rule, skill or check — the pack that owns its subject"
+  },
+  "pitch": "The chassis probe. It carries one rule, one skill and one Go check so a member can see, end to end, that a declared pack's rules load into the session, its skill is mounted, and its check is compiled and run at Stop and in CI. It does nothing useful otherwise and belongs only on repos that test Claudinite itself."
+}

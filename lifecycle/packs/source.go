@@ -94,7 +94,9 @@ func (c CDN) Index(id string) ([]byte, []byte, error) {
 }
 
 // Archive reads one version's archive.
-func (c CDN) Archive(id, version string) ([]byte, error) { return c.get(id + "/" + version + ".tar.gz") }
+func (c CDN) Archive(id, version string) ([]byte, error) {
+	return c.get(id + "/" + version + ".tar.gz")
+}
 
 // Branch reads the vendored branch of ClaudinitePacks (or the repository
 // Repo names, a URL or a path), cloned shallow and blobless into a
@@ -254,7 +256,7 @@ func (r *Reader) VerifiedIndex(id string) (Verified, error) {
 		v, err := r.fromSource(src, id)
 		var u errUnreachable
 		if errors.As(err, &u) {
-			unreachable = append(unreachable, src.Name()+": "+u.error.Error())
+			unreachable = append(unreachable, src.Name()+": "+u.Error())
 			continue
 		}
 		if err != nil {

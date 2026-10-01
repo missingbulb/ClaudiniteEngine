@@ -18,13 +18,14 @@ linters:
         - fmt.Fprintln
     depguard:
       rules:
+        # A capability may also import its own sub-packages (checks/build
+        # from checks, lifecycle/packs from lifecycle/update): code grows
+        # inside its capability, never across.
         capabilities:
           list-mode: strict
           files:
             - "**/hooks/**"
-            - "**/lifecycle/**"
             - "**/license/**"
-            - "**/checks/**"
             - "**/tasks/**"
             - "**/growth/**"
             - "**/sdkserver/**"
@@ -32,6 +33,30 @@ linters:
           allow:
             - $gostd
             - github.com/missingbulb/ClaudiniteEngine/shared
+        lifecycle:
+          list-mode: strict
+          files:
+            - "**/lifecycle/**"
+          allow:
+            - $gostd
+            - github.com/missingbulb/ClaudiniteEngine/shared
+            - github.com/missingbulb/ClaudiniteEngine/lifecycle
+        checks:
+          list-mode: strict
+          files:
+            - "**/checks/**"
+          allow:
+            - $gostd
+            - github.com/missingbulb/ClaudiniteEngine/shared
+            - github.com/missingbulb/ClaudiniteEngine/checks/
+        checksdk:
+          # The public Go check SDK, the one package a pack's Go may import:
+          # standard library only, since a pack's checks build offline.
+          list-mode: strict
+          files:
+            - "**/checksdk/**"
+          allow:
+            - $gostd
         key-ceremony-tool:
           # The key-ceremony workflow builds cn-keys from this public tree
           # with no module downloads: standard library and shared/ only.
