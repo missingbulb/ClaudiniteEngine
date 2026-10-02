@@ -210,6 +210,10 @@ func TestPreToolUseHoldsAnEditUntilTheSkillLoads(t *testing.T) {
 	if _, _, err := perCall(t, h, "pre-tool-use", payload(out, "")); err != nil {
 		t.Errorf("outside the repo: %v", err)
 	}
+	// A transcript that is named but cannot be read loaded nothing.
+	if _, _, err := perCall(t, h, "pre-tool-use", payload(edit, filepath.Join(t.TempDir(), "gone.jsonl"))); report.CodeOf(err) != report.Block {
+		t.Errorf("an unreadable transcript cleared the hold: %v", err)
+	}
 	loaded := session(t, `"name":"Skill","input":{"skill":"g"}`)
 	if o, e, err := perCall(t, h, "pre-tool-use", payload(edit, loaded)); err != nil || outcomeOf(t, e) != "ok" || strings.TrimSpace(o) != "{}" {
 		t.Errorf("loaded: %v %q %q", err, o, e)
