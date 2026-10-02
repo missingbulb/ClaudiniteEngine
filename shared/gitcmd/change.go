@@ -332,7 +332,7 @@ var grepLine = regexp.MustCompile(`^([^:]+):(\d+):(.*)$`)
 // GrepTracked is every tracked line containing needle, a fixed string,
 // with the tree under exclude (a folder prefix, "" for none) left out.
 func (r Repo) GrepTracked(needle, exclude string) []Hit {
-	args := []string{"grep", "-n", "-F", needle, "--", "."}
+	args := []string{"grep", "-n", "-F", "-e", needle, "--", "."}
 	if exclude != "" {
 		args = append(args, ":(exclude)"+exclude)
 	}

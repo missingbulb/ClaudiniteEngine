@@ -69,7 +69,10 @@ type Checks struct {
 // Parsed is the settings file's packs and checks blocks.
 // LegacySharedConstants is a top-level sharedConstants, the Node engine's
 // spelling, which parses so verify can name its home: the basics entry's
-// config.
+// config. Phase 9's member move (#23) writes it there, which retires the
+// tolerance.
+//
+// @legacy-tolerance advisory:settings-checks retire:#23
 type Parsed struct {
 	Packs                 Packs
 	Checks                Checks
