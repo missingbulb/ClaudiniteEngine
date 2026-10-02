@@ -167,11 +167,75 @@ func (s *SDK) git(args json.RawMessage) (any, error) {
 	if s.Git == nil {
 		return nil, errors.New("this run has no git to reach")
 	}
+	if why := pushRefusal(a.Args, s.DefaultBranch); why != "" {
+		s.log("refused git push — " + why)
+		return nil, errors.New("git push refused: " + why)
+	}
 	ran, err := s.Git(a.Args...)
 	if err != nil {
 		return nil, err
 	}
 	return map[string]any{"code": ran.Code, "stdout": ran.Stdout, "stderr": ran.Stderr}, nil
+}
+
+// gitGlobalWithValue are git's options before the subcommand that take
+// the next argument as their value.
+var gitGlobalWithValue = map[string]bool{"-c": true, "-C": true, "--git-dir": true, "--work-tree": true, "--namespace": true, "--exec-path": true}
+
+// pushRefusal is why a script's git call may not run, "" when it may: a
+// push may not rewrite or delete the default branch, nor push every ref
+// at once, whatever refs the task otherwise pushes.
+func pushRefusal(args []string, defaultBranch string) string {
+	i := 0
+	for i < len(args) && strings.HasPrefix(args[i], "-") {
+		if gitGlobalWithValue[args[i]] {
+			i++
+		}
+		i++
+	}
+	if i >= len(args) || args[i] != "push" {
+		return ""
+	}
+	force, deletes := false, false
+	var positional []string
+	for _, a := range args[i+1:] {
+		switch {
+		case a == "--mirror" || a == "--all" || a == "--prune":
+			return a + " pushes refs beyond the task's own"
+		case a == "--force" || a == "-f" || strings.HasPrefix(a, "--force-with-lease") || a == "--force-if-includes":
+			force = true
+		case a == "--delete" || a == "-d":
+			deletes = true
+		case strings.HasPrefix(a, "-"):
+		default:
+			positional = append(positional, a)
+		}
+	}
+	main := "refs/heads/" + defaultBranch
+	if len(positional) < 2 {
+		if force || deletes {
+			return "a forced or deleting push names its refspec, so it can be seen to spare " + defaultBranch
+		}
+		return ""
+	}
+	for _, spec := range positional[1:] {
+		plus := strings.HasPrefix(spec, "+")
+		spec = strings.TrimPrefix(spec, "+")
+		src, dst, paired := strings.Cut(spec, ":")
+		if !paired {
+			dst = src
+		}
+		if dst != main && dst != defaultBranch {
+			continue
+		}
+		switch {
+		case deletes || (paired && src == ""):
+			return "it deletes the default branch " + defaultBranch
+		case force || plus:
+			return "it force-pushes the default branch " + defaultBranch
+		}
+	}
+	return ""
 }
 
 func (s *SDK) github(action string, args json.RawMessage) (any, error) {

@@ -1,0 +1,12 @@
+{
+  "nodeFiles": {
+    ".claudinite-settings.json": "{\"packs\":[\"basics\"]}\n",
+    ".claudinite/shared/engine/checks/check_the_world.mjs": "// sweep\n",
+    ".claudinite/shared/engine/checks/ci-work-scope.mjs": "// work\n",
+    ".github/workflows/conformance.yml": "name: conformance\non:\n  pull_request:\n  workflow_dispatch:\njobs:\n  sweep:\n    runs-on: ubuntu-latest\n    steps:\n      - run: node .claudinite/shared/engine/checks/check_the_world.mjs\n      - run: node .claudinite/shared/engine/checks/ci-work-scope.mjs --branch x\n"
+  },
+  "cnShape": "v7-update-as-task",
+  "cnFiles": {},
+  "answeredBy": "hooks",
+  "nodeFires": false
+}

@@ -13,8 +13,7 @@ import (
 )
 
 // Deferred reads parity/deferred.txt: each Node coded check of a ported
-// pack that cn does not run yet, by rule id, with the slice that ports it
-// (or "verify", for one whose question cn verify answers).
+// pack that cn does not run yet, by rule id, with the slice that ports it.
 func Deferred() (map[string]string, error) {
 	_, self, _, _ := runtime.Caller(0)
 	raw, err := os.ReadFile(filepath.Join(filepath.Dir(self), "deferred.txt"))
@@ -37,6 +36,43 @@ func Deferred() (map[string]string, error) {
 		out[f[0]] = f[1]
 	}
 	return out, nil
+}
+
+// Answered are the Node coded checks whose question cn verify answers
+// instead, each a directory of testdata/answered, by rule id.
+func Answered() (map[string]string, error) {
+	_, self, _, _ := runtime.Caller(0)
+	dirs, err := os.ReadDir(filepath.Join(filepath.Dir(self), "testdata", "answered"))
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]string{}
+	for _, d := range dirs {
+		if d.IsDir() {
+			out[d.Name()] = "answered"
+		}
+	}
+	return out, nil
+}
+
+// Explained are the subtractions cn knows of: the deferred rules and the
+// answered ones; a rule in both is an error.
+func Explained() (map[string]string, error) {
+	deferred, err := Deferred()
+	if err != nil {
+		return nil, err
+	}
+	answered, err := Answered()
+	if err != nil {
+		return nil, err
+	}
+	for id, v := range answered {
+		if deferred[id] != "" {
+			return nil, fmt.Errorf("%s is both deferred and answered", id)
+		}
+		deferred[id] = v
+	}
+	return deferred, nil
 }
 
 var shelfID = regexp.MustCompile(`\bid\s*:\s*['"]([^'"]+)['"]`)

@@ -3,7 +3,65 @@
 # the frozen shelf's content (absent when the shelf has none), so parity
 # compares the two engines over one input. The pack's own test/ cases in
 # ClaudinitePacks prove the new content against cn.
+# Engine chunk 11 (record row 71):
 claudinite-lifecycle/declared-checks.json record-71
 claudinite-lifecycle/skills/adopt-pack/SKILL.md record-71
 claudinite-lifecycle/tasks/update record-71
 claudinite-growth/tasks/growth-extract/task.json record-71
+# ClaudinitePacks#20 moved the task runner into the engine and its pack
+# workers onto @claudinite/sdk (record row 5):
+basics/tasks/ci-performance/github-api.mjs record-5
+basics/tasks/ci-performance/task.json record-5
+basics/tasks/ci-performance/task.md record-5
+basics/tasks/ci-performance/worker.mjs record-5
+basics/tasks/improve-comments/task.json record-5
+basics/tasks/improve-comments/task.md record-5
+claudinite-growth/skills/unattended-agents/SKILL.md record-5
+claudinite-growth/skills/writing-tasks/SKILL.md record-5
+claudinite-growth/tasks/growth-dedup/task.json record-5
+claudinite-growth/tasks/growth-dedup/task.md record-5
+claudinite-growth/tasks/growth-extract/task.md record-5
+claudinite-growth/tasks/logs-prune/task.json record-5
+claudinite-growth/tasks/prose-to-checks-sweep/task.json record-5
+claudinite-growth/tasks/rule-revalidation/task.json record-5
+claudinite-growth/tasks/rule-revalidation/task.md record-5
+claudinite-growth/tasks/usage-review/deliver.mjs record-5
+claudinite-growth/tasks/usage-review/task.json record-5
+claudinite-growth/tasks/usage-review/worker.mjs record-5
+claudinite-growth/tasks/usage-triage/task.json record-5
+claudinite-growth/tasks/usage-triage/task.md record-5
+claudinite-lifecycle/tasks/adopt-requested-packs/task.json record-5
+claudinite-tasks/declared-checks.json record-5
+claudinite-tasks/github-api.mjs record-5
+claudinite-tasks/public/deliver-pr.md record-5
+claudinite-tasks/public/delivery.mjs record-5
+claudinite-tasks/public/github.mjs record-5
+claudinite-tasks/public/implement-request.md record-5
+claudinite-tasks/public/instructions.md record-5
+claudinite-tasks/public/task-constants.mjs record-5
+claudinite-tasks/public/task-declaration.mjs record-5
+claudinite-tasks/public/work-item-grammar.mjs record-5
+claudinite-tasks/queue record-5
+claudinite-tasks/src record-5
+claudinite-tasks/stubs record-5
+claudinite-tasks/task.schema.json record-5
+claudinite-tasks/tasks/usage-fold/deliver.mjs record-5
+claudinite-tasks/tasks/usage-fold/fold-tasks-usage.mjs record-5
+claudinite-tasks/tasks/usage-fold/fold-usage.mjs record-5
+claudinite-tasks/tasks/usage-fold/machinery-half.mjs record-5
+claudinite-tasks/tasks/usage-fold/pr-fields.mjs record-5
+claudinite-tasks/tasks/usage-fold/preconditions.mjs record-5
+claudinite-tasks/tasks/usage-fold/queue-wire.mjs record-5
+claudinite-tasks/tasks/usage-fold/read-items.mjs record-5
+claudinite-tasks/tasks/usage-fold/read-prs.mjs record-5
+claudinite-tasks/tasks/usage-fold/read-queue.mjs record-5
+claudinite-tasks/tasks/usage-fold/read-run-costs.mjs record-5
+claudinite-tasks/tasks/usage-fold/read-runs.mjs record-5
+claudinite-tasks/tasks/usage-fold/task.json record-5
+claudinite-tasks/tasks/usage-fold/tasks-usage-format.mjs record-5
+claudinite-tasks/tasks/usage-fold/usage-format.mjs record-5
+claudinite-tasks/tasks/usage-fold/worker.mjs record-5
+claudinite-tasks/tasks/verify-production/task.json record-5
+claudinite-tasks/tasks/verify-production/worker.mjs record-5
+claudinite-tasks/workRules record-5
+claudinite-tasks/worldRules record-5

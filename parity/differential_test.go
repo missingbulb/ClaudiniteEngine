@@ -80,12 +80,12 @@ func TestDifferential(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			deferred, err := Deferred()
+			deferred, err := Explained()
 			if err != nil {
 				t.Fatal(err)
 			}
 			for _, id := range StrayDeferrals(deferred, shelf) {
-				t.Errorf("deferred.txt names %s, which the frozen shelf does not carry", id)
+				t.Errorf("deferred.txt or testdata/answered names %s, which the frozen shelf does not carry", id)
 			}
 			for _, moment := range []string{"world", "work"} {
 				// cn runs the declared and built-in checks, and the coded

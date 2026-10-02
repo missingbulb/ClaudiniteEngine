@@ -69,7 +69,7 @@ func TestDeferredFileParses(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, id := range []string{"conformance-workflow", "seeded-file-stale", "pack-discovery-entry-await"} {
+	for _, id := range []string{"seeded-file-stale", "pack-discovery-entry-await"} {
 		if d[id] == "" {
 			t.Errorf("deferred.txt does not name %s", id)
 		}
@@ -79,7 +79,18 @@ func TestDeferredFileParses(t *testing.T) {
 			t.Errorf("deferred.txt still defers %s to the task-runner slice, which ported it", id)
 		}
 	}
-	if d["conformance-workflow"] != "verify" {
-		t.Errorf("conformance-workflow is deferred to %q, want verify", d["conformance-workflow"])
+	for id, slice := range d {
+		if slice == "verify" {
+			t.Errorf("deferred.txt defers %s to verify; a verify answer is a case under testdata/answered", id)
+		}
+	}
+	e, err := Explained()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []string{"conformance-workflow", "conformance-work-scope", "legacy-shape-in-use", "rules-index-current"} {
+		if e[id] != "answered" {
+			t.Errorf("%s is not answered: %q", id, e[id])
+		}
 	}
 }

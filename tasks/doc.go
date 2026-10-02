@@ -40,6 +40,10 @@
 //   - Forcing a scheduled task mints its missing standing item, stamped
 //     Woken, and the wake reports what matched nothing.
 //     schedule.TestAWakeMintsTheMissingStandingItemAndReportsWhatMatchedNothing
+//   - The engine's own update is filed at most once a UTC day, at the
+//     engine's path, and the fleet's bare force id reaches it; it runs with
+//     no license key (its own gate reads one) and closes on its verdicts. schedule.TestTheEnginesUpdateIsFiledOnceADay,
+//     execute.TestTheEnginesUpdateRunsKeylessAndClosesOnItsVerdicts
 //   - A schedule_after dependent yields while its scheduled upstream is live.
 //     execute.TestADependentYieldsWhileItsScheduledUpstreamIsLive
 //
@@ -108,11 +112,12 @@
 //   - An item whose task needs the run's license key and has none parks at
 //     action and nothing runs. execute.TestAnUnlicensedTaskParksAtActionAndNothingRuns,
 //     execute.TestWhichItemsNeedTheRunsKey
-//   - The ordinary path: agentless code-work closes done; a pull request the
-//     lane merged closes done; code-work that delivered no open pull request
-//     still closes. execute.TestAgentlessCodeWorkClosesDone,
+//   - The ordinary path: agentless code-work closes done, with what
+//     in-process code-work said; a pull request the lane merged closes done;
+//     code-work that delivered no open pull request still closes. execute.TestAgentlessCodeWorkClosesDone,
 //     execute.TestADeliveredPRTheLaneMergedClosesDone,
-//     execute.TestCodeWorkThatDeliveredNoOpenPRStillCloses
+//     execute.TestCodeWorkThatDeliveredNoOpenPRStillCloses,
+//     execute.TestWhatCodeWorkSaidClosesTheItem
 //   - A marked issue closes like any other done item and keeps its origin.
 //     execute.TestAMarkedIssueClosesLikeAnyOtherDoneItemAndKeepsItsOrigin
 //

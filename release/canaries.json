@@ -1,1 +1,8 @@
-{"scheduleWhenNonEmpty": true, "canaries": []}
+{
+  "scheduleWhenNonEmpty": true,
+  "canaries": [
+    {"name": "lagging", "repo": "missingbulb/ClaudiniteCanaryLagging", "workflows": []},
+    {"name": "fresh", "repo": "missingbulb/ClaudiniteCanaryFresh", "workflows": []},
+    {"name": "sandbox", "repo": "missingbulb/ClaudiniteSandbox", "workflows": []}
+  ]
+}

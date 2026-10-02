@@ -62,7 +62,7 @@ func TestSmokePlatformRunsTheHostLeg(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%v\n%s", err, out)
 	}
-	for _, want := range []string{"platform linux-x64", "version 1.1.0", "pre-tool-use", "pin change refused"} {
+	for _, want := range []string{"ok binary: linux-x64", "ok hooks: ", "version 1.1.0", "pre-tool-use", "pin change refused"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("output lacks %q:\n%s", want, out)
 		}

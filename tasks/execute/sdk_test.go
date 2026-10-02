@@ -224,3 +224,58 @@ func TestGitConfigAndPacks(t *testing.T) {
 		t.Error("an unknown method")
 	}
 }
+
+// A script's push may not force or delete the default branch, nor push
+// every ref at once; the pushes the canon's tasks make (a delivery branch
+// forced, a release commit onto the default branch, a Pages branch forced)
+// pass through.
+func TestGitRefusesRewritingTheDefaultBranch(t *testing.T) {
+	var ran [][]string
+	var logs []string
+	s := &SDK{Pack: "acme-pack", Task: "acme-task", DefaultBranch: "main",
+		Git: func(args ...string) (gitcmd.Ran, error) {
+			ran = append(ran, args)
+			return gitcmd.Ran{}, nil
+		},
+		Log: func(l string) { logs = append(logs, l) },
+	}
+	refused := [][]string{
+		{"push", "--force", "origin", "HEAD:refs/heads/main"},
+		{"push", "-f", "origin", "abc:main"},
+		{"push", "origin", "+HEAD:refs/heads/main"},
+		{"push", "--force-with-lease", "origin", "main"},
+		{"-c", "x=y", "push", "--quiet", "--force", "origin", "HEAD:main"},
+		{"push", "origin", ":refs/heads/main"},
+		{"push", "--delete", "origin", "main"},
+		{"push", "--mirror", "origin"},
+		{"push", "--all", "origin"},
+		{"push", "--force", "origin"},
+	}
+	for _, args := range refused {
+		if _, err := call(t, s, "git", map[string]any{"args": args}); err == nil || !strings.Contains(err.Error(), "git push refused") {
+			t.Errorf("%v ran: %v", args, err)
+		}
+	}
+	if len(ran) != 0 {
+		t.Errorf("a refused push reached git: %v", ran)
+	}
+	if len(logs) != len(refused) || !strings.Contains(logs[0], "force-pushes the default branch main") {
+		t.Errorf("logs %v", logs)
+	}
+	passed := [][]string{
+		{"push", "--quiet", "--force", "origin", "abc:refs/heads/claudinite/acme-pack/acme-task/1-x"},
+		{"push", "--quiet", "origin", "abc:refs/heads/main"},
+		{"push", "--quiet", "--force", "origin", "abc:refs/heads/gh-pages"},
+		{"push", "origin", "main-extra"},
+		{"fetch", "--force", "origin", "main"},
+		{"push"},
+	}
+	for _, args := range passed {
+		if _, err := call(t, s, "git", map[string]any{"args": args}); err != nil {
+			t.Errorf("%v refused: %v", args, err)
+		}
+	}
+	if len(ran) != len(passed) {
+		t.Errorf("ran %v", ran)
+	}
+}

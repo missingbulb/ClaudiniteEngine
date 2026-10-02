@@ -1,0 +1,13 @@
+{
+  "nodeFiles": {
+    ".claudinite-settings.json": "{\"packs\":[\"basics\"]}\n",
+    ".claudinite/shared/packs/basics/RULES.md": "# basics\n",
+    "CLAUDE.md": "@.claudinite/flat/claudinite-rules.GENERATED.md\n"
+  },
+  "cnShape": "v6-shared-constants-entry",
+  "cnFiles": {
+    ".claudinite/flat/claudinite-rules.GENERATED.md": null
+  },
+  "answeredBy": "rules-index-current",
+  "nodeFires": true
+}

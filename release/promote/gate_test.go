@@ -42,7 +42,7 @@ func (f fakeIssues) OpenIssues(label string) ([]Issue, error) {
 	return out, nil
 }
 
-func (f fakeIssues) LatestConclusion(c Canary, commit string) (string, bool, error) {
+func (f fakeIssues) LatestConclusion(c Canary, _, commit string) (string, bool, error) {
 	v, ok := f.runs[c.Name][commit]
 	return v, ok, nil
 }
@@ -65,7 +65,11 @@ func world() (fakeRegistry, fakeIssues) {
 	return reg, fakeIssues{runs: map[string]map[string]string{}}
 }
 
-var twoCanaries = []Canary{{Name: "main", Repo: "missingbulb/canary-main", Workflow: "canary.yml"}, {Name: "lagging", Repo: "missingbulb/canary-lagging", Workflow: "canary.yml"}}
+var twoCanaries = []Canary{{Name: "main", Repo: "missingbulb/canary-main", Workflows: []string{"canary.yml"}}, {Name: "lagging", Repo: "missingbulb/canary-lagging", Workflows: []string{"canary.yml"}}}
+
+// Registered canaries naming no workflow yet, as release/canaries.json
+// carries them until the canary App can read their runs.
+var unwatched = []Canary{{Name: "lagging", Repo: "missingbulb/ClaudiniteCanaryLagging", Workflows: []string{}}}
 
 func TestGateVerdicts(t *testing.T) {
 	cases := []struct {
@@ -90,6 +94,10 @@ func TestGateVerdicts(t *testing.T) {
 			g.issues = []Issue{{Number: 44, Title: "60930.1.0 notes", Labels: []string{"docs"}}}
 		}, "no-canaries"},
 		{"no canaries", "60930.1.0", nil, nil, "no-canaries"},
+		{"canaries naming no workflow", "60930.1.0", unwatched, nil, "no-canaries"},
+		{"an unwatched canary beside a watched one", "60930.1.0", append(append([]Canary{}, unwatched...), twoCanaries...), func(g *fakeIssues) {
+			g.runs["main"] = map[string]string{"abc1234": "success"}
+		}, "canary:lagging:none"},
 		{"all canaries green", "60930.1.0", twoCanaries, func(g *fakeIssues) {
 			g.runs["main"] = map[string]string{"abc1234": "success"}
 			g.runs["lagging"] = map[string]string{"abc1234": "success"}

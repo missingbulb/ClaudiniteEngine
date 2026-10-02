@@ -16,7 +16,10 @@ type KeyNeed struct {
 // Any reports whether the item needs the key at all.
 func (n KeyNeed) Any() bool { return n.Agentic || n.EnginePack }
 
-// KeyNeedOf is a task's need.
+// KeyNeedOf is a task's need. The engine's update reads the key itself
+// and says in its verdict what a missing or degraded one turns off, so it
+// runs in every license state, as its workflow did.
 func KeyNeedOf(t taskspec.Task) KeyNeed {
-	return KeyNeed{Agentic: t.Decl.AgentModel() != "none", EnginePack: t.Engine}
+	selfGated := t.Pack == taskspec.BuiltinPack && t.ID == taskspec.UpdateTask
+	return KeyNeed{Agentic: t.Decl.AgentModel() != "none", EnginePack: t.Engine && !selfGated}
 }

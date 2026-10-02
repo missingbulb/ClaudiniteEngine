@@ -347,6 +347,54 @@ func TestADeliveredPRTheLaneMergedClosesDone(t *testing.T) {
 	}
 }
 
+// What in-process code-work said (the update's verdicts) closes the item
+// with it.
+func TestWhatCodeWorkSaidClosesTheItem(t *testing.T) {
+	h := newLoop(t)
+	h.item(1, "a")
+	h.drive([]taskspec.Task{agentless("a")}, func(in *In) {
+		in.CodeWork = func(taskspec.Task, Work) CodeWorkResult {
+			return CodeWorkResult{OK: true, Said: []string{"cn update engine: opened #4 for 1.2.0", "cn update packs: up to date"}}
+		}
+	})
+	h.wants(1, "closed", workitem.StatusDone)
+	if last := h.last(1); !strings.Contains(last, "- cn update engine: opened #4 for 1.2.0\n- cn update packs: up to date") {
+		t.Error(last)
+	}
+}
+
+// The engine's own update runs from its item at the engine's path, with no
+// license key (its own gate reads one), and closes on its verdicts.
+func TestTheEnginesUpdateRunsKeylessAndClosesOnItsVerdicts(t *testing.T) {
+	all, errs := taskspec.Discover(t.TempDir(), nil)
+	if len(errs) > 0 {
+		t.Fatal(errs)
+	}
+	h := newLoop(t)
+	h.gh.Seed(sim.StoredIssue{Issue: workitem.Issue{Number: 1, Title: "[claudinite-work] engine/update",
+		Body: taskspec.UpdateTaskPath + "\n\nExecute the Claudinite task above.\n", Labels: []string{workitem.StatusReady}}})
+	var ran []string
+	h.drive(all, func(in *In) {
+		in.License = func(t taskspec.Task) string {
+			if KeyNeedOf(t).Any() {
+				return "this run has no license key"
+			}
+			return ""
+		}
+		in.CodeWork = func(t taskspec.Task, _ Work) CodeWorkResult {
+			ran = append(ran, t.Path())
+			return CodeWorkResult{OK: true, Said: []string{"cn update engine: up to date", "cn update packs: up to date"}}
+		}
+	})
+	if !reflect.DeepEqual(ran, []string{"engine/update"}) {
+		t.Fatalf("ran %v", ran)
+	}
+	h.wants(1, "closed", workitem.StatusDone)
+	if !strings.Contains(h.last(1), "- cn update packs: up to date") {
+		t.Error(h.last(1))
+	}
+}
+
 // A delivery whose diff the task's policy does not authorize stands for a
 // person: the item parks for action with the policy's reason.
 func TestADeliveryOutsideThePolicyParksForAction(t *testing.T) {

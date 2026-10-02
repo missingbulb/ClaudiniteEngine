@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/missingbulb/ClaudiniteEngine/tasks/execute"
 	"io"
 	"os"
 	"path/filepath"
@@ -121,6 +122,57 @@ var tasksAnswers = map[string]func(raw []byte) (any, error){
 	"outcome":      answerOutcome,
 	"queue":        answerQueue,
 	"schedule":     answerSchedule,
+	"claim":        answerClaim,
+}
+
+// answerClaim is the claim arbiter: each comment list's winning claim id
+// (null for none), and whether each won claim yields to an earlier one.
+func answerClaim(raw []byte) (any, error) {
+	var in struct {
+		Winners   [][]world.Comment `json:"winners"`
+		Conflicts []struct {
+			Item      workitem.Issue `json:"item"`
+			MyClaimID int64          `json:"myClaimId"`
+			Others    []struct {
+				workitem.Issue
+				ClaimID int64 `json:"claimId"`
+			} `json:"others"`
+			TaskAfter map[string][]string `json:"taskAfter"`
+			Scheduled map[string]bool     `json:"scheduled"`
+		} `json:"conflicts"`
+	}
+	if err := json.Unmarshal(raw, &in); err != nil {
+		return nil, err
+	}
+	winners := []any{}
+	for _, cs := range in.Winners {
+		if w := execute.ClaimWinner(cs); w != nil {
+			winners = append(winners, w.ID)
+		} else {
+			winners = append(winners, nil)
+		}
+	}
+	conflicts := []bool{}
+	for _, k := range in.Conflicts {
+		others := make([]execute.Claimed, 0, len(k.Others))
+		for _, o := range k.Others {
+			others = append(others, execute.Claimed{Issue: o.Issue, ClaimID: o.ClaimID})
+		}
+		conflicts = append(conflicts, execute.ConflictsWithEarlierClaim(k.Item, k.MyClaimID, others, queue.PickOpts{
+			TaskAfter: func(id string) []string { return k.TaskAfter[id] },
+			ScheduledOf: func(id string) workitem.Scheduled {
+				v, ok := k.Scheduled[id]
+				switch {
+				case !ok:
+					return workitem.Unknown
+				case v:
+					return workitem.Yes
+				}
+				return workitem.No
+			},
+		}))
+	}
+	return map[string]any{"winners": winners, "conflicts": conflicts}, nil
 }
 
 func cmdTasks(args []string, stdout io.Writer) error {

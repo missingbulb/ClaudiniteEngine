@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/missingbulb/ClaudiniteEngine/shared/packset"
+	"github.com/missingbulb/ClaudiniteEngine/shared/workitem"
 )
 
 func put(t *testing.T, root string, files map[string]string) {
@@ -81,7 +82,7 @@ func TestDiscover(t *testing.T) {
 	for _, t := range tasks {
 		got = append(got, t.Path())
 	}
-	if want := []string{"acme-pack/gated", "acme-pack/nightly", "acme-pack/weekly", "engine/implement-request"}; !reflect.DeepEqual(got, want) {
+	if want := []string{"acme-pack/gated", "acme-pack/nightly", "acme-pack/weekly", "engine/implement-request", "engine/update"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("tasks %v, want %v", got, want)
 	}
 	signals := Signals(tasks[0].Decl.Preconditions(), tasks[0].Terms)
@@ -108,6 +109,53 @@ func TestDiscover(t *testing.T) {
 	}
 	if len(errs) != 4 {
 		t.Errorf("%d errors, want 4: %v", len(errs), errs)
+	}
+}
+
+// The engine's update is a built-in task wherever the superseded update
+// workflow is gone, and stands aside while a member still runs it, so the
+// update never runs twice.
+func TestTheUpdateTaskStandsAsideForTheUpdateWorkflow(t *testing.T) {
+	repo := t.TempDir()
+	paths := func() []string {
+		tasks, errs := Discover(repo, nil)
+		if len(errs) > 0 {
+			t.Fatal(errs)
+		}
+		var out []string
+		for _, task := range tasks {
+			out = append(out, task.Path())
+		}
+		return out
+	}
+	if got := paths(); !reflect.DeepEqual(got, []string{"engine/implement-request", "engine/update"}) {
+		t.Errorf("no update workflow: %v", got)
+	}
+	put(t, repo, map[string]string{UpdateWorkflow: "name: claudinite-update\n"})
+	if got := paths(); !reflect.DeepEqual(got, []string{"engine/implement-request"}) {
+		t.Errorf("the update workflow present: %v", got)
+	}
+}
+
+func TestTheUpdateTask(t *testing.T) {
+	tasks, errs := Discover(t.TempDir(), nil)
+	if len(errs) > 0 {
+		t.Fatal(errs)
+	}
+	var u Task
+	for _, task := range tasks {
+		if task.ID == UpdateTask {
+			u = task
+		}
+	}
+	if u.Pack != BuiltinPack || !u.Engine || u.Decl.AgentModel() != "none" || u.TaskPath() != UpdateTaskPath {
+		t.Fatalf("%+v path %s", u, u.TaskPath())
+	}
+	if !reflect.DeepEqual(u.Decl.Preconditions(), []any{"schedule:at-most-daily"}) || u.Decl.Outcome() != "supersede_existing_pr" {
+		t.Errorf("%v", u.Decl)
+	}
+	if id, ok := workitem.TaskIDFromPath(u.TaskPath()); !ok || id.Pack+"/"+id.Task != "engine/update" {
+		t.Errorf("an item's path %s names %+v", u.TaskPath(), id)
 	}
 }
 

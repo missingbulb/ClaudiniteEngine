@@ -57,6 +57,9 @@ type CodeWorkResult struct {
 	Branch         string
 	Issue          int
 	Reason         string
+	// Said is what in-process code-work (the engine's own) reports, one
+	// line each, carried onto the item's close.
+	Said []string
 }
 
 // Delivered is what the run created, by identity: the agent's only source
@@ -546,6 +549,9 @@ func (r *run) codeWork(item workitem.Issue, task taskspec.Task, id string, claim
 	body := "Code-work did this run's work; no agent was needed."
 	if d := result.Delivered(); len(d) > 0 {
 		body = "Code-work did this run's work and left:\n" + bullets(d)
+	}
+	if len(result.Said) > 0 {
+		body += "\n\n" + bullets(result.Said)
 	}
 	return workitem.StatusDone, r.close(item, id, running, workitem.StatusDone, "completed", body, "success")
 }

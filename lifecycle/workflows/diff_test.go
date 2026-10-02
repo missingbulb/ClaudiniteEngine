@@ -1,6 +1,7 @@
 package workflows
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -37,6 +38,28 @@ func applies(t *testing.T, dir, diff string) {
 			t.Errorf("%s after the patch:\n%s", name, got)
 		}
 	}
+	if _, err := os.Stat(filepath.Join(dir, ".github", "workflows", Superseded)); err == nil {
+		t.Errorf("%s survives the patch", Superseded)
+	}
+}
+
+// A member running the queue runs the update as the engine/update task, so
+// the superseded update workflow is a deletion in the patch.
+func TestDiffDeletesTheSupersededUpdateWorkflow(t *testing.T) {
+	files := map[string]string{Superseded: string(SupersededTemplate())}
+	for n, b := range Templates() {
+		files[n] = string(b)
+	}
+	dir := writeMember(t, files)
+	d, err := Diff(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := fmt.Sprintf("--- a/.github/workflows/%s\n+++ /dev/null\n@@ -1,%d +0,0 @@\n", Superseded, strings.Count(files[Superseded], "\n"))
+	if !strings.HasPrefix(d, want) || strings.Count(d, "--- ") != 1 {
+		t.Fatalf("want one deletion, got:\n%s", d)
+	}
+	applies(t, dir, d)
 }
 
 func TestDiffIsEmptyForTheTemplates(t *testing.T) {
@@ -60,7 +83,7 @@ func TestDiffPatchesChangedAndMissingFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, s := range []string{"--- a/.github/workflows/claudinite-ci.yml\n+++ b/.github/workflows/claudinite-ci.yml\n@@ ",
-		"--- /dev/null\n+++ b/.github/workflows/claudinite-update.yml\n@@ -0,0 +1,", "-# a member's comment\n"} {
+		"--- /dev/null\n+++ b/.github/workflows/claudinite-scheduler.yml\n@@ -0,0 +1,", "-# a member's comment\n"} {
 		if !strings.Contains(d, s) {
 			t.Errorf("diff lacks %q:\n%s", s, d)
 		}
@@ -73,7 +96,7 @@ func TestDiffPatchesChangedAndMissingFiles(t *testing.T) {
 
 func TestDiffHandlesAFileWithoutATrailingNewline(t *testing.T) {
 	ci := strings.TrimSuffix(string(Templates()["claudinite-ci.yml"]), "\n")
-	dir := writeMember(t, map[string]string{"claudinite-ci.yml": ci, "claudinite-update.yml": string(Templates()["claudinite-update.yml"])})
+	dir := writeMember(t, map[string]string{"claudinite-ci.yml": ci, Superseded: string(SupersededTemplate())})
 	d, err := Diff(dir)
 	if err != nil || !strings.Contains(d, "\\ No newline at end of file") {
 		t.Fatalf("%v\n%s", err, d)

@@ -181,7 +181,7 @@ func (f *fixture) OpenIssues(label string) ([]Issue, error) {
 	return out, nil
 }
 
-func (f *fixture) LatestConclusion(c Canary, commit string) (string, bool, error) {
+func (f *fixture) LatestConclusion(c Canary, _, commit string) (string, bool, error) {
 	v, ok := f.Runs[c.Name][commit]
 	return v, ok, nil
 }
@@ -325,7 +325,7 @@ func (g githubAPI) OpenIssues(label string) ([]Issue, error) {
 	return out, nil
 }
 
-func (g githubAPI) LatestConclusion(c Canary, commit string) (string, bool, error) {
+func (g githubAPI) LatestConclusion(c Canary, workflow, commit string) (string, bool, error) {
 	var runs struct {
 		WorkflowRuns []struct {
 			HeadSHA    string `json:"head_sha"`
@@ -333,7 +333,7 @@ func (g githubAPI) LatestConclusion(c Canary, commit string) (string, bool, erro
 			Conclusion string `json:"conclusion"`
 		} `json:"workflow_runs"`
 	}
-	if err := g.get(fmt.Sprintf("/repos/%s/actions/workflows/%s/runs?per_page=100", c.Repo, url.PathEscape(c.Workflow)), &runs); err != nil {
+	if err := g.get(fmt.Sprintf("/repos/%s/actions/workflows/%s/runs?per_page=100", c.Repo, url.PathEscape(workflow)), &runs); err != nil {
 		return "", false, err
 	}
 	for _, r := range runs.WorkflowRuns {

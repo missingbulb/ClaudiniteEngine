@@ -250,7 +250,12 @@ func cmdExecuteLoop(args []string, stdout io.Writer, env world.Env) (err error) 
 			return execute.ResolveTarget(execute.TargetIn{Issues: gw, Repo: gw, Pulls: gw, Lane: gw, TaskID: t.Path(),
 				Outcome: t.Decl.Outcome(), Delivery: delivery, Now: at, Seed: newNonce(0), Sleep: time.Sleep, Log: log, Judgement: judgement(t)})
 		},
-		CodeWork: worker.Run,
+		CodeWork: func(t taskspec.Task, w execute.Work) execute.CodeWorkResult {
+			if t.Pack == taskspec.BuiltinPack && t.ID == taskspec.UpdateTask {
+				return runUpdateTask(r.root, token, branch, stdout)
+			}
+			return worker.Run(t, w)
+		},
 		Land: func(t taskspec.Task, pr int) execute.Landed {
 			if !mayLand(t.Decl["automerge"]) {
 				return execute.Landed{Note: fmt.Sprintf("PR #%d stands for review — this task's automerge authorizes no landing", pr)}

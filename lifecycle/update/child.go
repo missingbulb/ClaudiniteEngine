@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/missingbulb/ClaudiniteEngine/lifecycle/selftest"
 	"os"
 	"os/exec"
 	"strings"
@@ -48,19 +49,40 @@ func child(binary string, timeout time.Duration, args ...string) (string, string
 	return stdout.String(), stderr.String(), 0, nil
 }
 
-// Selftest runs `<binary> selftest` and refuses a non-zero exit or a first
-// line other than "version <want>".
-func Selftest(binary, want string, timeout time.Duration) (string, error) {
-	out, errOut, code, err := child(binary, timeout, "selftest")
+// SelftestFailed is a candidate whose selftest over the member failed a
+// probe: the update stops there, forced or not.
+type SelftestFailed struct {
+	Version string
+	Probes  []string
+	Report  string
+}
+
+func (e *SelftestFailed) Error() string {
+	return "selftest of " + e.Version + " failed (" + strings.Join(e.Probes, ", ") + ")"
+}
+
+// Selftest runs `<binary> selftest --repo DIR`, or the machine probes
+// alone when repo is "", and refuses a first line
+// other than "version <want>". A non-zero exit naming failed probes is a
+// *SelftestFailed; any other non-zero exit is an error.
+func Selftest(binary, want, repo string, timeout time.Duration) (string, error) {
+	args := []string{"selftest"}
+	if repo != "" {
+		args = append(args, "--repo", repo)
+	}
+	out, errOut, code, err := child(binary, timeout, args...)
 	if err != nil {
 		return out, fmt.Errorf("selftest: %w", err)
 	}
 	first, _, _ := strings.Cut(out, "\n")
-	if code != 0 {
-		return out, fmt.Errorf("selftest of %s exited %d: %s", want, code, strings.TrimSpace(out+errOut))
-	}
 	if strings.TrimSpace(first) != "version "+want {
-		return out, fmt.Errorf("selftest reports %q, not version %s", first, want)
+		return out, fmt.Errorf("selftest reports %q, not version %s: %s", first, want, strings.TrimSpace(errOut))
+	}
+	if code != 0 {
+		if failed := selftest.Failed(out); len(failed) > 0 {
+			return out, &SelftestFailed{Version: want, Probes: failed, Report: out}
+		}
+		return out, fmt.Errorf("selftest of %s exited %d: %s", want, code, strings.TrimSpace(out+errOut))
 	}
 	return out, nil
 }

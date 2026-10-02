@@ -121,17 +121,31 @@ func SecretNames(decls []Decl) []string {
 	return out
 }
 
-// The engine's own tasks: one, the request implementer a marked issue's
-// work item names. It is not a pack and declares nothing; wherever the
-// queue runs it is active, which is also what fences the one field only
-// it may declare (model_from_request).
+// The engine's own tasks: the request implementer a marked issue's work
+// item names, and the nightly update. They are not a pack and declare
+// nothing; wherever the queue runs they are active, which is also what
+// fences the one field only the implementer may declare
+// (model_from_request). The update stands aside while the repo still
+// holds the update workflow it supersedes, so it never runs twice.
 const (
 	BuiltinPack = "engine"
 	RequestTask = "implement-request"
+	UpdateTask  = "update"
 )
 
-//go:embed builtin/implement-request/task.json
-var requestDeclaration []byte
+// UpdateWorkflow is the nightly update workflow the update task supersedes.
+const UpdateWorkflow = ".github/workflows/claudinite-update.yml"
+
+// UpdateTaskPath is the worker path the update's items name: the engine's
+// own, as no file carries the task; it never moves.
+const UpdateTaskPath = "engine/scheduler/queue/tasks/" + UpdateTask + "/task.json"
+
+var (
+	//go:embed builtin/implement-request/task.json
+	requestDeclaration []byte
+	//go:embed builtin/update/task.json
+	updateDeclaration []byte
+)
 
 // Task is one discovered, validated task.
 type Task struct {
@@ -201,15 +215,27 @@ func Discover(repo string, packs []packset.Pack) ([]Task, []DiscoveryError) {
 			tasks = append(tasks, t)
 		}
 	}
-	d, err := ParseText("task.json", requestDeclaration)
-	if err != nil {
-		panic("the engine's own task declaration does not parse: " + err.Error())
+	builtins := []struct {
+		id   string
+		decl []byte
+	}{{RequestTask, requestDeclaration}}
+	if _, err := os.Stat(filepath.Join(repo, filepath.FromSlash(UpdateWorkflow))); err != nil {
+		builtins = append(builtins, struct {
+			id   string
+			decl []byte
+		}{UpdateTask, updateDeclaration})
 	}
-	if t, e := admit(BuiltinPack, RequestTask, BuiltinPack+"/"+RequestTask, d, EngineTerms); e != nil {
-		errs = append(errs, *e)
-	} else {
-		t.Engine = true
-		tasks = append(tasks, t)
+	for _, b := range builtins {
+		d, err := ParseText("task.json", b.decl)
+		if err != nil {
+			panic("the engine's own task declaration does not parse: " + err.Error())
+		}
+		if t, e := admit(BuiltinPack, b.id, BuiltinPack+"/"+b.id, d, EngineTerms); e != nil {
+			errs = append(errs, *e)
+		} else {
+			t.Engine = true
+			tasks = append(tasks, t)
+		}
 	}
 	return tasks, errs
 }
@@ -236,6 +262,9 @@ const RequestTaskPath = ".claudinite/shared/packs/claudinite-tasks/public/" + Re
 // TaskPath is the worker path a work item's first body line names.
 func (t Task) TaskPath() string {
 	if t.Pack == BuiltinPack && t.Rel == "" {
+		if t.ID == UpdateTask {
+			return UpdateTaskPath
+		}
 		return RequestTaskPath
 	}
 	return t.Rel + "/task.md"

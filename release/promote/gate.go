@@ -32,11 +32,13 @@ type Issue struct {
 	Labels []string `json:"labels"`
 }
 
-// Canary is one registered canary workflow, from release/canaries.json.
+// Canary is one registered canary repo, from release/canaries.json, and
+// the workflows of it the gate reads; a canary naming none yet counts for
+// nothing.
 type Canary struct {
-	Name     string `json:"name"`
-	Repo     string `json:"repo"`
-	Workflow string `json:"workflow"`
+	Name      string   `json:"name"`
+	Repo      string   `json:"repo"`
+	Workflows []string `json:"workflows"`
 }
 
 // GitHub is what the gate reads from GitHub: issues and the conclusions of
@@ -45,7 +47,7 @@ type GitHub interface {
 	OpenIssues(label string) ([]Issue, error)
 	// LatestConclusion is the conclusion of the newest run of c's workflow
 	// on commit, and false when it never ran there.
-	LatestConclusion(c Canary, commit string) (string, bool, error)
+	LatestConclusion(c Canary, workflow, commit string) (string, bool, error)
 }
 
 // Verdict is the gate's answer for one rc version.
@@ -97,25 +99,37 @@ func Gate(reg Registry, gh GitHub, now func() time.Time, ver string, canaries []
 			return v, nil
 		}
 	}
-	if len(canaries) == 0 {
-		v.Result, v.Reason = "no-canaries", "no canary is registered in release/canaries.json"
+	if !Watched(canaries) {
+		v.Result, v.Reason = "no-canaries", fmt.Sprintf("no canary in release/canaries.json names a workflow (%d registered)", len(canaries))
 		return v, nil
 	}
 	for _, c := range canaries {
-		conclusion, ran, err := gh.LatestConclusion(c, candidate.Commit)
-		if err != nil {
-			return Verdict{}, err
-		}
-		if !ran {
-			conclusion = "none"
-		}
-		if conclusion != "success" {
-			v.Result, v.Reason = fmt.Sprintf("canary:%s:%s", c.Name, conclusion), fmt.Sprintf("%s on %s is %s, and only success passes", c.Workflow, candidate.Commit, conclusion)
-			return v, nil
+		for _, w := range c.Workflows {
+			conclusion, ran, err := gh.LatestConclusion(c, w, candidate.Commit)
+			if err != nil {
+				return Verdict{}, err
+			}
+			if !ran {
+				conclusion = "none"
+			}
+			if conclusion != "success" {
+				v.Result, v.Reason = fmt.Sprintf("canary:%s:%s", c.Name, conclusion), fmt.Sprintf("%s in %s on %s is %s, and only success passes", w, c.Repo, candidate.Commit, conclusion)
+				return v, nil
+			}
 		}
 	}
 	v.Result, v.Reason = "pass", "soaked, unblocked, every canary green"
 	return v, nil
+}
+
+// Watched reports whether any canary names a workflow the gate reads.
+func Watched(canaries []Canary) bool {
+	for _, c := range canaries {
+		if len(c.Workflows) > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 func hopVerdict(reg Registry, candidate releasefiles.Manifest) (string, error) {

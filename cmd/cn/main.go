@@ -12,6 +12,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/hooks"
 	"github.com/missingbulb/ClaudiniteEngine/license"
 	"github.com/missingbulb/ClaudiniteEngine/lifecycle"
+	"github.com/missingbulb/ClaudiniteEngine/lifecycle/selftest"
 	"github.com/missingbulb/ClaudiniteEngine/shared/breadcrumb"
 	"github.com/missingbulb/ClaudiniteEngine/shared/packset"
 	"github.com/missingbulb/ClaudiniteEngine/shared/paths"
@@ -27,7 +28,7 @@ commands:
                  post-tool-use, user-prompt-submit, stop, session-end
   version        print the engine version
   version --day  print today's <day> version part (UTC), for release tooling
-  selftest       check this machine can run the engine
+  selftest       check this machine, and with --repo DIR that member, can run the engine
   verify [--repo DIR]
                  check a member's files against this engine version;
                  exit 1 on a break
@@ -192,16 +193,19 @@ func dispatch(args []string, stdin io.Reader, stdout, stderr io.Writer, start ti
 		if len(args) == 2 && args[1] == "--panic" {
 			panic("selftest --panic: deliberate crash for the crash-reporting tests")
 		}
-		if len(args) != 1 {
-			return report.New(report.Usage, "selftest takes no arguments")
+		in := selftest.Input{Version: version.Version(), Platform: version.Platform(), CacheRoot: paths.CacheRoot(), Now: time.Now(), HookEvents: hooks.Events}
+		switch {
+		case len(args) == 3 && args[1] == "--repo":
+			in.Repo = args[2]
+		case len(args) != 1:
+			return report.New(report.Usage, "selftest takes no arguments but --repo DIR")
 		}
-		in := lifecycle.SelftestInput{CacheRoot: paths.CacheRoot(), Now: time.Now()}
 		roots, err := license.Roots()
 		in.RootsErr = err
 		for _, r := range roots {
 			in.RootIDs = append(in.RootIDs, sign.KeyID(r))
 		}
-		if lifecycle.Selftest(stdout, in) != 0 {
+		if selftest.Selftest(stdout, in) != 0 {
 			return report.New(report.IO, "selftest failed")
 		}
 		return nil

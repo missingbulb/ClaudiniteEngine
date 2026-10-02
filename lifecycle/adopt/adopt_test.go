@@ -176,7 +176,7 @@ func TestInitAdoptsAnEmptyRepo(t *testing.T) {
 		".claudinite/flat/claudinite-rules.GENERATED.md", ".claudinite/flat/dashboard.GENERATED.json", ".claudinite/flat/tasks.GENERATED.json", ".claudinite/launch", ".claudinite/settings.yaml",
 		".claudinite/shared/packs/base/RULES.md", ".claudinite/shared/packs/base/pack.json",
 		".claudinite/shared/packs/hello/RULES.md", ".claudinite/shared/packs/hello/pack.json",
-		".github/workflows/claudinite-ci.yml", ".github/workflows/claudinite-executor.yml", ".github/workflows/claudinite-scheduler.yml", ".github/workflows/claudinite-update.yml", "CLAUDE.md"}
+		".github/workflows/claudinite-ci.yml", ".github/workflows/claudinite-executor.yml", ".github/workflows/claudinite-scheduler.yml", "CLAUDE.md"}
 	if got := listFiles(t, repo); strings.Join(got, " ") != strings.Join(want, " ") {
 		t.Errorf("files %v", got)
 	}
@@ -205,8 +205,11 @@ func TestInitAdoptsAnEmptyRepo(t *testing.T) {
 	if g, _ := os.ReadFile(filepath.Join(repo, ".claude/skills/.gitignore")); string(g) != "*\n!.gitignore\n" {
 		t.Errorf("skills ignore %q", g)
 	}
-	if w, _ := os.ReadFile(filepath.Join(repo, ".github/workflows/claudinite-update.yml")); !bytes.Equal(w, workflows.Templates()["claudinite-update.yml"]) {
-		t.Error("update workflow is not the template")
+	if w, _ := os.ReadFile(filepath.Join(repo, ".github/workflows/claudinite-ci.yml")); !bytes.Equal(w, workflows.Templates()["claudinite-ci.yml"]) {
+		t.Error("ci workflow is not the template")
+	}
+	if _, err := os.Stat(filepath.Join(repo, ".github/workflows", workflows.Superseded)); err == nil {
+		t.Error("init wrote the superseded update workflow; engine/update runs the update")
 	}
 	if !strings.Contains(out.String(), "adding pack base, which hello 1.0 requires") || !strings.Contains(out.String(), "Commit everything above") {
 		t.Errorf("output:\n%s", out)

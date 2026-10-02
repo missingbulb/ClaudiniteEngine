@@ -265,7 +265,12 @@ func propose(d Deps, o Options, f settings.Format, raw []byte, pin settings.Engi
 	if err != nil {
 		return "", "", err
 	}
-	self, err := Selftest(got.Binary, c.Version, d.Timeout)
+	self, err := Selftest(got.Binary, c.Version, d.Repo, d.Timeout)
+	var failed *SelftestFailed
+	if errors.As(err, &failed) {
+		fmt.Fprint(d.Out, failed.Report)
+		return c.Version, "skipped: selftest failed (" + strings.Join(failed.Probes, ", ") + ")", nil
+	}
 	if err != nil {
 		return "", "", err
 	}

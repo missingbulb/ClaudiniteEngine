@@ -35,7 +35,7 @@ func TestUpdateCommandArguments(t *testing.T) {
 func TestWorkflowsDiffCommand(t *testing.T) {
 	bin := buildCN(t, "")
 	out, _, code := runCN(t, bin, nil, "", "workflows", "diff", "--repo", t.TempDir())
-	if code != 0 || !strings.Contains(out, "+++ b/.github/workflows/claudinite-update.yml") {
+	if code != 0 || !strings.Contains(out, "+++ b/.github/workflows/claudinite-executor.yml") {
 		t.Errorf("exit %d\n%s", code, out)
 	}
 	if _, _, code := runCN(t, bin, nil, "", "workflows"); code != 2 {
