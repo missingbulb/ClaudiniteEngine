@@ -71,6 +71,20 @@ commands:
   tasks flat [--write|--check] [--repo DIR]
                  the flat task and dashboard declarations: print, write,
                  or exit 1 naming each file that is stale
+  schedule run [--dry-run] [--wake IDS] [--repo DIR]
+                 the scheduler run: repair, ask every scheduled task,
+                 ready, adopt, reclaim; publishes the drain gate; needs
+                 GITHUB_TOKEN
+  schedule drain
+                 dispatch the executor workflow on the default branch
+  schedule report-failure [--title T]
+                 file, or comment on, the one workflow-failure issue
+  work create <pack>/<task> [--urgent] [--context T] [--not-before ISO]
+                 [--blocked-by #N,#M] [--qualifier T] [--supersedes #N]
+                 file a work item by hand; an unqualified item for a
+                 scheduled task is refused
+  work wake #N [--urgent]
+                 clear an item's wait and return it to the queue
   workflows diff [--repo DIR]
                  the patch that brings a member's workflows to this
                  version's templates; empty when they match
@@ -196,6 +210,10 @@ func dispatch(args []string, stdin io.Reader, stdout, stderr io.Writer, start ti
 		return cmdRulesIndex(args[1:], stdout)
 	case "tasks":
 		return cmdTasks(args[1:], stdout)
+	case "schedule":
+		return cmdSchedule(args[1:], stdout)
+	case "work":
+		return cmdWork(args[1:], stdout)
 	}
 	return report.New(report.Usage, fmt.Sprintf("unknown command %q", args[0]))
 }

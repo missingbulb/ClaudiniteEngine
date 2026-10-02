@@ -151,13 +151,11 @@ func TestStubRunsAndClose(t *testing.T) {
 func TestStubRefusesAWrongTokenOrRepo(t *testing.T) {
 	bare, _ := fixture(t)
 	c, _ := start(t, bare)
-	bad := *c
-	bad.Token = "other"
+	bad := &githubapi.Client{Base: c.Base, Repo: c.Repo, Token: "other", HTTP: c.HTTP}
 	if _, err := bad.OpenPulls(); err == nil || !strings.Contains(err.Error(), "401") {
 		t.Errorf("%v", err)
 	}
-	bad = *c
-	bad.Repo = "acme/other"
+	bad = &githubapi.Client{Base: c.Base, Repo: "acme/other", Token: c.Token, HTTP: c.HTTP}
 	if _, err := bad.OpenPulls(); err == nil || !strings.Contains(err.Error(), "404") {
 		t.Errorf("%v", err)
 	}

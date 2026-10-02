@@ -1,5 +1,7 @@
 package precondition
 
+import "encoding/json"
+
 // Signals are what the collectors read for one verdict, each nil when it
 // was not collected and carrying Error when it could not be read. The JSON
 // shape is the Node engine's signal bundle.
@@ -11,19 +13,43 @@ type Signals struct {
 	ConversationLogs *Logs    `json:"conversationLogs,omitempty"`
 	SharedMount      *Mount   `json:"sharedMount,omitempty"`
 	Request          *Request `json:"request,omitempty"`
+	// Extra are the signals no built-in term reads, collected for a
+	// task-local term (branches, release, localPacks, stamp, queue,
+	// fleet), each under its own name in the bundle.
+	Extra map[string]any `json:"-"`
+}
+
+// MarshalJSON writes the bundle a task-local term reads: the typed
+// signals and Extra side by side.
+func (s Signals) MarshalJSON() ([]byte, error) {
+	type plain Signals
+	raw, err := json.Marshal(plain(s))
+	if err != nil || len(s.Extra) == 0 {
+		return raw, err
+	}
+	m := map[string]any{}
+	if err := json.Unmarshal(raw, &m); err != nil {
+		return nil, err
+	}
+	for k, v := range s.Extra {
+		m[k] = v
+	}
+	return json.Marshal(m)
 }
 
 // Runs is the task's own run history, newest first, other than the item
 // under evaluation, and the window it was read over.
 type Runs struct {
-	List   []Run   `json:"list"`
-	Window *Window `json:"window,omitempty"`
-	Error  string  `json:"error,omitempty"`
+	List        []Run   `json:"list"`
+	HorizonDays int     `json:"horizonDays,omitempty"`
+	Window      *Window `json:"window,omitempty"`
+	Error       string  `json:"error,omitempty"`
 }
 
-// Window is a lookback.
+// Window is a lookback: since when, and how many days that is.
 type Window struct {
-	Days float64 `json:"days"`
+	SinceISO string  `json:"sinceIso,omitempty"`
+	Days     float64 `json:"days"`
 }
 
 // Run is one past item of the task.
@@ -35,6 +61,7 @@ type Run struct {
 	Status    *string `json:"status,omitempty"`
 	Park      *string `json:"park"`
 	Outcome   *string `json:"outcome,omitempty"`
+	Woken     bool    `json:"woken,omitempty"`
 }
 
 // Commits is the default branch's movement in the window. A commit
@@ -49,8 +76,12 @@ type Commits struct {
 
 // Commit is one commit in the window.
 type Commit struct {
-	SHA         string `json:"sha"`
-	Substantive bool   `json:"substantive"`
+	SHA         string   `json:"sha"`
+	Message     string   `json:"message"`
+	Author      *string  `json:"author"`
+	Task        *string  `json:"task"`
+	Substantive bool     `json:"substantive"`
+	Files       []string `json:"files"`
 }
 
 // Issues are the repo's open issues and the numbers that moved.
@@ -62,27 +93,42 @@ type Issues struct {
 
 // OpenIssue is one open issue's number and labels.
 type OpenIssue struct {
-	Number int      `json:"number"`
-	Labels []string `json:"labels"`
+	Number    int      `json:"number"`
+	Title     string   `json:"title,omitempty"`
+	UpdatedAt string   `json:"updatedAt,omitempty"`
+	Labels    []string `json:"labels"`
 }
 
 // PRs are the open pull requests and the numbers that moved.
 type PRs struct {
-	Open    []OpenPR `json:"open"`
-	Touched []int    `json:"touched"`
-	Error   string   `json:"error,omitempty"`
+	Open    []OpenPR   `json:"open"`
+	Touched []int      `json:"touched"`
+	Merged  []MergedPR `json:"merged"`
+	Error   string     `json:"error,omitempty"`
 }
 
 // OpenPR is one open pull request; ChangedPaths nil means unreadable.
 type OpenPR struct {
 	Number       int      `json:"number"`
 	Title        string   `json:"title"`
+	UpdatedAt    string   `json:"updatedAt,omitempty"`
 	ChangedPaths []string `json:"changedPaths"`
+}
+
+// MergedPR is a pull request a person's work merged in the window.
+type MergedPR struct {
+	Number   int    `json:"number"`
+	Title    string `json:"title"`
+	MergedAt string `json:"mergedAt"`
 }
 
 // Logs is the conversation-log branch; a nil age is unknown.
 type Logs struct {
+	Present          bool     `json:"present"`
+	RetentionDays    *float64 `json:"retentionDays"`
+	OldestLogAgeDays *float64 `json:"oldestLogAgeDays"`
 	NewestLogAgeDays *float64 `json:"newestLogAgeDays"`
+	LogCount         int      `json:"logCount"`
 	Error            string   `json:"error,omitempty"`
 }
 
@@ -99,6 +145,7 @@ type Request struct {
 	AuthorPermission string     `json:"authorPermission,omitempty"`
 	Approvals        []Approval `json:"approvals,omitempty"`
 	State            string     `json:"state,omitempty"`
+	Labels           []string   `json:"labels,omitempty"`
 	Queued           bool       `json:"queued,omitempty"`
 	Gone             bool       `json:"gone,omitempty"`
 	Unreadable       bool       `json:"unreadable,omitempty"`

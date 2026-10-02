@@ -18,11 +18,42 @@ import (
 // a definitive answer, unlike any other failure.
 var ErrGone = errors.New("gone")
 
-// Issue is an issue as listed, pull requests included so a lister can
-// drop them.
+// Issue is an issue as listed or read: pull requests included so a lister
+// can drop them, with a pull request's merge instant, which is what tells
+// work that landed from work abandoned.
 type Issue struct {
 	workitem.Issue
-	PullRequest bool `json:"pull_request,omitempty"`
+	PullRequest bool   `json:"pull_request,omitempty"`
+	MergedAt    string `json:"merged_at,omitempty"`
+	Author      string `json:"author,omitempty"`
+	StateReason string `json:"state_reason,omitempty"`
+}
+
+// Query is an issues listing: a state (open, closed, all), an optional
+// updated-since instant and label, and the order. An empty Sort is the
+// state's own order: open oldest first, closed most recently updated
+// first.
+type Query struct {
+	State     string
+	Since     string
+	Label     string
+	Sort      string
+	Direction string
+}
+
+// Order is the query's sort and direction, its defaults filled.
+func (q Query) Order() (sort, direction string) {
+	sort, direction = q.Sort, q.Direction
+	if sort == "" {
+		sort, direction = "created", "asc"
+		if q.State == "closed" {
+			sort, direction = "updated", "desc"
+		}
+	}
+	if direction == "" {
+		direction = "desc"
+	}
+	return sort, direction
 }
 
 // Comment is one issue comment.
@@ -38,11 +69,9 @@ const PageSize = 100
 
 // Issues is the queue's half of the port.
 type Issues interface {
-	// IssuesPage is one page (PageSize) of the repository's issues in
-	// state open or closed, oldest first for open and most recently
-	// updated first for closed, as the Node engine asks.
-	IssuesPage(state string, page int) ([]Issue, error)
-	Issue(n int) (workitem.Issue, error)
+	// IssuesPage is one page (PageSize) of the listing q names.
+	IssuesPage(q Query, page int) ([]Issue, error)
+	Issue(n int) (Issue, error)
 	CreateIssue(title, body string, labels []string) (int, error)
 	CloseIssue(n int, reason string) error
 	ReopenIssue(n int) error
@@ -56,7 +85,14 @@ type Issues interface {
 	Comments(n int) ([]Comment, error)
 	Comment(n int, body string) (int64, error)
 	EditComment(id int64, body string) error
+	// Permission is a login's role on the repository (admin, maintain,
+	// write, triage, read, none); ErrGone when the login is no
+	// collaborator.
+	Permission(login string) (string, error)
 }
+
+// HasPush reports a role that may push.
+func HasPush(role string) bool { return role == "admin" || role == "maintain" || role == "write" }
 
 // Clock is the time the runner reads; the simulator and CLAUDINITE_NOW
 // replace it.
@@ -73,3 +109,56 @@ type FixedClock time.Time
 
 // Now is the fixed instant.
 func (c FixedClock) Now() time.Time { return time.Time(c) }
+
+// CommitRef is a commit as a history listing returns it.
+type CommitRef struct {
+	SHA, Message string
+	// Author is the commit's GitHub login, "" when GitHub matched none.
+	Author string
+}
+
+// Commit is one commit read whole: its files resolved.
+type Commit struct {
+	SHA, Message, Author string
+	// Date is the committer's date, else the author's.
+	Date  string
+	Files []string
+}
+
+// Pull is a pull request as listed or read.
+type Pull struct {
+	Number    int      `json:"number"`
+	Title     string   `json:"title"`
+	Body      string   `json:"body"`
+	State     string   `json:"state"`
+	Author    string   `json:"author"`
+	HeadRef   string   `json:"head_ref"`
+	HeadSHA   string   `json:"head_sha"`
+	BaseRef   string   `json:"base_ref"`
+	UpdatedAt string   `json:"updated_at"`
+	MergedAt  string   `json:"merged_at"`
+	Labels    []string `json:"labels"`
+}
+
+// Branch is a branch and its tip.
+type Branch struct {
+	Name, SHA string
+}
+
+// Repo is the signals' half of the port: the repository's history, pull
+// requests, branches and releases, read.
+type Repo interface {
+	// CommitsPage is one page of branch's history since an instant.
+	CommitsPage(branch, since string, page int) ([]CommitRef, error)
+	Commit(sha string) (Commit, error)
+	// PullsPage is one page of pull requests in state, sorted.
+	PullsPage(state, sort, direction string, page int) ([]Pull, error)
+	PullFilesPage(n, page int) ([]string, error)
+	BranchesPage(page int) ([]Branch, error)
+	// Branch is ErrGone when there is no such branch.
+	Branch(name string) (Branch, error)
+	// TreePaths are the paths at a ref's root tree.
+	TreePaths(ref string) ([]string, error)
+	// LatestRelease is the newest release's tag; ErrGone when none.
+	LatestRelease() (string, error)
+}

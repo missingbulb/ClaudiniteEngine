@@ -121,6 +121,51 @@ const kinds = {
       taskPaths: (fixture.taskPaths ?? []).map((p) => g.taskIdFromPath(p) ?? null),
     };
   },
+  async schedule() {
+    const run = await mod('src/schedule/run.mjs');
+    const rules = await mod('src/schedule/repair-rules.mjs');
+    const c = await mod('src/contract/task-contract.mjs');
+    const tasksOf = (specs) => (specs ?? []).map((t) => ({
+      pack: t.pack, id: t.id, taskPath: t.taskPath, decl: c.normalizeTaskDeclaration(t.decl), terms: new Map(),
+    }));
+    // The plan's ops differ only in which fields a kind carries; an absent,
+    // null, false, empty or zero field is the same answer on both sides.
+    const lean = (v) => {
+      if (Array.isArray(v)) return v.map(lean);
+      if (v === null || typeof v !== 'object') return v;
+      const out = {};
+      for (const [k, x] of Object.entries(v)) {
+        if (x === null || x === undefined || x === false || x === '' || x === 0) continue;
+        if (Array.isArray(x) && x.length === 0) continue;
+        out[k] = lean(x);
+      }
+      return out;
+    };
+    const plans = [];
+    for (const k of fixture.plans ?? []) {
+      const tasks = tasksOf(k.tasks);
+      const items = structuredClone(k.items ?? []);
+      const { ops, asked } = await run.planSchedulerRun({
+        tasks, items, requests: k.requests ?? [], now: k.now,
+        schedule: { disabledTasks: k.disabled ?? [] },
+        stateOf: (n) => k.states?.[n] ?? null,
+        evaluate: async (t) => k.verdicts?.[`${t.pack}/${t.id}`] ?? { run: false, reason: 'unstated' },
+        progressAt: (i) => k.progress?.[i.number] ?? null,
+        resolutionOf: (n) => k.resolutions?.[n] ?? null,
+        doneAfter: rules.doneRunLookup(k.done ?? []),
+      });
+      plans.push({ ops: lean(ops), asked, items: items.map((i) => ({ number: i.number, state: i.state, labels: i.labels })) });
+    }
+    return {
+      plans,
+      wakes: (fixture.wakes ?? []).map((k) => run.planWake(k.spec, tasksOf(k.tasks), k.items ?? [])),
+      pickable: (fixture.pickable ?? []).map((k) => run.pickableCount(k.open, k.readied ?? [], {
+        scheduledOf: (id) => (id in (k.scheduled ?? {}) ? k.scheduled[id] : null),
+      })),
+      blockers: (fixture.blockers ?? []).map((k) => [...run.blockersToResolve(k.items ?? [], k.requests ?? [],
+        new Map(Object.entries(k.known ?? {}).map(([n, s]) => [Number(n), s])))].sort((a, b) => a - b)),
+    };
+  },
   async queue() {
     const pick = await mod('src/items/pick-order.mjs');
     const ready = await mod('src/schedule/readiness.mjs');

@@ -61,7 +61,15 @@ type StoredIssue struct {
 	workitem.Issue
 	StateReason string
 	PullRequest bool
+	MergedAt    string
+	Author      string
 	Comments    []world.Comment
+}
+
+func (i *StoredIssue) view() world.Issue {
+	c := i.Issue
+	c.Labels = append(workitem.LabelList{}, i.Labels...)
+	return world.Issue{Issue: c, PullRequest: i.PullRequest, MergedAt: i.MergedAt, Author: i.Author, StateReason: i.StateReason}
 }
 
 // Faults are the platform's misbehaviours a scenario turns on.
@@ -78,20 +86,22 @@ type Faults struct {
 
 // GitHub is the in-memory repository.
 type GitHub struct {
-	mu         sync.Mutex
-	Clock      *Clock
-	Repo       string
-	issues     []*StoredIssue
-	labelDefs  map[string]workitem.Label
-	Faults     Faults
-	Calls      []string
+	mu        sync.Mutex
+	Clock     *Clock
+	Repo      string
+	issues    []*StoredIssue
+	labelDefs map[string]workitem.Label
+	Faults    Faults
+	Calls     []string
+	// Roles are collaborators' permissions; a login absent is none.
+	Roles      map[string]string
 	commentSeq int64
 	removed    bool
 }
 
 // NewGitHub is an empty repository on clock.
 func NewGitHub(clock *Clock) *GitHub {
-	return &GitHub{Clock: clock, Repo: "o/r", labelDefs: map[string]workitem.Label{}, commentSeq: 100,
+	return &GitHub{Clock: clock, Repo: "o/r", labelDefs: map[string]workitem.Label{}, commentSeq: 100, Roles: map[string]string{},
 		Faults: Faults{Hidden: map[int]bool{}, Unreadable: map[int]bool{}}}
 }
 
@@ -183,53 +193,78 @@ func (g *GitHub) All() []StoredIssue {
 	return out
 }
 
-// IssuesPage lists issues: open oldest first, closed most recently
-// updated first, PageSize to a page.
-func (g *GitHub) IssuesPage(state string, page int) ([]world.Issue, error) {
+var _ world.Issues = (*GitHub)(nil)
+
+// IssuesPage lists issues as the issues list API does: by state, since
+// (on updated_at) and label, sorted, PageSize to a page.
+func (g *GitHub) IssuesPage(q world.Query, page int) ([]world.Issue, error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	if err := g.charge(fmt.Sprintf("GET issues?state=%s&page=%d", state, page)); err != nil {
+	if err := g.charge(fmt.Sprintf("GET issues?state=%s&since=%s&labels=%s&page=%d", q.State, q.Since, q.Label, page)); err != nil {
 		return nil, err
 	}
 	var all []*StoredIssue
 	for _, i := range g.issues {
-		if i.State == state && !g.Faults.Hidden[i.Number] {
-			all = append(all, i)
+		if (q.State != "all" && i.State != q.State) || g.Faults.Hidden[i.Number] {
+			continue
 		}
+		if q.Since != "" && i.UpdatedAt < q.Since {
+			continue
+		}
+		if q.Label != "" && !i.HasLabel(q.Label) {
+			continue
+		}
+		all = append(all, i)
 	}
-	if state == "open" {
-		sort.SliceStable(all, func(a, b int) bool { return all[a].Number < all[b].Number })
-	} else {
-		sort.SliceStable(all, func(a, b int) bool { return all[a].UpdatedAt > all[b].UpdatedAt })
+	key, dir := q.Order()
+	at := func(i *StoredIssue) string {
+		if key == "updated" {
+			return i.UpdatedAt
+		}
+		return fmt.Sprintf("%s#%09d", i.CreatedAt, i.Number)
 	}
+	sort.SliceStable(all, func(a, b int) bool {
+		if dir == "asc" {
+			return at(all[a]) < at(all[b])
+		}
+		return at(all[a]) > at(all[b])
+	})
 	from := (page - 1) * world.PageSize
 	out := []world.Issue{}
 	for k := from; k < len(all) && k < from+world.PageSize; k++ {
-		i := all[k]
-		c := i.Issue
-		c.Labels = append(workitem.LabelList{}, i.Labels...)
-		out = append(out, world.Issue{Issue: c, PullRequest: i.PullRequest})
+		out = append(out, all[k].view())
 	}
 	return out, nil
 }
 
+// Permission is a login's role; ErrGone for a stranger.
+func (g *GitHub) Permission(login string) (string, error) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if err := g.charge("GET collaborators/" + login + "/permission"); err != nil {
+		return "", err
+	}
+	if r, ok := g.Roles[login]; ok {
+		return r, nil
+	}
+	return "", world.ErrGone
+}
+
 // Issue reads one issue.
-func (g *GitHub) Issue(n int) (workitem.Issue, error) {
+func (g *GitHub) Issue(n int) (world.Issue, error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	if err := g.charge(fmt.Sprintf("GET issues/%d", n)); err != nil {
-		return workitem.Issue{}, err
+		return world.Issue{}, err
 	}
 	if g.Faults.Unreadable[n] {
-		return workitem.Issue{}, ErrUnreadable
+		return world.Issue{}, ErrUnreadable
 	}
 	i := g.find(n)
 	if i == nil {
-		return workitem.Issue{}, world.ErrGone
+		return world.Issue{}, world.ErrGone
 	}
-	c := i.Issue
-	c.Labels = append(workitem.LabelList{}, i.Labels...)
-	return c, nil
+	return i.view(), nil
 }
 
 // CreateIssue files an issue.

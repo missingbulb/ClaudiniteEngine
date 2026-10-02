@@ -120,6 +120,7 @@ var tasksAnswers = map[string]func(raw []byte) (any, error){
 	"grammar":      answerGrammar,
 	"outcome":      answerOutcome,
 	"queue":        answerQueue,
+	"schedule":     answerSchedule,
 }
 
 func cmdTasks(args []string, stdout io.Writer) error {

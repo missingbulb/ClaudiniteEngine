@@ -222,3 +222,15 @@ func admit(pack, name, where string, d Decl, terms Terms) (Task, *DiscoveryError
 	}
 	return Task{Pack: pack, ID: norm.ID(), Decl: norm, Terms: terms}, nil
 }
+
+// RequestTaskPath is the worker path the built-in request task's items
+// name: a path that never moves, since an item's body is never rewritten.
+const RequestTaskPath = ".claudinite/shared/packs/claudinite-tasks/public/" + RequestTask + ".md"
+
+// TaskPath is the worker path a work item's first body line names.
+func (t Task) TaskPath() string {
+	if t.Pack == BuiltinPack && t.Rel == "" {
+		return RequestTaskPath
+	}
+	return t.Rel + "/task.md"
+}

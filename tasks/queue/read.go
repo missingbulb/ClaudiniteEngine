@@ -16,7 +16,7 @@ import (
 // ListOpen is every open work item, oldest first. A page that cannot be
 // read is an error, never a shorter queue.
 func ListOpen(gh world.Issues) ([]workitem.Issue, error) {
-	return list(gh, "open", 0, func(workitem.Issue) bool { return true })
+	return List(gh, world.Query{State: "open"}, 0, func(workitem.Issue) bool { return true })
 }
 
 // DonePages is how far back the closed half is read: the superseded-park
@@ -26,15 +26,17 @@ const DonePages = 2
 // ListDone is every work item that converged done, most recently updated
 // first, over the newest DonePages pages.
 func ListDone(gh world.Issues) ([]workitem.Issue, error) {
-	return list(gh, "closed", DonePages, func(i workitem.Issue) bool { return i.Status() == workitem.StatusDone })
+	return List(gh, world.Query{State: "closed"}, DonePages, func(i workitem.Issue) bool { return i.Status() == workitem.StatusDone })
 }
 
-func list(gh world.Issues, state string, pages int, keep func(workitem.Issue) bool) ([]workitem.Issue, error) {
+// List is every work item a listing returns, over at most pages pages
+// (0 for all of them). A page that cannot be read is an error.
+func List(gh world.Issues, q world.Query, pages int, keep func(workitem.Issue) bool) ([]workitem.Issue, error) {
 	out := []workitem.Issue{}
 	for page := 1; pages == 0 || page <= pages; page++ {
-		got, err := gh.IssuesPage(state, page)
+		got, err := gh.IssuesPage(q, page)
 		if err != nil {
-			return out, fmt.Errorf("listing %s issues, page %d: %w", state, page, err)
+			return out, fmt.Errorf("listing %s issues, page %d: %w", q.State, page, err)
 		}
 		for _, i := range got {
 			if i.PullRequest || !i.IsQueueItem() || !keep(i.Issue) {
