@@ -37,3 +37,21 @@ func TestRunExitSamplesAndTitle(t *testing.T) {
 		}
 	}
 }
+
+// budget passes while each named item's median is within its limit and
+// fails naming the item that is not, or one the log lacks.
+func TestBudget(t *testing.T) {
+	log := filepath.Join(t.TempDir(), "log.jsonl")
+	if err := samplesCmd([]string{"--name", "fast", "--log", log}, strings.NewReader("10\n20\n30\n")); err != nil {
+		t.Fatal(err)
+	}
+	if err := budgetCmd([]string{"--log", log, "--max", "fast=20"}); err != nil {
+		t.Errorf("within: %v", err)
+	}
+	if err := budgetCmd([]string{"--log", log, "--max", "fast=19.9"}); err == nil || !strings.Contains(err.Error(), "fast") {
+		t.Errorf("over: %v", err)
+	}
+	if err := budgetCmd([]string{"--log", log, "--max", "absent=5"}); err == nil {
+		t.Error("an absent item passed")
+	}
+}

@@ -3,12 +3,14 @@
 //	timeit run --name NAME --runs N --log FILE [--setup SH] [--stdin TEXT] [--exit CODE] -- CMD ARGS...
 //	timeit samples --name NAME --log FILE < MILLISECONDS
 //	timeit report --log FILE --out DIR --runs N [--title T] [--command C]
+//	timeit budget --log FILE --max NAME=MS [--max NAME=MS ...]
 //
 // run times N executions of CMD (the --setup shell command runs untimed
 // before each), each of which must exit CODE (0 by default), and appends
 // one JSON line to FILE; samples appends one for times measured elsewhere,
 // one per input line; report turns the lines into <platform>-<date>.md and
-// .json in DIR, with the host's details.
+// .json in DIR, with the host's details; budget fails when a named item's
+// median is over its limit, or the log lacks it.
 package main
 
 import (
@@ -52,6 +54,8 @@ func main() {
 		err = samplesCmd(os.Args[2:], os.Stdin)
 	case "report":
 		err = reportCmd(os.Args[2:])
+	case "budget":
+		err = budgetCmd(os.Args[2:])
 	default:
 		err = fmt.Errorf("unknown command %q", os.Args[1])
 	}
@@ -136,6 +140,65 @@ func samplesCmd(args []string, in io.Reader) error {
 	return appendItem(*logPath, summarize(*name, samples))
 }
 
+type limits []string
+
+func (l *limits) String() string     { return strings.Join(*l, ",") }
+func (l *limits) Set(v string) error { *l = append(*l, v); return nil }
+
+func budgetCmd(args []string) error {
+	fs := flag.NewFlagSet("budget", flag.ContinueOnError)
+	logPath := fs.String("log", "", "")
+	var max limits
+	fs.Var(&max, "max", "")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	items, err := readItems(*logPath)
+	if err != nil {
+		return err
+	}
+	median := map[string]float64{}
+	for _, it := range items {
+		median[it.Name] = it.MedianMs
+	}
+	var over []string
+	for _, m := range max {
+		name, ms, ok := strings.Cut(m, "=")
+		limit, err := strconv.ParseFloat(ms, 64)
+		if !ok || err != nil {
+			return fmt.Errorf("--max %q is not NAME=MS", m)
+		}
+		got, ok := median[name]
+		switch {
+		case !ok:
+			over = append(over, fmt.Sprintf("%s: not measured", name))
+		case got > limit:
+			over = append(over, fmt.Sprintf("%s: median %.1f ms, budget %.1f ms", name, got, limit))
+		}
+	}
+	if len(over) > 0 {
+		return fmt.Errorf("over budget: %s", strings.Join(over, "; "))
+	}
+	return nil
+}
+
+func readItems(logPath string) ([]item, error) {
+	raw, err := os.ReadFile(logPath)
+	if err != nil {
+		return nil, err
+	}
+	var items []item
+	dec := json.NewDecoder(strings.NewReader(string(raw)))
+	for dec.More() {
+		var it item
+		if err := dec.Decode(&it); err != nil {
+			return nil, err
+		}
+		items = append(items, it)
+	}
+	return items, nil
+}
+
 func appendItem(logPath string, it item) error {
 	f, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
@@ -205,18 +268,9 @@ func reportCmd(args []string) error {
 	if *command == "" {
 		*command = fmt.Sprintf("sh probe/desktop-timings/run.sh --runs %d", *runs)
 	}
-	raw, err := os.ReadFile(*logPath)
+	items, err := readItems(*logPath)
 	if err != nil {
 		return err
-	}
-	var items []item
-	dec := json.NewDecoder(strings.NewReader(string(raw)))
-	for dec.More() {
-		var it item
-		if err := dec.Decode(&it); err != nil {
-			return err
-		}
-		items = append(items, it)
 	}
 	now := time.Now().UTC()
 	host := map[string]string{

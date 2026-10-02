@@ -54,8 +54,12 @@ jobs:
           CLAUDINITE_NODE_ENGINE: ${{ github.workspace }}/claudinite-frozen
           CLAUDINITE_PARITY_TREES: ${{ github.workspace }}/claudinite-frozen
           CLAUDINITE_CN: ${{ runner.temp }}/cn
-      # The per-call hooks' latency on the runner, over the frozen tree's packs; the table lands in the log.
-      - run: sh probe/hook-latency/run.sh --node claudinite-frozen --out "$RUNNER_TEMP/hook-latency" && cat "$RUNNER_TEMP"/hook-latency/*.md
+      # The per-call hooks' latency on the runner, over the frozen tree's packs, held to its budgets; the table lands in the log.
+      - run: |
+          rc=0
+          sh probe/hook-latency/run.sh --node claudinite-frozen --out "$RUNNER_TEMP/hook-latency" --budget || rc=$?
+          cat "$RUNNER_TEMP"/hook-latency/*.md
+          exit "$rc"
 
   build:
     runs-on: ubuntu-24.04

@@ -5,19 +5,23 @@
 # and times the per-call derivation from the tree alone; then writes
 # results/<platform>-<date>.md and .json.
 #
-#   sh probe/hook-latency/run.sh --node DIR [--runs N] [--out DIR]
+#   sh probe/hook-latency/run.sh --node DIR [--runs N] [--out DIR] [--budget]
 #
-# DIR is a Claudinite checkout whose packs/ the member vendors.
+# DIR is a Claudinite checkout whose packs/ the member vendors. --budget
+# then fails the run when an unnamed PreToolUse call's median passes 50 ms
+# or a held call's over the 5 MB transcript passes 250 ms.
 set -eu
 runs=50
 out=
 node=
+budget=
 while [ $# -gt 0 ]; do
   case $1 in
     --node) node=$2; shift 2 ;;
     --runs) runs=$2; shift 2 ;;
     --out) out=$2; shift 2 ;;
-    *) echo "usage: run.sh --node DIR [--runs N] [--out DIR]" >&2; exit 2 ;;
+    --budget) budget=1; shift ;;
+    *) echo "usage: run.sh --node DIR [--runs N] [--out DIR] [--budget]" >&2; exit 2 ;;
   esac
 done
 case $runs in ''|*[!0-9]*) echo "run.sh: --runs takes a number" >&2; exit 2 ;; esac
@@ -124,3 +128,12 @@ done
 
 "$timeit" report --log "$log" --out "$out" --runs "$runs" --title "Hook latency ($packs packs)" --command "sh probe/hook-latency/run.sh --node <Claudinite checkout> --runs $runs"
 say "results in $out"
+if [ -n "$budget" ]; then
+  "$timeit" budget --log "$log" \
+    --max "pre-tool-use Read, no declaration (no transcript)=50" \
+    --max "pre-tool-use Bash plain (no transcript)=50" \
+    --max "pre-tool-use mcp tool (no transcript)=50" \
+    --max "pre-tool-use Bash held, git commit (5 MB transcript)=250" \
+    --max "pre-tool-use Edit under a scoped path (5 MB transcript)=250"
+  say "within the hook budgets"
+fi
