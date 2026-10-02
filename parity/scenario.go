@@ -70,10 +70,10 @@ type HookCase struct {
 	// Payload keeps its key order: a pattern over the serialized input
 	// reads it.
 	Payload      json.RawMessage `json:"payload"`
-	NoTranscript bool           `json:"noTranscript,omitempty"`
-	Exit         int            `json:"exit"`
-	Block        string         `json:"block,omitempty"`
-	Context      string         `json:"context,omitempty"`
+	NoTranscript bool            `json:"noTranscript,omitempty"`
+	Exit         int             `json:"exit"`
+	Block        string          `json:"block,omitempty"`
+	Context      string          `json:"context,omitempty"`
 }
 
 // hookEvents are the per-call events, as expect.json and cn hook name them,
@@ -401,8 +401,9 @@ const DevManifest = "sha512-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 // Translate turns a Node declaration (.claudinite-settings.json) into
 // cn's settings: each pack entry keeps id, config, rules and accept (a
 // bare id when nothing else is left), the top-level rules and accept
-// become the checks block, and the engine block pins the development
-// engine. version, answers and via are the adoption and update slices'
+// become the checks block, a top-level sharedConstants moves to the basics
+// entry's config (dropped when basics is not declared, since nothing else
+// reads it), and the engine block pins the development engine. version, answers and via are the adoption and update slices'
 // and are dropped. The result is YAML, which cn reads as
 // .claudinite/settings.yaml.
 func Translate(node map[string]any) ([]byte, error) {
@@ -429,6 +430,26 @@ func Translate(node map[string]any) ([]byte, error) {
 			}
 		default:
 			return nil, fmt.Errorf("a pack entry %v is neither an id nor an object", p)
+		}
+	}
+	if sc, ok := node["sharedConstants"]; ok {
+		for i, d := range declared {
+			e, isMap := d.(map[string]any)
+			if d != "basics" && (!isMap || e["id"] != "basics") {
+				continue
+			}
+			if !isMap {
+				e = map[string]any{"id": "basics"}
+			}
+			cfg := map[string]any{}
+			if old, ok := e["config"].(map[string]any); ok {
+				for k, v := range old {
+					cfg[k] = v
+				}
+			}
+			cfg["sharedConstants"] = sc
+			e["config"] = cfg
+			declared[i] = e
 		}
 	}
 	if declared == nil {

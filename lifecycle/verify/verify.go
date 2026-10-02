@@ -42,10 +42,14 @@ type Input struct {
 }
 
 // DeclaredChecks is what the declared-checks loader found in a repo's
-// active packs: every check id, and each descriptor that did not load.
+// active packs: every check by each name a rule may use (bare id and
+// <pack>/<id>), and each descriptor that did not load. Partial says the
+// list is incomplete (the coded checks could not be listed), so a rule
+// naming no listed check proves nothing.
 type DeclaredChecks struct {
-	IDs    []string
-	Faults []DescriptorFault
+	IDs     []string
+	Faults  []DescriptorFault
+	Partial bool
 }
 
 // DescriptorFault is a descriptor that did not load: Duplicate when its
@@ -460,9 +464,12 @@ func checkSettingsChecks(in Input) []findings.Finding {
 			out = append(out, brk("settings-checks", rel, fmt.Sprintf("the acceptance of %s%s has no reason; an acceptance is reviewable only by its reason", a.Rule, onPath(a.Path))))
 		}
 	}
-	if in.Declared != nil {
+	if parsed.LegacySharedConstants {
+		out = append(out, dep("settings-checks", rel, "carries a top-level sharedConstants; move it to the basics entry's config (packs.declared: - id: basics, config: {sharedConstants: …}), where basics/shared-constants reads it"))
+	}
+	if dc := declaredOf(in); dc != nil && !dc.Partial {
 		known := map[string]bool{}
-		for _, id := range in.Declared(in.Repo).IDs {
+		for _, id := range dc.IDs {
 			known[id] = true
 		}
 		named := map[string]bool{}
@@ -484,6 +491,14 @@ func checkSettingsChecks(in Input) []findings.Finding {
 		}
 	}
 	return out
+}
+
+func declaredOf(in Input) *DeclaredChecks {
+	if in.Declared == nil {
+		return nil
+	}
+	dc := in.Declared(in.Repo)
+	return &dc
 }
 
 func onPath(p string) string {

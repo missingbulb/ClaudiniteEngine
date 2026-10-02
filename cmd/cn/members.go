@@ -40,13 +40,21 @@ func verifyFindings(repo string) []findings.Finding {
 }
 
 // declaredChecks answers verify's questions about the active packs'
-// declared checks from the declared-checks loader.
+// checks: every declared, built-in and coded check by both names a rule
+// may use, and the descriptors that did not load.
 func declaredChecks(repo string) verify.DeclaredChecks {
 	set, err := declared.LoadSet(repo, version.Version())
 	if err != nil {
 		return verify.DeclaredChecks{}
 	}
-	out := verify.DeclaredChecks{IDs: set.IDs()}
+	out := verify.DeclaredChecks{}
+	listed, err := checksService().ListAll(repo, buildWait)
+	if err != nil {
+		out.Partial = true
+	}
+	for _, l := range listed {
+		out.IDs = append(out.IDs, declared.Names(l.Pack, l.ID)...)
+	}
 	for _, le := range set.LoadErrors {
 		out.Faults = append(out.Faults, verify.DescriptorFault{Path: le.Path, Sentence: le.Err.Error(), Duplicate: errors.Is(le.Err, descriptor.ErrDuplicate)})
 	}

@@ -321,6 +321,30 @@ func TestTranslate(t *testing.T) {
 	}
 }
 
+// The Node engine's top-level sharedConstants moves to the basics entry's
+// config, whichever spelling declared basics; with basics undeclared
+// nothing reads it, and it is dropped.
+func TestTranslateMovesSharedConstants(t *testing.T) {
+	consts := []any{map[string]any{"name": "port", "files": []any{"a.js", "b.js"}}}
+	for _, packs := range [][]any{{"basics"}, {map[string]any{"id": "basics", "config": map[string]any{"other": true}}}} {
+		got, err := Translate(map[string]any{"packs": packs, "sharedConstants": consts})
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := "\"packs\":\n  \"declared\":\n    -\n      \"config\":\n"
+		if !strings.Contains(string(got), want) || !strings.Contains(string(got), "        \"sharedConstants\":\n          -\n            \"files\":") || strings.Contains(string(got), "\n\"sharedConstants\"") {
+			t.Errorf("%v:\n%s", packs, got)
+		}
+		if _, isMap := packs[0].(map[string]any); isMap && !strings.Contains(string(got), `"other": true`) {
+			t.Errorf("the entry's own config was lost:\n%s", got)
+		}
+	}
+	got, _ := Translate(map[string]any{"packs": []any{"node"}, "sharedConstants": consts})
+	if strings.Contains(string(got), "sharedConstants") {
+		t.Errorf("basics undeclared:\n%s", got)
+	}
+}
+
 func TestParsers(t *testing.T) {
 	node := parseNode("[BLOCKING] acme-check  a.md:3\n  why\n[ADVISORY] config  .claudinite-settings.json\n")
 	cn := parseCn("finding acme-pack/acme-check a.md:3: x\n  why: y\nadvisory config .claudinite/settings.json: z\n")
