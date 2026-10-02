@@ -176,7 +176,7 @@ func TestParityVerifyAnswers(t *testing.T) {
 			})
 		}
 	}
-	for _, r := range []string{"conformance-workflow", "conformance-work-scope", "legacy-shape-in-use", "rules-index-current"} {
+	for _, r := range []string{"conformance-workflow", "conformance-work-scope", "legacy-shape-in-use", "rules-index-current", "skills-index-current"} {
 		if !covered[r] {
 			t.Errorf("no case answers %s", r)
 		}

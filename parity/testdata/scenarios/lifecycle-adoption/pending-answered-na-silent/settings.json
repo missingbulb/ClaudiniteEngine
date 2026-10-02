@@ -1,0 +1,13 @@
+{
+  "packs": [
+    "claudinite-lifecycle",
+    {
+      "id": "product-wiki",
+      "answers": {
+        "product": "n/a — none wanted",
+        "users": "n/a — none wanted",
+        "market": "n/a — none wanted"
+      }
+    }
+  ]
+}

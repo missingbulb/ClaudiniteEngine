@@ -1,0 +1,9 @@
+# the seeded workflow
+name: seeded
+on:
+  push:
+jobs:
+  run:
+    steps:
+      - run: echo one
+      - run: echo two

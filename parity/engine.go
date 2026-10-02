@@ -56,6 +56,8 @@ type Engine interface {
 	Settings(dir string, node map[string]any) (string, error)
 	// Rules is the rules index that reaches a session.
 	Rules(dir string) (string, error)
+	// Skills is the skills index the engine writes beside it, "" for none.
+	Skills(dir string) (string, error)
 	// Mounts are the skills the engine mounted, with each SKILL.md.
 	Mounts(dir string) (map[string]string, error)
 	// Flat is the flat task and dashboard declarations the active packs
@@ -164,6 +166,14 @@ func (n Node) Rules(dir string) (string, error) {
 	out, stderr, code, err := run(dir, n.env(dir), "", "node", filepath.Join(n.Root, "engine/pack_loader/generate-rules-index.mjs"), dir)
 	if err != nil || code != 0 {
 		return "", fmt.Errorf("generate-rules-index: exit %d %v: %s", code, err, stderr)
+	}
+	return out, nil
+}
+
+func (n Node) Skills(dir string) (string, error) {
+	out, stderr, code, err := run(dir, n.env(dir), "", "node", filepath.Join(n.Root, "engine/pack_loader/generate-skills-index.mjs"), dir)
+	if err != nil || code != 0 {
+		return "", fmt.Errorf("generate-skills-index: exit %d %v: %s", code, err, stderr)
 	}
 	return out, nil
 }
@@ -300,7 +310,10 @@ func (c Cn) Settings(dir string, node map[string]any) (string, error) {
 	return ".claudinite/settings.yaml", nil
 }
 
-const indexRel = ".claudinite/flat/claudinite-rules.GENERATED.md"
+const (
+	indexRel  = ".claudinite/flat/claudinite-rules.GENERATED.md"
+	skillsRel = ".claudinite/flat/claudinite-skills.GENERATED.md"
+)
 
 func (c Cn) sessionStart(dir string) error {
 	in := `{"session_id":"parity","hook_event_name":"SessionStart","source":"startup","cwd":"` + dir + `"}`
@@ -324,6 +337,17 @@ func (c Cn) Rules(dir string) (string, error) {
 		return "", err
 	}
 	b, err := os.ReadFile(filepath.Join(dir, indexRel))
+	if os.IsNotExist(err) {
+		return "", nil
+	}
+	return string(b), err
+}
+
+func (c Cn) Skills(dir string) (string, error) {
+	if err := c.sessionStart(dir); err != nil {
+		return "", err
+	}
+	b, err := os.ReadFile(filepath.Join(dir, skillsRel))
 	if os.IsNotExist(err) {
 		return "", nil
 	}

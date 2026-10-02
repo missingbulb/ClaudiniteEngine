@@ -1,0 +1,10 @@
+{
+  "rules": "",
+  "skills": "\u003c!-- GENERATED — do not hand-edit; every update rewrites it. Edit a skill's SKILL.md frontmatter. --\u003e\n# Skills mounted here, and what loads each one\n\nA skill loads when the session's activity matches its description. A skill that names files\nunder `force-load-on-file-edits-paths` is also forced for them: a file tool aimed there is held\nby the PreToolUse guard until the skill is loaded (the Skill tool, or a Read of its SKILL.md),\nand an edit made another way is caught at Stop.\n\n## By activity\n\n| Skill | Pack | Loads when |\n|---|---|---|\n| `jwt-minting` | jwt | Issuing or signing JWTs — choosing the algorithm, generating keys, deciding the claims. Use when adding or changing code that creates tokens. |\n| `jwt-validation` | jwt | Wiring or changing JWT verification — pinning algorithms, validating claims, nested or encrypted tokens. Use when adding or changing code that accepts JWTs. |\n",
+  "mounts": [
+    "jwt-minting",
+    "jwt-validation"
+  ],
+  "world": [],
+  "work": []
+}

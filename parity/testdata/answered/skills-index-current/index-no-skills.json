@@ -1,0 +1,10 @@
+{
+  "nodeFiles": {
+    ".claudinite-settings.json": "{\"packs\":[\"basics\"]}\n",
+    ".claudinite/shared/packs/basics/RULES.md": "# basics\n"
+  },
+  "cnShape": "v6-shared-constants-entry",
+  "cnFiles": {},
+  "answeredBy": "skills-index-current",
+  "nodeFires": false
+}

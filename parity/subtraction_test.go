@@ -69,7 +69,7 @@ func TestDeferredFileParses(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, id := range []string{"seeded-file-stale", "pack-discovery-entry-await"} {
+	for _, id := range []string{"descriptor-usable", "pack-discovery-entry-await"} {
 		if d[id] == "" {
 			t.Errorf("deferred.txt does not name %s", id)
 		}
@@ -88,7 +88,7 @@ func TestDeferredFileParses(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, id := range []string{"conformance-workflow", "conformance-work-scope", "legacy-shape-in-use", "rules-index-current"} {
+	for _, id := range []string{"conformance-workflow", "conformance-work-scope", "legacy-shape-in-use", "rules-index-current", "skills-index-current"} {
 		if e[id] != "answered" {
 			t.Errorf("%s is not answered: %q", id, e[id])
 		}

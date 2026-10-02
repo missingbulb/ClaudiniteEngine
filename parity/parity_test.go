@@ -27,6 +27,9 @@ const (
 
 func record(s Scenario, a Answer) error {
 	x := Expect{Rules: &a.Rules, Mounts: names(a.Mounts), Only: s.Expect.Only, LoaderOnly: s.Expect.LoaderOnly, Why: s.Expect.Why}
+	if s.Expect.Skills != nil {
+		x.Skills = &a.Skills
+	}
 	if !x.LoaderOnly {
 		w, k := strs(a.World), strs(a.Work)
 		x.World, x.Work = &w, &k
@@ -95,9 +98,9 @@ func engines(t *testing.T) []Engine {
 
 // Answer is what one engine said about one scenario.
 type Answer struct {
-	Rules, Flat string
-	Mounts      map[string]string
-	World, Work []Finding
+	Rules, Skills, Flat string
+	Mounts              map[string]string
+	World, Work         []Finding
 	// Hooks are the per-call answers, by expect.json key, case by case.
 	Hooks map[string][]Verdict
 }
@@ -176,6 +179,9 @@ func ask(t *testing.T, s Scenario, e Engine, canon string) Answer {
 	if a.Rules, err = e.Rules(dir); err != nil {
 		t.Fatalf("%s: %v", e.Name(), err)
 	}
+	if a.Skills, err = e.Skills(dir); err != nil {
+		t.Fatalf("%s: %v", e.Name(), err)
+	}
 	if a.Mounts, err = e.Mounts(dir); err != nil {
 		t.Fatalf("%s: %v", e.Name(), err)
 	}
@@ -210,6 +216,9 @@ func check(t *testing.T, s Scenario, e string, a Answer) {
 	if x.Rules != nil && a.Rules != *x.Rules {
 		t.Errorf("%s rules index:\n%s\nwant:\n%s", e, a.Rules, *x.Rules)
 	}
+	if x.Skills != nil && a.Skills != *x.Skills {
+		t.Errorf("%s skills index:\n%s\nwant:\n%s", e, a.Skills, *x.Skills)
+	}
 	if x.Mounts != nil && !reflect.DeepEqual(names(a.Mounts), x.Mounts) {
 		t.Errorf("%s mounts %q, want %q", e, names(a.Mounts), x.Mounts)
 	}
@@ -225,6 +234,9 @@ func agree(t *testing.T, a, b Answer) {
 	t.Helper()
 	if a.Rules != b.Rules {
 		t.Errorf("rules index differs:\nnode:\n%s\ncn:\n%s", a.Rules, b.Rules)
+	}
+	if a.Skills != b.Skills {
+		t.Errorf("skills index differs:\nnode:\n%s\ncn:\n%s", a.Skills, b.Skills)
 	}
 	if a.Flat != b.Flat {
 		t.Errorf("flat declarations differ:\nnode:\n%s\ncn:\n%s", a.Flat, b.Flat)

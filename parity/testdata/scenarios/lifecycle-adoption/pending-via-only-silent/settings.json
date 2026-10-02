@@ -1,0 +1,11 @@
+{
+  "packs": [
+    "claudinite-lifecycle",
+    {
+      "id": "product-wiki",
+      "via": [
+        "basics"
+      ]
+    }
+  ]
+}
