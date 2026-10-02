@@ -82,9 +82,12 @@ var selfCheck = regexp.MustCompile(`(?m)^\[cn\] packs (\d+)/(\d+) loaded( \((.*)
 type fakeIndex struct {
 	wrote    []string
 	imported bool
+	empty    bool
 }
 
 func (f *fakeIndex) HasImport(string) bool { return f.imported }
+
+func (f *fakeIndex) HasRules(string, string) bool { return !f.empty }
 
 func (f *fakeIndex) Write(repo, engine string) (bool, error) {
 	f.wrote = append(f.wrote, repo)
@@ -126,7 +129,8 @@ func TestSessionStartAssemblesDeclaredPacksInOrder(t *testing.T) {
 
 // A member whose CLAUDE.md lacks the import gets no pack rules at all, so
 // SessionStart says so and names the line to add; with the import, or with
-// no prose to import, it says nothing.
+// an index that imports nothing (temp packs' prose is never imported), it
+// says nothing, as verify does.
 func TestSessionStartNamesAMissingClaudeMDImport(t *testing.T) {
 	const missing = `[cn] rules not loaded: CLAUDE.md does not import .claudinite/flat/claudinite-rules.GENERATED.md; add the line "@.claudinite/flat/claudinite-rules.GENERATED.md"`
 	withProse := member(t, []string{"zeta"}, map[string]map[string]string{
@@ -135,17 +139,21 @@ func TestSessionStartNamesAMissingClaudeMDImport(t *testing.T) {
 	noProse := member(t, []string{"alpha"}, map[string]map[string]string{
 		"alpha": {"pack.json": `{"version": "1.0", "prose": null}`},
 	})
+	tempOnly := member(t, nil, nil)
+	put(t, tempOnly, ".claudinite/temp/packs/current_user/RULES.md", "- mine\n")
 	for _, c := range []struct {
 		name     string
 		repo     string
 		imported bool
+		empty    bool
 		want     bool
 	}{
-		{"no import", withProse, false, true},
-		{"imported", withProse, true, false},
-		{"nothing to import", noProse, false, false},
+		{"no import", withProse, false, false, true},
+		{"imported", withProse, true, false, false},
+		{"nothing to import", noProse, false, true, false},
+		{"temp prose only", tempOnly, false, true, false},
 	} {
-		out, _ := hook(t, Handler{Index: &fakeIndex{imported: c.imported}, ProjectDir: c.repo}, "session-start", startIn)
+		out, _ := hook(t, Handler{Index: &fakeIndex{imported: c.imported, empty: c.empty}, ProjectDir: c.repo}, "session-start", startIn)
 		if got := strings.Contains(contextOf(t, out), missing); got != c.want {
 			t.Errorf("%s: line present %v, want %v:\n%s", c.name, got, c.want, contextOf(t, out))
 		}

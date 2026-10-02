@@ -17,6 +17,11 @@ func (hookIndex) Write(repo, engine string) (bool, error) { return rulesindex.Wr
 
 func (hookIndex) HasImport(repo string) bool { return rulesindex.HasImport(repo) }
 
+func (hookIndex) HasRules(repo, engine string) bool {
+	st, _, err := rulesindex.Check(repo, engine)
+	return err == nil && st != rulesindex.Empty
+}
+
 func cmdRulesIndex(args []string, stdout io.Writer) error {
 	fs := flag.NewFlagSet("rules-index", flag.ContinueOnError)
 	check := fs.Bool("check", false, "")

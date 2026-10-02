@@ -86,6 +86,8 @@ type RulesIndex interface {
 	Write(repo, engine string) (bool, error)
 	// HasImport reports whether the member's CLAUDE.md imports the index.
 	HasImport(repo string) bool
+	// HasRules reports whether the index imports any prose.
+	HasRules(repo, engine string) bool
 }
 
 // MissingImport is SessionStart's line for a member whose CLAUDE.md does
@@ -203,7 +205,7 @@ func (h Handler) sessionStart(repo, sessionID string, outcome breadcrumb.Outcome
 		if _, err := h.Index.Write(repo, h.engine()); err != nil {
 			fmt.Fprintf(&b, "[cn] rules index not written: %v\n", err)
 		}
-		if ctx.prose && !h.Index.HasImport(repo) {
+		if !h.Index.HasImport(repo) && h.Index.HasRules(repo, h.engine()) {
 			b.WriteString(MissingImport + "\n")
 		}
 	}
