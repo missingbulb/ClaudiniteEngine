@@ -29,10 +29,13 @@ var (
 )
 
 // Faults collects the commands that timed out, for a caller whose reads
-// report only ok; nil collects nothing.
+// report only ok; nil collects nothing. The first timeout also spends the
+// run's git: every later command sharing these Faults fails at once
+// without running, so one run waits on at most one CommandTimeout.
 type Faults struct {
-	mu   sync.Mutex
-	list []string
+	mu    sync.Mutex
+	list  []string
+	first string
 }
 
 func (f *Faults) add(msg string) {
@@ -41,7 +44,24 @@ func (f *Faults) add(msg string) {
 	}
 	f.mu.Lock()
 	f.list = append(f.list, msg)
+	if f.first == "" {
+		f.first = msg
+	}
 	f.mu.Unlock()
+}
+
+// spent is the error a command named by args fails with once a timeout
+// has spent the run's git, else nil.
+func (f *Faults) spent(args []string) error {
+	if f == nil {
+		return nil
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.first == "" {
+		return nil
+	}
+	return &TimeoutError{fmt.Sprintf("git %s not run: %s", strings.Join(args, " "), f.first)}
 }
 
 // Take returns the faults collected since the last Take.
@@ -125,6 +145,9 @@ func (r Repo) remoteLine(args ...string) (string, error) {
 }
 
 func (r Repo) exec(remote bool, args ...string) ([]byte, error) {
+	if err := r.Faults.spent(args); err != nil {
+		return nil, err
+	}
 	timeout := CommandTimeout
 	if remote {
 		timeout = RemoteTimeout

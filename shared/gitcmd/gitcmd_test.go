@@ -227,26 +227,48 @@ func hangingGit(t *testing.T) {
 func TestAHungGitTimesOut(t *testing.T) {
 	hangingGit(t)
 	r := Repo{Dir: t.TempDir(), Faults: &Faults{}}
-	start := time.Now()
 	_, err := r.line("rev-parse", "HEAD")
 	if err == nil || !strings.Contains(err.Error(), "git rev-parse HEAD timed out after 100ms") {
 		t.Errorf("err %v", err)
 	}
-	if _, ok := r.ShowText("HEAD", "a.txt"); ok {
-		t.Error("a timed-out show read as ok")
-	}
-	if _, ok := r.input("x", "hash-object", "--stdin"); ok {
-		t.Error("a timed-out input read as ok")
-	}
-	if time.Since(start) > 5*time.Second {
-		t.Errorf("three timed-out calls took %v", time.Since(start))
-	}
 	got := r.Faults.Take()
-	if len(got) != 3 || !strings.Contains(got[1], "git show HEAD:a.txt timed out after 100ms") {
+	if len(got) != 1 || !strings.Contains(got[0], "git rev-parse HEAD timed out after 100ms") {
 		t.Errorf("faults %q", got)
 	}
 	if again := r.Faults.Take(); len(again) != 0 {
 		t.Errorf("Take does not clear: %q", again)
 	}
+	if _, ok := (Repo{Dir: t.TempDir()}).ShowText("HEAD", "a.txt"); ok {
+		t.Error("a timed-out show read as ok")
+	}
+	if _, ok := (Repo{Dir: t.TempDir()}).input("x", "hash-object", "--stdin"); ok {
+		t.Error("a timed-out input read as ok")
+	}
 	_, _ = (Repo{Dir: t.TempDir()}).try("status")
+}
+
+// One timeout spends a run's git: every later command sharing its Faults
+// fails at once without running, so a hook's git cost is bounded by one
+// CommandTimeout however many reads follow.
+func TestAfterOneTimeoutLaterGitFailsAtOnce(t *testing.T) {
+	hangingGit(t)
+	r := Repo{Dir: t.TempDir(), Faults: &Faults{}}
+	_, _ = r.line("rev-parse", "HEAD")
+	start := time.Now()
+	_, err := r.line("status")
+	if err == nil || !strings.Contains(err.Error(), "git status not run: git rev-parse HEAD timed out after 100ms") {
+		t.Errorf("err %v", err)
+	}
+	if _, ok := r.ShowText("HEAD", "a.txt"); ok {
+		t.Error("a skipped show read as ok")
+	}
+	if _, ok := r.input("x", "hash-object", "--stdin"); ok {
+		t.Error("a skipped input read as ok")
+	}
+	if d := time.Since(start); d >= 100*time.Millisecond {
+		t.Errorf("three commands after a timeout took %v; they ran", d)
+	}
+	if got := r.Faults.Take(); len(got) != 1 {
+		t.Errorf("faults %q: a skip is not a second fault", got)
+	}
 }
