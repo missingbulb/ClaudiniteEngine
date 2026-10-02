@@ -139,8 +139,10 @@ func cmdCheck(args []string, stdout, stderr io.Writer) error {
 	if scope == "" {
 		scope = "pack " + *pack
 	}
+	// A coded listing that failed still lists the declared and built-in
+	// checks; the run below reports the coded failure as a checks-run break.
 	listed, err := checksService().ListAll(*repo, buildWait)
-	if err != nil {
+	if err != nil && listed == nil {
 		return report.Wrap(report.Verify, "check", err)
 	}
 	for _, l := range listed {

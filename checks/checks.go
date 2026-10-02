@@ -259,6 +259,9 @@ func (s Service) ListAll(repo string, timeout time.Duration) ([]Listed, error) {
 // ListAllBuilt is ListAll with the coded checks from ListBuilt: it never
 // builds, and with no binary it returns the declared and built-in checks
 // and ErrNotBuilt.
+//
+// Both return the declared and built-in checks beside an error listing
+// the coded ones.
 func (s Service) ListAllBuilt(repo string) ([]Listed, error) {
 	return s.listWith(repo, func() ([]run.Listed, error) { return s.ListBuilt(repo) })
 }
@@ -291,13 +294,7 @@ func (s Service) listWith(repo string, coded func() ([]run.Listed, error)) ([]Li
 		}
 		return out[i].Pack < out[k].Pack
 	})
-	if codedErr != nil {
-		if errors.Is(codedErr, ErrNotBuilt) {
-			return out, codedErr
-		}
-		return nil, codedErr
-	}
-	return out, nil
+	return out, codedErr
 }
 
 // Listed is one check as cn check list prints it.
