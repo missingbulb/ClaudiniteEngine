@@ -29,13 +29,15 @@
 //
 // A per-call hook derives its context (packs, triggers, declared checks)
 // from the tree on every call, with no cache on disk. Measured by
-// probe/hook-latency on the 38 canon packs, p50 on the Claude Code web VM:
+// probe/hook-latency on the 38 canon packs, p50 on the Claude Code web VM
+// and on the Linux CI runner:
 //
-//	derivation alone                         20.5 ms
-//	PreToolUse, no declaration names it      31-38 ms
-//	PreToolUse held, no transcript           18 ms
-//	PreToolUse held, 5 MB transcript         144 ms
-//	PostToolUse, UserPromptSubmit            17-18 ms
+//	                                         web VM   CI runner
+//	derivation alone                         20.5 ms  13.2 ms
+//	PreToolUse, no declaration names it      31-38 ms 16 ms
+//	PreToolUse held, no transcript           18 ms    8 ms
+//	PreToolUse held, 5 MB transcript         144 ms   75 ms
+//	PostToolUse, UserPromptSubmit            17-18 ms 8 ms
 //
 // The budgets are 50 ms for an unnamed call and 250 ms for a held call
 // over a 5 MB transcript.
