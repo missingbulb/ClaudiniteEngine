@@ -450,10 +450,7 @@ func Land(d Deps, n int, sha string) (string, error) {
 	if err := CheckPin(d, e); err != nil {
 		return "", fmt.Errorf("#%d: %w", n, err)
 	}
-	if err := d.GitHub.MergePull(n, sha, title(e.Version)); err != nil {
-		return "", err
-	}
-	if err := d.Git.DeleteRemoteBranch(remote, pr.HeadRef); err != nil {
+	if err := landPinned(d, pr, sha, title(e.Version)); err != nil {
 		return "", err
 	}
 	if err := d.GitHub.Dispatch(CIWorkflow, mainBranch, map[string]string{}); err != nil {

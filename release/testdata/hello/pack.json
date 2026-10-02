@@ -1,6 +1,10 @@
 {
-  "version": "1.3",
+  "version": "1.4",
   "minEngineVersion": "61001.1.0",
+  "githubActions": [
+    "createComment",
+    "openPr"
+  ],
   "ruleRoutingGuidance": {
     "belongs": "nothing but the pack chassis probe: proving that a declared pack's rules, skills and Go checks reach a member",
     "excludes": "every real rule, skill or check — the pack that owns its subject"

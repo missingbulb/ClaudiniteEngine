@@ -6,6 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/missingbulb/ClaudiniteEngine/shared/gitcmd"
 )
 
 func TestVerifyCommand(t *testing.T) {
@@ -108,5 +111,40 @@ func TestVerifyReadsTheDeclaredChecks(t *testing.T) {
 	out, _, _ = runCN(t, bin, nil, "", "verify", "--repo", dir)
 	if !strings.Contains(out, "break descriptor-duplicate") {
 		t.Errorf("two spellings of the declared checks:\n%s", out)
+	}
+}
+
+// After a git fault, cn check -v names every check the spent tree kept
+// from running.
+func TestCheckVerboseNamesChecksSkippedAfterAGitFault(t *testing.T) {
+	src, _ := filepath.Abs("../../lifecycle/verify/testdata/shapes/v1-yaml")
+	dir := t.TempDir()
+	if out, err := exec.Command("cp", "-R", src+"/.", dir).CombinedOutput(); err != nil {
+		t.Fatalf("%v %s", err, out)
+	}
+	for _, args := range [][]string{{"init", "-q", "-b", "main"}, {"add", "-A"}, {"commit", "-q", "-m", "base"}} {
+		cmd := exec.Command("git", append([]string{"-c", "user.name=t", "-c", "user.email=t@x"}, args...)...)
+		cmd.Dir = dir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v %s", args, err, out)
+		}
+	}
+	real, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatal(err)
+	}
+	gitDir := t.TempDir()
+	script := "#!/bin/sh\ncase \"$*\" in *check-attr*) exec sleep 60;; esac\nexec " + real + " \"$@\"\n"
+	if err := os.WriteFile(filepath.Join(gitDir, "git"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", gitDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv("CLAUDINITE_CHECKS_NO_FETCH", "1")
+	old := gitcmd.CommandTimeout
+	gitcmd.CommandTimeout = 200 * time.Millisecond
+	defer func() { gitcmd.CommandTimeout = old }()
+	out, errOut, code := runInProc([]string{"check", "--tag", "world", "-v", "--repo", dir}, "")
+	if code != 1 || strings.Count(out, "checks-run") != 1 || !strings.Contains(errOut, "[cn] check skipped after a git fault: ") {
+		t.Errorf("exit %d\nstdout:\n%s\nstderr:\n%s", code, out, errOut)
 	}
 }

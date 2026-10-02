@@ -173,12 +173,16 @@ func TestInitAdoptsAnEmptyRepo(t *testing.T) {
 		t.Fatalf("%v\n%s", err, out)
 	}
 	want := []string{".claude/settings.json", ".claude/skills/.gitignore", ".claudinite/.gitignore",
-		".claudinite/flat/claudinite-rules.GENERATED.md", ".claudinite/launch", ".claudinite/settings.yaml",
+		".claudinite/flat/claudinite-rules.GENERATED.md", ".claudinite/flat/dashboard.GENERATED.json", ".claudinite/flat/tasks.GENERATED.json", ".claudinite/launch", ".claudinite/settings.yaml",
 		".claudinite/shared/packs/base/RULES.md", ".claudinite/shared/packs/base/pack.json",
 		".claudinite/shared/packs/hello/RULES.md", ".claudinite/shared/packs/hello/pack.json",
-		".github/workflows/claudinite-ci.yml", ".github/workflows/claudinite-update.yml", "CLAUDE.md"}
+		".github/workflows/claudinite-ci.yml", ".github/workflows/claudinite-executor.yml", ".github/workflows/claudinite-scheduler.yml", ".github/workflows/claudinite-update.yml", "CLAUDE.md"}
 	if got := listFiles(t, repo); strings.Join(got, " ") != strings.Join(want, " ") {
 		t.Errorf("files %v", got)
+	}
+	sched, _ := os.ReadFile(filepath.Join(repo, ".github/workflows/claudinite-scheduler.yml"))
+	if !strings.Contains(string(sched), `cron: "`+workflows.SchedulerCron(filepath.Base(repo))+`"`) {
+		t.Errorf("a repo with no origin hashes its directory's name:\n%s", sched)
 	}
 	if idx, _ := os.ReadFile(filepath.Join(repo, ".claudinite/flat/claudinite-rules.GENERATED.md")); string(idx) != "@../shared/packs/base/RULES.md\n@../shared/packs/hello/RULES.md\n" {
 		t.Errorf("index %q", idx)
@@ -285,7 +289,7 @@ func TestAdoptDeclaresAndVendors(t *testing.T) {
 	if string(raw) != body+"    - hello\n" {
 		t.Errorf("%s", raw)
 	}
-	if got := listFiles(t, repo); strings.Join(got, " ") != ".claude/skills/.gitignore .claudinite/flat/claudinite-rules.GENERATED.md .claudinite/settings.yaml .claudinite/shared/packs/hello/RULES.md .claudinite/shared/packs/hello/pack.json CLAUDE.md" {
+	if got := listFiles(t, repo); strings.Join(got, " ") != ".claude/skills/.gitignore .claudinite/flat/claudinite-rules.GENERATED.md .claudinite/flat/dashboard.GENERATED.json .claudinite/flat/tasks.GENERATED.json .claudinite/settings.yaml .claudinite/shared/packs/hello/RULES.md .claudinite/shared/packs/hello/pack.json CLAUDE.md" {
 		t.Errorf("%v", got)
 	}
 	if g, _ := os.ReadFile(filepath.Join(repo, ".claude/skills/.gitignore")); string(g) != "*\n!.gitignore\n" {
@@ -310,5 +314,20 @@ func TestAdoptKeepsAnExistingSkillsIgnore(t *testing.T) {
 	}
 	if g, _ := os.ReadFile(filepath.Join(repo, ".claude/skills/.gitignore")); string(g) != "mine\n" {
 		t.Errorf("skills ignore %q", g)
+	}
+}
+
+func TestTheRepoNameIsReadOffItsOrigin(t *testing.T) {
+	for url, want := range map[string]string{
+		"https://github.com/Acme/Widgets.git":                      "Acme/Widgets",
+		"git@github.com:acme/widgets.git":                          "acme/widgets",
+		"http://local_proxy@127.0.0.1:41011/git/missingbulb/hello": "missingbulb/hello",
+		"https://github.com/acme/widgets/":                         "acme/widgets",
+		"":                                                         "fallback",
+		"not a url":                                                "fallback",
+	} {
+		if got := FullNameOf(url, "/x/fallback"); got != want {
+			t.Errorf("%q: %q, want %q", url, got, want)
+		}
 	}
 }

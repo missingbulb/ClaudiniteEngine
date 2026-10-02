@@ -4,6 +4,7 @@ import (
 	"flag"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -46,7 +47,7 @@ func cmdInit(args []string, stdout, stderr io.Writer) error {
 	reader, closeReader := packReader(roots, stdout)
 	defer closeReader()
 	err = adopt.Init(adopt.Input{
-		Repo: *repo, Packs: strings.Split(*packList, ","), Channel: *channel, Package: *pkg,
+		Repo: *repo, FullName: initFullName(*repo), Packs: strings.Split(*packList, ","), Channel: *channel, Package: *pkg,
 		Fetch:  update.FetchInput{Registry: reg, Roots: roots, CacheRoot: paths.CacheRoot(), Platform: version.Platform(), Now: time.Now()},
 		Reader: reader, Timeout: childTimeout, Out: stdout, Key: initKey(stderr),
 	})
@@ -75,4 +76,14 @@ func cmdAdopt(args []string, stdout io.Writer) error {
 		return report.Wrap(report.IO, "adopt", err)
 	}
 	return nil
+}
+
+// initFullName is the repo's name off its origin, or its directory's.
+func initFullName(dir string) string {
+	origin, _ := originOf(dir)
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		abs = dir
+	}
+	return adopt.FullNameOf(origin, abs)
 }

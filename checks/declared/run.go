@@ -99,6 +99,10 @@ type Set struct {
 	Triggers []skilltriggers.Trigger
 	// Packs are the active packs, in the pack set's order.
 	Packs []packset.Pack
+	// Skipped are the checks the last Run did not run because a git
+	// fault spent the tree they read, as <pack>/<id> (the id alone for
+	// an engine-wide built-in).
+	Skipped []string
 }
 
 // LoadSet reads the repo's settings and the declared checks of its active
@@ -136,6 +140,7 @@ func LoadSet(repo, engine string, extra ...Builtin) (*Set, error) {
 		return nil, err
 	}
 	s.Packs = set.Packs
+	s.Config.Packs = set.Packs
 	s.Triggers, _ = skilltriggers.FromPacks(set.Packs)
 	active := map[string]bool{}
 	for _, p := range set.Packs {
@@ -281,7 +286,29 @@ func (s *Set) Run(sel Selection, now time.Time, stderr io.Writer) ([]findings.Fi
 			bind(c.Spec, nil)
 		}
 	}()
-	hits, errs := sweep(ctx, all)
+	s.Skipped = nil
+	skip := func(pack, id string) {
+		if pack != "" {
+			id = pack + "/" + id
+		}
+		s.Skipped = append(s.Skipped, id)
+	}
+	var hits map[*Check][]hit
+	var errs map[*Check]error
+	if ctx.Spent() == nil {
+		ctx.Files()
+	}
+	if ctx.Spent() == nil {
+		hits, errs = sweep(ctx, all)
+	}
+	// A fault during the sweep may have emptied any check's read, so the
+	// whole sweep is skipped rather than trusted in part.
+	if ctx.Spent() != nil {
+		for _, c := range all {
+			skip(c.Pack, c.ID)
+		}
+		all = nil
+	}
 	for _, c := range all {
 		ran++
 		if e, ok := errs[c]; ok {
@@ -304,14 +331,27 @@ func (s *Set) Run(sel Selection, now time.Time, stderr io.Writer) ([]findings.Fi
 		}
 	}
 	for _, b := range builtins {
+		if ctx.Spent() != nil {
+			skip(b.Pack, b.ID)
+			continue
+		}
+		fs := s.runBuiltin(b, ctx, sel.Session)
+		if ctx.Spent() != nil {
+			skip(b.Pack, b.ID)
+			continue
+		}
 		ran++
-		for _, f := range s.runBuiltin(b, ctx, sel.Session) {
+		for _, f := range fs {
 			out = append(out, Grace(f, b.Since, now))
 		}
 	}
-	for _, msg := range ctx.GitFaults() {
-		out = append(out, findings.Finding{Class: findings.Break, ID: "checks-run", Path: ".",
-			Sentence: "the checks read the repository through git, and " + msg})
+	if err := ctx.Spent(); err != nil {
+		ctx.GitFaults()
+		sentence := "the checks read the repository through git, and " + err.Error()
+		if n := len(s.Skipped); n > 0 {
+			sentence += fmt.Sprintf("; %d check(s) did not run (cn check -v names them)", n)
+		}
+		out = append(out, findings.Finding{Class: findings.Break, ID: "checks-run", Path: ".", Sentence: sentence})
 	}
 	return out, ran
 }

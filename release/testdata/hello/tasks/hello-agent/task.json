@@ -1,0 +1,10 @@
+{
+  "id": "hello-agent",
+  "description": "The routine hand-off's probe: a request item handed to its agent session, which validates the dispatch and converges the item.",
+  "trigger": "request",
+  "expected_outcome": "fresh_pr",
+  "automerge": "nothing",
+  "agent_model": "sonnet",
+  "agent_instructions": "task.md",
+  "agent_execution_timeout": 600
+}

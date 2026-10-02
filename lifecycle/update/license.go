@@ -270,10 +270,7 @@ func landPlan(d Deps, pr githubapi.PR, sha string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if err := d.GitHub.MergePull(pr.Number, sha, planTitle(l.Plan)); err != nil {
-		return "", err
-	}
-	if err := d.Git.DeleteRemoteBranch(remote, pr.HeadRef); err != nil {
+	if err := landPinned(d, pr, sha, planTitle(l.Plan)); err != nil {
 		return "", err
 	}
 	if err := d.GitHub.Dispatch(CIWorkflow, mainBranch, map[string]string{}); err != nil {

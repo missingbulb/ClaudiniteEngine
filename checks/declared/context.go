@@ -1,6 +1,7 @@
 package declared
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/missingbulb/ClaudiniteEngine/checks/declared/refs"
 	"github.com/missingbulb/ClaudiniteEngine/shared/gitcmd"
+	"github.com/missingbulb/ClaudiniteEngine/shared/packset"
 	"github.com/missingbulb/ClaudiniteEngine/shared/skilltriggers"
 )
 
@@ -63,6 +65,8 @@ type Config struct {
 	PackConfig map[string]map[string]any
 	// Errors are faults in the settings that change what runs.
 	Errors []string
+	// Packs are the active packs, in the pack set's order.
+	Packs []packset.Pack
 }
 
 // Acceptance is one accepted finding.
@@ -78,6 +82,17 @@ func NewCtx(root string, cfg Config) *Ctx {
 	g.RefreshBaseRef(c.BaseRef)
 	c.Tracked, c.Untracked = g.ListFiles()
 	return c
+}
+
+// Spent is the git fault that spent the tree, nil while none has. Every
+// read memoised after it holds whatever the failed command returned, so
+// a check run over a spent Ctx would report silence: the caller stops
+// there instead.
+func (c *Ctx) Spent() error {
+	if msg := c.git.Faults.First(); msg != "" {
+		return errors.New(msg)
+	}
+	return nil
 }
 
 // GitFaults are the git commands that timed out since the last call.

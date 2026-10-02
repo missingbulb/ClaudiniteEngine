@@ -1,0 +1,872 @@
+{
+  "expect": [
+    {
+      "ok": true,
+      "violation": null
+    },
+    {
+      "ok": false,
+      "violation": "a \"no_code_changes\" task must not open or merge a pull request"
+    },
+    {
+      "ok": false,
+      "violation": "a \"no_code_changes\" task must not open or merge a pull request"
+    },
+    {
+      "ok": false,
+      "violation": "a \"no_code_changes\" task must not open or merge a pull request"
+    },
+    {
+      "ok": true,
+      "violation": null
+    },
+    {
+      "ok": false,
+      "violation": "a \"no_code_changes\" task must not open or merge a pull request"
+    },
+    {
+      "ok": false,
+      "violation": "a \"no_code_changes\" task must not open or merge a pull request"
+    },
+    {
+      "ok": false,
+      "violation": "a \"no_code_changes\" task must not open or merge a pull request"
+    },
+    {
+      "ok": true,
+      "violation": null
+    },
+    {
+      "ok": false,
+      "violation": "a \"no_code_changes\" task must not open or merge a pull request"
+    },
+    {
+      "ok": false,
+      "violation": "a \"no_code_changes\" task must not open or merge a pull request"
+    },
+    {
+      "ok": false,
+      "violation": "a \"no_code_changes\" task must not open or merge a pull request"
+    },
+    {
+      "ok": true,
+      "violation": null
+    },
+    {
+      "ok": false,
+      "violation": "a \"no_code_changes\" task must not open or merge a pull request"
+    },
+    {
+      "ok": false,
+      "violation": "a \"no_code_changes\" task must not open or merge a pull request"
+    },
+    {
+      "ok": false,
+      "violation": "a \"no_code_changes\" task must not open or merge a pull request"
+    },
+    {
+      "ok": true,
+      "violation": null
+    },
+    {
+      "ok": false,
+      "violation": "a \"no_code_changes\" task must not open or merge a pull request"
+    },
+    {
+      "ok": false,
+      "violation": "a \"no_code_changes\" task must not open or merge a pull request"
+    },
+    {
+      "ok": false,
+      "violation": "a \"no_code_changes\" task must not open or merge a pull request"
+    },
+    {
+      "ok": true,
+      "violation": null
+    },
+    {
+      "ok": false,
+      "violation": "a task whose automerge authorizes nothing must not merge a pull request"
+    },
+    {
+      "ok": true,
+      "violation": null
+    },
+    {
+      "ok": false,
+      "violation": "a task whose automerge authorizes nothing must not merge a pull request"
+    },
+    {
+      "ok": true,
+      "violation": null
+    },
+    {
+      "ok": false,
+      "violation": "a task whose automerge authorizes nothing must not merge a pull request"
+    },
+    {
+      "ok": true,
+      "violation": null
+    },
+    {
+      "ok": false,
+      "violation": "a task whose automerge authorizes nothing must not merge a pull request"
+    },
+    {
+      "ok": true,
+      "violation": null
+    },
+    {
+      "ok": true,
+      "violation": null
+    },
+    {
+      "ok": true,
+      "violation": null
+    },
+    {
+      "ok": true,
+      "violation": null
+    },
+    {
+      "ok": true,
+      "violation": null
+    },
+    {
+      "ok": true,
+      "violation": null
+    },
+    {
+      "ok": true,
+      "violation": null
+    },
+    {
+      "ok": true,
+      "violation": null
+    },
+    {
+      "ok": true,
+      "violation": null
+    },
+    {
+      "ok": false,
+      "violation": "a task whose automerge authorizes nothing must not merge a pull request"
+    },
+    {
+      "ok": true,
+      "violation": null
+    },
+    {
+      "ok": false,
+      "violation": "a task whose automerge authorizes nothing must not merge a pull request"
+    },
+    {
+      "ok": true,
+      "violation": null
+    },
+    {
+      "ok": false,
+      "violation": "a task whose automerge authorizes nothing must not merge a pull request"
+    },
+    {
+      "ok": true,
+      "violation": null
+    },
+    {
+      "ok": false,
+      "violation": "a task whose automerge authorizes nothing must not merge a pull request"
+    },
+    {
+      "ok": true,
+      "violation": null
+    },
+    {
+      "ok": false,
+      "violation": "a task whose automerge authorizes nothing must not merge a pull request"
+    },
+    {
+      "ok": true,
+      "violation": null
+    },
+    {
+      "ok": false,
+      "violation": "a task whose automerge authorizes nothing must not merge a pull request"
+    },
+    {
+      "ok": true,
+      "violation": null
+    },
+    {
+      "ok": true,
+      "violation": null
+    },
+    {
+      "ok": true,
+      "violation": null
+    },
+    {
+      "ok": true,
+      "violation": null
+    },
+    {
+      "ok": true,
+      "violation": null
+    },
+    {
+      "ok": true,
+      "violation": null
+    },
+    {
+      "ok": true,
+      "violation": null
+    },
+    {
+      "ok": true,
+      "violation": null
+    },
+    {
+      "ok": true,
+      "violation": null
+    },
+    {
+      "ok": false,
+      "violation": "a task whose automerge authorizes nothing must not merge a pull request"
+    },
+    {
+      "ok": true,
+      "violation": null
+    },
+    {
+      "ok": false,
+      "violation": "a task whose automerge authorizes nothing must not merge a pull request"
+    },
+    {
+      "ok": false,
+      "violation": "unknown outcome ceiling \"pr\""
+    },
+    {
+      "ok": false,
+      "violation": "unknown outcome ceiling \"pr\""
+    },
+    {
+      "ok": false,
+      "violation": "unknown outcome ceiling \"pr\""
+    },
+    {
+      "ok": false,
+      "violation": "unknown outcome ceiling \"pr\""
+    },
+    {
+      "ok": false,
+      "violation": "unknown outcome ceiling \"pr\""
+    },
+    {
+      "ok": false,
+      "violation": "unknown outcome ceiling \"pr\""
+    },
+    {
+      "ok": false,
+      "violation": "unknown outcome ceiling \"pr\""
+    },
+    {
+      "ok": false,
+      "violation": "unknown outcome ceiling \"pr\""
+    },
+    {
+      "ok": false,
+      "violation": "unknown outcome ceiling \"pr\""
+    },
+    {
+      "ok": false,
+      "violation": "unknown outcome ceiling \"pr\""
+    },
+    {
+      "ok": false,
+      "violation": "unknown outcome ceiling \"pr\""
+    },
+    {
+      "ok": false,
+      "violation": "unknown outcome ceiling \"pr\""
+    },
+    {
+      "ok": false,
+      "violation": "unknown outcome ceiling \"pr\""
+    },
+    {
+      "ok": false,
+      "violation": "unknown outcome ceiling \"pr\""
+    },
+    {
+      "ok": false,
+      "violation": "unknown outcome ceiling \"pr\""
+    },
+    {
+      "ok": false,
+      "violation": "unknown outcome ceiling \"pr\""
+    },
+    {
+      "ok": false,
+      "violation": "unknown outcome ceiling \"pr\""
+    },
+    {
+      "ok": false,
+      "violation": "unknown outcome ceiling \"pr\""
+    },
+    {
+      "ok": false,
+      "violation": "unknown outcome ceiling \"pr\""
+    },
+    {
+      "ok": false,
+      "violation": "unknown outcome ceiling \"pr\""
+    }
+  ],
+  "input": {
+    "cases": [
+      {
+        "outcome": "no_code_changes",
+        "automerge": null,
+        "openedPr": false,
+        "mergedPr": false
+      },
+      {
+        "outcome": "no_code_changes",
+        "automerge": null,
+        "openedPr": false,
+        "mergedPr": true
+      },
+      {
+        "outcome": "no_code_changes",
+        "automerge": null,
+        "openedPr": true,
+        "mergedPr": false
+      },
+      {
+        "outcome": "no_code_changes",
+        "automerge": null,
+        "openedPr": true,
+        "mergedPr": true
+      },
+      {
+        "outcome": "no_code_changes",
+        "automerge": "nothing",
+        "openedPr": false,
+        "mergedPr": false
+      },
+      {
+        "outcome": "no_code_changes",
+        "automerge": "nothing",
+        "openedPr": false,
+        "mergedPr": true
+      },
+      {
+        "outcome": "no_code_changes",
+        "automerge": "nothing",
+        "openedPr": true,
+        "mergedPr": false
+      },
+      {
+        "outcome": "no_code_changes",
+        "automerge": "nothing",
+        "openedPr": true,
+        "mergedPr": true
+      },
+      {
+        "outcome": "no_code_changes",
+        "automerge": "anything",
+        "openedPr": false,
+        "mergedPr": false
+      },
+      {
+        "outcome": "no_code_changes",
+        "automerge": "anything",
+        "openedPr": false,
+        "mergedPr": true
+      },
+      {
+        "outcome": "no_code_changes",
+        "automerge": "anything",
+        "openedPr": true,
+        "mergedPr": false
+      },
+      {
+        "outcome": "no_code_changes",
+        "automerge": "anything",
+        "openedPr": true,
+        "mergedPr": true
+      },
+      {
+        "outcome": "no_code_changes",
+        "automerge": [
+          "doc-changes"
+        ],
+        "openedPr": false,
+        "mergedPr": false
+      },
+      {
+        "outcome": "no_code_changes",
+        "automerge": [
+          "doc-changes"
+        ],
+        "openedPr": false,
+        "mergedPr": true
+      },
+      {
+        "outcome": "no_code_changes",
+        "automerge": [
+          "doc-changes"
+        ],
+        "openedPr": true,
+        "mergedPr": false
+      },
+      {
+        "outcome": "no_code_changes",
+        "automerge": [
+          "doc-changes"
+        ],
+        "openedPr": true,
+        "mergedPr": true
+      },
+      {
+        "outcome": "no_code_changes",
+        "automerge": [
+          "bad name"
+        ],
+        "openedPr": false,
+        "mergedPr": false
+      },
+      {
+        "outcome": "no_code_changes",
+        "automerge": [
+          "bad name"
+        ],
+        "openedPr": false,
+        "mergedPr": true
+      },
+      {
+        "outcome": "no_code_changes",
+        "automerge": [
+          "bad name"
+        ],
+        "openedPr": true,
+        "mergedPr": false
+      },
+      {
+        "outcome": "no_code_changes",
+        "automerge": [
+          "bad name"
+        ],
+        "openedPr": true,
+        "mergedPr": true
+      },
+      {
+        "outcome": "fresh_pr",
+        "automerge": null,
+        "openedPr": false,
+        "mergedPr": false
+      },
+      {
+        "outcome": "fresh_pr",
+        "automerge": null,
+        "openedPr": false,
+        "mergedPr": true
+      },
+      {
+        "outcome": "fresh_pr",
+        "automerge": null,
+        "openedPr": true,
+        "mergedPr": false
+      },
+      {
+        "outcome": "fresh_pr",
+        "automerge": null,
+        "openedPr": true,
+        "mergedPr": true
+      },
+      {
+        "outcome": "fresh_pr",
+        "automerge": "nothing",
+        "openedPr": false,
+        "mergedPr": false
+      },
+      {
+        "outcome": "fresh_pr",
+        "automerge": "nothing",
+        "openedPr": false,
+        "mergedPr": true
+      },
+      {
+        "outcome": "fresh_pr",
+        "automerge": "nothing",
+        "openedPr": true,
+        "mergedPr": false
+      },
+      {
+        "outcome": "fresh_pr",
+        "automerge": "nothing",
+        "openedPr": true,
+        "mergedPr": true
+      },
+      {
+        "outcome": "fresh_pr",
+        "automerge": "anything",
+        "openedPr": false,
+        "mergedPr": false
+      },
+      {
+        "outcome": "fresh_pr",
+        "automerge": "anything",
+        "openedPr": false,
+        "mergedPr": true
+      },
+      {
+        "outcome": "fresh_pr",
+        "automerge": "anything",
+        "openedPr": true,
+        "mergedPr": false
+      },
+      {
+        "outcome": "fresh_pr",
+        "automerge": "anything",
+        "openedPr": true,
+        "mergedPr": true
+      },
+      {
+        "outcome": "fresh_pr",
+        "automerge": [
+          "doc-changes"
+        ],
+        "openedPr": false,
+        "mergedPr": false
+      },
+      {
+        "outcome": "fresh_pr",
+        "automerge": [
+          "doc-changes"
+        ],
+        "openedPr": false,
+        "mergedPr": true
+      },
+      {
+        "outcome": "fresh_pr",
+        "automerge": [
+          "doc-changes"
+        ],
+        "openedPr": true,
+        "mergedPr": false
+      },
+      {
+        "outcome": "fresh_pr",
+        "automerge": [
+          "doc-changes"
+        ],
+        "openedPr": true,
+        "mergedPr": true
+      },
+      {
+        "outcome": "fresh_pr",
+        "automerge": [
+          "bad name"
+        ],
+        "openedPr": false,
+        "mergedPr": false
+      },
+      {
+        "outcome": "fresh_pr",
+        "automerge": [
+          "bad name"
+        ],
+        "openedPr": false,
+        "mergedPr": true
+      },
+      {
+        "outcome": "fresh_pr",
+        "automerge": [
+          "bad name"
+        ],
+        "openedPr": true,
+        "mergedPr": false
+      },
+      {
+        "outcome": "fresh_pr",
+        "automerge": [
+          "bad name"
+        ],
+        "openedPr": true,
+        "mergedPr": true
+      },
+      {
+        "outcome": "supersede_existing_pr",
+        "automerge": null,
+        "openedPr": false,
+        "mergedPr": false
+      },
+      {
+        "outcome": "supersede_existing_pr",
+        "automerge": null,
+        "openedPr": false,
+        "mergedPr": true
+      },
+      {
+        "outcome": "supersede_existing_pr",
+        "automerge": null,
+        "openedPr": true,
+        "mergedPr": false
+      },
+      {
+        "outcome": "supersede_existing_pr",
+        "automerge": null,
+        "openedPr": true,
+        "mergedPr": true
+      },
+      {
+        "outcome": "supersede_existing_pr",
+        "automerge": "nothing",
+        "openedPr": false,
+        "mergedPr": false
+      },
+      {
+        "outcome": "supersede_existing_pr",
+        "automerge": "nothing",
+        "openedPr": false,
+        "mergedPr": true
+      },
+      {
+        "outcome": "supersede_existing_pr",
+        "automerge": "nothing",
+        "openedPr": true,
+        "mergedPr": false
+      },
+      {
+        "outcome": "supersede_existing_pr",
+        "automerge": "nothing",
+        "openedPr": true,
+        "mergedPr": true
+      },
+      {
+        "outcome": "supersede_existing_pr",
+        "automerge": "anything",
+        "openedPr": false,
+        "mergedPr": false
+      },
+      {
+        "outcome": "supersede_existing_pr",
+        "automerge": "anything",
+        "openedPr": false,
+        "mergedPr": true
+      },
+      {
+        "outcome": "supersede_existing_pr",
+        "automerge": "anything",
+        "openedPr": true,
+        "mergedPr": false
+      },
+      {
+        "outcome": "supersede_existing_pr",
+        "automerge": "anything",
+        "openedPr": true,
+        "mergedPr": true
+      },
+      {
+        "outcome": "supersede_existing_pr",
+        "automerge": [
+          "doc-changes"
+        ],
+        "openedPr": false,
+        "mergedPr": false
+      },
+      {
+        "outcome": "supersede_existing_pr",
+        "automerge": [
+          "doc-changes"
+        ],
+        "openedPr": false,
+        "mergedPr": true
+      },
+      {
+        "outcome": "supersede_existing_pr",
+        "automerge": [
+          "doc-changes"
+        ],
+        "openedPr": true,
+        "mergedPr": false
+      },
+      {
+        "outcome": "supersede_existing_pr",
+        "automerge": [
+          "doc-changes"
+        ],
+        "openedPr": true,
+        "mergedPr": true
+      },
+      {
+        "outcome": "supersede_existing_pr",
+        "automerge": [
+          "bad name"
+        ],
+        "openedPr": false,
+        "mergedPr": false
+      },
+      {
+        "outcome": "supersede_existing_pr",
+        "automerge": [
+          "bad name"
+        ],
+        "openedPr": false,
+        "mergedPr": true
+      },
+      {
+        "outcome": "supersede_existing_pr",
+        "automerge": [
+          "bad name"
+        ],
+        "openedPr": true,
+        "mergedPr": false
+      },
+      {
+        "outcome": "supersede_existing_pr",
+        "automerge": [
+          "bad name"
+        ],
+        "openedPr": true,
+        "mergedPr": true
+      },
+      {
+        "outcome": "pr",
+        "automerge": null,
+        "openedPr": false,
+        "mergedPr": false
+      },
+      {
+        "outcome": "pr",
+        "automerge": null,
+        "openedPr": false,
+        "mergedPr": true
+      },
+      {
+        "outcome": "pr",
+        "automerge": null,
+        "openedPr": true,
+        "mergedPr": false
+      },
+      {
+        "outcome": "pr",
+        "automerge": null,
+        "openedPr": true,
+        "mergedPr": true
+      },
+      {
+        "outcome": "pr",
+        "automerge": "nothing",
+        "openedPr": false,
+        "mergedPr": false
+      },
+      {
+        "outcome": "pr",
+        "automerge": "nothing",
+        "openedPr": false,
+        "mergedPr": true
+      },
+      {
+        "outcome": "pr",
+        "automerge": "nothing",
+        "openedPr": true,
+        "mergedPr": false
+      },
+      {
+        "outcome": "pr",
+        "automerge": "nothing",
+        "openedPr": true,
+        "mergedPr": true
+      },
+      {
+        "outcome": "pr",
+        "automerge": "anything",
+        "openedPr": false,
+        "mergedPr": false
+      },
+      {
+        "outcome": "pr",
+        "automerge": "anything",
+        "openedPr": false,
+        "mergedPr": true
+      },
+      {
+        "outcome": "pr",
+        "automerge": "anything",
+        "openedPr": true,
+        "mergedPr": false
+      },
+      {
+        "outcome": "pr",
+        "automerge": "anything",
+        "openedPr": true,
+        "mergedPr": true
+      },
+      {
+        "outcome": "pr",
+        "automerge": [
+          "doc-changes"
+        ],
+        "openedPr": false,
+        "mergedPr": false
+      },
+      {
+        "outcome": "pr",
+        "automerge": [
+          "doc-changes"
+        ],
+        "openedPr": false,
+        "mergedPr": true
+      },
+      {
+        "outcome": "pr",
+        "automerge": [
+          "doc-changes"
+        ],
+        "openedPr": true,
+        "mergedPr": false
+      },
+      {
+        "outcome": "pr",
+        "automerge": [
+          "doc-changes"
+        ],
+        "openedPr": true,
+        "mergedPr": true
+      },
+      {
+        "outcome": "pr",
+        "automerge": [
+          "bad name"
+        ],
+        "openedPr": false,
+        "mergedPr": false
+      },
+      {
+        "outcome": "pr",
+        "automerge": [
+          "bad name"
+        ],
+        "openedPr": false,
+        "mergedPr": true
+      },
+      {
+        "outcome": "pr",
+        "automerge": [
+          "bad name"
+        ],
+        "openedPr": true,
+        "mergedPr": false
+      },
+      {
+        "outcome": "pr",
+        "automerge": [
+          "bad name"
+        ],
+        "openedPr": true,
+        "mergedPr": true
+      }
+    ]
+  }
+}

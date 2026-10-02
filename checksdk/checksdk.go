@@ -75,7 +75,9 @@ const MaxLine = 16 << 20
 // EngineFloor is the first engine that answers SDK calls. Its day part is
 // never after today's, so it names a version that can exist: the first
 // release candidate, cut on or after 2026-10-01 (day 61001), satisfies it
-// by construction, and release/version.sh refuses any version below it.
+// by construction, and release/version.sh refuses any version below it,
+// reading it from engine_floor.txt beside this file, which a test holds
+// equal to this constant.
 const EngineFloor = "61001.1.0"
 
 // CheckDeadline is how long one check may work, engine answers excluded; Main reads

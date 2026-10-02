@@ -240,6 +240,19 @@ func checkWorkflows(in Input) []findings.Finding {
 			out = append(out, dep("member-workflows", w, "missing: the repo still works, but the engine never updates on its own until a person adds it from the engine's templates"))
 		}
 	}
+	const scheduler, executor = ".github/workflows/claudinite-scheduler.yml", ".github/workflows/claudinite-executor.yml"
+	_, hasScheduler := read(in, scheduler)
+	_, hasExecutor := read(in, executor)
+	switch {
+	case hasScheduler && !hasExecutor:
+		out = append(out, brk("member-workflows", executor, "missing while the scheduler runs: it files work items no executor ever picks up; add it from the engine's templates (`cn workflows diff` prints the patch)"))
+	case !hasScheduler:
+		for _, w := range []string{scheduler, executor} {
+			if _, ok := read(in, w); !ok {
+				out = append(out, dep("member-workflows", w, "missing: the repo still works, but no task of its packs, the engine's own included, runs until a person adds it from the engine's templates"))
+			}
+		}
+	}
 	return out
 }
 

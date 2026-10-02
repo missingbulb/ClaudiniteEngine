@@ -32,6 +32,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
@@ -45,7 +46,18 @@ type Client struct {
 	Repo  string // owner/name
 	Token string
 	HTTP  *http.Client
+
+	calls atomic.Int64
 }
+
+// CallCount is how many calls this client has made, reached or not: the
+// figure a run's cost record carries.
+func (c *Client) CallCount() int64 { return c.calls.Load() }
+
+// Call is one REST call by method and path (the repository's own paths
+// begin "/repos/" + Repo), in and out as JSON: the task runner's port is
+// written over it, operation by operation, in the caller that names them.
+func (c *Client) Call(method, path string, in, out any) error { return c.do(method, path, in, out) }
 
 // HTTPError is an answer outside 2xx; any other error from a call means
 // GitHub was not reached.
@@ -84,6 +96,7 @@ func FromEnv(token string) (*Client, error) {
 }
 
 func (c *Client) do(method, path string, in, out any) error {
+	c.calls.Add(1)
 	label := method + " " + strings.SplitN(path, "?", 2)[0]
 	u, err := url.Parse(c.Base + path)
 	if err != nil || u.Scheme != "https" {

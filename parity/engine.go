@@ -58,6 +58,9 @@ type Engine interface {
 	Rules(dir string) (string, error)
 	// Mounts are the skills the engine mounted, with each SKILL.md.
 	Mounts(dir string) (map[string]string, error)
+	// Flat is the flat task and dashboard declarations the active packs
+	// produce, both files' text in order.
+	Flat(dir string) (string, error)
 	// World and Work are the findings of a whole-repo sweep and of the
 	// change; Work reads the session transcript at transcript, "" for none.
 	World(dir string) ([]Finding, error)
@@ -161,6 +164,14 @@ func (n Node) Rules(dir string) (string, error) {
 	out, stderr, code, err := run(dir, n.env(dir), "", "node", filepath.Join(n.Root, "engine/pack_loader/generate-rules-index.mjs"), dir)
 	if err != nil || code != 0 {
 		return "", fmt.Errorf("generate-rules-index: exit %d %v: %s", code, err, stderr)
+	}
+	return out, nil
+}
+
+func (n Node) Flat(dir string) (string, error) {
+	out, stderr, code, err := run(dir, n.env(dir), "", "node", filepath.Join(n.Root, "engine/pack_loader/generate-flat-declarations.mjs"), dir)
+	if err != nil || code != 0 {
+		return "", fmt.Errorf("generate-flat-declarations: exit %d %v: %s", code, err, stderr)
 	}
 	return out, nil
 }
@@ -286,6 +297,14 @@ func (c Cn) sessionStart(dir string) error {
 		return fmt.Errorf("cn hook session-start: exit %d %v: %s", code, err, stderr)
 	}
 	return nil
+}
+
+func (c Cn) Flat(dir string) (string, error) {
+	out, stderr, code, err := run(dir, c.env(dir), "", c.Binary, "tasks", "flat", "--repo", dir)
+	if err != nil || code != 0 {
+		return "", fmt.Errorf("cn tasks flat: exit %d %v: %s", code, err, stderr)
+	}
+	return out, nil
 }
 
 func (c Cn) Rules(dir string) (string, error) {

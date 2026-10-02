@@ -2,6 +2,7 @@ package declared
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -164,5 +165,46 @@ func TestAHungGitIsACheckRunBreak(t *testing.T) {
 	}
 	if len(breaks) == 0 || !strings.Contains(strings.Join(breaks, "\n"), "timed out after 100ms") {
 		t.Errorf("breaks %q in %v", breaks, fs)
+	}
+}
+
+// A git fault spends the run's tree: the checks that would have read it
+// are named as skipped, none runs silently over an empty read, and the
+// fault is one checks-run break.
+func TestAGitFaultSpendsTheTree(t *testing.T) {
+	dir := member(t, testSettings, markerCheck, map[string]string{"probe.txt": "x\n", "notes.md": "ACME_MARKER\n"})
+	s, err := LoadSet(dir, "0.0.0", probe("on-acme", "acme-pack", ""))
+	if err != nil {
+		t.Fatal(err)
+	}
+	real, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatal(err)
+	}
+	bin := t.TempDir()
+	mark := filepath.Join(bin, "hung-once")
+	script := "#!/bin/sh\nif [ ! -e " + mark + " ]; then : >" + mark + "; exec sleep 30; fi\nexec " + real + " \"$@\"\n"
+	if err := os.WriteFile(filepath.Join(bin, "git"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	old := gitcmd.CommandTimeout
+	gitcmd.CommandTimeout = 100 * time.Millisecond
+	defer func() { gitcmd.CommandTimeout = old }()
+	fs, _ := s.Run(Selection{Tags: []string{"world"}}, time.Now(), nil)
+	breaks := 0
+	for _, f := range fs {
+		if f.ID != "checks-run" {
+			t.Errorf("a check ran over the faulted tree: %+v", f)
+			continue
+		}
+		breaks++
+	}
+	if breaks != 1 {
+		t.Errorf("%d checks-run breaks, want 1: %v", breaks, fs)
+	}
+	want := []string{"acme-pack/acme-check", "declared-check-spec-keys", "acme-pack/on-acme"}
+	if strings.Join(s.Skipped, ",") != strings.Join(want, ",") {
+		t.Errorf("skipped %q, want %q", s.Skipped, want)
 	}
 }

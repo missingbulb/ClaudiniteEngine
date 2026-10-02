@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/missingbulb/ClaudiniteEngine/shared/flatdecl"
 	"github.com/missingbulb/ClaudiniteEngine/shared/packset"
 )
 
@@ -122,6 +123,26 @@ func Write(repo, engine string) (bool, error) {
 		return false, err
 	}
 	return true, os.WriteFile(path, []byte(want), 0o644)
+}
+
+// Converge writes the index and the flat declarations beside it,
+// returning the paths written: the same pack set produces both, so every
+// writer of one writes the other.
+func Converge(repo, engine string) ([]string, error) {
+	var written []string
+	changed, err := Write(repo, engine)
+	if err != nil {
+		return nil, err
+	}
+	if changed {
+		written = append(written, File)
+	}
+	s, err := packset.Load(repo, engine, false)
+	if err != nil {
+		return written, err
+	}
+	flat, err := flatdecl.Write(repo, s.Packs)
+	return append(written, flat...), err
 }
 
 // HasImport reports whether the repo's CLAUDE.md carries the import line on

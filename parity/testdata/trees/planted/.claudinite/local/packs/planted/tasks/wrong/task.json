@@ -1,0 +1,9 @@
+{
+  "id": "other",
+  "description": "Recomputes the planted report.",
+  "trigger": "schedule",
+  "preconditions": ["due:daily"],
+  "expected_outcome": "fresh_pr",
+  "code_worker_mjs": "worker.mjs",
+  "code_work_timeout": 60
+}

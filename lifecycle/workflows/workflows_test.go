@@ -42,7 +42,7 @@ func jobPermissions(t *testing.T, yml string) (string, map[string][]string) {
 
 func TestTemplates(t *testing.T) {
 	tpl := Templates()
-	if len(tpl) != 2 {
+	if len(tpl) != 4 {
 		t.Fatalf("%d templates", len(tpl))
 	}
 	want := map[string]map[string]string{
@@ -50,6 +50,15 @@ func TestTemplates(t *testing.T) {
 		"claudinite-ci.yml": {
 			"check": "contents: read,pull-requests: read",
 			"land":  "actions: write,contents: write,pull-requests: write",
+		},
+		"claudinite-scheduler.yml": {
+			"scheduler-run":  "contents: read,issues: write,pull-requests: read",
+			"drain":          "actions: write,contents: read",
+			"report-failure": "contents: read,issues: write",
+		},
+		"claudinite-executor.yml": {
+			"execute":            "actions: write,contents: write,id-token: write,issues: write,pull-requests: write",
+			"continue-the-chain": "actions: write,contents: read,issues: write",
 		},
 	}
 	pinned := regexp.MustCompile(`^\s*(?:- )?uses:\s*[^@\s]+@[0-9a-f]{40}(?:\s+#.*)?$`)
@@ -74,7 +83,7 @@ func TestTemplates(t *testing.T) {
 			if strings.Contains(l, "uses:") && !pinned.MatchString(l) {
 				t.Errorf("%s:%d: not pinned by SHA: %s", name, i+1, l)
 			}
-			if strings.Contains(l, "secrets.") {
+			if strings.Contains(l, "secrets.") && (name != "claudinite-executor.yml" || !strings.Contains(l, "CCR_ROUTINE_TOKEN: ${{ secrets.CCR_ROUTINE_TOKEN }}")) {
 				t.Errorf("%s:%d: reads a secret: %s", name, i+1, l)
 			}
 		}
@@ -90,5 +99,23 @@ func TestTemplates(t *testing.T) {
 		if !strings.Contains(ci, w) {
 			t.Errorf("claudinite-ci.yml lacks %q", w)
 		}
+	}
+	sched := string(tpl["claudinite-scheduler.yml"])
+	for _, w := range []string{"schedule:", "cron: \"" + CronPlaceholder + "\"", "wake:", "group: claudinite-scheduler-run", "cn schedule run", "cn schedule drain", "cn schedule report-failure",
+		"CLAUDINITE_WAKE: ${{ inputs.wake }}", "CLAUDINITE_VARS: ${{ toJSON(vars) }}", "pickable"} {
+		if !strings.Contains(sched, w) {
+			t.Errorf("claudinite-scheduler.yml lacks %q", w)
+		}
+	}
+	exe := string(tpl["claudinite-executor.yml"])
+	for _, w := range []string{"types: [labeled]", "continuation_depth:", "timeout-minutes: 350", "CLAUDINITE_VARS: ${{ toJSON(vars) }}",
+		"CCR_ROUTINE_TOKEN: ${{ secrets.CCR_ROUTINE_TOKEN }}", SecretsMarker, "cn execute loop", "cn execute continue",
+		"CLAUDINITE_CONTINUATION_DEPTH: ${{ inputs.continuation_depth }}", "task:status:waiting-for-executor"} {
+		if !strings.Contains(exe, w) {
+			t.Errorf("claudinite-executor.yml lacks %q", w)
+		}
+	}
+	if !strings.HasSuffix(strings.TrimRight(exe[:strings.Index(exe, SecretsMarker)+len(SecretsMarker)], " "), SecretsMarker) {
+		t.Error("the marker is a line of its own")
 	}
 }

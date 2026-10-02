@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/missingbulb/ClaudiniteEngine/shared/githubapi"
@@ -20,7 +21,10 @@ const Audience = "claudinite"
 // ActionsResult is an Actions run's key, or why it holds none. A key whose
 // state is degraded is still a key: the caller decides what it skips.
 type ActionsResult struct {
-	Key    *KeyPayload
+	Key *KeyPayload
+	// Wire is the key as the server sent it, the bearer an item grant is
+	// asked with.
+	Wire   string
 	Cause  Cause
 	Detail string
 	Link   string
@@ -61,7 +65,21 @@ func RequestActions(w Worker, h *http.Client, getenv func(string) string, roots 
 	if c := Bind(k, repo, nil); c != "" {
 		return ActionsResult{Cause: c, Detail: bindDetail(c, k, repo)}
 	}
-	return ActionsResult{Key: &k}
+	return ActionsResult{Key: &k, Wire: ans.Key}
+}
+
+// ActionsOnce requests the run's Actions key at most once per process, the
+// first time a caller needs it: the updater and the executor share it.
+type ActionsOnce struct {
+	Request func() ActionsResult
+	once    sync.Once
+	r       ActionsResult
+}
+
+// Key is the run's key, requested on the first call.
+func (a *ActionsOnce) Key() ActionsResult {
+	a.once.Do(func() { a.r = a.Request() })
+	return a.r
 }
 
 // actionsRepo is the job's repository as the runner describes it.

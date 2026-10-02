@@ -1,0 +1,11 @@
+{
+  "$schema": "../../../task.schema.json",
+  "id": "nightly",
+  "description": "Recomputes the report — with “unicode” and a number 1e3.",
+  "trigger": "schedule",
+  "preconditions": ["due:daily"],
+  "expected_outcome": "fresh_pr",
+  "code_worker_mjs": "worker.mjs",
+  "code_work_timeout": 60,
+  "nested": {"b": [], "a": {}, "2": true, "1": null}
+}

@@ -9,11 +9,12 @@
 //	packfixture --tree DIR --key K --cert C --serial N
 //	packfixture --tree DIR --flip-sig
 //
-// The labels name the hello pack's rehearsal versions: v2 (1.3) is the
+// The labels name the hello pack's rehearsal versions: v2 (1.4) is the
 // source as it is, which ClaudinitePacks publishes; v1 is 1.0, the source
-// without its 1.1, 1.2 and 1.3 rule bullets, its declared checks, its
-// forced skill, its judge and its SDK probes; v3 (1.4) adds a check that
-// finds on every repo; v4 (1.5) drops it again; v5 (1.6) needs an engine
+// without its 1.1 to 1.4 rule bullets, its declared checks, its forced
+// skill, its judge, its SDK probes, its tasks, its merge rules and its
+// GitHub actions; v3 (1.5) adds a check that finds on every repo; v4
+// (1.6) drops it again; v5 (1.7) needs an engine
 // no rehearsal builds. Every publish and revoke bumps the serial; --serial
 // rewrites it, as an index that regressed would read.
 package main
@@ -43,7 +44,7 @@ import (
 const Pack = "hello"
 
 // Labels maps a rehearsal label to its pack version.
-var Labels = map[string]string{"v1": "1.0", "v2": "1.3", "v3": "1.4", "v4": "1.5", "v5": "1.6"}
+var Labels = map[string]string{"v1": "1.0", "v2": "1.4", "v3": "1.5", "v4": "1.6", "v5": "1.7"}
 
 // unreachableEngine is v5's minEngineVersion.
 const unreachableEngine = "99999.0.0"
@@ -138,10 +139,12 @@ func Archive(files map[string]File) ([]byte, error) {
 var (
 	versionField = regexp.MustCompile(`"version": "[^"]*"`)
 	minField     = regexp.MustCompile(`"minEngineVersion": "[^"]*"`)
-	rulesHeading = regexp.MustCompile(`(?m)^# hello .*$`)
-	changedRule  = "- **The hello rule changed** — this bullet arrived with hello 1.1.\n"
-	guardRule    = regexp.MustCompile("(?m)^- \\*\\*The hello (guard|SDK probes) arrived\\*\\*.*\n")
-	declaredLine = regexp.MustCompile("(?m)^- \\*\\*(Declared checks|Forced skill|Judge|SDK probes)\\*\\*(.*\n)(  .*\n)*")
+	// githubActionsField is pack.json's githubActions list, as written.
+	githubActionsField = regexp.MustCompile(`,\n  "githubActions": \[[^\]]*\]`)
+	rulesHeading       = regexp.MustCompile(`(?m)^# hello .*$`)
+	changedRule        = "- **The hello rule changed** — this bullet arrived with hello 1.1.\n"
+	guardRule          = regexp.MustCompile("(?m)^- \\*\\*The hello (guard|SDK probes|tasks) arrived\\*\\*.*\n")
+	declaredLine       = regexp.MustCompile("(?m)^- \\*\\*(Declared checks|Forced skill|Judge|SDK probes|Tasks)\\*\\*(.*\n)(  .*\n)*")
 )
 
 // declaredChecks is the descriptor hello 1.1 added.
@@ -173,6 +176,14 @@ func Variant(src map[string]File, label, minEngine string) (map[string]File, err
 		delete(out, "checks/judge.go")
 		delete(out, "checks/change.go")
 		delete(out, "checks/config.go")
+		delete(out, "merge-rules.json")
+		for n := range out {
+			if strings.HasPrefix(n, "tasks/") {
+				delete(out, n)
+			}
+		}
+		pj = githubActionsField.ReplaceAllString(pj, "")
+		out["pack.json"] = File{Data: []byte(pj)}
 		out["README.md"] = File{Data: declaredLine.ReplaceAll(out["README.md"].Data, nil)}
 	}
 	out["RULES.md"] = File{Data: []byte(rules)}
@@ -191,7 +202,7 @@ func init() {
 		ID:   "always",
 		Tags: []string{"work", "world"},
 		Run: func(checksdk.Repo) []checksdk.Finding {
-			return []checksdk.Finding{{Class: checksdk.ClassFinding, Path: ".", Sentence: "hello 1.4 finds on every repo"}}
+			return []checksdk.Finding{{Class: checksdk.ClassFinding, Path: ".", Sentence: "hello 1.5 finds on every repo"}}
 		},
 	})
 }

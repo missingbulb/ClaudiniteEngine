@@ -95,7 +95,7 @@ func engines(t *testing.T) []Engine {
 
 // Answer is what one engine said about one scenario.
 type Answer struct {
-	Rules       string
+	Rules, Flat string
 	Mounts      map[string]string
 	World, Work []Finding
 	// Hooks are the per-call answers, by expect.json key, case by case.
@@ -179,6 +179,9 @@ func ask(t *testing.T, s Scenario, e Engine, canon string) Answer {
 	if a.Mounts, err = e.Mounts(dir); err != nil {
 		t.Fatalf("%s: %v", e.Name(), err)
 	}
+	if a.Flat, err = e.Flat(dir); err != nil {
+		t.Fatalf("%s: %v", e.Name(), err)
+	}
 	return a
 }
 
@@ -222,6 +225,9 @@ func agree(t *testing.T, a, b Answer) {
 	t.Helper()
 	if a.Rules != b.Rules {
 		t.Errorf("rules index differs:\nnode:\n%s\ncn:\n%s", a.Rules, b.Rules)
+	}
+	if a.Flat != b.Flat {
+		t.Errorf("flat declarations differ:\nnode:\n%s\ncn:\n%s", a.Flat, b.Flat)
 	}
 	if !reflect.DeepEqual(a.Mounts, b.Mounts) {
 		t.Errorf("mounts differ: node %q, cn %q", names(a.Mounts), names(b.Mounts))

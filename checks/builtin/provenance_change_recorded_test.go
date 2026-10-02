@@ -134,3 +134,22 @@ func TestProvenanceChangeRecordedAGoCheckOwesOnCodeNotComments(t *testing.T) {
 		want{path: pk + "checks/mine.go", what: `check mine changed`})
 	expect(t, repo{base: base, change: map[string]string{pk + "checks/mine.go": "package checks\n\n// Mine is mine.\nvar Mine = Check{ID: \"mine\", OnFail: \"block\"}\n"}}.run(t, "provenance-change-recorded"))
 }
+
+// A manifest owes an entry when its data moves, in each of the three
+// formats, and never for layout or a comment.
+func TestProvenanceChangeRecordedManifestFormats(t *testing.T) {
+	jsonBase := with(filled(), map[string]string{pk + "pack.json": "{ \"requires\": [], \"version\": \"1.0.0\" }\n"})
+	expect(t, repo{base: jsonBase, change: map[string]string{pk + "pack.json": "{\n    \"requires\": [],\n    \"version\": \"1.0.0\"\n}\n"}}.run(t, "provenance-change-recorded"))
+	// JSON carries no comments: a // line is not a comment to skip but a
+	// manifest that no longer parses, which is a change.
+	expect(t, repo{base: jsonBase, change: map[string]string{pk + "pack.json": "{ \"requires\": [], \"version\": \"1.0.0\" }\n// note\n"}}.run(t, "provenance-change-recorded"),
+		want{path: pk + "pack.json", what: `the manifest changed`})
+
+	tomlBase := with(filled(), map[string]string{pk + "pack.toml": "requires = []\nversion = \"1.0.0\"\n"})
+	expect(t, repo{base: tomlBase, change: map[string]string{pk + "pack.toml": "# the pack's manifest\nrequires = [] # none yet\nversion = \"1.0.0\"\n"}}.run(t, "provenance-change-recorded"))
+
+	yamlBase := with(filled(), map[string]string{pk + "pack.yaml": "requires: []\nversion: 1.0.0\n"})
+	expect(t, repo{base: yamlBase, change: map[string]string{pk + "pack.yaml": "requires: []\nversion: 1.1.0\n"}}.run(t, "provenance-change-recorded"),
+		want{path: pk + "pack.yaml", what: `the manifest changed`})
+	expect(t, repo{base: yamlBase, change: map[string]string{pk + "pack.yaml": "# manifest\nrequires: [ ]\nversion: 1.0.0\n"}}.run(t, "provenance-change-recorded"))
+}

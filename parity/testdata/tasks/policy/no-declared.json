@@ -1,0 +1,36 @@
+{
+  "expect": {
+    "classes": [],
+    "normalized": [],
+    "ruleErrors": [],
+    "verdicts": [
+      {
+        "files": [],
+        "mergeable": false,
+        "problems": [
+          {
+            "file": null,
+            "what": "unresolved rule name(s): rolling-usage — an unknown rule authorizes nothing"
+          }
+        ],
+        "why": "unresolved rule name(s): rolling-usage — an unknown rule authorizes nothing"
+      }
+    ]
+  },
+  "input": {
+    "cases": [
+      {
+        "policy": [
+          "rolling-usage"
+        ],
+        "entries": [
+          {
+            "file": ".claudinite/usage/2026-09.json",
+            "before": null,
+            "after": "{}\n"
+          }
+        ]
+      }
+    ]
+  }
+}

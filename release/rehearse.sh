@@ -27,18 +27,27 @@
 #            key ids reach the pack reader; hello's declared checks fail the
 #            world and block Stop, and the member's checks block turns them
 #            off and accepts them; a local pack's Go check builds and
-#            finds, and hello 1.3's checks read the change and the pack's
+#            finds, and hello 1.4's checks read the change and the pack's
 #            config through the SDK.
+#   tasks    a member on hello 1.4 with the four workflows runs the task
+#            queue against ghstub (its routine route and release/stub-
+#            agent.sh) and licstub: tasks list and the declaration check,
+#            the scheduler filing and gating, the executor running hello's
+#            worker through the SDK and landing its PR, a missing secret,
+#            the routine hand-off with its grant and nonce, a degraded key,
+#            a lost claim and the leash, the suspend switch, the
+#            continuation chain and the failure issue, verify, init and the
+#            flat declarations.
 #   license  a member's session keys against release/ghstub and
 #            release/licstub: the web key, the cut and the late key, no App,
 #            no push access, refusals and bindings, resume and renewal, the
 #            desktop after cn login, and the Actions key in cn update engine
 #            with its release states, refusals and the plan correction PR.
 #
-# The update, packs and license modes give every member a GitHub-shaped
+# The update, packs, tasks and license modes give every member a GitHub-shaped
 # origin (url.<bare>.insteadOf), as the session's key request reads it.
 #
-#   release/rehearse.sh [--mode fresh|current|stale|update|packs|license]   (default: all six)
+#   release/rehearse.sh [--mode fresh|current|stale|update|packs|tasks|license]   (default: all seven)
 #
 # UPDATE_STEPS=4 stops the update mode after the landing and the session on
 # the landed version (release/hop.sh); the default, 8, runs every step.
@@ -56,13 +65,13 @@ export GOCACHE
 fail() { echo "rehearse: FAIL: $*" >&2; exit 1; }
 step() { echo "rehearse: $*"; }
 
-usage="usage: release/rehearse.sh [--mode fresh|current|stale|update|packs|license]"
-modes="fresh current stale update packs license"
+usage="usage: release/rehearse.sh [--mode fresh|current|stale|update|packs|tasks|license]"
+modes="fresh current stale update packs tasks license"
 case $# in
   0) ;;
   2)
     [ "$1" = --mode ] || fail "$usage"
-    case $2 in fresh|current|stale|update|packs|license) modes=$2 ;; *) fail "unknown mode $2" ;; esac ;;
+    case $2 in fresh|current|stale|update|packs|tasks|license) modes=$2 ;; *) fail "unknown mode $2" ;; esac ;;
   *) fail "$usage" ;;
 esac
 
@@ -138,7 +147,7 @@ case " $modes " in
     ;;
 esac
 case " $modes " in
-  *" update "*|*" packs "*|*" license "*)
+  *" update "*|*" packs "*|*" tasks "*|*" license "*)
     # The caller's dist stays as it was: sign a copy.
     dist1=$work/dist1
     cp -R "$DIST" "$dist1"
@@ -205,14 +214,16 @@ unset GITHUB_ACTIONS
 CLAUDINITE_REGISTRY=$registry
 export CLAUDINITE_REGISTRY
 
-# start_ghstub ORIGIN: the GitHub stub over a bare origin, forwarding key
-# dispatches to licstub; sets gh.
+# start_ghstub ORIGIN [FLAG...]: the GitHub stub over a bare origin,
+# forwarding key dispatches to licstub; sets gh.
 start_ghstub() {
   [ -x "$work/ghstub" ] || go build -o "$work/ghstub" ./release/ghstub
   [ -n "$gh_pid" ] && kill "$gh_pid" 2>/dev/null
   rm -f "$work/gh-ready"
-  "$work/ghstub" --origin "$1" --repo acme/member --token rehearsal-token --ready "$work/gh-ready" --ca-out "$work/gh-ca.pem" \
-    --licstub-ready "$work/lic-ready" --licstub-ca "$work/lic-ca.pem" &
+  gh_origin=$1
+  shift
+  "$work/ghstub" --origin "$gh_origin" --repo acme/member --token rehearsal-token --ready "$work/gh-ready" --ca-out "$work/gh-ca.pem" \
+    --licstub-ready "$work/lic-ready" --licstub-ca "$work/lic-ca.pem" "$@" &
   gh_pid=$!
   tries=0
   until [ -f "$work/gh-ready" ]; do
@@ -479,7 +490,8 @@ for mode in $modes; do
       adopt packs-member
       grep -q "hello: index serial 1 from cdn" "$work/init.out" || fail "packs 1: the log names no CDN: $(cat "$work/init.out")"
       for f in .claudinite/launch .claudinite/settings.yaml .claudinite/.gitignore .claude/settings.json .claude/skills/.gitignore \
-        .github/workflows/claudinite-update.yml .github/workflows/claudinite-ci.yml .claudinite/shared/packs/hello/pack.json; do
+        .github/workflows/claudinite-update.yml .github/workflows/claudinite-ci.yml .github/workflows/claudinite-scheduler.yml \
+        .github/workflows/claudinite-executor.yml .claudinite/shared/packs/hello/pack.json; do
         [ -f "$member/$f" ] || fail "packs 1: init wrote no $f"
       done
       verify_out=$(cd "$member" && sh .claudinite/launch verify) || fail "packs 1: verify: $verify_out"
@@ -571,7 +583,7 @@ for mode in $modes; do
       fixture --publish v2
       main_run success
       update_packs
-      expect_verdict "opened #1 for packs hello 1.3"
+      expect_verdict "opened #1 for packs hello 1.4"
       if git --git-dir "$origin" diff --name-only main "$branch" | grep -v '^CLAUDE\.md$' | grep -qv '^\.claudinite/shared/packs/hello/'; then fail "packs 5: the branch changes more than the hello pack and CLAUDE.md"; fi
       [ "$(git --git-dir "$origin" show "$branch:CLAUDE.md")" = "$(printf '# Member\n@.claudinite/flat/claudinite-rules.GENERATED.md')" ] || fail "packs 5: the branch's CLAUDE.md: $(git --git-dir "$origin" show "$branch:CLAUDE.md")"
       [ "$(gh_count 'st.dispatches.filter(d=>d.ref==="'"$branch"'"&&d.inputs.pr==="1").length')" = 1 ] || fail "packs 5: dispatches $(gh_state)"
@@ -580,23 +592,23 @@ for mode in $modes; do
       cn_member check world --pr-author 'github-actions[bot]' --base-ref origin/main > "$work/world.out" 2>&1 || fail "packs 5: check world on the branch: $(cat "$work/world.out")"
       (cd "$member" && git checkout -q main) || fail "packs 5: back to main"
       land 1
-      expect_verdict "landed packs hello 1.3"
+      expect_verdict "landed packs hello 1.4"
       pull
-      grep -q '"version": "1.3"' "$member/.claudinite/shared/packs/hello/pack.json" || fail "packs 5: main does not hold hello 1.3"
+      grep -q '"version": "1.4"' "$member/.claudinite/shared/packs/hello/pack.json" || fail "packs 5: main does not hold hello 1.4"
       out=$(session_start) || fail "packs 5: SessionStart"
-      case $out in *"[cn] packs 1/1 loaded (hello 1.3: rules 4 skills 2)"*) ;; *) fail "packs 5: SessionStart on 1.3: $out" ;; esac
+      case $out in *"[cn] packs 1/1 loaded (hello 1.4: rules 5 skills 2)"*) ;; *) fail "packs 5: SessionStart on 1.4: $out" ;; esac
       case $out in *"rules not loaded"*) fail "packs 5: the import is still missing after the pack PR: $out" ;; esac
-      grep -q '^# hello 1.3$' "$member/.claudinite/shared/packs/hello/RULES.md" || fail "packs 5: hello's rules are not 1.3's"
+      grep -q '^# hello 1.4$' "$member/.claudinite/shared/packs/hello/RULES.md" || fail "packs 5: hello's rules are not 1.4's"
       cn_member check build --wait > "$work/build.out" 2>&1 || fail "packs 5: check build: $(cat "$work/build.out")"
-      # The key covers the engine, the SDK and the check sources; 1.3 adds
+      # The key covers the engine, the SDK and the check sources; 1.4 adds
       # Go checks, so its checks binary is a second one beside 1.0's.
-      [ "$(find "$checks" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')" = 2 ] || fail "packs 5: hello 1.3's checks did not build a second checks binary"
-      step "packs 5: opened, checked and landed hello 1.3 with the CLAUDE.md import restored; its Go checks build a second checks binary"
+      [ "$(find "$checks" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')" = 2 ] || fail "packs 5: hello 1.4's checks did not build a second checks binary"
+      step "packs 5: opened, checked and landed hello 1.4 with the CLAUDE.md import restored; its Go checks build a second checks binary"
 
       fixture --publish v3
       main_run success
       update_packs
-      expect_verdict "no PR: hello 1.4 fails this repo's checks"
+      expect_verdict "no PR: hello 1.5 fails this repo's checks"
       grep -q 'hello/always' "$work/update.out" || fail "packs 6: the finding was not printed: $(cat "$work/update.out")"
       [ -z "$(git --git-dir "$origin" branch --list 'claudinite/*')" ] || fail "packs 6: a branch was pushed"
       [ "$(gh_count 'st.pulls.length')" = 1 ] || fail "packs 6: a PR was opened"
@@ -604,19 +616,19 @@ for mode in $modes; do
 
       fixture --revoke v3 --publish v4
       update_packs
-      expect_verdict "opened #2 for packs hello 1.5"
-      grep -q '^hello 1.4 skipped: revoked$' "$work/update.out" || fail "packs 7: no revoked skip: $(cat "$work/update.out")"
+      expect_verdict "opened #2 for packs hello 1.6"
+      grep -q '^hello 1.5 skipped: revoked$' "$work/update.out" || fail "packs 7: no revoked skip: $(cat "$work/update.out")"
       land 2
-      expect_verdict "landed packs hello 1.5"
+      expect_verdict "landed packs hello 1.6"
       pull
       main_run success
-      step "packs 7: revoked 1.4 skipped; hello 1.5 landed"
+      step "packs 7: revoked 1.5 skipped; hello 1.6 landed"
 
       fixture --publish v5
       update_packs
       expect_verdict "up to date"
-      grep -q '^hello 1.6 skipped: not for this engine$' "$work/update.out" || fail "packs 8: no engine skip: $(cat "$work/update.out")"
-      step "packs 8: hello 1.6 skipped: not for this engine"
+      grep -q '^hello 1.7 skipped: not for this engine$' "$work/update.out" || fail "packs 8: no engine skip: $(cat "$work/update.out")"
+      step "packs 8: hello 1.7 skipped: not for this engine"
 
       # set_channel C: the member's packs channel, committed and pushed, main green.
       set_channel() {
@@ -905,6 +917,256 @@ GO
       cp "$work/settings.orig" "$settings"
       [ -z "$(cd "$member" && git status --porcelain)" ] || fail "packs 21: the checkout changed: $(cd "$member" && git status --porcelain)"
       step "packs 21: a panic in init names itself; a check past its deadline leaves its sibling's finding; verify never builds, and check world builds what it then lists"
+      ;;
+    tasks)
+      step "tasks: a member on hello 1.4 with the four workflows, against ghstub's routine route and licstub"
+      src=$work/tasksrc
+      sh release/packs-fixture.sh "$src" --min-engine "$version" > "$work/fixture.out" 2>&1 || fail "tasks: fixture: $(cat "$work/fixture.out")"
+      sh release/packs-fixture.sh "$src" --publish v2 > "$work/fixture.out" 2>&1 || fail "tasks: fixture v2: $(cat "$work/fixture.out")"
+      [ -x "$work/cdnstub" ] || go build -o "$work/cdnstub" ./release/cdnstub
+      "$work/cdnstub" --repo "$src/cdn.git" --ready "$work/tasks-cdn-ready" --ca-out "$work/tasks-cdn-ca.pem" --log "$work/tasks-cdn.log" &
+      cdn_pids="$cdn_pids $!"
+      tries=0
+      until [ -f "$work/tasks-cdn-ready" ]; do
+        tries=$((tries + 1))
+        [ "$tries" -le 100 ] || fail "cdnstub did not start"
+        sleep 0.1
+      done
+      origin=$work/tasks-origin.git
+      git init -q --bare -b main "$origin"
+      git --git-dir "$origin" config uploadpack.allowAnySHA1InWant true
+      member=$work/tasks-member
+      STUB_AGENT_CN=$member/.claudinite/bin/cn STUB_AGENT_MEMBER=$member STUB_AGENT_CA=$work/gh-ca.pem
+      export STUB_AGENT_CN STUB_AGENT_MEMBER STUB_AGENT_CA
+      start_ghstub "$origin" --agent "$root/release/stub-agent.sh"
+      start_licstub
+      mkdir -p "$member" "$member-home" "$member-cache"
+      HOME=$member-home XDG_CACHE_HOME=$member-cache
+      export HOME XDG_CACHE_HOME
+      cat "$work/ca.pem" "$work/gh-ca.pem" "$work/lic-ca.pem" "$work/tasks-cdn-ca.pem" > "$work/cas.pem"
+      SSL_CERT_FILE=$work/cas.pem CURL_CA_BUNDLE=$work/cas.pem
+      GITHUB_REPOSITORY=acme/member CLAUDINITE_GITHUB_API=$gh GH_TOKEN=rehearsal-token
+      CLAUDINITE_PACKS_CDN=$(cat "$work/tasks-cdn-ready") CLAUDINITE_PACKS_REPO=$src/mirror.git
+      CCR_ROUTINE_TOKEN=routine-token
+      # The member's queue workflows run on its main; in CI the job's own
+      # ref (a pull request's merge ref) would otherwise be the queue's branch.
+      GITHUB_REF_NAME=main
+      export SSL_CERT_FILE CURL_CA_BUNDLE GITHUB_REPOSITORY CLAUDINITE_GITHUB_API GH_TOKEN CLAUDINITE_PACKS_CDN CLAUDINITE_PACKS_REPO CCR_ROUTINE_TOKEN GITHUB_REF_NAME
+      actions_env
+      name=${package#@claudinite/}
+      npx=$work/tasks-npx/node_modules
+      mkdir -p "$npx/@claudinite" "$npx/.bin"
+      cp -R "$dist1/npm/$name/package" "$npx/$package"
+      chmod 0755 "$npx/$package/launch"
+      ln -s "../$package/launch" "$npx/.bin/cn"
+      (cd "$member" && "$npx/.bin/cn" init --packs hello --channel canary --package "$package" --repo "$member") > "$work/init.out" 2>&1 \
+        || fail "tasks: init: $(cat "$work/init.out")"
+      grep -q '"version": "1.4"' "$member/.claudinite/shared/packs/hello/pack.json" || fail "tasks: init did not vendor hello 1.4"
+      # The two engine packs whose checks the steps run, claudinite-tasks
+      # carrying the routine the hand-off fires; each stands in as its
+      # manifest alone, as nothing here publishes them.
+      for p in claudinite-tasks claudinite-lifecycle; do
+        mkdir -p "$member/.claudinite/shared/packs/$p"
+        printf '{\n  "version": "1.0",\n  "minEngineVersion": "%s"\n}\n' "$version" > "$member/.claudinite/shared/packs/$p/pack.json"
+      done
+      awk -v url="$gh/routines/trig_hello" '{ print } /^    - hello$/ {
+        print "    - claudinite-lifecycle"; print "    - id: claudinite-tasks"; print "      config:"
+        print "        agenticTaskInvocationEndpoints:"; print "          default:"; print "            url: \"" url "\"" }' \
+        "$member/.claudinite/settings.yaml" > "$work/settings.yaml"
+      mv "$work/settings.yaml" "$member/.claudinite/settings.yaml"
+      # The adoption is three days old, so the repo starts quiet.
+      old=$(date -u -d '3 days ago' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -v-3d +%Y-%m-%dT%H:%M:%SZ)
+      gitc() { (cd "$member" && git -c user.name=rehearse -c user.email=r@x -c commit.gpgsign=false "$@"); }
+      (cd "$member" && git init -q -b main && git add -A) || fail "tasks: git setup"
+      GIT_AUTHOR_DATE=$old GIT_COMMITTER_DATE=$old gitc commit -q -m adopt || fail "tasks: adopt commit"
+      github_origin "$origin"
+      (cd "$member" && git -c push.negotiate=false push -q origin main) || fail "tasks: push"
+      out=$(session_start) || fail "tasks: SessionStart exited non-zero"
+      # sched ARGS: a scheduler step as the workflow runs it, its outputs in $work/gh-output.
+      sched() { : > "$work/gh-output"; (cd "$member" && GITHUB_OUTPUT=$work/gh-output GITHUB_TOKEN=rehearsal-token .claudinite/bin/cn schedule "$@"); }
+      gate() { sed -n 's/^pickable=//p' "$work/gh-output"; }
+      execute() { cn_member execute loop > "$work/exec.out" 2>&1; }
+      issues_titled() { gh_count 'st.issues.filter(i=>i.title==="'"$1"'").length'; }
+      # item TITLE: the newest issue with that title, as a number.
+      item() { gh_count 'Math.max(0,...st.issues.filter(i=>i.title==="'"$1"'").map(i=>i.number))'; }
+      labels_of() { gh_count 'st.issues.find(i=>i.number==='"$1"').labels.join(" ")'; }
+      state_of() { gh_count 'st.issues.find(i=>i.number==='"$1"').state'; }
+      comments_of() { gh_count 'st.issues.find(i=>i.number==='"$1"').comments.join("\n----\n")'; }
+      pull_after() { (cd "$member" && git -c push.negotiate=false pull -q --ff-only origin main) || fail "tasks: pull"; }
+
+      cn_member tasks list > "$work/list.out" 2>&1 || fail "tasks 1: tasks list: $(cat "$work/list.out")"
+      for t in hello/hello-fold hello/hello-agent engine/implement-request; do
+        grep -q "^$t " "$work/list.out" || fail "tasks 1: tasks list does not name $t: $(cat "$work/list.out")"
+      done
+      cn_member check world > "$work/world.out" 2>&1 || fail "tasks 1: check world: $(cat "$work/world.out")"
+      # The check reads the repo's own declarations, never the vendored mount.
+      decl=$member/.claudinite/shared/packs/hello/tasks/hello-fold/task.json
+      cp "$decl" "$work/task.json"
+      mkdir -p "$member/.claudinite/local/packs/probe/tasks/probe"
+      sed 's/"expected_outcome"/"expected_outcom"/' "$decl" > "$member/.claudinite/local/packs/probe/tasks/probe/task.json"
+      if cn_member check world > "$work/world.out" 2>&1; then fail "tasks 1: check world passed a misspelt expected_outcome"; fi
+      grep -q "task-declaration-shape .claudinite/local/packs/probe/tasks/probe/task.json" "$work/world.out" \
+        || fail "tasks 1: task-declaration-shape did not fail it: $(cat "$work/world.out")"
+      rm -r "$member/.claudinite/local"
+      step "tasks 1: tasks list names the three tasks; check world passes, and task-declaration-shape fails a misspelt field"
+
+      sched run > "$work/sched.out" 2>&1 || fail "tasks 2: schedule run: $(cat "$work/sched.out")"
+      [ "$(gh_count 'st.issues.length')" = 0 ] || fail "tasks 2: a quiet repo filed an item: $(gh_state)"
+      [ "$(gate)" = false ] || fail "tasks 2: the gate on a quiet repo is $(gate): $(cat "$work/sched.out")"
+      echo fold > "$member/FOLD_ME"
+      { gitc add FOLD_ME && gitc commit -q -m "a commit to fold"; } || fail "tasks 2: commit"
+      (cd "$member" && git -c push.negotiate=false push -q origin main) || fail "tasks 2: push"
+      sched run > "$work/sched.out" 2>&1 || fail "tasks 2: schedule run after a commit: $(cat "$work/sched.out")"
+      fold="[claudinite-work] hello/hello-fold"
+      [ "$(issues_titled "$fold")" = 1 ] || fail "tasks 2: no hello-fold item: $(cat "$work/sched.out") $(gh_state)"
+      n=$(item "$fold")
+      case " $(labels_of "$n") " in *" task:status:waiting-for-executor "*) ;; *) fail "tasks 2: #$n is not ready: $(labels_of "$n")" ;; esac
+      [ "$(gate)" = true ] || fail "tasks 2: the gate after filing is $(gate)"
+      sched run > "$work/sched.out" 2>&1 || fail "tasks 2: second schedule run: $(cat "$work/sched.out")"
+      [ "$(issues_titled "$fold")" = 1 ] || fail "tasks 2: a second run filed another item: $(gh_state)"
+      step "tasks 2: a quiet repo files nothing; a commit files #$n ready and opens the gate; a second run files nothing"
+
+      ctl /_stub/dispatch '{"conclusion":"success"}'
+      HELLO_FOLD_SECRET=rehearsal-secret
+      export HELLO_FOLD_SECRET
+      execute || fail "tasks 3: execute loop: $(cat "$work/exec.out")"
+      grep -q "HELLO_FOLD_SECRET handed over" "$work/exec.out" || fail "tasks 3: the worker's sdk line is missing: $(cat "$work/exec.out")"
+      grep -q "CCR_ROUTINE_TOKEN withheld" "$work/exec.out" || fail "tasks 3: the routine token reached the worker: $(cat "$work/exec.out")"
+      grep -q "sdk hello/hello-fold: github.openPr #" "$work/exec.out" || fail "tasks 3: no openPr breadcrumb: $(cat "$work/exec.out")"
+      pr=$(gh_count 'st.pulls.length ? st.pulls[st.pulls.length-1].number : 0')
+      head_ref=$(gh_count 'st.pulls.find(p=>p.number==='"$pr"').head')
+      case $head_ref in claudinite/hello/hello-fold/*-*) ;; *) fail "tasks 3: PR #$pr is from $head_ref" ;; esac
+      [ "$(gh_count 'st.pulls.find(p=>p.number==='"$pr"').state')" = closed ] || fail "tasks 3: PR #$pr did not land: $(cat "$work/exec.out")"
+      git --git-dir "$origin" show main:HELLO_FOLD.json > /dev/null 2>&1 || fail "tasks 3: main holds no HELLO_FOLD.json"
+      head_sha=$(gh_count 'st.pulls.find(p=>p.number==='"$pr"').head_sha')
+      msg=$(git --git-dir "$origin" log -1 --format=%B "$head_sha")
+      case $msg in *"Claudinite-Task: hello/hello-fold"*"Claudinite-Automerge-Policy: hello-generated"*) ;; *) fail "tasks 3: the PR head's trailers: $msg" ;; esac
+      msg=$(git --git-dir "$origin" log -1 --format=%B main)
+      case $msg in *"Claudinite-Task: hello/hello-fold"*) ;; *) fail "tasks 3: the landed commit's trailer: $msg" ;; esac
+      [ "$(state_of "$n")" = closed ] || fail "tasks 3: #$n is still open: $(cat "$work/exec.out")"
+      case " $(labels_of "$n") " in *" task:status:done "*) ;; *) fail "tasks 3: #$n closed as $(labels_of "$n")" ;; esac
+      grep -q "^- #$n: " "$work/exec.out" || fail "tasks 3: no settled line for #$n: $(cat "$work/exec.out")"
+      comments_of "$n" | grep -q "claudinite-task-exec v1 hello/hello-fold \[#$n\] success" || fail "tasks 3: no execution record on #$n: $(comments_of "$n")"
+      (cd "$member" && git fetch -q origin main "$head_sha" && git checkout -q -b fold-probe "$head_sha") || fail "tasks 3: checking out the PR head"
+      cn_member check --tag work > "$work/work.out" 2>&1 || fail "tasks 3: check --tag work on the branch: $(cat "$work/work.out")"
+      echo planted >> "$member/README.md"
+      { gitc add README.md && gitc commit -q -m "plant a README edit"; } || fail "tasks 3: plant"
+      if cn_member check --tag work > "$work/work.out" 2>&1; then fail "tasks 3: check --tag work passed a README edit under hello-generated"; fi
+      grep -q "automerge-policy-scope" "$work/work.out" || fail "tasks 3: automerge-policy-scope did not fail it: $(cat "$work/work.out")"
+      (cd "$member" && git checkout -q main && git branch -q -D fold-probe) || fail "tasks 3: back to main"
+      pull_after
+      step "tasks 3: #$n ran the worker, landed PR #$pr from $head_ref with both trailers and converged done; automerge-policy-scope holds the branch to the policy"
+
+      unset HELLO_FOLD_SECRET
+      cn_member work create hello/hello-fold --qualifier secret > "$work/create.out" 2>&1 || fail "tasks 4: work create: $(cat "$work/create.out")"
+      n=$(item "[claudinite-work] hello/hello-fold secret")
+      [ "$n" -gt 0 ] || fail "tasks 4: work create filed nothing: $(cat "$work/create.out") $(gh_state)"
+      execute || fail "tasks 4: execute loop: $(cat "$work/exec.out")"
+      case " $(labels_of "$n") " in *" task:status:needs-human-action "*) ;; *) fail "tasks 4: #$n is $(labels_of "$n"): $(cat "$work/exec.out")" ;; esac
+      comments_of "$n" | grep -q HELLO_FOLD_SECRET || fail "tasks 4: the park does not name the secret: $(comments_of "$n")"
+      step "tasks 4: an unset declared secret parks #$n action, naming it"
+
+      lic_before=$(curl -sS --fail "$lic/_stub/log" | grep -c item-grant || :)
+      cn_member work create hello/hello-agent --qualifier probe > "$work/create.out" 2>&1 || fail "tasks 5: work create: $(cat "$work/create.out")"
+      n=$(item "[claudinite-work] hello/hello-agent probe")
+      [ "$n" -gt 0 ] || fail "tasks 5: work create filed nothing: $(cat "$work/create.out")"
+      execute || fail "tasks 5: execute loop: $(cat "$work/exec.out")"
+      [ "$(curl -sS --fail "$lic/_stub/log" | grep -c item-grant)" -gt "$lic_before" ] || fail "tasks 5: no grant was requested: $(cat "$work/exec.out")"
+      comments_of "$n" | grep -q "claudinite-grant" || fail "tasks 5: no grant comment on #$n: $(comments_of "$n")"
+      gh_count 'st.fires.map(f=>f.trigger+" "+f.text).join("\n")' | grep -q "^trig_hello Claudinite work item: acme/member#$n. Invocation nonce: $n-" \
+        || fail "tasks 5: the fire: $(gh_count 'JSON.stringify(st.fires)') $(cat "$work/exec.out")"
+      tries=0
+      until [ "$(gh_count 'st.agent.length')" -ge 1 ]; do
+        tries=$((tries + 1))
+        [ "$tries" -le 300 ] || fail "tasks 5: the stub agent never finished"
+        sleep 0.1
+      done
+      [ "$(gh_count 'st.agent[0].exit')" = 0 ] || fail "tasks 5: the stub agent: $(gh_count 'st.agent[0].output')"
+      gh_count 'st.agent[0].output' | grep -q "is this session's" || fail "tasks 5: validate: $(gh_count 'st.agent[0].output')"
+      gh_count 'st.agent[0].output' | grep -q "the transition below is yours to execute" || fail "tasks 5: converge: $(gh_count 'st.agent[0].output')"
+      [ "$(state_of "$n")" = closed ] || fail "tasks 5: #$n is still open: $(labels_of "$n")"
+      case " $(labels_of "$n") " in *" task:status:done "*) ;; *) fail "tasks 5: #$n closed as $(labels_of "$n")" ;; esac
+      ctl /_stub/routine '{"down":true}'
+      cn_member work create hello/hello-agent --qualifier down > "$work/create.out" 2>&1 || fail "tasks 5: work create: $(cat "$work/create.out")"
+      n=$(item "[claudinite-work] hello/hello-agent down")
+      execute || fail "tasks 5: execute loop with the routine down: $(cat "$work/exec.out")"
+      ctl /_stub/routine '{"down":false}'
+      case " $(labels_of "$n") " in *" task:status:needs-human-action "*) ;; *) fail "tasks 5: with the routine down #$n is $(labels_of "$n"): $(cat "$work/exec.out")" ;; esac
+      step "tasks 5: the hand-off granted, fired and validated; the stub agent converged the item; a routine down parks action"
+
+      licctl '{"state":"degraded"}'
+      HELLO_FOLD_SECRET=rehearsal-secret
+      export HELLO_FOLD_SECRET
+      cn_member work create hello/hello-agent --qualifier degraded > "$work/create.out" 2>&1 || fail "tasks 6: work create: $(cat "$work/create.out")"
+      agentic=$(item "[claudinite-work] hello/hello-agent degraded")
+      cn_member work create hello/hello-fold --qualifier degraded > "$work/create.out" 2>&1 || fail "tasks 6: work create: $(cat "$work/create.out")"
+      folded=$(item "[claudinite-work] hello/hello-fold degraded")
+      execute || fail "tasks 6: execute loop: $(cat "$work/exec.out")"
+      licctl '{"state":"ok"}'
+      case " $(labels_of "$agentic") " in *" task:status:needs-human-action "*) ;; *) fail "tasks 6: degraded, #$agentic is $(labels_of "$agentic"): $(cat "$work/exec.out")" ;; esac
+      comments_of "$agentic" | grep -qi "license" || fail "tasks 6: #$agentic's park carries no license notice: $(comments_of "$agentic")"
+      [ "$(state_of "$folded")" = closed ] || fail "tasks 6: degraded, hello-fold #$folded did not run: $(labels_of "$folded") $(cat "$work/exec.out")"
+      pull_after
+      step "tasks 6: a degraded key parks the agentic #$agentic with the notice; hello-fold #$folded still ran"
+
+      cn_member work create hello/hello-fold --qualifier race > "$work/create.out" 2>&1 || fail "tasks 7: work create: $(cat "$work/create.out")"
+      n=$(item "[claudinite-work] hello/hello-fold race")
+      at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+      curl -sS --fail -X POST -H "Authorization: Bearer rehearsal-token" -H 'Content-Type: application/json' \
+        -d "{\"body\":\"<!-- claudinite-claim -->\\nClaimed by executor \`exec-a\` at $at.\"}" "$gh/repos/acme/member/issues/$n/comments" > /dev/null \
+        || fail "tasks 7: exec-a's claim"
+      CLAUDINITE_EXECUTOR_ID=exec-b execute || fail "tasks 7: execute loop as exec-b: $(cat "$work/exec.out")"
+      [ "$(gh_count 'st.issues.find(i=>i.number==='"$n"').comments.filter(c=>c.includes("executor \u0060exec-b\u0060")&&c.includes("claudinite-episode")).length')" = 1 ] || fail "tasks 7: exec-b did not strike its claim: $(comments_of "$n")"
+      [ "$(state_of "$n")" = open ] || fail "tasks 7: exec-b ran #$n past exec-a's earlier claim"
+      # exec-b left the item running, which is exec-a's to finish; exec-a never heartbeats.
+      case " $(labels_of "$n") " in *" task:status:running-executor "*) ;; *) fail "tasks 7: #$n is $(labels_of "$n") after the lost claim" ;; esac
+      later=$(date -u -d '+61 minutes' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -v+61M +%Y-%m-%dT%H:%M:%SZ)
+      CLAUDINITE_NOW=$later sched run > "$work/sched.out" 2>&1 || fail "tasks 7: schedule run past the leash: $(cat "$work/sched.out")"
+      case " $(labels_of "$n") " in *" task:status:waiting-for-executor "*) ;; *) fail "tasks 7: the leash left #$n $(labels_of "$n"): $(cat "$work/sched.out")" ;; esac
+      comments_of "$n" | grep -q "Reclaimed" || fail "tasks 7: no reclaim comment on #$n: $(comments_of "$n")"
+      step "tasks 7: exec-b lost #$n to exec-a's earlier claim and struck itself; the leash reclaimed the silent claim"
+
+      calls=$(gh_count 'st.calls.length')
+      CLAUDINITE_TASKS_SUSPEND_ALL=1 sched run > "$work/sched.out" 2>&1 || fail "tasks 8: suspended schedule run: $(cat "$work/sched.out")"
+      CLAUDINITE_TASKS_SUSPEND_ALL=1 execute || fail "tasks 8: suspended execute loop: $(cat "$work/exec.out")"
+      [ "$(gh_count 'st.calls.length')" = "$calls" ] || fail "tasks 8: a suspended run reached GitHub: $(cat "$work/sched.out")"
+      grep -q "the queue is held" "$work/sched.out" || fail "tasks 8: no held notice: $(cat "$work/sched.out")"
+      step "tasks 8: CLAUDINITE_TASKS_SUSPEND_ALL stops both runs before any call"
+
+      chain="Claudinite executor chain failed repeatedly"
+      if (cd "$member" && GITHUB_TOKEN=rehearsal-token CLAUDINITE_CONTINUATION_DEPTH=3 .claudinite/bin/cn execute continue) > "$work/cont.out" 2>&1; then
+        fail "tasks 9: execute continue at depth 3 exited zero: $(cat "$work/cont.out")"
+      fi
+      [ "$(issues_titled "$chain")" = 1 ] || fail "tasks 9: no chain-failure issue: $(cat "$work/cont.out")"
+      failure="Claudinite scheduler run failed"
+      sched report-failure > "$work/fail.out" 2>&1 || fail "tasks 9: report-failure: $(cat "$work/fail.out")"
+      sched report-failure > "$work/fail.out" 2>&1 || fail "tasks 9: report-failure again: $(cat "$work/fail.out")"
+      grep -q "^- commented on #" "$work/fail.out" || fail "tasks 9: the second report did not comment: $(cat "$work/fail.out")"
+      [ "$(issues_titled "$failure")" = 1 ] || fail "tasks 9: report-failure filed $(issues_titled "$failure") issues: $(gh_state)"
+      fn=$(item "$failure")
+      [ "$(gh_count 'st.issues.find(i=>i.number==='"$fn"').comments.length')" = 1 ] || fail "tasks 9: #$fn carries $(gh_count 'st.issues.find(i=>i.number==='"$fn"').comments.length') comments"
+      step "tasks 9: the chain stops at depth 3 on one issue; report-failure files once and comments after"
+
+      mv "$member/.github/workflows/claudinite-executor.yml" "$work/executor.yml"
+      if verify_out=$(cd "$member" && sh .claudinite/launch verify 2>&1); then fail "tasks 10: verify passed without the executor workflow"; fi
+      case $verify_out in *"break member-workflows .github/workflows/claudinite-executor.yml"*) ;; *) fail "tasks 10: verify: $verify_out" ;; esac
+      mv "$work/executor.yml" "$member/.github/workflows/claudinite-executor.yml"
+      fresh=$work/tasks-init
+      mkdir -p "$fresh"
+      (cd "$fresh" && "$npx/.bin/cn" init --packs hello --channel canary --package "$package" --repo "$fresh") > "$work/init.out" 2>&1 \
+        || fail "tasks 10: init: $(cat "$work/init.out")"
+      for f in claudinite-update claudinite-ci claudinite-scheduler claudinite-executor; do
+        [ -f "$fresh/.github/workflows/$f.yml" ] || fail "tasks 10: init wrote no $f.yml"
+      done
+      for f in tasks.GENERATED.json dashboard.GENERATED.json; do
+        [ -f "$fresh/.claudinite/flat/$f" ] || fail "tasks 10: init wrote no $f"
+      done
+      sed 's/once a day after any commit/once a day after a commit/' "$work/task.json" > "$decl"
+      if cn_member check world > "$work/world.out" 2>&1; then fail "tasks 10: check world passed a stale flat file"; fi
+      grep -q "flat-declarations-current" "$work/world.out" || fail "tasks 10: flat-declarations-current did not fail it: $(cat "$work/world.out")"
+      cn_member tasks flat --write > "$work/flat.out" 2>&1 || fail "tasks 10: tasks flat --write: $(cat "$work/flat.out")"
+      cn_member check world > "$work/world.out" 2>&1 || fail "tasks 10: check world after tasks flat --write: $(cat "$work/world.out")"
+      step "tasks 10: verify breaks without the executor; init writes four workflows and both flat files; flat-declarations-current tracks a task edit"
       ;;
     license)
       step "license: a public member on $version with a GitHub origin, ghstub and licstub"

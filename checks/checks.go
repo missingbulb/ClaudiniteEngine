@@ -183,6 +183,9 @@ type Outcome struct {
 	Calls map[string]int
 	// Stderr is the tail of the coded child's stderr.
 	Stderr string
+	// Skipped are the declared and built-in checks a git fault kept from
+	// running.
+	Skipped []string
 }
 
 // Blocking reports whether any finding blocks.
@@ -206,6 +209,7 @@ func (s Service) RunAll(repo, event string, sel declared.Selection, wait time.Du
 		var fs []findings.Finding
 		fs, n = set.Run(sel, start, stderr)
 		out.Findings = append(out.Findings, fs...)
+		out.Skipped = set.Skipped
 		cfg = set.Config
 	}
 	out.DeclaredCrumb = fmt.Sprintf("[cn] declared %d checks %dms", n, time.Since(start).Milliseconds())

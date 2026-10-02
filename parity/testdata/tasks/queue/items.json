@@ -1,0 +1,870 @@
+{
+  "expect": {
+    "anchors": [
+      {
+        "next": "2026-09-17T00:00:00.000Z",
+        "period": 86400000
+      },
+      {
+        "next": "2026-02-01T00:00:00.000Z",
+        "period": 86400000
+      },
+      {
+        "next": "2026-03-01T00:00:00.000Z",
+        "period": 86400000
+      },
+      {
+        "next": "2026-09-14T00:00:00.000Z",
+        "period": 86400000
+      },
+      {
+        "next": "2026-09-20T00:00:00.000Z",
+        "period": 604800000
+      },
+      {
+        "next": "2026-02-01T00:00:00.000Z",
+        "period": 604800000
+      },
+      {
+        "next": "2026-03-01T00:00:00.000Z",
+        "period": 604800000
+      },
+      {
+        "next": "2026-09-20T00:00:00.000Z",
+        "period": 604800000
+      },
+      {
+        "next": "2026-10-01T00:00:00.000Z",
+        "period": 2678400000
+      },
+      {
+        "next": "2026-02-01T00:00:00.000Z",
+        "period": 2678400000
+      },
+      {
+        "next": "2026-03-01T00:00:00.000Z",
+        "period": 2678400000
+      },
+      {
+        "next": "2026-10-01T00:00:00.000Z",
+        "period": 2678400000
+      },
+      {
+        "next": null,
+        "period": null
+      },
+      {
+        "next": null,
+        "period": null
+      },
+      {
+        "next": null,
+        "period": null
+      },
+      {
+        "next": null,
+        "period": null
+      }
+    ],
+    "beats": [
+      "\u003c!-- claudinite-heartbeat --\u003e\nStill working: executor `run-1`, 15 minute(s) in, at 2026-09-16T10:00:00.000Z.",
+      "\u003c!-- claudinite-heartbeat --\u003e\nStill working: session-x — 3/9 done, at t.",
+      "\u003c!-- claudinite-heartbeat --\u003e\nStill working — n, at t."
+    ],
+    "liveness": [
+      {
+        "live": null,
+        "progress": null
+      },
+      {
+        "live": "2026-09-16T10:00:00.000Z",
+        "progress": null
+      },
+      {
+        "live": "2026-09-16T10:15:00.000Z",
+        "progress": "2026-09-16T10:15:00.000Z"
+      },
+      {
+        "live": "2026-09-16T11:30:00.000Z",
+        "progress": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "live": "2026-09-16T10:00:00.000Z",
+        "progress": "2026-09-16T10:00:00.000Z"
+      }
+    ],
+    "picks": [
+      [
+        2,
+        3,
+        1
+      ],
+      [
+        3
+      ],
+      [
+        3
+      ],
+      [
+        1,
+        2
+      ],
+      [
+        8
+      ]
+    ],
+    "progress": [
+      "[claudinite-work] body\n\n### Progress\n\n- - step one\n",
+      "intro\n\n### Progress\n\n- a\n- - b\n\n### Other\nx\n"
+    ],
+    "records": [
+      {
+        "cost": null,
+        "exec": {
+          "pack": "p",
+          "slotId": "#12",
+          "status": "success",
+          "task": "t"
+        },
+        "run": null
+      },
+      {
+        "cost": null,
+        "exec": {
+          "pack": "p",
+          "slotId": "#12",
+          "status": "failed",
+          "task": "t"
+        },
+        "run": null
+      },
+      {
+        "cost": null,
+        "exec": null,
+        "run": null
+      },
+      {
+        "cost": null,
+        "exec": null,
+        "run": {
+          "outcome": "skipped",
+          "pack": "p",
+          "slotId": "d2026-08-06",
+          "task": "t"
+        }
+      },
+      {
+        "cost": null,
+        "exec": null,
+        "run": {
+          "outcome": "agent",
+          "pack": "p",
+          "slotId": "d1",
+          "task": "t"
+        }
+      },
+      {
+        "cost": null,
+        "exec": null,
+        "run": null
+      },
+      {
+        "cost": {
+          "apiCalls": 40,
+          "phaseMs": {
+            "claim": 3,
+            "code-work": 900,
+            "pick": 12
+          },
+          "runId": "123",
+          "workflow": "executor"
+        },
+        "exec": null,
+        "run": null
+      },
+      {
+        "cost": {
+          "apiCalls": null,
+          "phaseMs": {
+            "list": 1
+          },
+          "runId": "9",
+          "workflow": "scheduler"
+        },
+        "exec": null,
+        "run": null
+      },
+      {
+        "cost": null,
+        "exec": null,
+        "run": null
+      },
+      {
+        "cost": {
+          "apiCalls": null,
+          "phaseMs": {},
+          "runId": "unknown",
+          "workflow": "scheduler"
+        },
+        "exec": null,
+        "run": null
+      },
+      {
+        "cost": null,
+        "exec": null,
+        "run": null
+      }
+    ],
+    "releasable": [
+      true,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false
+    ],
+    "rendered": {
+      "cost": [
+        "claudinite-run-cost v1 executor [77] calls=12 pick=1 code-work=1000 converge=5",
+        "claudinite-run-cost v1 scheduler [unknown]"
+      ],
+      "exec": [
+        "claudinite-task-exec v1 p/t [#4] success",
+        "claudinite-task-exec v1 p/t [unknown] invalid"
+      ]
+    }
+  },
+  "input": {
+    "picks": [
+      {
+        "open": [
+          {
+            "number": 1,
+            "title": "[claudinite-work] p/a",
+            "labels": [
+              {
+                "name": "task:status:waiting-for-executor"
+              }
+            ],
+            "body": "",
+            "state": "open",
+            "created_at": "2026-09-01T00:00:00Z",
+            "updated_at": "2026-09-01T00:00:00Z"
+          },
+          {
+            "number": 2,
+            "title": "[claudinite-work] p/b",
+            "labels": [
+              {
+                "name": "task:status:waiting-for-executor"
+              },
+              {
+                "name": "task:urgent"
+              }
+            ],
+            "body": "",
+            "state": "open",
+            "created_at": "2026-09-01T00:00:00Z",
+            "updated_at": "2026-09-01T00:00:00Z"
+          },
+          {
+            "number": 3,
+            "title": "[claudinite-work] p/c",
+            "labels": [
+              {
+                "name": "task:status:waiting-for-executor"
+              }
+            ],
+            "body": "",
+            "state": "open",
+            "created_at": "2026-09-01T00:00:00Z",
+            "updated_at": "2026-09-01T00:00:00Z"
+          }
+        ],
+        "draws": [
+          0.9,
+          0.5,
+          0.1
+        ]
+      },
+      {
+        "open": [
+          {
+            "number": 1,
+            "title": "[claudinite-work] p/a",
+            "labels": [
+              {
+                "name": "task:status:waiting-for-executor"
+              }
+            ],
+            "body": "",
+            "state": "open",
+            "created_at": "2026-09-01T00:00:00Z",
+            "updated_at": "2026-09-01T00:00:00Z"
+          },
+          {
+            "number": 2,
+            "title": "[claudinite-work] p/a",
+            "labels": [
+              {
+                "name": "task:status:running-executor"
+              }
+            ],
+            "body": "",
+            "state": "open",
+            "created_at": "2026-09-01T00:00:00Z",
+            "updated_at": "2026-09-01T00:00:00Z"
+          },
+          {
+            "number": 3,
+            "title": "[claudinite-work] p/a probe",
+            "labels": [
+              {
+                "name": "task:status:waiting-for-executor"
+              }
+            ],
+            "body": "",
+            "state": "open",
+            "created_at": "2026-09-01T00:00:00Z",
+            "updated_at": "2026-09-01T00:00:00Z"
+          },
+          {
+            "number": 4,
+            "title": "[claudinite-work] p/b",
+            "labels": [
+              {
+                "name": "task:ready"
+              }
+            ],
+            "body": "",
+            "state": "open",
+            "created_at": "2026-09-01T00:00:00Z",
+            "updated_at": "2026-09-01T00:00:00Z"
+          },
+          {
+            "number": 5,
+            "title": "[claudinite-work] p/b",
+            "labels": [
+              {
+                "name": "task:agent"
+              }
+            ],
+            "body": "",
+            "state": "open",
+            "created_at": "2026-09-01T00:00:00Z",
+            "updated_at": "2026-09-01T00:00:00Z"
+          }
+        ],
+        "draws": [
+          0.3,
+          0.2,
+          0.1,
+          0.4,
+          0.5
+        ]
+      },
+      {
+        "open": [
+          {
+            "number": 1,
+            "title": "[claudinite-work] p/down",
+            "labels": [
+              {
+                "name": "task:status:waiting-for-executor"
+              }
+            ],
+            "body": "",
+            "state": "open",
+            "created_at": "2026-09-01T00:00:00Z",
+            "updated_at": "2026-09-01T00:00:00Z"
+          },
+          {
+            "number": 2,
+            "title": "[claudinite-work] p/up",
+            "labels": [
+              {
+                "name": "task:status:running-agent"
+              }
+            ],
+            "body": "",
+            "state": "open",
+            "created_at": "2026-09-01T00:00:00Z",
+            "updated_at": "2026-09-01T00:00:00Z"
+          },
+          {
+            "number": 3,
+            "title": "[claudinite-work] p/down2",
+            "labels": [
+              {
+                "name": "task:status:waiting-for-executor"
+              }
+            ],
+            "body": "",
+            "state": "open",
+            "created_at": "2026-09-01T00:00:00Z",
+            "updated_at": "2026-09-01T00:00:00Z"
+          },
+          {
+            "number": 4,
+            "title": "[claudinite-work] p/up2",
+            "labels": [
+              {
+                "name": "task:status:needs-human-failure"
+              }
+            ],
+            "body": "",
+            "state": "open",
+            "created_at": "2026-09-01T00:00:00Z",
+            "updated_at": "2026-09-01T00:00:00Z"
+          }
+        ],
+        "draws": [
+          0.1,
+          0.2,
+          0.3,
+          0.4
+        ],
+        "taskAfter": {
+          "p/down": [
+            "p/up"
+          ],
+          "p/down2": [
+            "p/up2"
+          ]
+        },
+        "scheduled": {
+          "p/down": true,
+          "p/up": true,
+          "p/down2": true,
+          "p/up2": true
+        }
+      },
+      {
+        "open": [
+          {
+            "number": 1,
+            "title": "[claudinite-work] p/down",
+            "labels": [
+              {
+                "name": "task:status:waiting-for-executor"
+              }
+            ],
+            "body": "",
+            "state": "open",
+            "created_at": "2026-09-01T00:00:00Z",
+            "updated_at": "2026-09-01T00:00:00Z"
+          },
+          {
+            "number": 2,
+            "title": "[claudinite-work] p/up",
+            "labels": [
+              {
+                "name": "task:status:waiting-for-executor"
+              }
+            ],
+            "body": "",
+            "state": "open",
+            "created_at": "2026-09-01T00:00:00Z",
+            "updated_at": "2026-09-01T00:00:00Z"
+          }
+        ],
+        "draws": [
+          0.1,
+          0.2
+        ],
+        "taskAfter": {
+          "p/down": [
+            "p/up"
+          ]
+        },
+        "scheduled": {
+          "p/down": false,
+          "p/up": true
+        }
+      },
+      {
+        "open": [
+          {
+            "number": 7,
+            "title": "[claudinite-work] p/a",
+            "labels": [
+              {
+                "name": "task:status:needs-human-action"
+              }
+            ],
+            "body": "",
+            "state": "open",
+            "created_at": "2026-09-01T00:00:00Z",
+            "updated_at": "2026-09-01T00:00:00Z"
+          },
+          {
+            "number": 8,
+            "title": "Marked issue",
+            "labels": [
+              {
+                "name": "task:status:waiting-for-executor"
+              },
+              {
+                "name": "claude-task"
+              }
+            ],
+            "body": "<!-- claudinite-item -->\npacks/x/tasks/y/task.md\n<!-- /claudinite-item -->",
+            "state": "open",
+            "created_at": "2026-09-01T00:00:00Z",
+            "updated_at": "2026-09-01T00:00:00Z"
+          }
+        ],
+        "draws": [
+          0.5,
+          0.5
+        ]
+      }
+    ],
+    "releasable": [
+      {
+        "item": {
+          "number": 1,
+          "title": "[claudinite-work] p/a",
+          "labels": [
+            {
+              "name": "task:status:blocked"
+            }
+          ],
+          "body": "Blocked-by: #5, #6",
+          "state": "open",
+          "created_at": "2026-09-01T00:00:00Z",
+          "updated_at": "2026-09-01T00:00:00Z"
+        },
+        "states": {
+          "5": "closed",
+          "6": "closed"
+        },
+        "now": "2026-09-16T10:00:00Z"
+      },
+      {
+        "item": {
+          "number": 1,
+          "title": "[claudinite-work] p/a",
+          "labels": [
+            {
+              "name": "task:status:blocked"
+            }
+          ],
+          "body": "Blocked-by: #5, #6",
+          "state": "open",
+          "created_at": "2026-09-01T00:00:00Z",
+          "updated_at": "2026-09-01T00:00:00Z"
+        },
+        "states": {
+          "5": "closed"
+        },
+        "now": "2026-09-16T10:00:00Z"
+      },
+      {
+        "item": {
+          "number": 1,
+          "title": "[claudinite-work] p/a",
+          "labels": [
+            {
+              "name": "task:blocked"
+            }
+          ],
+          "body": "Not-before: 2026-09-16T11:00:00Z",
+          "state": "open",
+          "created_at": "2026-09-01T00:00:00Z",
+          "updated_at": "2026-09-01T00:00:00Z"
+        },
+        "states": {},
+        "now": "2026-09-16T10:00:00Z"
+      },
+      {
+        "item": {
+          "number": 1,
+          "title": "[claudinite-work] p/a",
+          "labels": [
+            {
+              "name": "task:status:blocked"
+            }
+          ],
+          "body": "Not-before: 2026-09-16T09:00:00.000Z",
+          "state": "open",
+          "created_at": "2026-09-01T00:00:00Z",
+          "updated_at": "2026-09-01T00:00:00Z"
+        },
+        "states": {},
+        "now": "2026-09-16T10:00:00Z"
+      },
+      {
+        "item": {
+          "number": 1,
+          "title": "[claudinite-work] p/a",
+          "labels": [
+            {
+              "name": "task:status:blocked"
+            }
+          ],
+          "body": "Not-before: 2026-09-16",
+          "state": "open",
+          "created_at": "2026-09-01T00:00:00Z",
+          "updated_at": "2026-09-01T00:00:00Z"
+        },
+        "states": {},
+        "now": "2026-09-16T10:00:00Z"
+      },
+      {
+        "item": {
+          "number": 1,
+          "title": "[claudinite-work] p/a",
+          "labels": [
+            {
+              "name": "task:status:blocked"
+            }
+          ],
+          "body": "Not-before: soon",
+          "state": "open",
+          "created_at": "2026-09-01T00:00:00Z",
+          "updated_at": "2026-09-01T00:00:00Z"
+        },
+        "states": {},
+        "now": "2026-09-16T10:00:00Z"
+      },
+      {
+        "item": {
+          "number": 1,
+          "title": "[claudinite-work] p/a",
+          "labels": [
+            {
+              "name": "task:status:waiting-for-executor"
+            }
+          ],
+          "body": "",
+          "state": "open",
+          "created_at": "2026-09-01T00:00:00Z",
+          "updated_at": "2026-09-01T00:00:00Z"
+        },
+        "states": {},
+        "now": "2026-09-16T10:00:00Z"
+      },
+      {
+        "item": {
+          "number": 1,
+          "title": "[claudinite-work] p/a",
+          "labels": [
+            {
+              "name": "task:status:blocked"
+            }
+          ],
+          "body": "",
+          "state": "closed",
+          "created_at": "2026-09-01T00:00:00Z",
+          "updated_at": "2026-09-01T00:00:00Z"
+        },
+        "states": {},
+        "now": "2026-09-16T10:00:00Z"
+      }
+    ],
+    "liveness": [
+      [],
+      [
+        {
+          "id": 1,
+          "body": "<!-- claudinite-claim -->\nclaimed",
+          "created_at": "2026-09-16T10:00:00Z"
+        },
+        {
+          "id": 2,
+          "body": "a person speaks",
+          "created_at": "2026-09-16T12:00:00Z"
+        }
+      ],
+      [
+        {
+          "id": 1,
+          "body": "<!-- claudinite-claim -->\nclaimed",
+          "created_at": "2026-09-16T10:00:00Z"
+        },
+        {
+          "id": 2,
+          "body": "<!-- claudinite-claim -->\n<!-- claudinite-episode -->\nstruck",
+          "created_at": "2026-09-16T11:00:00Z"
+        },
+        {
+          "id": 3,
+          "body": "<!-- claudinite-heartbeat -->\nStill working: executor `e`, 15 minute(s) in, at x.",
+          "created_at": "2026-09-16T10:15:00Z"
+        }
+      ],
+      [
+        {
+          "id": 1,
+          "body": "<!-- claudinite-heartbeat -->\nStill working: s — 1/3 done, at 2026-09-16T10:00Z.",
+          "created_at": "2026-09-16T10:00:00Z"
+        },
+        {
+          "id": 2,
+          "body": "<!-- claudinite-heartbeat -->\nStill working: s — 2/3 done, at 2026-09-16T10:30Z.",
+          "created_at": "2026-09-16T10:30:00Z"
+        },
+        {
+          "id": 3,
+          "body": "<!-- claudinite-heartbeat -->\nStill working: s — 2/3 done, at 2026-09-16T11:00Z.",
+          "created_at": "2026-09-16T11:00:00Z"
+        },
+        {
+          "id": 4,
+          "body": "<!-- claudinite-heartbeat -->\nStill working: s — 2/3 done, at 2026-09-16T11:30Z.",
+          "created_at": "2026-09-16T11:30:00Z"
+        }
+      ],
+      [
+        {
+          "id": 1,
+          "body": "<!-- claudinite-heartbeat -->\nStill working",
+          "created_at": "2026-09-16T10:00:00Z"
+        },
+        {
+          "id": 2,
+          "body": "<!-- claudinite-heartbeat -->\nStill working",
+          "created_at": "bad"
+        }
+      ]
+    ],
+    "progress": [
+      {
+        "body": "[claudinite-work] body\n",
+        "line": "- step one"
+      },
+      {
+        "body": "intro\n\n### Progress\n- a\n\n### Other\nx\n",
+        "line": "- b"
+      }
+    ],
+    "beats": [
+      {
+        "executor": "run-1",
+        "at": "2026-09-16T10:00:00.000Z",
+        "minutes": 15
+      },
+      {
+        "session": "session-x",
+        "at": "t",
+        "note": "3/9 done"
+      },
+      {
+        "session": "",
+        "at": "t",
+        "note": "n"
+      }
+    ],
+    "records": [
+      "claudinite-task-exec v1 p/t [#12] success",
+      "2026-09-16T10:00:00.1234Z claudinite-task-exec v1 p/t [#12] failed",
+      "claudinite-task-exec v1 p/t [#12] exploded",
+      "claudinite-task-run v1 p/t [d2026-08-06] skipped",
+      "2026-01-01T00:00:00Z claudinite-task-run v1 p/t [d1] agent",
+      "x claudinite-task-run v1 p/t [d1] agent extra",
+      "claudinite-run-cost v1 executor [123] calls=40 pick=12 claim=3 code-work=900 nope=5",
+      "```\nclaudinite-run-cost v1 scheduler [9] list=1",
+      "claudinite-run-cost v1 fleet [9] list=1",
+      "claudinite-run-cost v1 scheduler [unknown]",
+      "claudinite-task-exec v2 p/t [#1] success"
+    ],
+    "renderExec": [
+      {
+        "pack": "p",
+        "task": "t",
+        "slotId": "#4",
+        "status": "success"
+      },
+      {
+        "pack": "p",
+        "task": "t",
+        "status": "invalid"
+      }
+    ],
+    "renderCost": [
+      {
+        "workflow": "executor",
+        "runId": "77",
+        "apiCalls": 12,
+        "phaseMs": {
+          "converge": 4.5,
+          "pick": 1.49,
+          "code-work": 1000
+        }
+      },
+      {
+        "workflow": "scheduler",
+        "phaseMs": {}
+      }
+    ],
+    "anchors": [
+      {
+        "frequency": "daily",
+        "now": "2026-09-16T10:30:00Z"
+      },
+      {
+        "frequency": "daily",
+        "now": "2026-01-31T23:59:59Z"
+      },
+      {
+        "frequency": "daily",
+        "now": "2026-02-28T00:00:00Z"
+      },
+      {
+        "frequency": "daily",
+        "now": "2026-09-13T00:00:00Z"
+      },
+      {
+        "frequency": "weekly",
+        "now": "2026-09-16T10:30:00Z"
+      },
+      {
+        "frequency": "weekly",
+        "now": "2026-01-31T23:59:59Z"
+      },
+      {
+        "frequency": "weekly",
+        "now": "2026-02-28T00:00:00Z"
+      },
+      {
+        "frequency": "weekly",
+        "now": "2026-09-13T00:00:00Z"
+      },
+      {
+        "frequency": "monthly",
+        "now": "2026-09-16T10:30:00Z"
+      },
+      {
+        "frequency": "monthly",
+        "now": "2026-01-31T23:59:59Z"
+      },
+      {
+        "frequency": "monthly",
+        "now": "2026-02-28T00:00:00Z"
+      },
+      {
+        "frequency": "monthly",
+        "now": "2026-09-13T00:00:00Z"
+      },
+      {
+        "frequency": "manual",
+        "now": "2026-09-16T10:30:00Z"
+      },
+      {
+        "frequency": "manual",
+        "now": "2026-01-31T23:59:59Z"
+      },
+      {
+        "frequency": "manual",
+        "now": "2026-02-28T00:00:00Z"
+      },
+      {
+        "frequency": "manual",
+        "now": "2026-09-13T00:00:00Z"
+      }
+    ]
+  }
+}

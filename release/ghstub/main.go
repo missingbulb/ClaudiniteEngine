@@ -8,7 +8,9 @@
 // its commits and check runs, and a claudinite-key repository_dispatch,
 // which it forwards to licstub (--licstub-ready, --licstub-ca) and keeps
 // licstub's answer as the key check run; the device flow pair; and an
-// Actions job's OIDC token at GET /_oidc/token (session.go).
+// Actions job's OIDC token at GET /_oidc/token (session.go). For the
+// task queue it answers the issues, repository and landing-lane calls
+// over an in-memory repository, and a routine's fire route (tasks.go).
 //
 // Control endpoints, unauthenticated, for the script driving it:
 //
@@ -18,7 +20,8 @@
 //	                      status completed by default)
 //	POST /_stub/dispatch  {"conclusion"}: every later workflow_dispatch
 //	                      adds a run with it on the ref's head; "" adds none
-//	GET  /_stub/state     pulls, issues, dispatches and the call log
+//	GET  /_stub/state     pulls, issues, dispatches, fires, agent runs,
+//	                      armed auto-merges and the call log
 //
 // It writes its base URL to --ready once listening and the certificate to
 // --ca-out.
@@ -43,6 +46,8 @@ import (
 	"time"
 
 	"github.com/missingbulb/ClaudiniteEngine/release/stubtls"
+	"github.com/missingbulb/ClaudiniteEngine/shared/workitem"
+	"github.com/missingbulb/ClaudiniteEngine/tasks/sim"
 )
 
 const bot = "github-actions[bot]"
@@ -56,13 +61,19 @@ type pull struct {
 	State  string   `json:"state"`
 	Merged bool     `json:"merged"`
 	Labels []string `json:"labels"`
+	// HeadSHA is the head a merge squashed, kept once the branch is gone.
+	HeadSHA string `json:"head_sha,omitempty"`
 }
 
+// issue is an issue as the state answers it.
 type issue struct {
-	Number int      `json:"number"`
-	Title  string   `json:"title"`
-	Body   string   `json:"body"`
-	Labels []string `json:"labels"`
+	Number      int      `json:"number"`
+	Title       string   `json:"title"`
+	Body        string   `json:"body"`
+	Labels      []string `json:"labels"`
+	State       string   `json:"state"`
+	StateReason string   `json:"state_reason"`
+	Comments    []string `json:"comments"`
 }
 
 type run struct {
@@ -86,23 +97,32 @@ type stubState struct {
 	Issues     []issue    `json:"issues"`
 	Dispatches []dispatch `json:"dispatches"`
 	Calls      []string   `json:"calls"`
+	Fires      []fire     `json:"fires"`
+	Agent      []agentRun `json:"agent"`
+	Armed      []string   `json:"armed"`
 }
 
 type stub struct {
-	mu       sync.Mutex
-	origin   string
-	repo     string
-	token    string
-	next     int
-	runID    int64
-	clock    time.Time
-	pulls    []*pull
-	issues   []*issue
-	runs     []run
-	onDisp   string
-	disps    []dispatch
-	calls    []string
-	comments map[int][]string
+	mu     sync.Mutex
+	origin string
+	repo   string
+	token  string
+	runID  int64
+	clock  time.Time
+	pulls  []*pull
+	runs   []run
+	onDisp string
+	disps  []dispatch
+	calls  []string
+	// gh holds the issues, pull requests' issue records among them, so the
+	// two share one numbering as GitHub's do.
+	gh       *sim.GitHub
+	simClock *sim.Clock
+	tasks    taskRoutes
+	// agent is the stub agent a routine fire runs; "" runs none.
+	agent string
+	// routineToken is the bearer the routine route accepts.
+	routineToken string
 
 	sess        session
 	checkRuns   map[string][]checkRun
@@ -121,8 +141,11 @@ func newStub(origin, repo, token string) *stub {
 	if err != nil {
 		panic(err)
 	}
-	return &stub{origin: origin, repo: repo, token: token, next: 1, clock: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), comments: map[int][]string{},
-		sess: defaultSession, checkRuns: map[string][]checkRun{}, rsaKey: k}
+	clock := sim.NewClock(time.Now())
+	gh := sim.NewGitHub(clock)
+	gh.Repo = repo
+	return &stub{origin: origin, repo: repo, token: token, clock: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+		gh: gh, simClock: clock, routineToken: routineToken, sess: defaultSession, checkRuns: map[string][]checkRun{}, rsaKey: k}
 }
 
 func (s *stub) git(args ...string) (string, error) {
@@ -155,10 +178,17 @@ func (s *stub) addRun(sha, event, status, conclusion string) {
 
 func (s *stub) wire(p *pull) map[string]any {
 	labels := []map[string]string{}
+	rec, _ := s.gh.Get(p.Number)
+	p.Labels = append([]string{}, rec.Labels...)
 	for _, l := range p.Labels {
 		labels = append(labels, map[string]string{"name": l})
 	}
+	var merged any
+	if rec.MergedAt != "" {
+		merged = rec.MergedAt
+	}
 	return map[string]any{"number": p.Number, "title": p.Title, "body": p.Body, "state": p.State, "merged": p.Merged,
+		"node_id": fmt.Sprintf("PR_%d", p.Number), "mergeable": p.State == "open", "merged_at": merged, "updated_at": rec.UpdatedAt,
 		"user": map[string]string{"login": bot}, "labels": labels,
 		"head": map[string]string{"ref": p.Head, "sha": s.headOf(p.Head)}, "base": map[string]string{"ref": p.Base}}
 }
@@ -203,8 +233,12 @@ func (s *stub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	str := func(k string) string { v, _ := body[k].(string); return v }
 
+	s.simClock.Set(time.Now())
 	if strings.HasPrefix(r.URL.Path, "/_stub/") {
 		s.control(w, r, str, body)
+		return
+	}
+	if s.serveTopLevel(w, r, body) {
 		return
 	}
 	if s.serveSession(w, r, body) {
@@ -260,8 +294,9 @@ func (s *stub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		reply(w, http.StatusNoContent, nil)
 	case r.Method == http.MethodGet && path == "/pulls":
 		out := []map[string]any{}
-		for _, p := range s.pulls {
-			if p.State == "open" {
+		state := r.URL.Query().Get("state")
+		for i := len(s.pulls) - 1; i >= 0 && pageOne(r); i-- {
+			if p := s.pulls[i]; state == "all" || p.State == "open" && state != "closed" || p.State == "closed" && state == "closed" {
 				out = append(out, s.wire(p))
 			}
 		}
@@ -271,8 +306,8 @@ func (s *stub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			fail(w, http.StatusUnprocessableEntity, "Validation Failed: head or base does not exist")
 			return
 		}
-		p := &pull{Number: s.next, Title: str("title"), Body: str("body"), Head: str("head"), Base: str("base"), State: "open", Labels: []string{}}
-		s.next++
+		n := s.gh.Seed(sim.StoredIssue{Issue: workitem.Issue{Title: str("title"), Body: str("body")}, PullRequest: true, Author: bot})
+		p := &pull{Number: n, Title: str("title"), Body: str("body"), Head: str("head"), Base: str("base"), State: "open", Labels: []string{}}
 		s.pulls = append(s.pulls, p)
 		s.calls = append(s.calls, fmt.Sprintf("create-pull %d %s", p.Number, p.Head))
 		reply(w, http.StatusCreated, s.wire(p))
@@ -284,11 +319,12 @@ func (s *stub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		if r.Method == http.MethodPatch && str("state") == "closed" {
 			p.State = "closed"
+			_ = s.gh.CloseIssue(p.Number, "")
 			s.calls = append(s.calls, fmt.Sprintf("close-pull %d", p.Number))
 		}
 		reply(w, 200, s.wire(p))
 	case r.Method == http.MethodPut && mergePath.MatchString(path):
-		s.merge(w, s.find(num(mergePath)), str("sha"), str("commit_title"), str("merge_method"))
+		s.merge(w, s.find(num(mergePath)), str("sha"), str("commit_title"), str("commit_message"), str("merge_method"))
 	case r.Method == http.MethodPost && labelsPath.MatchString(path):
 		n := num(labelsPath)
 		var labels []string
@@ -299,83 +335,67 @@ func (s *stub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
-		if p := s.find(n); p != nil {
-			p.Labels = append(p.Labels, labels...)
-		} else if is := s.findIssue(n); is != nil {
-			is.Labels = append(is.Labels, labels...)
-		} else {
-			fail(w, http.StatusNotFound, "Not Found")
-			return
+		for _, l := range labels {
+			if err := s.gh.AddLabel(n, l); err != nil {
+				fail(w, http.StatusNotFound, "Not Found")
+				return
+			}
 		}
 		s.calls = append(s.calls, fmt.Sprintf("label %d %s", n, strings.Join(labels, ",")))
 		reply(w, 200, []any{})
 	case r.Method == http.MethodPost && commentsPath.MatchString(path):
 		n := num(commentsPath)
-		s.comments[n] = append(s.comments[n], str("body"))
-		s.calls = append(s.calls, fmt.Sprintf("comment %d", n))
-		reply(w, http.StatusCreated, map[string]any{"id": len(s.calls)})
-	case r.Method == http.MethodGet && path == "/issues":
-		label := r.URL.Query().Get("labels")
-		out := []map[string]any{}
-		for _, is := range s.issues {
-			if label == "" || contains(is.Labels, label) {
-				out = append(out, map[string]any{"number": is.Number, "title": is.Title, "body": is.Body})
-			}
-		}
-		for _, p := range s.pulls {
-			if p.State == "open" && (label == "" || contains(p.Labels, label)) {
-				out = append(out, map[string]any{"number": p.Number, "title": p.Title, "body": p.Body, "pull_request": map[string]string{}})
-			}
-		}
-		reply(w, 200, out)
-	case r.Method == http.MethodPost && path == "/issues":
-		is := &issue{Number: s.next, Title: str("title"), Body: str("body"), Labels: []string{}}
-		if ls, ok := body["labels"].([]any); ok {
-			for _, l := range ls {
-				if v, ok := l.(string); ok {
-					is.Labels = append(is.Labels, v)
-				}
-			}
-		}
-		s.next++
-		s.issues = append(s.issues, is)
-		s.calls = append(s.calls, fmt.Sprintf("create-issue %d %s", is.Number, is.Title))
-		reply(w, http.StatusCreated, map[string]any{"number": is.Number})
-	case r.Method == http.MethodPatch && issuePath.MatchString(path):
-		is := s.findIssue(num(issuePath))
-		if is == nil {
+		id, err := s.gh.Comment(n, str("body"))
+		if err != nil {
 			fail(w, http.StatusNotFound, "Not Found")
 			return
 		}
-		is.Body = str("body")
-		s.calls = append(s.calls, fmt.Sprintf("update-issue %d", is.Number))
-		reply(w, 200, map[string]any{"number": is.Number})
+		s.calls = append(s.calls, fmt.Sprintf("comment %d", n))
+		reply(w, http.StatusCreated, map[string]any{"id": id})
+	case r.Method == http.MethodPost && path == "/issues":
+		var labels []string
+		if ls, ok := body["labels"].([]any); ok {
+			for _, l := range ls {
+				if v, ok := l.(string); ok {
+					labels = append(labels, v)
+				}
+			}
+		}
+		n, _ := s.gh.CreateIssue(str("title"), str("body"), labels)
+		s.calls = append(s.calls, fmt.Sprintf("create-issue %d %s", n, str("title")))
+		reply(w, http.StatusCreated, map[string]any{"number": n})
+	case r.Method == http.MethodPatch && issuePath.MatchString(path):
+		n := num(issuePath)
+		if _, ok := s.gh.Get(n); !ok {
+			fail(w, http.StatusNotFound, "Not Found")
+			return
+		}
+		if v, ok := body["body"].(string); ok {
+			_ = s.gh.SetIssueBody(n, v)
+		}
+		if v, ok := body["title"].(string); ok {
+			_ = s.gh.SetIssueTitle(n, v)
+		}
+		switch str("state") {
+		case "closed":
+			_ = s.gh.CloseIssue(n, str("state_reason"))
+		case "open":
+			_ = s.gh.ReopenIssue(n)
+		}
+		s.calls = append(s.calls, fmt.Sprintf("update-issue %d", n))
+		rec, _ := s.gh.Get(n)
+		reply(w, 200, wireIssue(rec))
 	default:
+		if s.serveTasks(w, r, path, body) {
+			return
+		}
 		fail(w, http.StatusNotFound, "ghstub does not answer "+r.Method+" "+path)
 	}
 }
 
-func contains(list []string, v string) bool {
-	for _, x := range list {
-		if x == v {
-			return true
-		}
-	}
-	return false
-}
-
-func (s *stub) findIssue(n int) *issue {
-	for _, is := range s.issues {
-		if is.Number == n {
-			return is
-		}
-	}
-	return nil
-}
-
 // merge squashes the PR's head onto its base in origin, refusing a closed
 // PR or a head that moved from sha, as GitHub does.
-func (s *stub) merge(w http.ResponseWriter, p *pull, sha, title, method string) {
+func (s *stub) merge(w http.ResponseWriter, p *pull, sha, title, message, method string) {
 	switch {
 	case p == nil:
 		fail(w, http.StatusNotFound, "Not Found")
@@ -391,10 +411,18 @@ func (s *stub) merge(w http.ResponseWriter, p *pull, sha, title, method string) 
 		return
 	}
 	base := s.headOf(p.Base)
+	p.HeadSHA = sha
+	if title == "" {
+		title = fmt.Sprintf("%s (#%d)", p.Title, p.Number)
+	}
+	msg := title
+	if message != "" {
+		msg += "\n\n" + message
+	}
 	tree, err := s.git("rev-parse", sha+"^{tree}")
 	if err == nil {
 		var commit string
-		commit, err = s.git("commit-tree", tree, "-p", base, "-m", title)
+		commit, err = s.git("commit-tree", tree, "-p", base, "-m", msg)
 		if err == nil {
 			_, err = s.git("update-ref", "refs/heads/"+p.Base, commit, base)
 		}
@@ -404,6 +432,7 @@ func (s *stub) merge(w http.ResponseWriter, p *pull, sha, title, method string) 
 		return
 	}
 	p.State, p.Merged = "closed", true
+	_ = s.gh.MarkMerged(p.Number)
 	s.calls = append(s.calls, fmt.Sprintf("merge %d %s", p.Number, sha))
 	reply(w, 200, map[string]any{"merged": true})
 }
@@ -432,14 +461,25 @@ func (s *stub) control(w http.ResponseWriter, r *http.Request, str func(string) 
 		s.onDisp = str("conclusion")
 		reply(w, 200, map[string]string{})
 	case "/_stub/state":
-		st := stubState{Dispatches: s.disps, Calls: s.calls}
+		st := stubState{Pulls: []pull{}, Issues: []issue{}, Dispatches: append([]dispatch{}, s.disps...), Calls: append([]string{}, s.calls...),
+			Fires: append([]fire{}, s.tasks.fires...), Agent: append([]agentRun{}, s.tasks.agentRuns...), Armed: append([]string{}, s.tasks.armed...)}
 		for _, p := range s.pulls {
+			s.wire(p)
 			st.Pulls = append(st.Pulls, *p)
 		}
-		for _, is := range s.issues {
-			st.Issues = append(st.Issues, *is)
+		for _, is := range s.gh.All() {
+			if is.PullRequest {
+				continue
+			}
+			v := issue{Number: is.Number, Title: is.Title, Body: is.Body, Labels: append([]string{}, is.Labels...), State: is.State, StateReason: is.StateReason, Comments: []string{}}
+			for _, c := range is.Comments {
+				v.Comments = append(v.Comments, c.Body)
+			}
+			st.Issues = append(st.Issues, v)
 		}
 		reply(w, 200, st)
+	case "/_stub/routine", "/_stub/converge":
+		s.taskControl(w, r.URL.Path, body)
 	default:
 		fail(w, http.StatusNotFound, "no such control")
 	}
@@ -454,6 +494,8 @@ func main() {
 	caOut := flag.String("ca-out", "", "file to write the certificate PEM to")
 	licReady := flag.String("licstub-ready", "", "licstub's --ready file, read when a key dispatch is forwarded")
 	licCA := flag.String("licstub-ca", "", "licstub's --ca-out file")
+	agent := flag.String("agent", "", "the stub agent a routine fire runs on the item it names")
+	routine := flag.String("routine-token", routineToken, "the bearer the routine fire route accepts")
 	sess := defaultSession
 	flag.Int64Var(&sess.UserID, "user-id", sess.UserID, "the id GET /user answers")
 	flag.StringVar(&sess.UserLogin, "user", sess.UserLogin, "the login GET /user answers")
@@ -484,6 +526,7 @@ func main() {
 		die(err)
 	}
 	st := newStub(*origin, *repo, *token)
+	st.agent, st.routineToken = *agent, *routine
 	st.sess, st.licReady, st.licCA = sess, *licReady, *licCA
 	srv := &http.Server{Handler: st, ReadHeaderTimeout: 10 * time.Second}
 	srv.TLSConfig = stubtls.Config(cert)

@@ -28,9 +28,9 @@ var Surfaces = []Surface{SurfaceRules, SurfaceSkills, SurfaceForcedSkillLoading,
 // alwaysOn run in every state, with or without a key.
 var alwaysOn = []Surface{SurfaceRules, SurfaceSkills, SurfaceGuards, SurfaceCIChecks, SurfaceProjectTasks, SurfaceKeyRequests}
 
-// StubSurfaces are rows no command reads yet: phase 6 wires their callers
-// to the gate rather than inventing one.
-var StubSurfaces = []Surface{SurfaceForcedSkillLoading, SurfaceInSessionGrowth, SurfaceClaudiniteTasks, SurfaceFleet}
+// StubSurfaces are rows no command reads yet: a later phase wires their
+// callers to the gate rather than inventing one.
+var StubSurfaces = []Surface{SurfaceInSessionGrowth, SurfaceFleet}
 
 // Gates is each surface on or off.
 type Gates map[Surface]bool

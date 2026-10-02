@@ -295,3 +295,45 @@ func Text(v Value) string {
 	}
 	return Stringify(v)
 }
+
+// StringifyIndent is JSON.stringify(v, null, indent).
+func StringifyIndent(v Value, indent string) string {
+	var b strings.Builder
+	writeIndent(&b, v, indent, "")
+	return b.String()
+}
+
+func writeIndent(b *strings.Builder, v Value, indent, at string) {
+	inner := at + indent
+	switch {
+	case v.Kind == Array && len(v.Arr) > 0:
+		b.WriteString("[\n")
+		for i, e := range v.Arr {
+			if i > 0 {
+				b.WriteString(",\n")
+			}
+			b.WriteString(inner)
+			writeIndent(b, e, indent, inner)
+		}
+		b.WriteString("\n" + at + "]")
+	case v.Kind == Object && len(v.Keys) > 0:
+		b.WriteString("{\n")
+		for i, k := range v.Keys {
+			if i > 0 {
+				b.WriteString(",\n")
+			}
+			b.WriteString(inner)
+			Quote(b, k)
+			b.WriteString(": ")
+			writeIndent(b, v.Obj[k], indent, inner)
+		}
+		b.WriteString("\n" + at + "}")
+	default:
+		write(b, v)
+	}
+}
+
+// NewObject builds an object Value, its keys in JavaScript's order.
+func NewObject(keys []string, vals map[string]Value) Value {
+	return Value{Kind: Object, Keys: jsOrder(keys), Obj: vals}
+}

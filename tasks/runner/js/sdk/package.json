@@ -1,0 +1,7 @@
+{
+  "name": "@claudinite/sdk",
+  "description": "The one module a Claudinite pack's task script imports: pure helpers, and calls back to the cn binary that started it.",
+  "type": "module",
+  "exports": "./index.mjs",
+  "license": "MIT"
+}

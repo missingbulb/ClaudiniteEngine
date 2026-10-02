@@ -64,7 +64,42 @@ commands:
                  request SessionStart starts; without, a foreground one
   rules-index [--check] [--repo DIR]
                  write the import index of the active packs' prose that
-                 CLAUDE.md imports; --check exits 1 when it is stale
+                 CLAUDE.md imports, and the flat task and dashboard
+                 declarations beside it; --check exits 1 when it is stale
+  tasks list [--repo DIR]
+                 every task the active packs and the engine contribute
+  tasks flat [--write|--check] [--repo DIR]
+                 the flat task and dashboard declarations: print, write,
+                 or exit 1 naming each file that is stale
+  schedule run [--dry-run] [--wake IDS] [--repo DIR]
+                 the scheduler run: repair, ask every scheduled task,
+                 ready, adopt, reclaim; publishes the drain gate; needs
+                 GITHUB_TOKEN
+  schedule drain
+                 dispatch the executor workflow on the default branch
+  schedule report-failure [--title T]
+                 file, or comment on, the one workflow-failure issue
+  work create <pack>/<task> [--urgent] [--context T] [--not-before ISO]
+                 [--blocked-by #N,#M] [--qualifier T] [--supersedes #N]
+                 file a work item by hand; an unqualified item for a
+                 scheduled task is refused
+  work wake #N [--urgent]
+                 clear an item's wait and return it to the queue
+  work converge --issue N --outcome O --summary T [--pr N] --repo R
+                 --item-file PATH
+                 print the transition a routine session performs to
+                 converge its item; refuses an item it does not hold
+  work record-exec <pack>/<task> <slot> <success|failed>
+                 print one execution record
+  work validate --issue N --nonce X --item-file PATH --comments-file PATH
+                 [--request-file PATH] [--repo DIR]
+                 a routine session's entry gate: the nonce and the grant
+  execute loop [--repo DIR]
+                 the executor: claim, re-evaluate, run and converge every
+                 ready item; needs GITHUB_TOKEN
+  execute continue
+                 dispatch the next executor run after one died, or past
+                 the chain's depth report it
   workflows diff [--repo DIR]
                  the patch that brings a member's workflows to this
                  version's templates; empty when they match
@@ -188,6 +223,14 @@ func dispatch(args []string, stdin io.Reader, stdout, stderr io.Writer, start ti
 		return cmdLicense(args[1:], stdout, stderr)
 	case "rules-index":
 		return cmdRulesIndex(args[1:], stdout)
+	case "tasks":
+		return cmdTasks(args[1:], stdout)
+	case "schedule":
+		return cmdSchedule(args[1:], stdout)
+	case "work":
+		return cmdWork(args[1:], stdout)
+	case "execute":
+		return cmdExecute(args[1:], stdout)
 	}
 	return report.New(report.Usage, fmt.Sprintf("unknown command %q", args[0]))
 }
