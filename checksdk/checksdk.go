@@ -71,7 +71,10 @@ const Proto = "claudinite-checks-v1"
 // MaxLine bounds one message on the pipe.
 const MaxLine = 16 << 20
 
-// EngineFloor is the first engine that answers SDK calls.
+// EngineFloor is the first engine that answers SDK calls. Its day part is
+// never after today's, so it names a version that can exist: the first
+// release candidate, cut on or after 2026-10-01 (day 61001), satisfies it
+// by construction, and release/version.sh refuses any version below it.
 const EngineFloor = "61001.1.0"
 
 // CheckDeadline is how long one check may work, engine answers excluded; Main reads

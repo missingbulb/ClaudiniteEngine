@@ -7,8 +7,10 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 func testRegistry() *registry {
@@ -195,3 +197,16 @@ func TestSourcesAreTheSDK(t *testing.T) {
 func mustJSON(s string) string { b, _ := json.Marshal(s); return string(b) }
 
 func mustRe(s string) *regexp.Regexp { return regexp.MustCompile(s) }
+
+// The floor can never be raised past a version that exists: its day part
+// is never after today's.
+func TestEngineFloorIsBehindTheClock(t *testing.T) {
+	day, err := strconv.Atoi(strings.SplitN(EngineFloor, ".", 2)[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now().UTC()
+	if today := (now.Year()-2020)*10000 + int(now.Month())*100 + now.Day(); day > today {
+		t.Errorf("EngineFloor %s is after today's day %d", EngineFloor, today)
+	}
+}

@@ -3,6 +3,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/missingbulb/ClaudiniteEngine/checksdk"
 	"io"
 	"os"
 	"runtime/debug"
@@ -140,8 +141,12 @@ func dispatch(args []string, stdin io.Reader, stdout, stderr io.Writer, start ti
 			fmt.Fprintln(stdout, version.Today(time.Now()))
 			return nil
 		}
+		if len(args) == 2 && args[1] == "--floor" {
+			fmt.Fprintln(stdout, checksdk.EngineFloor)
+			return nil
+		}
 		if len(args) != 1 {
-			return report.New(report.Usage, "version takes no arguments but --day")
+			return report.New(report.Usage, "version takes no arguments but --day or --floor")
 		}
 		lifecycle.PrintVersion(stdout)
 		if secretScanPlant != "" {
