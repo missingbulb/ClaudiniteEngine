@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -34,6 +35,10 @@ type taskRepo struct {
 }
 
 func loadTaskRepo(root string) (taskRepo, error) {
+	root, err := filepath.Abs(root)
+	if err != nil {
+		return taskRepo{}, report.Wrap(report.IO, "the repository path", err)
+	}
 	set, err := packset.Load(root, version.Version(), false)
 	if err != nil {
 		return taskRepo{}, report.New(report.Verify, err.Error())

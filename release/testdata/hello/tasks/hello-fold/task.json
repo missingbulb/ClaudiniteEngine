@@ -1,0 +1,19 @@
+{
+  "id": "hello-fold",
+  "description": "The task runner's probe: once a day after any commit, writes HELLO_FOLD.json on its branch through the SDK and opens the pull request, which lands under hello-generated.",
+  "trigger": "schedule",
+  "preconditions": [
+    "schedule:at-most-daily",
+    "any-commit"
+  ],
+  "expected_outcome": "amend_existing_or_create_new_pr",
+  "automerge": [
+    "hello-generated"
+  ],
+  "agent_model": "none",
+  "code_worker_mjs": "worker.mjs",
+  "code_work_timeout": 120,
+  "code_work_required_secrets": [
+    "HELLO_FOLD_SECRET"
+  ]
+}

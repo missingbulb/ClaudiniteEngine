@@ -91,7 +91,7 @@ func TestTheFixtureIndexVerifiesAndNamesItsArchives(t *testing.T) {
 			t.Errorf("%s: RULES.md %q", e.Version, files["RULES.md"].Data)
 		}
 		_, always := files["checks/always.go"]
-		if always != (e.Version == "1.4") {
+		if always != (e.Version == "1.5") {
 			t.Errorf("%s: always.go present %v", e.Version, always)
 		}
 		_, declared := files["declared-checks.json"]
@@ -107,6 +107,15 @@ func TestTheFixtureIndexVerifiesAndNamesItsArchives(t *testing.T) {
 		if sdk := strings.Count(string(files["RULES.md"].Data), "The hello SDK probes arrived"); sdk != map[bool]int{true: 0, false: 1}[e.Version == "1.0"] {
 			t.Errorf("%s: the SDK probes bullet appears %d times", e.Version, sdk)
 		}
+		_, fold := files["tasks/hello-fold/task.json"]
+		_, rules := files["merge-rules.json"]
+		actions := strings.Contains(string(files["pack.json"].Data), "githubActions")
+		if fold != (e.Version != "1.0") || rules != (e.Version != "1.0") || actions != (e.Version != "1.0") {
+			t.Errorf("%s: hello-fold %v, merge-rules.json %v, githubActions %v", e.Version, fold, rules, actions)
+		}
+		if tasks := strings.Count(string(files["RULES.md"].Data), "The hello tasks arrived"); tasks != map[bool]int{true: 0, false: 1}[e.Version == "1.0"] {
+			t.Errorf("%s: the tasks bullet appears %d times", e.Version, tasks)
+		}
 		_, guide := files["skills/hello-guide/SKILL.md"]
 		_, judge := files["checks/judge.go"]
 		_, change := files["checks/change.go"]
@@ -115,10 +124,10 @@ func TestTheFixtureIndexVerifiesAndNamesItsArchives(t *testing.T) {
 			t.Errorf("%s: hello-guide %v, judge.go %v, change.go %v, config.go %v", e.Version, guide, judge, change, config)
 		}
 	}
-	if readme := string(mustVariant(t, "v1")["README.md"].Data); strings.Contains(readme, "Declared checks") || strings.Contains(readme, "Forced skill") || strings.Contains(readme, "**Judge**") || strings.Contains(readme, "SDK probes") || !strings.Contains(readme, "**Skill**") {
+	if readme := string(mustVariant(t, "v1")["README.md"].Data); strings.Contains(readme, "Declared checks") || strings.Contains(readme, "Forced skill") || strings.Contains(readme, "**Judge**") || strings.Contains(readme, "SDK probes") || strings.Contains(readme, "**Tasks**") || !strings.Contains(readme, "**Skill**") {
 		t.Errorf("v1 README:\n%s", readme)
 	}
-	// v2 is the source itself: hello 1.3 as ClaudinitePacks publishes it.
+	// v2 is the source itself: hello 1.4 as ClaudinitePacks publishes it.
 	source, _ := ReadPack(src)
 	for name, f := range mustVariant(t, "v2") {
 		if name != "pack.json" && string(source[name].Data) != string(f.Data) {

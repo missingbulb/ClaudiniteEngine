@@ -61,6 +61,8 @@ type pull struct {
 	State  string   `json:"state"`
 	Merged bool     `json:"merged"`
 	Labels []string `json:"labels"`
+	// HeadSHA is the head a merge squashed, kept once the branch is gone.
+	HeadSHA string `json:"head_sha,omitempty"`
 }
 
 // issue is an issue as the state answers it.
@@ -409,6 +411,7 @@ func (s *stub) merge(w http.ResponseWriter, p *pull, sha, title, message, method
 		return
 	}
 	base := s.headOf(p.Base)
+	p.HeadSHA = sha
 	if title == "" {
 		title = fmt.Sprintf("%s (#%d)", p.Title, p.Number)
 	}
@@ -458,7 +461,8 @@ func (s *stub) control(w http.ResponseWriter, r *http.Request, str func(string) 
 		s.onDisp = str("conclusion")
 		reply(w, 200, map[string]string{})
 	case "/_stub/state":
-		st := stubState{Dispatches: s.disps, Calls: s.calls, Fires: s.tasks.fires, Agent: s.tasks.agentRuns, Armed: s.tasks.armed}
+		st := stubState{Pulls: []pull{}, Issues: []issue{}, Dispatches: append([]dispatch{}, s.disps...), Calls: append([]string{}, s.calls...),
+			Fires: append([]fire{}, s.tasks.fires...), Agent: append([]agentRun{}, s.tasks.agentRuns...), Armed: append([]string{}, s.tasks.armed...)}
 		for _, p := range s.pulls {
 			s.wire(p)
 			st.Pulls = append(st.Pulls, *p)
