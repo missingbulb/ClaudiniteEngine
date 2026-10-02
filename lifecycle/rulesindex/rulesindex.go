@@ -157,11 +157,16 @@ func EnsureImport(repo string) (bool, error) {
 }
 
 // WithImport is a CLAUDE.md's bytes with the import line appended, as
-// EnsureImport writes it.
+// EnsureImport writes it, in the file's own line endings (CRLF when it
+// already uses them).
 func WithImport(raw []byte) []byte {
+	eol := "\n"
+	if bytes.Contains(raw, []byte("\r\n")) {
+		eol = "\r\n"
+	}
 	out := append([]byte{}, raw...)
 	if len(out) > 0 && !bytes.HasSuffix(out, []byte("\n")) {
-		out = append(out, '\n')
+		out = append(out, eol...)
 	}
-	return append(out, Import+"\n"...)
+	return append(out, Import+eol...)
 }

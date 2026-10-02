@@ -92,3 +92,23 @@ func TestEnsureImport(t *testing.T) {
 		t.Error("appended twice")
 	}
 }
+
+// A CRLF CLAUDE.md keeps its line endings: the import line is appended
+// with CRLF, and is read back as present.
+func TestWithImportKeepsCRLF(t *testing.T) {
+	cases := map[string]string{
+		"# Notes\r\nkeep\r\n": "# Notes\r\nkeep\r\n" + Import + "\r\n",
+		"# Notes\r\nkeep":     "# Notes\r\nkeep\r\n" + Import + "\r\n",
+		"# Notes\nkeep\n":     "# Notes\nkeep\n" + Import + "\n",
+		"":                    Import + "\n",
+	}
+	for in, want := range cases {
+		got := WithImport([]byte(in))
+		if string(got) != want {
+			t.Errorf("%q: got %q, want %q", in, got, want)
+		}
+		if !HasImportIn(got) {
+			t.Errorf("%q: the appended import is not read back", in)
+		}
+	}
+}
