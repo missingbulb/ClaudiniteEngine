@@ -1,0 +1,1273 @@
+{
+  "expect": {
+    "bodies": [
+      {
+        "context": [
+          "one",
+          "two"
+        ],
+        "fields": {
+          "blockedBy": [
+            3,
+            4
+          ],
+          "endsWhen": 9,
+          "merge": "if-narrow",
+          "model": "sonnet",
+          "notBefore": "2026-09-20T00:00:00Z",
+          "request": 44,
+          "supersedes": [
+            5,
+            6
+          ],
+          "targetBranch": "claudinite/basics/sweep/x",
+          "targetPr": 77,
+          "taskPath": "packs/basics/tasks/sweep/task.md",
+          "woken": "2026-09-16T00:00:00Z"
+        },
+        "human": "packs/basics/tasks/sweep/task.md\n\nNot-before: 2026-09-20T00:00:00Z\nBlocked-by: #3, #4\nRequest: #44\nModel: sonnet\nMerge: if-narrow\nWoken: 2026-09-16T00:00:00Z\nEnds-when: #9 closed\nTarget-branch: claudinite/basics/sweep/x\nTarget-pr: #77\nSupersedes: #5, #6\n\nExecute the Claudinite task above.\nThe Context section below is binding scope — do not re-decide it.\n\n### Context\n- one\n- two\n  not a bullet\n\n### Progress\n- 10:00 started\n\n### Last verdict\n\n- 2026-09-16T10:00:00Z — the precondition declined: no run — x — y\n- Asked again at 2026-09-17T00:00:00Z.",
+        "lastVerdict": {
+          "at": "2026-09-16T10:00:00Z",
+          "reason": "no run — x — y",
+          "until": "2026-09-17T00:00:00Z"
+        },
+        "progress": [
+          "10:00 started"
+        ],
+        "request": {
+          "blockedBy": [
+            3,
+            4
+          ],
+          "merge": null,
+          "model": "sonnet",
+          "notBefore": "2026-09-20T00:00:00Z",
+          "task": null,
+          "ungated": false
+        },
+        "requestUngated": {
+          "blockedBy": [
+            3,
+            4
+          ],
+          "merge": null,
+          "model": null,
+          "notBefore": "2026-09-20T00:00:00Z",
+          "task": null,
+          "ungated": true
+        }
+      },
+      {
+        "context": [],
+        "fields": {
+          "blockedBy": [],
+          "endsWhen": null,
+          "merge": null,
+          "model": "opus",
+          "notBefore": null,
+          "request": 50,
+          "supersedes": [],
+          "targetBranch": null,
+          "targetPr": null,
+          "taskPath": ".claudinite/shared/packs/claudinite-tasks/public/implement-request.md",
+          "woken": null
+        },
+        "human": "I want this fixed.\n\nTask: basics/sweep\nModel: gpt\nAutomerge: under:docs \u0026\u0026 doc-changes\nBlocked-by: #8\nNot-before: 2026-10-01",
+        "lastVerdict": null,
+        "progress": [],
+        "request": {
+          "blockedBy": [
+            8
+          ],
+          "merge": "under:docs\u0026\u0026doc-changes",
+          "model": null,
+          "notBefore": "2026-10-01",
+          "task": "basics/sweep",
+          "ungated": false
+        },
+        "requestUngated": {
+          "blockedBy": [
+            8
+          ],
+          "merge": null,
+          "model": null,
+          "notBefore": "2026-10-01",
+          "task": null,
+          "ungated": true
+        }
+      },
+      {
+        "context": [],
+        "fields": {
+          "blockedBy": [],
+          "endsWhen": null,
+          "merge": null,
+          "model": null,
+          "notBefore": null,
+          "request": null,
+          "supersedes": [],
+          "targetBranch": null,
+          "targetPr": null,
+          "taskPath": "packs/x/tasks/y/task.md",
+          "woken": null
+        },
+        "human": "packs/x/tasks/y/task.md\nModel: banana\nMerge: Bad Policy!\nEnds-when: #9 merged\nTarget-pr: x",
+        "lastVerdict": null,
+        "progress": [],
+        "request": {
+          "blockedBy": [],
+          "merge": null,
+          "model": null,
+          "notBefore": null,
+          "task": null,
+          "ungated": false
+        },
+        "requestUngated": {
+          "blockedBy": [],
+          "merge": null,
+          "model": null,
+          "notBefore": null,
+          "task": null,
+          "ungated": true
+        }
+      },
+      {
+        "context": [],
+        "fields": {
+          "blockedBy": [],
+          "endsWhen": null,
+          "merge": null,
+          "model": null,
+          "notBefore": null,
+          "request": null,
+          "supersedes": [],
+          "targetBranch": null,
+          "targetPr": null,
+          "taskPath": null,
+          "woken": null
+        },
+        "human": "",
+        "lastVerdict": null,
+        "progress": [],
+        "request": {
+          "blockedBy": [],
+          "merge": null,
+          "model": null,
+          "notBefore": null,
+          "task": null,
+          "ungated": false
+        },
+        "requestUngated": {
+          "blockedBy": [],
+          "merge": null,
+          "model": null,
+          "notBefore": null,
+          "task": null,
+          "ungated": false
+        }
+      },
+      {
+        "context": [],
+        "fields": {
+          "blockedBy": [],
+          "endsWhen": null,
+          "merge": null,
+          "model": "haiku",
+          "notBefore": null,
+          "request": null,
+          "supersedes": [],
+          "targetBranch": null,
+          "targetPr": null,
+          "taskPath": "Task: not-a-task",
+          "woken": null
+        },
+        "human": "Task: not-a-task\nModel: haiku\nAutomerge: nothing",
+        "lastVerdict": null,
+        "progress": [],
+        "request": {
+          "blockedBy": [],
+          "merge": null,
+          "model": "haiku",
+          "notBefore": null,
+          "task": null,
+          "ungated": false
+        },
+        "requestUngated": {
+          "blockedBy": [],
+          "merge": null,
+          "model": null,
+          "notBefore": null,
+          "task": null,
+          "ungated": true
+        }
+      }
+    ],
+    "built": [
+      "packs/a/tasks/b/task.md\n\nExecute the Claudinite task above.\n",
+      "packs/a/tasks/b/task.md\n\nNot-before: 2026-09-20T00:00:00Z\nBlocked-by: #3, #4\nRequest: #44\nModel: opus\nMerge: if-narrow\nWoken: 2026-09-16T00:00:00Z\n\nExecute the Claudinite task above.\nThe Context section below is binding scope — do not re-decide it.\n\n### Context\n- one\n- two\n\n### Why the agent is here\n\n- why\n\n### Delivered by code-work\n\n- d1\n"
+    ],
+    "edits": [
+      "packs/basics/tasks/sweep/task.md\n\nNot-before: 2026-12-01T00:00:00Z\nBlocked-by: #3, #4\nRequest: #44\nModel: sonnet\nMerge: if-narrow\nWoken: 2026-09-16T00:00:00Z\nEnds-when: #9 closed\nTarget-branch: claudinite/basics/sweep/x\nTarget-pr: #77\nSupersedes: #5, #6\n\nExecute the Claudinite task above.\nThe Context section below is binding scope — do not re-decide it.\n\n### Context\n- one\n- two\n  not a bullet\n\n### Progress\n- 10:00 started\n\n### Last verdict\n\n- 2026-09-16T10:00:00Z — the precondition declined: no run — x — y\n- Asked again at 2026-09-17T00:00:00Z.\n",
+      "packs/basics/tasks/sweep/task.md\n\nBlocked-by: #3, #4\nRequest: #44\nModel: sonnet\nMerge: if-narrow\nWoken: 2026-09-16T00:00:00Z\nEnds-when: #9 closed\nTarget-branch: claudinite/basics/sweep/x\nTarget-pr: #77\nSupersedes: #5, #6\n\nExecute the Claudinite task above.\nThe Context section below is binding scope — do not re-decide it.\n\n### Context\n- one\n- two\n  not a bullet\n\n### Progress\n- 10:00 started\n\n### Last verdict\n\n- 2026-09-16T10:00:00Z — the precondition declined: no run — x — y\n- Asked again at 2026-09-17T00:00:00Z.\n",
+      "packs/a/task.md\n\nNot-before: X\n\nExecute.\n",
+      "Not-before: X\n",
+      "a\n",
+      "packs/a/task.md\n\nWoken: 2026-09-16\n\nExecute.\n",
+      "packs/basics/tasks/sweep/task.md\n\nNot-before: 2026-09-20T00:00:00Z\nBlocked-by: #3, #4\nRequest: #44\nModel: sonnet\nMerge: if-narrow\nWoken: 2026-09-17\nEnds-when: #9 closed\nTarget-branch: claudinite/basics/sweep/x\nTarget-pr: #77\nSupersedes: #5, #6\n\nExecute the Claudinite task above.\nThe Context section below is binding scope — do not re-decide it.\n\n### Context\n- one\n- two\n  not a bullet\n\n### Progress\n- 10:00 started\n\n### Last verdict\n\n- 2026-09-16T10:00:00Z — the precondition declined: no run — x — y\n- Asked again at 2026-09-17T00:00:00Z.\n",
+      "I want this fixed.\n\nTask: basics/sweep\nModel: gpt\nAutomerge: under:docs \u0026\u0026 doc-changes\nBlocked-by: #8\nNot-before: 2026-10-01\n\n\u003c!-- claudinite-item --\u003e\n.claudinite/shared/packs/claudinite-tasks/public/implement-request.md\n\nWoken: 2026-09-17\n\nRequest: #50\nModel: opus\n\u003c!-- /claudinite-item --\u003e\n",
+      "packs/a/task.md\n\nEnds-when: #12 closed\n",
+      "packs/basics/tasks/sweep/task.md\n\nNot-before: 2026-09-20T00:00:00Z\nBlocked-by: #3, #4\nRequest: #44\nModel: sonnet\nMerge: if-narrow\nWoken: 2026-09-16T00:00:00Z\nEnds-when: #13 closed\nTarget-branch: claudinite/basics/sweep/x\nTarget-pr: #77\nSupersedes: #5, #6\n\nExecute the Claudinite task above.\nThe Context section below is binding scope — do not re-decide it.\n\n### Context\n- one\n- two\n  not a bullet\n\n### Progress\n- 10:00 started\n\n### Last verdict\n\n- 2026-09-16T10:00:00Z — the precondition declined: no run — x — y\n- Asked again at 2026-09-17T00:00:00Z.\n",
+      "packs/basics/tasks/sweep/task.md\n\nTarget-branch: b\nTarget-pr: #9\nSupersedes: #1, #2\n\nNot-before: 2026-09-20T00:00:00Z\nBlocked-by: #3, #4\nRequest: #44\nModel: sonnet\nMerge: if-narrow\nWoken: 2026-09-16T00:00:00Z\nEnds-when: #9 closed\n\nExecute the Claudinite task above.\nThe Context section below is binding scope — do not re-decide it.\n\n### Context\n- one\n- two\n  not a bullet\n\n### Progress\n- 10:00 started\n\n### Last verdict\n\n- 2026-09-16T10:00:00Z — the precondition declined: no run — x — y\n- Asked again at 2026-09-17T00:00:00Z.\n",
+      "packs/basics/tasks/sweep/task.md\n\nTarget-branch: b\n\nNot-before: 2026-09-20T00:00:00Z\nBlocked-by: #3, #4\nRequest: #44\nModel: sonnet\nMerge: if-narrow\nWoken: 2026-09-16T00:00:00Z\nEnds-when: #9 closed\n\nExecute the Claudinite task above.\nThe Context section below is binding scope — do not re-decide it.\n\n### Context\n- one\n- two\n  not a bullet\n\n### Progress\n- 10:00 started\n\n### Last verdict\n\n- 2026-09-16T10:00:00Z — the precondition declined: no run — x — y\n- Asked again at 2026-09-17T00:00:00Z.\n",
+      "packs/a/task.md\n",
+      "I want this fixed.\n\nTask: basics/sweep\nModel: gpt\nAutomerge: under:docs \u0026\u0026 doc-changes\nBlocked-by: #8\nNot-before: 2026-10-01\n\n\u003c!-- claudinite-item --\u003e\n.claudinite/shared/packs/claudinite-tasks/public/implement-request.md\n\nTarget-branch: claudinite/x\n\nRequest: #50\nModel: opus\n\u003c!-- /claudinite-item --\u003e\n",
+      "packs/basics/tasks/sweep/task.md\n\nNot-before: 2026-09-20T00:00:00Z\nBlocked-by: #3, #4\nRequest: #44\nModel: sonnet\nMerge: if-narrow\nWoken: 2026-09-16T00:00:00Z\nEnds-when: #9 closed\nTarget-branch: claudinite/basics/sweep/x\nTarget-pr: #77\nSupersedes: #5, #6\n\nExecute the Claudinite task above.\nThe Context section below is binding scope — do not re-decide it.\n\n### Context\n\n- new\n\n### Progress\n- 10:00 started\n\n### Last verdict\n\n- 2026-09-16T10:00:00Z — the precondition declined: no run — x — y\n- Asked again at 2026-09-17T00:00:00Z.\n",
+      "packs/basics/tasks/sweep/task.md\n\nNot-before: 2026-09-20T00:00:00Z\nBlocked-by: #3, #4\nRequest: #44\nModel: sonnet\nMerge: if-narrow\nWoken: 2026-09-16T00:00:00Z\nEnds-when: #9 closed\nTarget-branch: claudinite/basics/sweep/x\nTarget-pr: #77\nSupersedes: #5, #6\n\nExecute the Claudinite task above.\nThe Context section below is binding scope — do not re-decide it.\n\n### Context\n- one\n- two\n  not a bullet\n\n### Progress\n- 10:00 started\n\n### Last verdict\n\n- 2026-09-16T10:00:00Z — the precondition declined: no run — x — y\n- Asked again at 2026-09-17T00:00:00Z.\n\n### Why the agent is here\n\n- r\n",
+      "a\n\n### X\n\n- 1\n- 2\n",
+      "packs/basics/tasks/sweep/task.md\n\nNot-before: 2026-09-20T00:00:00Z\nBlocked-by: #3, #4\nRequest: #44\nModel: sonnet\nMerge: if-narrow\nWoken: 2026-09-16T00:00:00Z\nEnds-when: #9 closed\nTarget-branch: claudinite/basics/sweep/x\nTarget-pr: #77\nSupersedes: #5, #6\n\nExecute the Claudinite task above.\nThe Context section below is binding scope — do not re-decide it.\n\n### Context\n- one\n- two\n  not a bullet\n\n### Progress\n- 10:00 started\n\n### Last verdict\n\n- z\n"
+    ],
+    "issues": [
+      {
+        "blockingPark": false,
+        "facts": {
+          "blockedBy": [
+            3,
+            4
+          ],
+          "endsWhen": 9,
+          "merge": "if-narrow",
+          "model": "sonnet",
+          "notBefore": "2026-09-20T00:00:00Z",
+          "number": 1,
+          "request": 44,
+          "supersedes": [
+            5,
+            6
+          ],
+          "targetBranch": "claudinite/basics/sweep/x",
+          "targetPr": 77,
+          "taskPath": "packs/basics/tasks/sweep/task.md",
+          "woken": true
+        },
+        "origin": "task:origin:planned",
+        "outcome": null,
+        "park": null,
+        "queueItem": true,
+        "status": "task:status:waiting-for-executor",
+        "statuses": [
+          "task:status:waiting-for-executor"
+        ]
+      },
+      {
+        "blockingPark": false,
+        "facts": {
+          "blockedBy": [],
+          "endsWhen": null,
+          "merge": null,
+          "model": null,
+          "notBefore": null,
+          "number": 2,
+          "request": null,
+          "supersedes": [],
+          "targetBranch": null,
+          "targetPr": null,
+          "taskPath": "x",
+          "woken": false
+        },
+        "origin": null,
+        "outcome": null,
+        "park": null,
+        "queueItem": true,
+        "status": "task:status:waiting-for-executor",
+        "statuses": [
+          "task:status:waiting-for-executor"
+        ]
+      },
+      {
+        "blockingPark": false,
+        "facts": {
+          "blockedBy": [],
+          "endsWhen": null,
+          "merge": null,
+          "model": null,
+          "notBefore": null,
+          "number": 3,
+          "request": null,
+          "supersedes": [],
+          "targetBranch": null,
+          "targetPr": null,
+          "taskPath": "x",
+          "woken": false
+        },
+        "origin": null,
+        "outcome": null,
+        "park": null,
+        "queueItem": true,
+        "status": "task:status:blocked",
+        "statuses": [
+          "task:status:blocked",
+          "task:status:running-agent"
+        ]
+      },
+      {
+        "blockingPark": false,
+        "facts": {
+          "blockedBy": [],
+          "endsWhen": null,
+          "merge": null,
+          "model": null,
+          "notBefore": null,
+          "number": 4,
+          "request": null,
+          "supersedes": [],
+          "targetBranch": null,
+          "targetPr": null,
+          "taskPath": "x",
+          "woken": false
+        },
+        "origin": null,
+        "outcome": null,
+        "park": null,
+        "queueItem": true,
+        "status": "task:status:running-executor",
+        "statuses": [
+          "task:status:running-executor"
+        ]
+      },
+      {
+        "blockingPark": false,
+        "facts": {
+          "blockedBy": [],
+          "endsWhen": null,
+          "merge": null,
+          "model": null,
+          "notBefore": null,
+          "number": 5,
+          "request": null,
+          "supersedes": [],
+          "targetBranch": null,
+          "targetPr": null,
+          "taskPath": "x",
+          "woken": false
+        },
+        "origin": null,
+        "outcome": null,
+        "park": null,
+        "queueItem": true,
+        "status": "task:status:running-agent",
+        "statuses": [
+          "task:status:running-agent"
+        ]
+      },
+      {
+        "blockingPark": true,
+        "facts": {
+          "blockedBy": [],
+          "endsWhen": null,
+          "merge": null,
+          "model": null,
+          "notBefore": null,
+          "number": 6,
+          "request": null,
+          "supersedes": [],
+          "targetBranch": null,
+          "targetPr": null,
+          "taskPath": "x",
+          "woken": false
+        },
+        "origin": null,
+        "outcome": null,
+        "park": "failure",
+        "queueItem": true,
+        "status": "task:status:needs-human-failure",
+        "statuses": [
+          "task:status:needs-human-failure"
+        ]
+      },
+      {
+        "blockingPark": false,
+        "facts": {
+          "blockedBy": [],
+          "endsWhen": null,
+          "merge": null,
+          "model": null,
+          "notBefore": null,
+          "number": 7,
+          "request": null,
+          "supersedes": [],
+          "targetBranch": null,
+          "targetPr": null,
+          "taskPath": "x",
+          "woken": false
+        },
+        "origin": null,
+        "outcome": null,
+        "park": "action",
+        "queueItem": true,
+        "status": "task:status:needs-human-action",
+        "statuses": [
+          "task:status:needs-human-action"
+        ]
+      },
+      {
+        "blockingPark": false,
+        "facts": {
+          "blockedBy": [],
+          "endsWhen": null,
+          "merge": null,
+          "model": null,
+          "notBefore": null,
+          "number": 8,
+          "request": null,
+          "supersedes": [],
+          "targetBranch": null,
+          "targetPr": null,
+          "taskPath": "x",
+          "woken": false
+        },
+        "origin": null,
+        "outcome": "delivered",
+        "park": null,
+        "queueItem": true,
+        "status": null,
+        "statuses": []
+      },
+      {
+        "blockingPark": false,
+        "facts": {
+          "blockedBy": [],
+          "endsWhen": null,
+          "merge": null,
+          "model": null,
+          "notBefore": null,
+          "number": 9,
+          "request": null,
+          "supersedes": [],
+          "targetBranch": null,
+          "targetPr": null,
+          "taskPath": "x",
+          "woken": false
+        },
+        "origin": null,
+        "outcome": "done",
+        "park": null,
+        "queueItem": true,
+        "status": "task:status:done",
+        "statuses": [
+          "task:status:done"
+        ]
+      },
+      {
+        "blockingPark": false,
+        "facts": {
+          "blockedBy": [],
+          "endsWhen": null,
+          "merge": null,
+          "model": null,
+          "notBefore": null,
+          "number": 10,
+          "request": null,
+          "supersedes": [],
+          "targetBranch": null,
+          "targetPr": null,
+          "taskPath": "x",
+          "woken": false
+        },
+        "origin": null,
+        "outcome": "done",
+        "park": null,
+        "queueItem": true,
+        "status": "task:status:done",
+        "statuses": [
+          "task:status:done"
+        ]
+      },
+      {
+        "blockingPark": false,
+        "facts": {
+          "blockedBy": [],
+          "endsWhen": null,
+          "merge": null,
+          "model": null,
+          "notBefore": null,
+          "number": 11,
+          "request": null,
+          "supersedes": [],
+          "targetBranch": null,
+          "targetPr": null,
+          "taskPath": "x",
+          "woken": false
+        },
+        "origin": null,
+        "outcome": "obsolete",
+        "park": null,
+        "queueItem": true,
+        "status": "task:status:rejected",
+        "statuses": [
+          "task:status:rejected"
+        ]
+      },
+      {
+        "blockingPark": false,
+        "facts": {
+          "blockedBy": [],
+          "endsWhen": null,
+          "merge": null,
+          "model": null,
+          "notBefore": null,
+          "number": 12,
+          "request": null,
+          "supersedes": [],
+          "targetBranch": null,
+          "targetPr": null,
+          "taskPath": "x",
+          "woken": false
+        },
+        "origin": null,
+        "outcome": "obsolete",
+        "park": null,
+        "queueItem": true,
+        "status": "task:status:rejected",
+        "statuses": [
+          "task:status:rejected"
+        ]
+      },
+      {
+        "blockingPark": false,
+        "facts": {
+          "blockedBy": [],
+          "endsWhen": null,
+          "merge": null,
+          "model": null,
+          "notBefore": null,
+          "number": 13,
+          "request": null,
+          "supersedes": [],
+          "targetBranch": null,
+          "targetPr": null,
+          "taskPath": "x",
+          "woken": false
+        },
+        "origin": null,
+        "outcome": "done",
+        "park": null,
+        "queueItem": true,
+        "status": "task:status:done",
+        "statuses": [
+          "task:status:done"
+        ]
+      },
+      {
+        "blockingPark": false,
+        "facts": {
+          "blockedBy": [],
+          "endsWhen": null,
+          "merge": null,
+          "model": null,
+          "notBefore": null,
+          "number": 14,
+          "request": null,
+          "supersedes": [],
+          "targetBranch": null,
+          "targetPr": null,
+          "taskPath": "x",
+          "woken": false
+        },
+        "origin": null,
+        "outcome": "obsolete",
+        "park": null,
+        "queueItem": true,
+        "status": "task:status:rejected",
+        "statuses": [
+          "task:status:rejected"
+        ]
+      },
+      {
+        "blockingPark": false,
+        "facts": {
+          "blockedBy": [],
+          "endsWhen": null,
+          "merge": null,
+          "model": "opus",
+          "notBefore": null,
+          "number": 15,
+          "request": 50,
+          "supersedes": [],
+          "targetBranch": null,
+          "targetPr": null,
+          "taskPath": ".claudinite/shared/packs/claudinite-tasks/public/implement-request.md",
+          "woken": true
+        },
+        "origin": "task:origin:ad-hoc",
+        "outcome": null,
+        "park": null,
+        "queueItem": true,
+        "status": "task:status:running-executor",
+        "statuses": [
+          "task:status:running-executor"
+        ]
+      },
+      {
+        "blockingPark": false,
+        "facts": {
+          "blockedBy": [],
+          "endsWhen": null,
+          "merge": null,
+          "model": null,
+          "notBefore": null,
+          "number": 16,
+          "request": null,
+          "supersedes": [],
+          "targetBranch": null,
+          "targetPr": null,
+          "taskPath": "no block",
+          "woken": true
+        },
+        "origin": "task:origin:ad-hoc",
+        "outcome": null,
+        "park": null,
+        "queueItem": false,
+        "status": null,
+        "statuses": []
+      },
+      {
+        "blockingPark": false,
+        "facts": {
+          "blockedBy": [],
+          "endsWhen": null,
+          "merge": null,
+          "model": null,
+          "notBefore": null,
+          "number": 17,
+          "request": null,
+          "supersedes": [],
+          "targetBranch": null,
+          "targetPr": null,
+          "taskPath": "no block",
+          "woken": true
+        },
+        "origin": "task:origin:ad-hoc",
+        "outcome": null,
+        "park": null,
+        "queueItem": true,
+        "status": "task:status:blocked",
+        "statuses": [
+          "task:status:blocked"
+        ]
+      },
+      {
+        "blockingPark": true,
+        "facts": {
+          "blockedBy": [],
+          "endsWhen": null,
+          "merge": null,
+          "model": null,
+          "notBefore": null,
+          "number": 18,
+          "request": null,
+          "supersedes": [],
+          "targetBranch": null,
+          "targetPr": null,
+          "taskPath": "x",
+          "woken": true
+        },
+        "origin": null,
+        "outcome": null,
+        "park": "failure",
+        "queueItem": true,
+        "status": "task:status:needs-human-failure",
+        "statuses": [
+          "task:status:needs-human-failure"
+        ]
+      },
+      {
+        "blockingPark": false,
+        "facts": {
+          "blockedBy": [],
+          "endsWhen": null,
+          "merge": null,
+          "model": null,
+          "notBefore": null,
+          "number": 19,
+          "request": null,
+          "supersedes": [],
+          "targetBranch": null,
+          "targetPr": null,
+          "taskPath": "x",
+          "woken": true
+        },
+        "origin": "task:origin:manual",
+        "outcome": null,
+        "park": "decision",
+        "queueItem": true,
+        "status": "task:status:needs-human-decision",
+        "statuses": [
+          "task:status:needs-human-decision"
+        ]
+      },
+      {
+        "blockingPark": false,
+        "facts": {
+          "blockedBy": [],
+          "endsWhen": null,
+          "merge": null,
+          "model": null,
+          "notBefore": null,
+          "number": 20,
+          "request": null,
+          "supersedes": [],
+          "targetBranch": null,
+          "targetPr": null,
+          "taskPath": null,
+          "woken": true
+        },
+        "origin": null,
+        "outcome": null,
+        "park": null,
+        "queueItem": false,
+        "status": null,
+        "statuses": []
+      },
+      {
+        "blockingPark": true,
+        "facts": {
+          "blockedBy": [],
+          "endsWhen": null,
+          "merge": null,
+          "model": null,
+          "notBefore": null,
+          "number": 21,
+          "request": null,
+          "supersedes": [],
+          "targetBranch": null,
+          "targetPr": null,
+          "taskPath": "x",
+          "woken": false
+        },
+        "origin": null,
+        "outcome": null,
+        "park": "failure",
+        "queueItem": true,
+        "status": "task:status:needs-human-failure",
+        "statuses": [
+          "task:status:needs-human-failure"
+        ]
+      },
+      {
+        "blockingPark": false,
+        "facts": {
+          "blockedBy": [],
+          "endsWhen": null,
+          "merge": null,
+          "model": null,
+          "notBefore": null,
+          "number": 22,
+          "request": null,
+          "supersedes": [],
+          "targetBranch": null,
+          "targetPr": null,
+          "taskPath": "Woken: 2026-09-01",
+          "woken": true
+        },
+        "origin": "task:origin:planned",
+        "outcome": null,
+        "park": null,
+        "queueItem": true,
+        "status": null,
+        "statuses": []
+      }
+    ],
+    "taskPaths": [
+      {
+        "pack": "basics",
+        "task": "sweep"
+      },
+      {
+        "pack": "basics",
+        "task": "sweep"
+      },
+      null,
+      {
+        "pack": "engine",
+        "task": "implement-request"
+      },
+      {
+        "pack": "engine",
+        "task": "implement-request"
+      },
+      {
+        "pack": "engine",
+        "task": "implement-request"
+      },
+      {
+        "pack": "engine",
+        "task": "implement-request"
+      },
+      null,
+      null
+    ],
+    "titles": [
+      {
+        "pack": "basics",
+        "qualifier": null,
+        "task": "sweep"
+      },
+      {
+        "pack": "basics",
+        "qualifier": "#12",
+        "task": "sweep"
+      },
+      {
+        "pack": "basics",
+        "qualifier": "extra words",
+        "task": "sweep"
+      },
+      null,
+      null,
+      null,
+      {
+        "pack": "engine",
+        "qualifier": "#44",
+        "task": "implement-request"
+      },
+      null,
+      {
+        "pack": "p",
+        "qualifier": null,
+        "task": "t"
+      },
+      null
+    ],
+    "trailers": [
+      {
+        "stamped": "Fix\n\nClaudinite-Task: basics/sweep\n",
+        "task": "basics/sweep"
+      },
+      {
+        "stamped": "Fix\n\nClaudinite-Task: a/b\n",
+        "task": null
+      },
+      {
+        "stamped": "Fix\n\nClaudinite-Task: x/y",
+        "task": "x/y"
+      },
+      {
+        "stamped": "",
+        "task": null
+      },
+      {
+        "stamped": "Fix\n\nClaudinite-Task: p/q\n",
+        "task": null
+      }
+    ]
+  },
+  "input": {
+    "titles": [
+      "[claudinite-work] basics/sweep",
+      "[claudinite-work] basics/sweep #12",
+      "[claudinite-work] basics/sweep extra words",
+      "[claudinite-work]basics/sweep",
+      "[claudinite-work] basics",
+      "[claudinite-work] a/b/c",
+      "[claudinite-work] engine/implement-request #44",
+      "Fix the bug",
+      "  [claudinite-work] p/t  ",
+      ""
+    ],
+    "bodies": [
+      "packs/basics/tasks/sweep/task.md\n\nNot-before: 2026-09-20T00:00:00Z\nBlocked-by: #3, #4\nRequest: #44\nModel: sonnet\nMerge: if-narrow\nWoken: 2026-09-16T00:00:00Z\nEnds-when: #9 closed\nTarget-branch: claudinite/basics/sweep/x\nTarget-pr: #77\nSupersedes: #5, #6\n\nExecute the Claudinite task above.\nThe Context section below is binding scope — do not re-decide it.\n\n### Context\n- one\n- two\n  not a bullet\n\n### Progress\n- 10:00 started\n\n### Last verdict\n\n- 2026-09-16T10:00:00Z — the precondition declined: no run — x — y\n- Asked again at 2026-09-17T00:00:00Z.\n",
+      "I want this fixed.\n\nTask: basics/sweep\nModel: gpt\nAutomerge: under:docs && doc-changes\nBlocked-by: #8\nNot-before: 2026-10-01\n\n<!-- claudinite-item -->\n.claudinite/shared/packs/claudinite-tasks/public/implement-request.md\n\nRequest: #50\nModel: opus\n<!-- /claudinite-item -->\n",
+      "packs/x/tasks/y/task.md\nModel: banana\nMerge: Bad Policy!\nEnds-when: #9 merged\nTarget-pr: x\n",
+      "",
+      "Task: not-a-task\nModel: haiku\nAutomerge: nothing\n"
+    ],
+    "issues": [
+      {
+        "number": 1,
+        "title": "[claudinite-work] basics/sweep",
+        "body": "packs/basics/tasks/sweep/task.md\n\nNot-before: 2026-09-20T00:00:00Z\nBlocked-by: #3, #4\nRequest: #44\nModel: sonnet\nMerge: if-narrow\nWoken: 2026-09-16T00:00:00Z\nEnds-when: #9 closed\nTarget-branch: claudinite/basics/sweep/x\nTarget-pr: #77\nSupersedes: #5, #6\n\nExecute the Claudinite task above.\nThe Context section below is binding scope — do not re-decide it.\n\n### Context\n- one\n- two\n  not a bullet\n\n### Progress\n- 10:00 started\n\n### Last verdict\n\n- 2026-09-16T10:00:00Z — the precondition declined: no run — x — y\n- Asked again at 2026-09-17T00:00:00Z.\n",
+        "state": "open",
+        "labels": [
+          "task:status:waiting-for-executor",
+          "task:origin:planned"
+        ]
+      },
+      {
+        "number": 2,
+        "title": "[claudinite-work] basics/sweep",
+        "body": "x",
+        "state": "open",
+        "labels": [
+          "task:ready"
+        ]
+      },
+      {
+        "number": 3,
+        "title": "[claudinite-work] basics/sweep",
+        "body": "x",
+        "state": "open",
+        "labels": [
+          "task:blocked",
+          "task:status:running-agent"
+        ]
+      },
+      {
+        "number": 4,
+        "title": "[claudinite-work] basics/sweep",
+        "body": "x",
+        "state": "open",
+        "labels": [
+          "task:executing"
+        ]
+      },
+      {
+        "number": 5,
+        "title": "[claudinite-work] basics/sweep",
+        "body": "x",
+        "state": "open",
+        "labels": [
+          "task:agent"
+        ]
+      },
+      {
+        "number": 6,
+        "title": "[claudinite-work] basics/sweep",
+        "body": "x",
+        "state": "open",
+        "labels": [
+          "needs-human"
+        ]
+      },
+      {
+        "number": 7,
+        "title": "[claudinite-work] basics/sweep",
+        "body": "x",
+        "state": "open",
+        "labels": [
+          "task:status:needs-human-approval",
+          "task:status:needs-human-action"
+        ]
+      },
+      {
+        "number": 8,
+        "title": "[claudinite-work] basics/sweep",
+        "body": "x",
+        "state": "closed",
+        "labels": [
+          "outcome:delivered"
+        ]
+      },
+      {
+        "number": 9,
+        "title": "[claudinite-work] basics/sweep",
+        "body": "x",
+        "state": "closed",
+        "labels": [
+          "outcome:done",
+          "origin:schedule"
+        ]
+      },
+      {
+        "number": 10,
+        "title": "[claudinite-work] basics/sweep",
+        "body": "x",
+        "state": "closed",
+        "labels": [
+          "task:done"
+        ]
+      },
+      {
+        "number": 11,
+        "title": "[claudinite-work] basics/sweep",
+        "body": "x",
+        "state": "closed",
+        "labels": [
+          "task:obsolete"
+        ]
+      },
+      {
+        "number": 12,
+        "title": "[claudinite-work] basics/sweep",
+        "body": "x",
+        "state": "closed",
+        "labels": [
+          "outcome:obsolete"
+        ]
+      },
+      {
+        "number": 13,
+        "title": "[claudinite-work] basics/sweep",
+        "body": "x",
+        "state": "closed",
+        "labels": [
+          "task:status:done"
+        ]
+      },
+      {
+        "number": 14,
+        "title": "[claudinite-work] basics/sweep",
+        "body": "x",
+        "state": "closed",
+        "labels": [
+          "task:status:rejected"
+        ]
+      },
+      {
+        "number": 15,
+        "title": "Please do it",
+        "body": "I want this fixed.\n\nTask: basics/sweep\nModel: gpt\nAutomerge: under:docs && doc-changes\nBlocked-by: #8\nNot-before: 2026-10-01\n\n<!-- claudinite-item -->\n.claudinite/shared/packs/claudinite-tasks/public/implement-request.md\n\nRequest: #50\nModel: opus\n<!-- /claudinite-item -->\n",
+        "state": "open",
+        "labels": [
+          "task:origin:ad-hoc",
+          "task:status:running-executor"
+        ]
+      },
+      {
+        "number": 16,
+        "title": "Please do it",
+        "body": "no block",
+        "state": "open",
+        "labels": [
+          "task:origin:ad-hoc"
+        ]
+      },
+      {
+        "number": 17,
+        "title": "Please do it",
+        "body": "no block",
+        "state": "open",
+        "labels": [
+          "task:origin:ad-hoc",
+          "task:status:blocked"
+        ]
+      },
+      {
+        "number": 18,
+        "title": "[claudinite-work] basics/sweep #3",
+        "body": "x",
+        "state": "open",
+        "labels": [
+          "task:status:needs-human-failure"
+        ]
+      },
+      {
+        "number": 19,
+        "title": "[claudinite-work] basics/sweep",
+        "body": "x",
+        "state": "open",
+        "labels": [
+          {
+            "name": "task:origin:manual"
+          },
+          {
+            "name": "task:status:needs-human-decision"
+          }
+        ]
+      },
+      {
+        "number": 20,
+        "title": "Random",
+        "body": "",
+        "state": "open",
+        "labels": []
+      },
+      {
+        "number": 21,
+        "title": "[claudinite-work] basics/sweep",
+        "body": "x",
+        "state": "open",
+        "labels": [
+          "task:status:needs-human-weird"
+        ]
+      },
+      {
+        "number": 22,
+        "title": "[claudinite-work] basics/sweep",
+        "body": "Woken: 2026-09-01\n",
+        "state": "open",
+        "labels": [
+          "task:origin:planned"
+        ]
+      }
+    ],
+    "build": [
+      {
+        "taskPath": "packs/a/tasks/b/task.md"
+      },
+      {
+        "taskPath": "packs/a/tasks/b/task.md",
+        "notBefore": "2026-09-20T00:00:00Z",
+        "blockedBy": [
+          3,
+          4
+        ],
+        "context": [
+          "one",
+          "two"
+        ],
+        "delivered": [
+          "d1"
+        ],
+        "reason": "why",
+        "request": 44,
+        "model": "opus",
+        "merge": "if-narrow",
+        "woken": "2026-09-16T00:00:00Z"
+      }
+    ],
+    "edits": [
+      {
+        "op": "notBefore",
+        "body": "packs/basics/tasks/sweep/task.md\n\nNot-before: 2026-09-20T00:00:00Z\nBlocked-by: #3, #4\nRequest: #44\nModel: sonnet\nMerge: if-narrow\nWoken: 2026-09-16T00:00:00Z\nEnds-when: #9 closed\nTarget-branch: claudinite/basics/sweep/x\nTarget-pr: #77\nSupersedes: #5, #6\n\nExecute the Claudinite task above.\nThe Context section below is binding scope — do not re-decide it.\n\n### Context\n- one\n- two\n  not a bullet\n\n### Progress\n- 10:00 started\n\n### Last verdict\n\n- 2026-09-16T10:00:00Z — the precondition declined: no run — x — y\n- Asked again at 2026-09-17T00:00:00Z.\n",
+        "value": "2026-12-01T00:00:00Z"
+      },
+      {
+        "op": "notBefore",
+        "body": "packs/basics/tasks/sweep/task.md\n\nNot-before: 2026-09-20T00:00:00Z\nBlocked-by: #3, #4\nRequest: #44\nModel: sonnet\nMerge: if-narrow\nWoken: 2026-09-16T00:00:00Z\nEnds-when: #9 closed\nTarget-branch: claudinite/basics/sweep/x\nTarget-pr: #77\nSupersedes: #5, #6\n\nExecute the Claudinite task above.\nThe Context section below is binding scope — do not re-decide it.\n\n### Context\n- one\n- two\n  not a bullet\n\n### Progress\n- 10:00 started\n\n### Last verdict\n\n- 2026-09-16T10:00:00Z — the precondition declined: no run — x — y\n- Asked again at 2026-09-17T00:00:00Z.\n",
+        "value": null
+      },
+      {
+        "op": "notBefore",
+        "body": "packs/a/task.md\n\nExecute.\n",
+        "value": "X"
+      },
+      {
+        "op": "notBefore",
+        "body": "",
+        "value": "X"
+      },
+      {
+        "op": "notBefore",
+        "body": "a\n",
+        "value": null
+      },
+      {
+        "op": "woken",
+        "body": "packs/a/task.md\n\nExecute.\n",
+        "value": "2026-09-16"
+      },
+      {
+        "op": "woken",
+        "body": "packs/basics/tasks/sweep/task.md\n\nNot-before: 2026-09-20T00:00:00Z\nBlocked-by: #3, #4\nRequest: #44\nModel: sonnet\nMerge: if-narrow\nWoken: 2026-09-16T00:00:00Z\nEnds-when: #9 closed\nTarget-branch: claudinite/basics/sweep/x\nTarget-pr: #77\nSupersedes: #5, #6\n\nExecute the Claudinite task above.\nThe Context section below is binding scope — do not re-decide it.\n\n### Context\n- one\n- two\n  not a bullet\n\n### Progress\n- 10:00 started\n\n### Last verdict\n\n- 2026-09-16T10:00:00Z — the precondition declined: no run — x — y\n- Asked again at 2026-09-17T00:00:00Z.\n",
+        "value": "2026-09-17"
+      },
+      {
+        "op": "woken",
+        "body": "I want this fixed.\n\nTask: basics/sweep\nModel: gpt\nAutomerge: under:docs && doc-changes\nBlocked-by: #8\nNot-before: 2026-10-01\n\n<!-- claudinite-item -->\n.claudinite/shared/packs/claudinite-tasks/public/implement-request.md\n\nRequest: #50\nModel: opus\n<!-- /claudinite-item -->\n",
+        "value": "2026-09-17"
+      },
+      {
+        "op": "endsWhen",
+        "body": "packs/a/task.md\n",
+        "value": 12
+      },
+      {
+        "op": "endsWhen",
+        "body": "packs/basics/tasks/sweep/task.md\n\nNot-before: 2026-09-20T00:00:00Z\nBlocked-by: #3, #4\nRequest: #44\nModel: sonnet\nMerge: if-narrow\nWoken: 2026-09-16T00:00:00Z\nEnds-when: #9 closed\nTarget-branch: claudinite/basics/sweep/x\nTarget-pr: #77\nSupersedes: #5, #6\n\nExecute the Claudinite task above.\nThe Context section below is binding scope — do not re-decide it.\n\n### Context\n- one\n- two\n  not a bullet\n\n### Progress\n- 10:00 started\n\n### Last verdict\n\n- 2026-09-16T10:00:00Z — the precondition declined: no run — x — y\n- Asked again at 2026-09-17T00:00:00Z.\n",
+        "value": 13
+      },
+      {
+        "op": "target",
+        "body": "packs/basics/tasks/sweep/task.md\n\nNot-before: 2026-09-20T00:00:00Z\nBlocked-by: #3, #4\nRequest: #44\nModel: sonnet\nMerge: if-narrow\nWoken: 2026-09-16T00:00:00Z\nEnds-when: #9 closed\nTarget-branch: claudinite/basics/sweep/x\nTarget-pr: #77\nSupersedes: #5, #6\n\nExecute the Claudinite task above.\nThe Context section below is binding scope — do not re-decide it.\n\n### Context\n- one\n- two\n  not a bullet\n\n### Progress\n- 10:00 started\n\n### Last verdict\n\n- 2026-09-16T10:00:00Z — the precondition declined: no run — x — y\n- Asked again at 2026-09-17T00:00:00Z.\n",
+        "value": {
+          "mode": "amend",
+          "branch": "b",
+          "pr": 9,
+          "supersedes": [
+            1,
+            2
+          ]
+        }
+      },
+      {
+        "op": "target",
+        "body": "packs/basics/tasks/sweep/task.md\n\nNot-before: 2026-09-20T00:00:00Z\nBlocked-by: #3, #4\nRequest: #44\nModel: sonnet\nMerge: if-narrow\nWoken: 2026-09-16T00:00:00Z\nEnds-when: #9 closed\nTarget-branch: claudinite/basics/sweep/x\nTarget-pr: #77\nSupersedes: #5, #6\n\nExecute the Claudinite task above.\nThe Context section below is binding scope — do not re-decide it.\n\n### Context\n- one\n- two\n  not a bullet\n\n### Progress\n- 10:00 started\n\n### Last verdict\n\n- 2026-09-16T10:00:00Z — the precondition declined: no run — x — y\n- Asked again at 2026-09-17T00:00:00Z.\n",
+        "value": {
+          "mode": "fresh",
+          "branch": "b",
+          "pr": 9
+        }
+      },
+      {
+        "op": "target",
+        "body": "packs/a/task.md\n",
+        "value": {
+          "mode": "none"
+        }
+      },
+      {
+        "op": "target",
+        "body": "I want this fixed.\n\nTask: basics/sweep\nModel: gpt\nAutomerge: under:docs && doc-changes\nBlocked-by: #8\nNot-before: 2026-10-01\n\n<!-- claudinite-item -->\n.claudinite/shared/packs/claudinite-tasks/public/implement-request.md\n\nRequest: #50\nModel: opus\n<!-- /claudinite-item -->\n",
+        "value": {
+          "mode": "fresh",
+          "branch": "claudinite/x"
+        }
+      },
+      {
+        "op": "section",
+        "body": "packs/basics/tasks/sweep/task.md\n\nNot-before: 2026-09-20T00:00:00Z\nBlocked-by: #3, #4\nRequest: #44\nModel: sonnet\nMerge: if-narrow\nWoken: 2026-09-16T00:00:00Z\nEnds-when: #9 closed\nTarget-branch: claudinite/basics/sweep/x\nTarget-pr: #77\nSupersedes: #5, #6\n\nExecute the Claudinite task above.\nThe Context section below is binding scope — do not re-decide it.\n\n### Context\n- one\n- two\n  not a bullet\n\n### Progress\n- 10:00 started\n\n### Last verdict\n\n- 2026-09-16T10:00:00Z — the precondition declined: no run — x — y\n- Asked again at 2026-09-17T00:00:00Z.\n",
+        "heading": "Context",
+        "lines": [
+          "new"
+        ]
+      },
+      {
+        "op": "section",
+        "body": "packs/basics/tasks/sweep/task.md\n\nNot-before: 2026-09-20T00:00:00Z\nBlocked-by: #3, #4\nRequest: #44\nModel: sonnet\nMerge: if-narrow\nWoken: 2026-09-16T00:00:00Z\nEnds-when: #9 closed\nTarget-branch: claudinite/basics/sweep/x\nTarget-pr: #77\nSupersedes: #5, #6\n\nExecute the Claudinite task above.\nThe Context section below is binding scope — do not re-decide it.\n\n### Context\n- one\n- two\n  not a bullet\n\n### Progress\n- 10:00 started\n\n### Last verdict\n\n- 2026-09-16T10:00:00Z — the precondition declined: no run — x — y\n- Asked again at 2026-09-17T00:00:00Z.\n",
+        "heading": "Why the agent is here",
+        "lines": [
+          "r"
+        ]
+      },
+      {
+        "op": "section",
+        "body": "a\n\n\n",
+        "heading": "X",
+        "lines": [
+          "1",
+          "2"
+        ]
+      },
+      {
+        "op": "section",
+        "body": "packs/basics/tasks/sweep/task.md\n\nNot-before: 2026-09-20T00:00:00Z\nBlocked-by: #3, #4\nRequest: #44\nModel: sonnet\nMerge: if-narrow\nWoken: 2026-09-16T00:00:00Z\nEnds-when: #9 closed\nTarget-branch: claudinite/basics/sweep/x\nTarget-pr: #77\nSupersedes: #5, #6\n\nExecute the Claudinite task above.\nThe Context section below is binding scope — do not re-decide it.\n\n### Context\n- one\n- two\n  not a bullet\n\n### Progress\n- 10:00 started\n\n### Last verdict\n\n- 2026-09-16T10:00:00Z — the precondition declined: no run — x — y\n- Asked again at 2026-09-17T00:00:00Z.\n",
+        "heading": "Last verdict",
+        "lines": [
+          "z"
+        ]
+      }
+    ],
+    "messages": [
+      {
+        "message": "Fix\n\nClaudinite-Task: basics/sweep\n"
+      },
+      {
+        "message": "Fix",
+        "task": "a/b"
+      },
+      {
+        "message": "Fix\n\nClaudinite-Task: x/y",
+        "task": "a/b"
+      },
+      {
+        "message": "",
+        "task": null
+      },
+      {
+        "message": "Fix  \n\n",
+        "task": "p/q"
+      }
+    ],
+    "taskPaths": [
+      "packs/basics/tasks/sweep/task.md",
+      ".claudinite/shared/packs/basics/tasks/sweep/task.md",
+      ".claudinite/local/packs/mine/tasks/t/task.md",
+      "packs/claudinite-tasks/public/implement-request.md",
+      ".claudinite/shared/packs/claudinite-tasks/public/implement-request.md",
+      ".claudinite/shared/packs/claudinite-tasks/queue/tasks/implement-request/task.md",
+      "engine/scheduler/queue/tasks/implement-request/task.md",
+      "random/path.md",
+      "packs/x/tasks/y/z/task.md"
+    ]
+  }
+}

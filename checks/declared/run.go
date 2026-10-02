@@ -140,6 +140,7 @@ func LoadSet(repo, engine string, extra ...Builtin) (*Set, error) {
 		return nil, err
 	}
 	s.Packs = set.Packs
+	s.Config.Packs = set.Packs
 	s.Triggers, _ = skilltriggers.FromPacks(set.Packs)
 	active := map[string]bool{}
 	for _, p := range set.Packs {

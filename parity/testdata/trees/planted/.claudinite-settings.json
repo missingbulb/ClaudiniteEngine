@@ -9,7 +9,9 @@
     "python",
     "google-identity",
     "claudinite-lifecycle",
-    "claudinite-growth"
+    "claudinite-growth",
+    "claudinite-tasks",
+    "local/planted"
   ],
   "sharedConstants": [
     {

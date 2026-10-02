@@ -1,0 +1,6 @@
+{
+  "ruleRoutingGuidance": {
+    "belongs": "the scenario's own task",
+    "excludes": "everything else: the declared canon packs"
+  }
+}

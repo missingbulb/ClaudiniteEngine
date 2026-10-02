@@ -10,22 +10,10 @@ conformance-workflow verify
 conformance-work-scope verify
 legacy-shape-in-use verify
 rules-index-current verify
-flat-declarations-current task-runner
 seeded-file-stale adoption
 skills-index-current adoption
 interview-answer-stale adoption
 adoption-answers-pending adoption
-
-# claudinite-growth
-task-declaration-matches-folder task-runner
-task-md-only-when-agentic task-runner
-task-worker-restores-main task-runner
-
-# claudinite-tasks
-automerge-policy-scope task-runner
-executor-workflow-secrets task-runner
-task-code-work-env task-runner
-task-declaration-shape task-runner
 
 # claudinite-dashboard
 descriptor-usable dashboard

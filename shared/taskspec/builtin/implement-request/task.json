@@ -1,0 +1,15 @@
+{
+  "id": "implement-request",
+  "description": "The engine's built-in request implementer: a person marks an ordinary issue for the queue and this task implements it, that issue being the work item. The one task that may run at the model the item names.",
+  "trigger": "request",
+  "preconditions": [
+    "request-eligible"
+  ],
+  "expected_outcome": "fresh_pr",
+  "automerge": "anything",
+  "on_interrupt": "needs-human",
+  "agent_model": "opus",
+  "model_from_request": true,
+  "agent_instructions": "task.md",
+  "agent_execution_timeout": 14400
+}

@@ -1,0 +1,3682 @@
+{
+  "expect": [
+    {
+      "cadence": null,
+      "codeWork": false,
+      "needsItem": false,
+      "normalized": null,
+      "problems": [
+        {
+          "fix": "write one JSON object: { \"id\", \"description\", \"expected_outcome\", … }",
+          "what": "task.json is not a declaration object"
+        }
+      ],
+      "scheduled": false,
+      "signals": []
+    },
+    {
+      "cadence": null,
+      "codeWork": false,
+      "needsItem": false,
+      "normalized": [
+        1,
+        2
+      ],
+      "problems": [
+        {
+          "fix": "write one JSON object: { \"id\", \"description\", \"expected_outcome\", … }",
+          "what": "task.json is not a declaration object"
+        }
+      ],
+      "scheduled": false,
+      "signals": []
+    },
+    {
+      "cadence": null,
+      "codeWork": false,
+      "needsItem": false,
+      "normalized": "task",
+      "problems": [
+        {
+          "fix": "write one JSON object: { \"id\", \"description\", \"expected_outcome\", … }",
+          "what": "task.json is not a declaration object"
+        }
+      ],
+      "scheduled": false,
+      "signals": []
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "give the task an \"id\" matching its directory name",
+          "what": "the task has no string \"id\""
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": " ",
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "give the task an \"id\" matching its directory name",
+          "what": "the task has no string \"id\""
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": 7,
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "give the task an \"id\" matching its directory name",
+          "what": "the task has no string \"id\""
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.mjs",
+        "description": "word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "keep it to 50 words — a summary, not the README",
+          "what": "\"description\" runs to 51 words"
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.mjs",
+        "description": 12,
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "write one sentence or two saying what the task does or why it exists",
+          "what": "\"description\" is not a string"
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.mjs",
+        "description": "",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "say what the task does or why it exists, or drop the field",
+          "what": "\"description\" is empty"
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "precondition_signals": [
+          "commits"
+        ],
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "drop it — the signal union is derived from the conditions, each of which names what it reads",
+          "what": "\"precondition_signals\" is retired"
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "gpt",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "set one of: opus, sonnet, haiku, none",
+          "what": "\"agent_model\" \"gpt\" is not a legal model family"
+        },
+        {
+          "fix": "point \"agent_instructions\" at the worker file beside task.json (e.g. \"task.md\")",
+          "what": "an agentic task (agent_model !== \"none\") declares no string \"agent_instructions\""
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": 3,
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "set one of: opus, sonnet, haiku, none",
+          "what": "\"agent_model\" 3 is not a legal model family"
+        },
+        {
+          "fix": "point \"agent_instructions\" at the worker file beside task.json (e.g. \"task.md\")",
+          "what": "an agentic task (agent_model !== \"none\") declares no string \"agent_instructions\""
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "pr",
+        "id": "sweep",
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "set one of: no_code_changes, fresh_pr, amend_existing_or_create_new_pr, supersede_existing_pr",
+          "what": "\"expected_outcome\" \"pr\" is not a legal outcome ceiling"
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "id": "sweep",
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "set one of: no_code_changes, fresh_pr, amend_existing_or_create_new_pr, supersede_existing_pr",
+          "what": "\"expected_outcome\" undefined is not a legal outcome ceiling"
+        },
+        {
+          "fix": "say what may land unreviewed: \"nothing\", \"anything\", or a list of diff classes, e.g. [\"comment-only-changes\", \"readme-changes\"]",
+          "what": "a \"undefined\" task declares no \"automerge\""
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "no_code_changes",
+        "id": "sweep",
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "drop it — a task that opens no pull request has nothing to merge; or set expected_outcome: \"fresh_pr\"",
+          "what": "a \"no_code_changes\" task declares \"automerge\""
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "reject:x"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "set \"nothing\", \"anything\", or a list of rule names, each optionally reject:-prefixed",
+          "what": "\"automerge\" is not a legal policy: the policy lists no allow term — \"anything except X\" is spelled [\"anything\", \"reject:X\"]"
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "nothing",
+          "doc-changes"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "set \"nothing\", \"anything\", or a list of rule names, each optionally reject:-prefixed",
+          "what": "\"automerge\" is not a legal policy: \"nothing\" cannot sit in a rule list — it is a whole policy of its own"
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "narrow-diff\u0026\u0026doc-changes"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "set \"nothing\", \"anything\", or a list of rule names, each optionally reject:-prefixed",
+          "what": "\"automerge\" is not a legal policy: \"narrow-diff\" cannot sit in an \u0026\u0026 term — intersect specific rules"
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "under:../x"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "set \"nothing\", \"anything\", or a list of rule names, each optionally reject:-prefixed",
+          "what": "\"automerge\" is not a legal policy: \"under:../x\" names no usable repo-relative directory — spell it under:packs/some-pack"
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "Bad Name"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "set \"nothing\", \"anything\", or a list of rule names, each optionally reject:-prefixed",
+          "what": "\"automerge\" is not a legal policy: \"Bad Name\" is not a policy term (rule names or under:\u003cdir\u003e, joined with \u0026\u0026 and optionally reject:-prefixed)"
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "reject:narrow-diff",
+          "doc-changes"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "set \"nothing\", \"anything\", or a list of rule names, each optionally reject:-prefixed",
+          "what": "\"automerge\" is not a legal policy: \"reject:narrow-diff\" rejects a composite — name the specific rules to reject"
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": false,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "sonnet",
+        "automerge": [
+          "doc-changes"
+        ],
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "point \"agent_instructions\" at the worker file beside task.json (e.g. \"task.md\")",
+          "what": "an agentic task (agent_model !== \"none\") declares no string \"agent_instructions\""
+        },
+        {
+          "fix": "add \"agent_execution_timeout\": the seconds bounding the agentic run — generous; extreme protection, not a scheduling knob",
+          "what": "an agentic task (agent_model !== \"none\") declares no positive-integer \"agent_execution_timeout\""
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_execution_timeout": 0,
+        "agent_instructions": "task.md",
+        "agent_model": "sonnet",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "add \"agent_execution_timeout\": the seconds bounding the agentic run — generous; extreme protection, not a scheduling knob",
+          "what": "an agentic task (agent_model !== \"none\") declares no positive-integer \"agent_execution_timeout\""
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_execution_timeout": 1.5,
+        "agent_instructions": " ",
+        "agent_model": "haiku",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "point \"agent_instructions\" at the worker file beside task.json (e.g. \"task.md\")",
+          "what": "an agentic task (agent_model !== \"none\") declares no string \"agent_instructions\""
+        },
+        {
+          "fix": "add \"agent_execution_timeout\": the seconds bounding the agentic run — generous; extreme protection, not a scheduling knob",
+          "what": "an agentic task (agent_model !== \"none\") declares no positive-integer \"agent_execution_timeout\""
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ]
+      },
+      "problems": [
+        {
+          "fix": "write one of: \"schedule\", \"request\" — \"schedule\" is asked by the scheduler at every tick, \"request\" runs only from an item somebody creates",
+          "what": "the task declares no \"trigger\""
+        }
+      ],
+      "scheduled": false,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": "cron"
+      },
+      "problems": [
+        {
+          "fix": "write one of: \"schedule\", \"request\" — \"schedule\" is asked by the scheduler at every tick, \"request\" runs only from an item somebody creates",
+          "what": "\"cron\" is not a legal trigger"
+        }
+      ],
+      "scheduled": false,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": 1
+      },
+      "problems": [
+        {
+          "fix": "write one of: \"schedule\", \"request\" — \"schedule\" is asked by the scheduler at every tick, \"request\" runs only from an item somebody creates",
+          "what": "\"1\" is not a legal trigger"
+        }
+      ],
+      "scheduled": false,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "precondition": "function",
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "move the gate into \"preconditions\" — a built-in condition, or a term this task's preconditions.mjs exports",
+          "what": "the task declares a \"precondition\" function, which is retired"
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "frequency": "daily",
+        "id": "sweep",
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "write the cadence as a condition - \"preconditions\": [\"schedule:at-most-daily\", …] - with \"trigger\": \"schedule\" beside it, and drop a \"none\"",
+          "what": "the task declares \"frequency\", which is retired"
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "frequency": "manual",
+        "id": "sweep",
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "drop it and write \"trigger\": \"request\" - \"manual\" meant no schedule at all, which a declaration now says outright",
+          "what": "the task declares \"frequency\", which is retired"
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "frequency": "hourly",
+        "id": "sweep",
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "write the cadence as a condition - \"preconditions\": [\"schedule:at-most-\u003cdaily|weekly|monthly\u003e\", …] - with \"trigger\": \"schedule\" beside it, and drop a \"none\"",
+          "what": "the task declares \"frequency\", which is retired"
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": null,
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "preconditions": "schedule:at-most-daily",
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "write a list of conditions, all of which must hold, a cadence first where the task keeps one (\"schedule:at-most-\u003cdaily|weekly|monthly\u003e\"), then what it waits for, e.g. [\"schedule:at-most-weekly\", \"substantive-change\", \"no-open-pr-titled:My sweep\"]; a task that runs only from an item somebody creates states no \"preconditions\" at all",
+          "what": "\"preconditions\" is not a legal expression: it is not an array of condition strings"
+        }
+      ],
+      "scheduled": true,
+      "signals": []
+    },
+    {
+      "cadence": null,
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "preconditions": [
+          ""
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "write a list of conditions, all of which must hold, a cadence first where the task keeps one (\"schedule:at-most-\u003cdaily|weekly|monthly\u003e\"), then what it waits for, e.g. [\"schedule:at-most-weekly\", \"substantive-change\", \"no-open-pr-titled:My sweep\"]; a task that runs only from an item somebody creates states no \"preconditions\" at all",
+          "what": "\"preconditions\" is not a legal expression: every entry must be a non-empty string"
+        }
+      ],
+      "scheduled": true,
+      "signals": []
+    },
+    {
+      "cadence": null,
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "preconditions": [
+          "a || "
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "write a list of conditions, all of which must hold, a cadence first where the task keeps one (\"schedule:at-most-\u003cdaily|weekly|monthly\u003e\"), then what it waits for, e.g. [\"schedule:at-most-weekly\", \"substantive-change\", \"no-open-pr-titled:My sweep\"]; a task that runs only from an item somebody creates states no \"preconditions\" at all",
+          "what": "\"preconditions\" is not a legal expression: an alternative around \"||\" is empty"
+        }
+      ],
+      "scheduled": true,
+      "signals": []
+    },
+    {
+      "cadence": null,
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "preconditions": [
+          "none"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "write a list of conditions, all of which must hold, a cadence first where the task keeps one (\"schedule:at-most-\u003cdaily|weekly|monthly\u003e\"), then what it waits for, e.g. [\"schedule:at-most-weekly\", \"substantive-change\", \"no-open-pr-titled:My sweep\"]; a task that runs only from an item somebody creates states no \"preconditions\" at all",
+          "what": "\"preconditions\" is not a legal expression: \"none\" is retired. A task with no condition states none: leave \"preconditions\" out, and the task runs only from an item somebody creates. Otherwise state when it runs: a cadence (`schedule:at-most-daily`) or the movement it waits for"
+        }
+      ],
+      "scheduled": true,
+      "signals": []
+    },
+    {
+      "cadence": null,
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "preconditions": [
+          3
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "write a list of conditions, all of which must hold, a cadence first where the task keeps one (\"schedule:at-most-\u003cdaily|weekly|monthly\u003e\"), then what it waits for, e.g. [\"schedule:at-most-weekly\", \"substantive-change\", \"no-open-pr-titled:My sweep\"]; a task that runs only from an item somebody creates states no \"preconditions\" at all",
+          "what": "\"preconditions\" is not a legal expression: every entry must be a non-empty string"
+        }
+      ],
+      "scheduled": true,
+      "signals": []
+    },
+    {
+      "cadence": null,
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "preconditions": [
+          "nope"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "use a built-in (schedule, due, last-run-not-failed, last-run-not-parked, repo-active, substantive-change, any-commit, session-captured, issues-touched, prs-touched, mount-moved, commits-under, commits-outside, no-open-pr-touching, no-open-pr-titled) or a term this task's preconditions.mjs exports",
+          "what": "\"preconditions\" names the unknown condition \"nope\""
+        }
+      ],
+      "scheduled": true,
+      "signals": []
+    },
+    {
+      "cadence": null,
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "preconditions": [
+          "schedule"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "write it as \"schedule:\u003cat-most-daily|at-most-weekly|at-most-monthly\u003e\"",
+          "what": "the precondition \"schedule\" takes an inline argument and was given none"
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "runs"
+      ]
+    },
+    {
+      "cadence": null,
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "preconditions": [
+          "schedule:at-most-hourly"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "write it as \"schedule:\u003cat-most-daily|at-most-weekly|at-most-monthly\u003e\" — one of at-most-daily, at-most-weekly, at-most-monthly",
+          "what": "\"schedule\" takes one of at-most-daily, at-most-weekly, at-most-monthly, not \"at-most-hourly\""
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "runs"
+      ]
+    },
+    {
+      "cadence": null,
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "preconditions": [
+          "any-commit:x"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "write it as \"any-commit\"",
+          "what": "the precondition \"any-commit\" takes no argument but was given \"x\""
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits"
+      ]
+    },
+    {
+      "cadence": null,
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "preconditions": [
+          "commits-under"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "write it as \"commits-under:\u003cpath-prefix\u003e\"",
+          "what": "the precondition \"commits-under\" takes an inline argument and was given none"
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits"
+      ]
+    },
+    {
+      "cadence": null,
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "preconditions": [
+          "due:fortnightly"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "write it as \"due:\u003cdaily|weekly|monthly\u003e\" — one of daily, weekly, monthly",
+          "what": "\"due\" takes one of daily, weekly, monthly, not \"fortnightly\""
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "rename the task-local term — the term namespace is flat, and the built-ins are: schedule, due, last-run-not-failed, last-run-not-parked, repo-active, substantive-change, any-commit, session-captured, issues-touched, prs-touched, mount-moved, commits-under, commits-outside, no-open-pr-touching, no-open-pr-titled",
+          "what": "the task's preconditions.mjs redefines the built-in term \"repo-active\""
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "model_from_request": false,
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "drop the field — only the engine's built-in request task reads a model off its item, and every other task names its own agent_model",
+          "what": "\"model_from_request\" false is not `true`"
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "model_from_request": "yes",
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "drop the field — only the engine's built-in request task reads a model off its item, and every other task names its own agent_model",
+          "what": "\"model_from_request\" \"yes\" is not `true`"
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work": "node x.mjs",
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "keep one - \"code_worker_mjs\" for a module the runner wraps, \"code_work\" for a command it only spawns",
+          "what": "both \"code_work\" and \"code_worker_mjs\" are declared"
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work": "",
+        "code_work_timeout": 600,
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "set it to a command whose executable is a script beside task.json, e.g. \"node prepare.mjs\"",
+          "what": "\"code_work\" is present but not a non-empty string"
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work": "node /abs/x.mjs",
+        "code_work_timeout": 5,
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "reference a sibling script only, e.g. \"node prepare.mjs\"",
+          "what": "\"code_work\" reaches outside the task directory (absolute path or \"..\")"
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work": "node ../x.mjs",
+        "code_work_timeout": 5,
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "reference a sibling script only, e.g. \"node prepare.mjs\"",
+          "what": "\"code_work\" reaches outside the task directory (absolute path or \"..\")"
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "name the module beside task.json that exports `worker`, e.g. \"worker.mjs\"",
+          "what": "\"code_worker_mjs\" is present but not a non-empty string"
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "node worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "name the module alone, e.g. \"worker.mjs\" - the runner supplies the node invocation",
+          "what": "\"code_worker_mjs\" is a command rather than a file name"
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.js",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "the runner imports it and calls its `worker` export, so it is an ES module beside task.json",
+          "what": "\"code_worker_mjs\" does not name a .mjs module"
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "../worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "name a sibling module only, e.g. \"worker.mjs\"",
+          "what": "\"code_worker_mjs\" reaches outside the task directory (absolute path or \"..\")"
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "/worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "name a sibling module only, e.g. \"worker.mjs\"",
+          "what": "\"code_worker_mjs\" reaches outside the task directory (absolute path or \"..\")"
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "add \"code_work_timeout\": the seconds after which the subprocess is killed and the task fails",
+          "what": "\"code_worker_mjs\" is set but \"code_work_timeout\" is not a positive integer"
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_timeout": -1,
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "add \"code_work_timeout\": the seconds after which the subprocess is killed and the task fails",
+          "what": "\"code_worker_mjs\" is set but \"code_work_timeout\" is not a positive integer"
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_timeout": "600",
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "add \"code_work_timeout\": the seconds after which the subprocess is killed and the task fails",
+          "what": "\"code_worker_mjs\" is set but \"code_work_timeout\" is not a positive integer"
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_timeout": 3600,
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "bound the work step under 60 minutes - one that can outlive the leash is reclaimed while still running, and the item livelocks",
+          "what": "\"code_work_timeout\" (3600s) reaches the executor's 60-minute claim leash"
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_timeout": 3599,
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "schedule_after": "x/y",
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "e.g. \"schedule_after\": [\"claudinite-lifecycle/update\"] — this task is not scheduled onto an executor while those are live this cycle",
+          "what": "\"schedule_after\" is not an array of \"\u003cpack\u003e/\u003ctask\u003e\" ids"
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "schedule_after": [
+          "xy"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "e.g. \"schedule_after\": [\"claudinite-lifecycle/update\"] — this task is not scheduled onto an executor while those are live this cycle",
+          "what": "\"schedule_after\" is not an array of \"\u003cpack\u003e/\u003ctask\u003e\" ids"
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "schedule_after": [
+          "x/y z"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "e.g. \"schedule_after\": [\"claudinite-lifecycle/update\"] — this task is not scheduled onto an executor while those are live this cycle",
+          "what": "\"schedule_after\" is not an array of \"\u003cpack\u003e/\u003ctask\u003e\" ids"
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "on_interrupt": "retry",
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "set one of: requeue, needs-human (default \"requeue\")",
+          "what": "\"on_interrupt\" \"retry\" is not a legal policy"
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "on_interrupt": false,
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "set one of: requeue, needs-human (default \"requeue\")",
+          "what": "\"on_interrupt\" false is not a legal policy"
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "invocation_endpoint": "https://x",
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "name a key from the repo's taskScheduler.agenticTaskInvocationEndpoints map, e.g. \"fleet\" — never a URL",
+          "what": "\"invocation_endpoint\" is not a kebab-case endpoint name"
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "invocation_endpoint": "Fleet",
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "name a key from the repo's taskScheduler.agenticTaskInvocationEndpoints map, e.g. \"fleet\" — never a URL",
+          "what": "\"invocation_endpoint\" is not a kebab-case endpoint name"
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "invocation_endpoint": 3,
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "name a key from the repo's taskScheduler.agenticTaskInvocationEndpoints map, e.g. \"fleet\" — never a URL",
+          "what": "\"invocation_endpoint\" is not a kebab-case endpoint name"
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_required_secrets": "KEY",
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "list the repo Actions secret names this task needs, e.g. [\"SOME_API_KEY\"]",
+          "what": "\"code_work_required_secrets\" is not an array of secret names"
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_required_secrets": [
+          ""
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "list the repo Actions secret names this task needs, e.g. [\"SOME_API_KEY\"]",
+          "what": "\"code_work_required_secrets\" is not an array of secret names"
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": true,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "code_work_required_secrets": [
+          "github_token",
+          "CLAUDINITE_X",
+          "ok"
+        ],
+        "code_work_timeout": 600,
+        "code_worker_mjs": "worker.mjs",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "rename it without that prefix, e.g. one carrying the pack's own name",
+          "what": "required secret \"github_token\" cannot be created — GitHub reserves the GITHUB_ prefix"
+        },
+        {
+          "fix": "rename it outside CLAUDINITE_* — that prefix belongs to the variables code_work is handed",
+          "what": "required secret \"CLAUDINITE_X\" sits in the code-work namespace, which its task's own code may not read"
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": false,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": [
+          "doc-changes"
+        ],
+        "description": "Sweeps the repo.",
+        "expected_outcome": "fresh_pr",
+        "id": "sweep",
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "add \"code_worker_mjs\" (a none task does its work in that subprocess) - or give the task an agent_model",
+          "what": "an agentless task (agent_model: \"none\") declares no work step"
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": {
+        "cadence": "daily",
+        "kind": "period"
+      },
+      "codeWork": false,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "automerge": "nothing",
+        "description": "Sweeps the repo.",
+        "expected_outcome": "weird",
+        "id": "sweep",
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change"
+        ],
+        "trigger": "schedule"
+      },
+      "problems": [
+        {
+          "fix": "set one of: no_code_changes, fresh_pr, amend_existing_or_create_new_pr, supersede_existing_pr",
+          "what": "\"expected_outcome\" \"weird\" is not a legal outcome ceiling"
+        },
+        {
+          "fix": "add \"code_worker_mjs\" (a none task does its work in that subprocess) - or give the task an agent_model",
+          "what": "an agentless task (agent_model: \"none\") declares no work step"
+        }
+      ],
+      "scheduled": true,
+      "signals": [
+        "commits",
+        "runs"
+      ]
+    },
+    {
+      "cadence": null,
+      "codeWork": false,
+      "needsItem": false,
+      "normalized": {
+        "agent_model": "none",
+        "preconditions": []
+      },
+      "problems": [
+        {
+          "fix": "give the task an \"id\" matching its directory name",
+          "what": "the task has no string \"id\""
+        },
+        {
+          "fix": "set one of: no_code_changes, fresh_pr, amend_existing_or_create_new_pr, supersede_existing_pr",
+          "what": "\"expected_outcome\" undefined is not a legal outcome ceiling"
+        },
+        {
+          "fix": "say what may land unreviewed: \"nothing\", \"anything\", or a list of diff classes, e.g. [\"comment-only-changes\", \"readme-changes\"]",
+          "what": "a \"undefined\" task declares no \"automerge\""
+        },
+        {
+          "fix": "write one of: \"schedule\", \"request\" — \"schedule\" is asked by the scheduler at every tick, \"request\" runs only from an item somebody creates",
+          "what": "the task declares no \"trigger\""
+        },
+        {
+          "fix": "add \"code_worker_mjs\" (a none task does its work in that subprocess) - or give the task an agent_model",
+          "what": "an agentless task (agent_model: \"none\") declares no work step"
+        }
+      ],
+      "scheduled": false,
+      "signals": []
+    }
+  ],
+  "input": {
+    "declarations": [
+      {
+        "declaration": null
+      },
+      {
+        "declaration": [
+          1,
+          2
+        ]
+      },
+      {
+        "declaration": "task"
+      },
+      {
+        "declaration": {
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 600
+        }
+      },
+      {
+        "declaration": {
+          "id": " ",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 600
+        }
+      },
+      {
+        "declaration": {
+          "id": 7,
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 600
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 600
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": 12,
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 600
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 600
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 600,
+          "precondition_signals": [
+            "commits"
+          ]
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 600,
+          "agent_model": "gpt"
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 600,
+          "agent_model": 3
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 600
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 600
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "no_code_changes",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 600
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "reject:x"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 600
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "nothing",
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 600
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "narrow-diff&&doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 600
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "under:../x"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 600
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "Bad Name"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 600
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "reject:narrow-diff",
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 600
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "agent_model": "sonnet"
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 600,
+          "agent_model": "sonnet",
+          "agent_instructions": "task.md",
+          "agent_execution_timeout": 0
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 600,
+          "agent_model": "haiku",
+          "agent_instructions": " ",
+          "agent_execution_timeout": 1.5
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 600
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "cron",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 600
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": 1,
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 600
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 600,
+          "precondition": "function"
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 600,
+          "frequency": "daily"
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 600,
+          "frequency": "manual"
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 600,
+          "frequency": "hourly"
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": "schedule:at-most-daily",
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 600
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            ""
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 600
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "a || "
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 600
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "none"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 600
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            3
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 600
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "nope"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 600
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 600
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-hourly"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 600
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "any-commit:x"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 600
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "commits-under"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 600
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "due:fortnightly"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 600
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 600
+        },
+        "terms": {
+          "repo-active": {}
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 600,
+          "model_from_request": false
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 600,
+          "model_from_request": "yes"
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 600,
+          "code_work": "node x.mjs"
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_work_timeout": 600,
+          "code_work": ""
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_work_timeout": 5,
+          "code_work": "node /abs/x.mjs"
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_work_timeout": 5,
+          "code_work": "node ../x.mjs"
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "",
+          "code_work_timeout": 600
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "node worker.mjs",
+          "code_work_timeout": 600
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.js",
+          "code_work_timeout": 600
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "../worker.mjs",
+          "code_work_timeout": 600
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "/worker.mjs",
+          "code_work_timeout": 600
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs"
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": -1
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": "600"
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 3600
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 3599
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 600,
+          "schedule_after": "x/y"
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 600,
+          "schedule_after": [
+            "xy"
+          ]
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 600,
+          "schedule_after": [
+            "x/y z"
+          ]
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 600,
+          "on_interrupt": "retry"
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 600,
+          "on_interrupt": false
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 600,
+          "invocation_endpoint": "https://x"
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 600,
+          "invocation_endpoint": "Fleet"
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 600,
+          "invocation_endpoint": 3
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 600,
+          "code_work_required_secrets": "KEY"
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 600,
+          "code_work_required_secrets": [
+            ""
+          ]
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ],
+          "code_worker_mjs": "worker.mjs",
+          "code_work_timeout": 600,
+          "code_work_required_secrets": [
+            "github_token",
+            "CLAUDINITE_X",
+            "ok"
+          ]
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "fresh_pr",
+          "automerge": [
+            "doc-changes"
+          ]
+        }
+      },
+      {
+        "declaration": {
+          "id": "sweep",
+          "description": "Sweeps the repo.",
+          "trigger": "schedule",
+          "preconditions": [
+            "schedule:at-most-daily",
+            "substantive-change"
+          ],
+          "expected_outcome": "weird",
+          "agent_model": "none"
+        }
+      },
+      {
+        "declaration": {}
+      }
+    ]
+  }
+}

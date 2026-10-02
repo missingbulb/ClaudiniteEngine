@@ -10,3 +10,4 @@ python
 google-identity
 claudinite-lifecycle
 claudinite-growth
+claudinite-tasks

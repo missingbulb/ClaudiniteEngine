@@ -10,6 +10,7 @@ import (
 
 	"github.com/missingbulb/ClaudiniteEngine/checks/declared/refs"
 	"github.com/missingbulb/ClaudiniteEngine/shared/gitcmd"
+	"github.com/missingbulb/ClaudiniteEngine/shared/packset"
 	"github.com/missingbulb/ClaudiniteEngine/shared/skilltriggers"
 )
 
@@ -64,6 +65,8 @@ type Config struct {
 	PackConfig map[string]map[string]any
 	// Errors are faults in the settings that change what runs.
 	Errors []string
+	// Packs are the active packs, in the pack set's order.
+	Packs []packset.Pack
 }
 
 // Acceptance is one accepted finding.

@@ -1,0 +1,1863 @@
+{
+  "expect": {
+    "classes": [
+      "code",
+      "test",
+      "test",
+      "doc",
+      "test",
+      "test",
+      "doc",
+      "doc",
+      "doc",
+      "test",
+      "test",
+      "code"
+    ],
+    "normalized": [
+      {
+        "expression": "nothing",
+        "policy": {
+          "kind": "nothing"
+        }
+      },
+      {
+        "expression": "anything",
+        "policy": {
+          "kind": "anything"
+        }
+      },
+      {
+        "expression": "",
+        "policy": {
+          "kind": "nothing"
+        }
+      },
+      {
+        "expression": "nothing",
+        "policy": {
+          "kind": "nothing"
+        }
+      },
+      {
+        "expression": "Anything",
+        "policy": {
+          "kind": "anything"
+        }
+      },
+      {
+        "expression": "if-narrow",
+        "policy": {
+          "allow": [
+            "doc-changes",
+            "test-changes",
+            "comment-only-changes",
+            "single-folder-code-changes"
+          ],
+          "kind": "rules",
+          "reject": []
+        }
+      },
+      {
+        "expression": "yes",
+        "policy": {
+          "allow": [
+            "doc-changes",
+            "test-changes",
+            "comment-only-changes",
+            "single-folder-code-changes"
+          ],
+          "kind": "rules",
+          "reject": []
+        }
+      },
+      {
+        "expression": "true",
+        "policy": {
+          "allow": [
+            "doc-changes",
+            "test-changes",
+            "comment-only-changes",
+            "single-folder-code-changes"
+          ],
+          "kind": "rules",
+          "reject": []
+        }
+      },
+      {
+        "expression": "narrow-diff",
+        "policy": {
+          "allow": [
+            "doc-changes",
+            "test-changes",
+            "comment-only-changes",
+            "single-folder-code-changes"
+          ],
+          "kind": "rules",
+          "reject": []
+        }
+      },
+      {
+        "expression": "doc-changes;doc-changes;reject:x",
+        "policy": {
+          "allow": [
+            "doc-changes"
+          ],
+          "kind": "rules",
+          "reject": [
+            "x"
+          ]
+        }
+      },
+      {
+        "expression": "a;b;reject:c",
+        "policy": {
+          "allow": [
+            "a",
+            "b"
+          ],
+          "kind": "rules",
+          "reject": [
+            "c"
+          ]
+        }
+      },
+      {
+        "expression": "under:docs\u0026\u0026doc-changes",
+        "policy": {
+          "allow": [
+            "under:docs\u0026\u0026doc-changes"
+          ],
+          "kind": "rules",
+          "reject": []
+        }
+      },
+      {
+        "expression": "under:docs\u0026\u0026doc-changes;test-changes",
+        "policy": {
+          "allow": [
+            "under:docs\u0026\u0026doc-changes",
+            "test-changes"
+          ],
+          "kind": "rules",
+          "reject": []
+        }
+      },
+      {
+        "expression": "nothing;x",
+        "policy": {
+          "kind": "invalid",
+          "reason": "\"nothing\" cannot sit in a rule list — it is a whole policy of its own"
+        }
+      },
+      {
+        "expression": "anything",
+        "policy": {
+          "kind": "anything"
+        }
+      },
+      {
+        "expression": "reject:x",
+        "policy": {
+          "kind": "invalid",
+          "reason": "the policy lists no allow term — \"anything except X\" is spelled [\"anything\", \"reject:X\"]"
+        }
+      },
+      {
+        "expression": "x\u0026\u0026anything",
+        "policy": {
+          "kind": "invalid",
+          "reason": "\"anything\" cannot sit in an \u0026\u0026 term — intersect specific rules"
+        }
+      },
+      {
+        "expression": "under:/abs",
+        "policy": {
+          "kind": "invalid",
+          "reason": "\"under:/abs\" names no usable repo-relative directory — spell it under:packs/some-pack"
+        }
+      },
+      {
+        "expression": "under:a/./b",
+        "policy": {
+          "kind": "invalid",
+          "reason": "\"under:a/./b\" names no usable repo-relative directory — spell it under:packs/some-pack"
+        }
+      },
+      {
+        "expression": "reject:narrow-diff",
+        "policy": {
+          "kind": "invalid",
+          "reason": "\"reject:narrow-diff\" rejects a composite — name the specific rules to reject"
+        }
+      },
+      {
+        "expression": "bad name",
+        "policy": {
+          "kind": "invalid",
+          "reason": "\"bad name\" is not a policy term (rule names or under:\u003cdir\u003e, joined with \u0026\u0026 and optionally reject:-prefixed)"
+        }
+      },
+      {
+        "expression": "a;b",
+        "policy": {
+          "allow": [
+            "a",
+            "b"
+          ],
+          "kind": "rules",
+          "reject": []
+        }
+      }
+    ],
+    "ruleErrors": [
+      "q/merge-rules.json: rule name \"doc-changes\" is already taken — merge-rule names are one flat namespace",
+      "q/merge-rules.json: rule name \"rolling-usage\" is already taken — merge-rule names are one flat namespace",
+      "q/merge-rules.json: a merge rule needs a kebab-case \"name\"",
+      "q/merge-rules.json (broken-rule).pathMatching: \"x\" is not a /pattern/ regex string",
+      "q/merge-rules.json (no-kinds): \"changeKinds\" is a non-empty subset of added, modified, deleted",
+      "q/merge-rules.json (no-shape): \"editShape\" must be one of any, removals-only, comment-only — declared, never defaulted",
+      "q/merge-rules.json (half): \"coversMountPolicySources\" takes only `true` — omit it otherwise",
+      "q/merge-rules.json: \"color\" is not a merge-rule key — the vocabulary is: name, pathMatching, excludePathMatching, changeKinds, editShape, coversMountPolicySources",
+      "q/merge-rules.json: a merge rule is an object, not \"not-an-object\"",
+      "r/merge-rules.json: the file must hold an array of rule objects"
+    ],
+    "verdicts": [
+      {
+        "files": [],
+        "mergeable": false,
+        "problems": [
+          {
+            "file": null,
+            "what": "the policy authorizes nothing to auto-merge"
+          }
+        ],
+        "why": "the policy authorizes nothing to auto-merge"
+      },
+      {
+        "files": [],
+        "mergeable": false,
+        "problems": [
+          {
+            "file": null,
+            "what": "the policy authorizes nothing to auto-merge"
+          }
+        ],
+        "why": "the policy authorizes nothing to auto-merge"
+      },
+      {
+        "files": [],
+        "mergeable": true,
+        "problems": [],
+        "why": "the policy authorizes any diff (the repo's delivery settings still apply)"
+      },
+      {
+        "files": [],
+        "mergeable": false,
+        "problems": [
+          {
+            "file": null,
+            "what": "this branch changes nothing against the base — there is nothing to merge"
+          }
+        ],
+        "why": "this branch changes nothing against the base — there is nothing to merge"
+      },
+      {
+        "files": [
+          {
+            "file": "docs/guide.md",
+            "verdict": "covered:doc-changes"
+          }
+        ],
+        "mergeable": true,
+        "problems": [],
+        "why": "every changed file is covered (doc-changes)"
+      },
+      {
+        "files": [
+          {
+            "file": "docs/old.md",
+            "verdict": "uncovered"
+          }
+        ],
+        "mergeable": false,
+        "problems": [
+          {
+            "file": "docs/old.md",
+            "what": "docs/old.md (deleted doc) is covered by no allow term"
+          }
+        ],
+        "why": "docs/old.md (deleted doc) is covered by no allow term"
+      },
+      {
+        "files": [
+          {
+            "file": "pkg/README.md",
+            "verdict": "covered:readme-changes"
+          }
+        ],
+        "mergeable": true,
+        "problems": [],
+        "why": "every changed file is covered (readme-changes)"
+      },
+      {
+        "files": [
+          {
+            "file": "src/a.js",
+            "verdict": "covered:comment-only-changes"
+          }
+        ],
+        "mergeable": true,
+        "problems": [],
+        "why": "every changed file is covered (comment-only-changes)"
+      },
+      {
+        "files": [
+          {
+            "file": "pkg/tests/x_test.go",
+            "verdict": "covered:test-changes"
+          }
+        ],
+        "mergeable": true,
+        "problems": [],
+        "why": "every changed file is covered (test-changes)"
+      },
+      {
+        "files": [
+          {
+            "file": "notes.md",
+            "verdict": "covered:markdown-line-removals"
+          }
+        ],
+        "mergeable": true,
+        "problems": [],
+        "why": "every changed file is covered (markdown-line-removals)"
+      },
+      {
+        "files": [
+          {
+            "file": "notes.md",
+            "verdict": "uncovered"
+          }
+        ],
+        "mergeable": false,
+        "problems": [
+          {
+            "file": "notes.md",
+            "what": "notes.md (modified doc) is covered by no allow term"
+          }
+        ],
+        "why": "notes.md (modified doc) is covered by no allow term"
+      },
+      {
+        "files": [
+          {
+            "file": "notes.md",
+            "verdict": "covered:markdown-trims"
+          }
+        ],
+        "mergeable": true,
+        "problems": [],
+        "why": "every changed file is covered (markdown-trims)"
+      },
+      {
+        "files": [
+          {
+            "file": "notes.md",
+            "verdict": "uncovered"
+          }
+        ],
+        "mergeable": false,
+        "problems": [
+          {
+            "file": "notes.md",
+            "what": "notes.md (modified doc) is covered by no allow term"
+          }
+        ],
+        "why": "notes.md (modified doc) is covered by no allow term"
+      },
+      {
+        "files": [
+          {
+            "file": "new/file.bin",
+            "verdict": "covered:file-additions"
+          }
+        ],
+        "mergeable": true,
+        "problems": [],
+        "why": "every changed file is covered (file-additions)"
+      },
+      {
+        "files": [
+          {
+            "file": "site/data.GENERATED.json",
+            "verdict": "covered:generated-file-changes"
+          }
+        ],
+        "mergeable": true,
+        "problems": [],
+        "why": "every changed file is covered (generated-file-changes)"
+      },
+      {
+        "files": [
+          {
+            "file": "tools/x.mjs",
+            "verdict": "covered:javascript-changes"
+          }
+        ],
+        "mergeable": true,
+        "problems": [],
+        "why": "every changed file is covered (javascript-changes)"
+      },
+      {
+        "files": [
+          {
+            "file": "src/a.go",
+            "verdict": "covered:single-file-code-changes"
+          }
+        ],
+        "mergeable": true,
+        "problems": [],
+        "why": "every changed file is covered (single-file-code-changes)"
+      },
+      {
+        "files": [
+          {
+            "file": "src/a.go",
+            "verdict": "covered:single-file-code-changes"
+          },
+          {
+            "file": "src/b.go",
+            "verdict": "covered:single-file-code-changes"
+          }
+        ],
+        "mergeable": false,
+        "problems": [
+          {
+            "file": null,
+            "what": "single-file-code-changes: code changed in 2 files: src/a.go, src/b.go"
+          }
+        ],
+        "why": "single-file-code-changes: code changed in 2 files: src/a.go, src/b.go"
+      },
+      {
+        "files": [
+          {
+            "file": "src/a.go",
+            "verdict": "covered:single-folder-code-changes"
+          },
+          {
+            "file": "src/b.go",
+            "verdict": "covered:single-folder-code-changes"
+          }
+        ],
+        "mergeable": true,
+        "problems": [],
+        "why": "every changed file is covered (single-folder-code-changes)"
+      },
+      {
+        "files": [
+          {
+            "file": "src/a.go",
+            "verdict": "covered:single-folder-code-changes"
+          },
+          {
+            "file": "lib/c.go",
+            "verdict": "covered:single-folder-code-changes"
+          }
+        ],
+        "mergeable": false,
+        "problems": [
+          {
+            "file": null,
+            "what": "single-folder-code-changes: code changed in 2 directories: lib, src"
+          }
+        ],
+        "why": "single-folder-code-changes: code changed in 2 directories: lib, src"
+      },
+      {
+        "files": [
+          {
+            "file": "src/a.go",
+            "verdict": "covered:single-folder-code-changes"
+          },
+          {
+            "file": "src/a.js",
+            "verdict": "uncovered"
+          }
+        ],
+        "mergeable": false,
+        "problems": [
+          {
+            "file": "src/a.js",
+            "what": "src/a.js (modified code) is covered by no allow term"
+          }
+        ],
+        "why": "src/a.js (modified code) is covered by no allow term"
+      },
+      {
+        "files": [
+          {
+            "file": "docs/guide.md",
+            "verdict": "covered:doc-changes"
+          },
+          {
+            "file": "pkg/tests/x_test.go",
+            "verdict": "covered:test-changes"
+          },
+          {
+            "file": "src/a.js",
+            "verdict": "covered:comment-only-changes"
+          },
+          {
+            "file": "src/a.go",
+            "verdict": "covered:single-folder-code-changes"
+          }
+        ],
+        "mergeable": true,
+        "problems": [],
+        "why": "every changed file is covered (doc-changes, test-changes, comment-only-changes, single-folder-code-changes)"
+      },
+      {
+        "files": [
+          {
+            "file": "docs/old.md",
+            "verdict": "uncovered"
+          }
+        ],
+        "mergeable": false,
+        "problems": [
+          {
+            "file": "docs/old.md",
+            "what": "docs/old.md (deleted doc) is covered by no allow term"
+          }
+        ],
+        "why": "docs/old.md (deleted doc) is covered by no allow term"
+      },
+      {
+        "files": [
+          {
+            "file": "docs/guide.md",
+            "verdict": "covered:doc-changes"
+          }
+        ],
+        "mergeable": true,
+        "problems": [],
+        "why": "every changed file is covered (doc-changes)"
+      },
+      {
+        "files": [
+          {
+            "file": "docs/guide.md",
+            "verdict": "covered:doc-changes"
+          }
+        ],
+        "mergeable": true,
+        "problems": [],
+        "why": "every changed file is covered (doc-changes)"
+      },
+      {
+        "files": [
+          {
+            "file": "docs/guide.md",
+            "verdict": "covered:under:docs"
+          },
+          {
+            "file": "docs/old.md",
+            "verdict": "covered:under:docs"
+          }
+        ],
+        "mergeable": true,
+        "problems": [],
+        "why": "every changed file is covered (under:docs)"
+      },
+      {
+        "files": [
+          {
+            "file": "docs/guide.md",
+            "verdict": "covered:under:docs/"
+          },
+          {
+            "file": "src/a.go",
+            "verdict": "uncovered"
+          }
+        ],
+        "mergeable": false,
+        "problems": [
+          {
+            "file": "src/a.go",
+            "what": "src/a.go (modified code) is covered by no allow term"
+          }
+        ],
+        "why": "src/a.go (modified code) is covered by no allow term"
+      },
+      {
+        "files": [
+          {
+            "file": "src/a.go",
+            "verdict": "covered:under:src\u0026\u0026single-file-code-changes"
+          },
+          {
+            "file": "src/b.go",
+            "verdict": "covered:under:src\u0026\u0026single-file-code-changes"
+          }
+        ],
+        "mergeable": false,
+        "problems": [
+          {
+            "file": null,
+            "what": "under:src\u0026\u0026single-file-code-changes: code changed in 2 files: src/a.go, src/b.go"
+          }
+        ],
+        "why": "under:src\u0026\u0026single-file-code-changes: code changed in 2 files: src/a.go, src/b.go"
+      },
+      {
+        "files": [
+          {
+            "file": "docs/guide.md",
+            "verdict": "covered:under:docs\u0026\u0026doc-changes"
+          },
+          {
+            "file": "docs/old.md",
+            "verdict": "uncovered"
+          }
+        ],
+        "mergeable": false,
+        "problems": [
+          {
+            "file": "docs/old.md",
+            "what": "docs/old.md (deleted doc) is covered by no allow term"
+          }
+        ],
+        "why": "docs/old.md (deleted doc) is covered by no allow term"
+      },
+      {
+        "files": [
+          {
+            "file": "docs/guide.md",
+            "verdict": "covered:anything"
+          },
+          {
+            "file": "tools/x.mjs",
+            "verdict": "rejected:javascript-changes"
+          }
+        ],
+        "mergeable": false,
+        "problems": [
+          {
+            "file": "tools/x.mjs",
+            "what": "tools/x.mjs matches reject:javascript-changes"
+          }
+        ],
+        "why": "tools/x.mjs matches reject:javascript-changes"
+      },
+      {
+        "files": [
+          {
+            "file": "docs/guide.md",
+            "verdict": "covered:anything"
+          }
+        ],
+        "mergeable": true,
+        "problems": [],
+        "why": "every changed file is covered (anything)"
+      },
+      {
+        "files": [
+          {
+            "file": "pkg/README.md",
+            "verdict": "rejected:readme-changes"
+          }
+        ],
+        "mergeable": false,
+        "problems": [
+          {
+            "file": "pkg/README.md",
+            "what": "pkg/README.md matches reject:readme-changes"
+          }
+        ],
+        "why": "pkg/README.md matches reject:readme-changes"
+      },
+      {
+        "files": [
+          {
+            "file": "tasks/sweep/task.json",
+            "verdict": "policy-source"
+          }
+        ],
+        "mergeable": false,
+        "problems": [
+          {
+            "file": "tasks/sweep/task.json",
+            "what": "tasks/sweep/task.json defines auto-merge policy itself — no granular policy may change it"
+          }
+        ],
+        "why": "tasks/sweep/task.json defines auto-merge policy itself — no granular policy may change it"
+      },
+      {
+        "files": [
+          {
+            "file": "tasks/sweep/task.json",
+            "verdict": "policy-source"
+          }
+        ],
+        "mergeable": false,
+        "problems": [
+          {
+            "file": "tasks/sweep/task.json",
+            "what": "tasks/sweep/task.json defines auto-merge policy itself — no granular policy may change it"
+          }
+        ],
+        "why": "tasks/sweep/task.json defines auto-merge policy itself — no granular policy may change it"
+      },
+      {
+        "files": [
+          {
+            "file": "packs/p/merge-rules.json",
+            "verdict": "policy-source"
+          }
+        ],
+        "mergeable": false,
+        "problems": [
+          {
+            "file": "packs/p/merge-rules.json",
+            "what": "packs/p/merge-rules.json defines auto-merge policy itself — no granular policy may change it"
+          }
+        ],
+        "why": "packs/p/merge-rules.json defines auto-merge policy itself — no granular policy may change it"
+      },
+      {
+        "files": [
+          {
+            "file": ".claudinite/shared/packs/p/tasks/t/task.json",
+            "verdict": "covered:vendor-sync"
+          }
+        ],
+        "mergeable": true,
+        "problems": [],
+        "why": "every changed file is covered (vendor-sync)"
+      },
+      {
+        "files": [
+          {
+            "file": ".claudinite/shared/packs/p/tasks/t/task.json",
+            "verdict": "rejected:vendor-sync"
+          }
+        ],
+        "mergeable": false,
+        "problems": [
+          {
+            "file": ".claudinite/shared/packs/p/tasks/t/task.json",
+            "what": ".claudinite/shared/packs/p/tasks/t/task.json matches reject:vendor-sync"
+          }
+        ],
+        "why": ".claudinite/shared/packs/p/tasks/t/task.json matches reject:vendor-sync"
+      },
+      {
+        "files": [
+          {
+            "file": ".claudinite/shared/packs/p/tasks/t/task.json",
+            "verdict": "policy-source"
+          }
+        ],
+        "mergeable": false,
+        "problems": [
+          {
+            "file": ".claudinite/shared/packs/p/tasks/t/task.json",
+            "what": ".claudinite/shared/packs/p/tasks/t/task.json defines auto-merge policy itself — no granular policy may change it"
+          }
+        ],
+        "why": ".claudinite/shared/packs/p/tasks/t/task.json defines auto-merge policy itself — no granular policy may change it"
+      },
+      {
+        "files": [
+          {
+            "file": ".claudinite/usage/2026-09.json",
+            "verdict": "covered:rolling-usage"
+          }
+        ],
+        "mergeable": true,
+        "problems": [],
+        "why": "every changed file is covered (rolling-usage)"
+      },
+      {
+        "files": [
+          {
+            "file": ".claudinite/usage/2026-09.json",
+            "verdict": "uncovered"
+          }
+        ],
+        "mergeable": false,
+        "problems": [
+          {
+            "file": ".claudinite/usage/2026-09.json",
+            "what": ".claudinite/usage/2026-09.json (deleted code) is covered by no allow term"
+          }
+        ],
+        "why": ".claudinite/usage/2026-09.json (deleted code) is covered by no allow term"
+      },
+      {
+        "files": [
+          {
+            "file": "notes.md",
+            "verdict": "covered:removals"
+          }
+        ],
+        "mergeable": true,
+        "problems": [],
+        "why": "every changed file is covered (removals)"
+      },
+      {
+        "files": [
+          {
+            "file": "notes.md",
+            "verdict": "uncovered"
+          }
+        ],
+        "mergeable": false,
+        "problems": [
+          {
+            "file": "notes.md",
+            "what": "notes.md (modified doc) is covered by no allow term"
+          }
+        ],
+        "why": "notes.md (modified doc) is covered by no allow term"
+      },
+      {
+        "files": [
+          {
+            "file": "src/a.js",
+            "verdict": "covered:comments"
+          }
+        ],
+        "mergeable": true,
+        "problems": [],
+        "why": "every changed file is covered (comments)"
+      },
+      {
+        "files": [
+          {
+            "file": "docs/guide.md",
+            "verdict": "uncovered"
+          }
+        ],
+        "mergeable": false,
+        "problems": [
+          {
+            "file": "docs/guide.md",
+            "what": "docs/guide.md (modified doc) is covered by no allow term"
+          }
+        ],
+        "why": "docs/guide.md (modified doc) is covered by no allow term"
+      },
+      {
+        "files": [],
+        "mergeable": false,
+        "problems": [
+          {
+            "file": null,
+            "what": "unresolved rule name(s): unknown-rule — an unknown rule authorizes nothing (rule declarations also failed to load: q/merge-rules.json: rule name \"doc-changes\" is already taken — merge-rule names are one flat namespace; q/merge-rules.json: rule name \"rolling-usage\" is already taken — merge-rule names are one flat namespace; q/merge-rules.json: a merge rule needs a kebab-case \"name\"; q/merge-rules.json (broken-rule).pathMatching: \"x\" is not a /pattern/ regex string; q/merge-rules.json (no-kinds): \"changeKinds\" is a non-empty subset of added, modified, deleted; q/merge-rules.json (no-shape): \"editShape\" must be one of any, removals-only, comment-only — declared, never defaulted; q/merge-rules.json (half): \"coversMountPolicySources\" takes only `true` — omit it otherwise; q/merge-rules.json: \"color\" is not a merge-rule key — the vocabulary is: name, pathMatching, excludePathMatching, changeKinds, editShape, coversMountPolicySources; q/merge-rules.json: a merge rule is an object, not \"not-an-object\"; r/merge-rules.json: the file must hold an array of rule objects)"
+          }
+        ],
+        "why": "unresolved rule name(s): unknown-rule — an unknown rule authorizes nothing (rule declarations also failed to load: q/merge-rules.json: rule name \"doc-changes\" is already taken — merge-rule names are one flat namespace; q/merge-rules.json: rule name \"rolling-usage\" is already taken — merge-rule names are one flat namespace; q/merge-rules.json: a merge rule needs a kebab-case \"name\"; q/merge-rules.json (broken-rule).pathMatching: \"x\" is not a /pattern/ regex string; q/merge-rules.json (no-kinds): \"changeKinds\" is a non-empty subset of added, modified, deleted; q/merge-rules.json (no-shape): \"editShape\" must be one of any, removals-only, comment-only — declared, never defaulted; q/merge-rules.json (half): \"coversMountPolicySources\" takes only `true` — omit it otherwise; q/merge-rules.json: \"color\" is not a merge-rule key — the vocabulary is: name, pathMatching, excludePathMatching, changeKinds, editShape, coversMountPolicySources; q/merge-rules.json: a merge rule is an object, not \"not-an-object\"; r/merge-rules.json: the file must hold an array of rule objects)"
+      },
+      {
+        "files": [],
+        "mergeable": false,
+        "problems": [
+          {
+            "file": null,
+            "what": "unresolved rule name(s): broken-rule — an unknown rule authorizes nothing (rule declarations also failed to load: q/merge-rules.json: rule name \"doc-changes\" is already taken — merge-rule names are one flat namespace; q/merge-rules.json: rule name \"rolling-usage\" is already taken — merge-rule names are one flat namespace; q/merge-rules.json: a merge rule needs a kebab-case \"name\"; q/merge-rules.json (broken-rule).pathMatching: \"x\" is not a /pattern/ regex string; q/merge-rules.json (no-kinds): \"changeKinds\" is a non-empty subset of added, modified, deleted; q/merge-rules.json (no-shape): \"editShape\" must be one of any, removals-only, comment-only — declared, never defaulted; q/merge-rules.json (half): \"coversMountPolicySources\" takes only `true` — omit it otherwise; q/merge-rules.json: \"color\" is not a merge-rule key — the vocabulary is: name, pathMatching, excludePathMatching, changeKinds, editShape, coversMountPolicySources; q/merge-rules.json: a merge rule is an object, not \"not-an-object\"; r/merge-rules.json: the file must hold an array of rule objects)"
+          }
+        ],
+        "why": "unresolved rule name(s): broken-rule — an unknown rule authorizes nothing (rule declarations also failed to load: q/merge-rules.json: rule name \"doc-changes\" is already taken — merge-rule names are one flat namespace; q/merge-rules.json: rule name \"rolling-usage\" is already taken — merge-rule names are one flat namespace; q/merge-rules.json: a merge rule needs a kebab-case \"name\"; q/merge-rules.json (broken-rule).pathMatching: \"x\" is not a /pattern/ regex string; q/merge-rules.json (no-kinds): \"changeKinds\" is a non-empty subset of added, modified, deleted; q/merge-rules.json (no-shape): \"editShape\" must be one of any, removals-only, comment-only — declared, never defaulted; q/merge-rules.json (half): \"coversMountPolicySources\" takes only `true` — omit it otherwise; q/merge-rules.json: \"color\" is not a merge-rule key — the vocabulary is: name, pathMatching, excludePathMatching, changeKinds, editShape, coversMountPolicySources; q/merge-rules.json: a merge rule is an object, not \"not-an-object\"; r/merge-rules.json: the file must hold an array of rule objects)"
+      },
+      {
+        "files": [],
+        "mergeable": false,
+        "problems": [
+          {
+            "file": null,
+            "what": "invalid policy: the policy lists no allow term — \"anything except X\" is spelled [\"anything\", \"reject:X\"]"
+          }
+        ],
+        "why": "invalid policy: the policy lists no allow term — \"anything except X\" is spelled [\"anything\", \"reject:X\"]"
+      },
+      {
+        "files": [
+          {
+            "file": "docs/guide.md",
+            "verdict": "covered:doc-changes"
+          },
+          {
+            "file": "pkg/tests/x_test.go",
+            "verdict": "covered:test-changes"
+          }
+        ],
+        "mergeable": true,
+        "problems": [],
+        "why": "every changed file is covered (doc-changes, test-changes)"
+      },
+      {
+        "files": [
+          {
+            "file": "pkg/README.md",
+            "verdict": "rejected:readme-changes"
+          }
+        ],
+        "mergeable": false,
+        "problems": [
+          {
+            "file": "pkg/README.md",
+            "what": "pkg/README.md matches reject:readme-changes"
+          }
+        ],
+        "why": "pkg/README.md matches reject:readme-changes"
+      },
+      {
+        "files": [
+          {
+            "file": "a/b/latest/x.md",
+            "verdict": "covered:doc-changes"
+          }
+        ],
+        "mergeable": true,
+        "problems": [],
+        "why": "every changed file is covered (doc-changes)"
+      },
+      {
+        "files": [
+          {
+            "file": "src/foo.test.mjs",
+            "verdict": "covered:test-changes"
+          }
+        ],
+        "mergeable": true,
+        "problems": [],
+        "why": "every changed file is covered (test-changes)"
+      },
+      {
+        "files": [
+          {
+            "file": "src/test_foo.py",
+            "verdict": "covered:test-changes"
+          }
+        ],
+        "mergeable": true,
+        "problems": [],
+        "why": "every changed file is covered (test-changes)"
+      },
+      {
+        "files": [
+          {
+            "file": "api-tests/x.go",
+            "verdict": "covered:test-changes"
+          }
+        ],
+        "mergeable": true,
+        "problems": [],
+        "why": "every changed file is covered (test-changes)"
+      },
+      {
+        "files": [
+          {
+            "file": "README.RST",
+            "verdict": "covered:doc-changes"
+          }
+        ],
+        "mergeable": true,
+        "problems": [],
+        "why": "every changed file is covered (doc-changes)"
+      }
+    ]
+  },
+  "input": {
+    "packs": [
+      {
+        "id": "p",
+        "rules": [
+          {
+            "name": "rolling-usage",
+            "pathMatching": "/^\\.claudinite\\/usage\\/[^/]+\\.json$/",
+            "changeKinds": [
+              "added",
+              "modified"
+            ],
+            "editShape": "any"
+          },
+          {
+            "name": "vendor-sync",
+            "pathMatching": "/^\\.claudinite\\/shared\\//",
+            "changeKinds": [
+              "added",
+              "modified",
+              "deleted"
+            ],
+            "editShape": "any",
+            "coversMountPolicySources": true
+          },
+          {
+            "name": "removals",
+            "pathMatching": "/\\.md$/i",
+            "excludePathMatching": "/^docs\\//",
+            "changeKinds": [
+              "modified",
+              "deleted"
+            ],
+            "editShape": "removals-only"
+          },
+          {
+            "name": "comments",
+            "pathMatching": "/./",
+            "changeKinds": [
+              "modified"
+            ],
+            "editShape": "comment-only"
+          }
+        ]
+      },
+      {
+        "id": "q",
+        "rules": [
+          {
+            "name": "doc-changes",
+            "pathMatching": "/x/",
+            "changeKinds": [
+              "added"
+            ],
+            "editShape": "any"
+          },
+          {
+            "name": "rolling-usage",
+            "pathMatching": "/x/",
+            "changeKinds": [
+              "added"
+            ],
+            "editShape": "any"
+          },
+          {
+            "name": "Bad",
+            "pathMatching": "/x/",
+            "changeKinds": [
+              "added"
+            ],
+            "editShape": "any"
+          },
+          {
+            "name": "broken-rule",
+            "pathMatching": "x",
+            "changeKinds": [
+              "added"
+            ],
+            "editShape": "any"
+          },
+          {
+            "name": "no-kinds",
+            "pathMatching": "/x/",
+            "changeKinds": [],
+            "editShape": "any"
+          },
+          {
+            "name": "no-shape",
+            "pathMatching": "/x/",
+            "changeKinds": [
+              "added"
+            ]
+          },
+          {
+            "name": "half",
+            "pathMatching": "/x/",
+            "changeKinds": [
+              "added"
+            ],
+            "editShape": "any",
+            "coversMountPolicySources": false
+          },
+          {
+            "name": "extra",
+            "pathMatching": "/x/",
+            "changeKinds": [
+              "added"
+            ],
+            "editShape": "any",
+            "color": "red"
+          },
+          "not-an-object",
+          {
+            "name": "lookbehind",
+            "pathMatching": "/(?<=a)b/",
+            "changeKinds": [
+              "added"
+            ],
+            "editShape": "any"
+          }
+        ]
+      },
+      {
+        "id": "r",
+        "rules": {
+          "name": "x"
+        }
+      }
+    ],
+    "cases": [
+      {
+        "policy": "nothing",
+        "entries": [
+          {
+            "file": "docs/guide.md",
+            "before": "# Guide\n",
+            "after": "# Guide\n\nMore.\n"
+          }
+        ]
+      },
+      {
+        "policy": null,
+        "entries": [
+          {
+            "file": "docs/guide.md",
+            "before": "# Guide\n",
+            "after": "# Guide\n\nMore.\n"
+          }
+        ]
+      },
+      {
+        "policy": "anything",
+        "entries": [
+          {
+            "file": "tasks/sweep/task.json",
+            "before": "{}\n",
+            "after": "{\"id\":\"x\"}\n"
+          }
+        ]
+      },
+      {
+        "policy": [
+          "doc-changes"
+        ],
+        "entries": []
+      },
+      {
+        "policy": [
+          "doc-changes"
+        ],
+        "entries": [
+          {
+            "file": "docs/guide.md",
+            "before": "# Guide\n",
+            "after": "# Guide\n\nMore.\n"
+          }
+        ]
+      },
+      {
+        "policy": [
+          "doc-changes"
+        ],
+        "entries": [
+          {
+            "file": "docs/old.md",
+            "before": "# Old\n",
+            "after": null
+          }
+        ]
+      },
+      {
+        "policy": [
+          "readme-changes"
+        ],
+        "entries": [
+          {
+            "file": "pkg/README.md",
+            "before": null,
+            "after": "# Pkg\n"
+          }
+        ]
+      },
+      {
+        "policy": [
+          "comment-only-changes"
+        ],
+        "entries": [
+          {
+            "file": "src/a.js",
+            "before": "const a = 1;\n",
+            "after": "// note\nconst a = 1;\n"
+          }
+        ]
+      },
+      {
+        "policy": [
+          "test-changes"
+        ],
+        "entries": [
+          {
+            "file": "pkg/tests/x_test.go",
+            "before": "a\n",
+            "after": null
+          }
+        ]
+      },
+      {
+        "policy": [
+          "markdown-line-removals"
+        ],
+        "entries": [
+          {
+            "file": "notes.md",
+            "before": "a\nb\nc\n",
+            "after": "a\nc\n"
+          }
+        ]
+      },
+      {
+        "policy": [
+          "markdown-line-removals"
+        ],
+        "entries": [
+          {
+            "file": "notes.md",
+            "before": "a long line\nb\n",
+            "after": "a line\n"
+          }
+        ]
+      },
+      {
+        "policy": [
+          "markdown-trims"
+        ],
+        "entries": [
+          {
+            "file": "notes.md",
+            "before": "a long line\nb\n",
+            "after": "a line\n"
+          }
+        ]
+      },
+      {
+        "policy": [
+          "markdown-trims"
+        ],
+        "entries": [
+          {
+            "file": "notes.md",
+            "before": "a\n",
+            "after": "a\nb\n"
+          }
+        ]
+      },
+      {
+        "policy": [
+          "file-additions"
+        ],
+        "entries": [
+          {
+            "file": "new/file.bin",
+            "before": null,
+            "after": "x"
+          }
+        ]
+      },
+      {
+        "policy": [
+          "generated-file-changes"
+        ],
+        "entries": [
+          {
+            "file": "site/data.GENERATED.json",
+            "before": "{}\n",
+            "after": "{\"a\":1}\n"
+          }
+        ]
+      },
+      {
+        "policy": [
+          "javascript-changes"
+        ],
+        "entries": [
+          {
+            "file": "tools/x.mjs",
+            "before": "a\n",
+            "after": "b\n"
+          }
+        ]
+      },
+      {
+        "policy": [
+          "single-file-code-changes"
+        ],
+        "entries": [
+          {
+            "file": "src/a.go",
+            "before": "package a\n",
+            "after": "package a\n\nfunc A() {}\n"
+          }
+        ]
+      },
+      {
+        "policy": [
+          "single-file-code-changes"
+        ],
+        "entries": [
+          {
+            "file": "src/a.go",
+            "before": "package a\n",
+            "after": "package a\n\nfunc A() {}\n"
+          },
+          {
+            "file": "src/b.go",
+            "before": "package b\n",
+            "after": "package b\n// x\nfunc B() {}\n"
+          }
+        ]
+      },
+      {
+        "policy": [
+          "single-folder-code-changes"
+        ],
+        "entries": [
+          {
+            "file": "src/a.go",
+            "before": "package a\n",
+            "after": "package a\n\nfunc A() {}\n"
+          },
+          {
+            "file": "src/b.go",
+            "before": "package b\n",
+            "after": "package b\n// x\nfunc B() {}\n"
+          }
+        ]
+      },
+      {
+        "policy": [
+          "single-folder-code-changes"
+        ],
+        "entries": [
+          {
+            "file": "src/a.go",
+            "before": "package a\n",
+            "after": "package a\n\nfunc A() {}\n"
+          },
+          {
+            "file": "lib/c.go",
+            "before": "package c\n",
+            "after": "package c\nvar C = 1\n"
+          }
+        ]
+      },
+      {
+        "policy": [
+          "single-folder-code-changes"
+        ],
+        "entries": [
+          {
+            "file": "src/a.go",
+            "before": "package a\n",
+            "after": "package a\n\nfunc A() {}\n"
+          },
+          {
+            "file": "src/a.js",
+            "before": "const a = 1;\n",
+            "after": "// note\nconst a = 1;\n"
+          }
+        ]
+      },
+      {
+        "policy": "narrow-diff",
+        "entries": [
+          {
+            "file": "docs/guide.md",
+            "before": "# Guide\n",
+            "after": "# Guide\n\nMore.\n"
+          },
+          {
+            "file": "pkg/tests/x_test.go",
+            "before": "a\n",
+            "after": null
+          },
+          {
+            "file": "src/a.js",
+            "before": "const a = 1;\n",
+            "after": "// note\nconst a = 1;\n"
+          },
+          {
+            "file": "src/a.go",
+            "before": "package a\n",
+            "after": "package a\n\nfunc A() {}\n"
+          }
+        ]
+      },
+      {
+        "policy": "if-narrow",
+        "entries": [
+          {
+            "file": "docs/old.md",
+            "before": "# Old\n",
+            "after": null
+          }
+        ]
+      },
+      {
+        "policy": "yes",
+        "entries": [
+          {
+            "file": "docs/guide.md",
+            "before": "# Guide\n",
+            "after": "# Guide\n\nMore.\n"
+          }
+        ]
+      },
+      {
+        "policy": "TRUE",
+        "entries": [
+          {
+            "file": "docs/guide.md",
+            "before": "# Guide\n",
+            "after": "# Guide\n\nMore.\n"
+          }
+        ]
+      },
+      {
+        "policy": [
+          "under:docs"
+        ],
+        "entries": [
+          {
+            "file": "docs/guide.md",
+            "before": "# Guide\n",
+            "after": "# Guide\n\nMore.\n"
+          },
+          {
+            "file": "docs/old.md",
+            "before": "# Old\n",
+            "after": null
+          }
+        ]
+      },
+      {
+        "policy": [
+          "under:docs/"
+        ],
+        "entries": [
+          {
+            "file": "docs/guide.md",
+            "before": "# Guide\n",
+            "after": "# Guide\n\nMore.\n"
+          },
+          {
+            "file": "src/a.go",
+            "before": "package a\n",
+            "after": "package a\n\nfunc A() {}\n"
+          }
+        ]
+      },
+      {
+        "policy": [
+          "under:src&&single-file-code-changes"
+        ],
+        "entries": [
+          {
+            "file": "src/a.go",
+            "before": "package a\n",
+            "after": "package a\n\nfunc A() {}\n"
+          },
+          {
+            "file": "src/b.go",
+            "before": "package b\n",
+            "after": "package b\n// x\nfunc B() {}\n"
+          }
+        ]
+      },
+      {
+        "policy": [
+          "under:docs&&doc-changes"
+        ],
+        "entries": [
+          {
+            "file": "docs/guide.md",
+            "before": "# Guide\n",
+            "after": "# Guide\n\nMore.\n"
+          },
+          {
+            "file": "docs/old.md",
+            "before": "# Old\n",
+            "after": null
+          }
+        ]
+      },
+      {
+        "policy": [
+          "anything",
+          "reject:javascript-changes"
+        ],
+        "entries": [
+          {
+            "file": "docs/guide.md",
+            "before": "# Guide\n",
+            "after": "# Guide\n\nMore.\n"
+          },
+          {
+            "file": "tools/x.mjs",
+            "before": "a\n",
+            "after": "b\n"
+          }
+        ]
+      },
+      {
+        "policy": [
+          "anything",
+          "reject:javascript-changes"
+        ],
+        "entries": [
+          {
+            "file": "docs/guide.md",
+            "before": "# Guide\n",
+            "after": "# Guide\n\nMore.\n"
+          }
+        ]
+      },
+      {
+        "policy": [
+          "doc-changes",
+          "reject:readme-changes"
+        ],
+        "entries": [
+          {
+            "file": "pkg/README.md",
+            "before": null,
+            "after": "# Pkg\n"
+          }
+        ]
+      },
+      {
+        "policy": [
+          "doc-changes"
+        ],
+        "entries": [
+          {
+            "file": "tasks/sweep/task.json",
+            "before": "{}\n",
+            "after": "{\"id\":\"x\"}\n"
+          }
+        ]
+      },
+      {
+        "policy": [
+          "doc-changes"
+        ],
+        "entries": [
+          {
+            "file": "tasks/sweep/task.json",
+            "before": "{\"a\":1}\n",
+            "after": "{\"a\":1}\n"
+          }
+        ]
+      },
+      {
+        "policy": [
+          "under:packs"
+        ],
+        "entries": [
+          {
+            "file": "packs/p/merge-rules.json",
+            "before": "[]\n",
+            "after": "[{}]\n"
+          }
+        ]
+      },
+      {
+        "policy": [
+          "vendor-sync"
+        ],
+        "entries": [
+          {
+            "file": ".claudinite/shared/packs/p/tasks/t/task.json",
+            "before": "{}\n",
+            "after": "{\"a\":1}\n"
+          }
+        ]
+      },
+      {
+        "policy": [
+          "vendor-sync",
+          "reject:vendor-sync"
+        ],
+        "entries": [
+          {
+            "file": ".claudinite/shared/packs/p/tasks/t/task.json",
+            "before": "{}\n",
+            "after": "{\"a\":1}\n"
+          }
+        ]
+      },
+      {
+        "policy": [
+          "under:.claudinite&&vendor-sync"
+        ],
+        "entries": [
+          {
+            "file": ".claudinite/shared/packs/p/tasks/t/task.json",
+            "before": "{}\n",
+            "after": "{\"a\":1}\n"
+          }
+        ]
+      },
+      {
+        "policy": [
+          "rolling-usage"
+        ],
+        "entries": [
+          {
+            "file": ".claudinite/usage/2026-09.json",
+            "before": null,
+            "after": "{}\n"
+          }
+        ]
+      },
+      {
+        "policy": [
+          "rolling-usage"
+        ],
+        "entries": [
+          {
+            "file": ".claudinite/usage/2026-09.json",
+            "before": "{}\n",
+            "after": null
+          }
+        ]
+      },
+      {
+        "policy": [
+          "removals"
+        ],
+        "entries": [
+          {
+            "file": "notes.md",
+            "before": "a\nb\nc\n",
+            "after": "a\nc\n"
+          }
+        ]
+      },
+      {
+        "policy": [
+          "removals"
+        ],
+        "entries": [
+          {
+            "file": "notes.md",
+            "before": "a\n",
+            "after": "a\nb\n"
+          }
+        ]
+      },
+      {
+        "policy": [
+          "comments"
+        ],
+        "entries": [
+          {
+            "file": "src/a.js",
+            "before": "const a = 1;\n",
+            "after": "// note\nconst a = 1;\n"
+          }
+        ]
+      },
+      {
+        "policy": [
+          "comments"
+        ],
+        "entries": [
+          {
+            "file": "docs/guide.md",
+            "before": "# Guide\n",
+            "after": "# Guide\n\nMore.\n"
+          }
+        ]
+      },
+      {
+        "policy": [
+          "unknown-rule"
+        ],
+        "entries": [
+          {
+            "file": "docs/guide.md",
+            "before": "# Guide\n",
+            "after": "# Guide\n\nMore.\n"
+          }
+        ]
+      },
+      {
+        "policy": [
+          "broken-rule"
+        ],
+        "entries": [
+          {
+            "file": "docs/guide.md",
+            "before": "# Guide\n",
+            "after": "# Guide\n\nMore.\n"
+          }
+        ]
+      },
+      {
+        "policy": [
+          "reject:doc-changes"
+        ],
+        "entries": [
+          {
+            "file": "docs/guide.md",
+            "before": "# Guide\n",
+            "after": "# Guide\n\nMore.\n"
+          }
+        ]
+      },
+      {
+        "policy": "doc-changes; test-changes",
+        "entries": [
+          {
+            "file": "docs/guide.md",
+            "before": "# Guide\n",
+            "after": "# Guide\n\nMore.\n"
+          },
+          {
+            "file": "pkg/tests/x_test.go",
+            "before": "a\n",
+            "after": null
+          }
+        ]
+      },
+      {
+        "policy": "doc-changes ; reject:readme-changes",
+        "entries": [
+          {
+            "file": "pkg/README.md",
+            "before": null,
+            "after": "# Pkg\n"
+          }
+        ]
+      },
+      {
+        "policy": [
+          "doc-changes"
+        ],
+        "entries": [
+          {
+            "file": "a/b/latest/x.md",
+            "before": "a\n",
+            "after": "b\n"
+          }
+        ]
+      },
+      {
+        "policy": [
+          "test-changes"
+        ],
+        "entries": [
+          {
+            "file": "src/foo.test.mjs",
+            "before": "a\n",
+            "after": "b\n"
+          }
+        ]
+      },
+      {
+        "policy": [
+          "test-changes"
+        ],
+        "entries": [
+          {
+            "file": "src/test_foo.py",
+            "before": null,
+            "after": "b\n"
+          }
+        ]
+      },
+      {
+        "policy": [
+          "test-changes"
+        ],
+        "entries": [
+          {
+            "file": "api-tests/x.go",
+            "before": "a\n",
+            "after": "b\n"
+          }
+        ]
+      },
+      {
+        "policy": [
+          "doc-changes"
+        ],
+        "entries": [
+          {
+            "file": "README.RST",
+            "before": "a\n",
+            "after": "b\n"
+          }
+        ]
+      }
+    ],
+    "normalize": [
+      "nothing",
+      "anything",
+      "",
+      null,
+      "Anything",
+      "if-narrow",
+      "yes",
+      "true",
+      [
+        "narrow-diff"
+      ],
+      [
+        "doc-changes",
+        "doc-changes",
+        "reject:x"
+      ],
+      "a;b;reject:c",
+      "under:docs && doc-changes",
+      [
+        "under:docs && doc-changes",
+        " test-changes "
+      ],
+      [
+        "nothing",
+        "x"
+      ],
+      [
+        "anything"
+      ],
+      [
+        "reject:x"
+      ],
+      [
+        "x&&anything"
+      ],
+      [
+        "under:/abs"
+      ],
+      [
+        "under:a/./b"
+      ],
+      [
+        "reject:narrow-diff"
+      ],
+      [
+        "bad name"
+      ],
+      "a ;  b"
+    ],
+    "classify": [
+      "src/x.go",
+      "test/x.go",
+      "a/__tests__/b.js",
+      "x/latest/y.md",
+      "foo.spec.ts",
+      "TEST_x.py",
+      "README.md",
+      "x.txt",
+      "x.RST",
+      "api_tests/y.go",
+      "fixtures/z",
+      "testdata"
+    ]
+  }
+}

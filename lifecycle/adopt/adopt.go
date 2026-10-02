@@ -229,7 +229,7 @@ func Init(in Input) error {
 			return err
 		}
 	}
-	if _, err := rulesindex.Write(in.Repo, got.Version); err != nil {
+	if _, err := rulesindex.Converge(in.Repo, got.Version); err != nil {
 		return err
 	}
 	if _, err := rulesindex.EnsureImport(in.Repo); err != nil {
@@ -397,7 +397,7 @@ func Adopt(in AdoptInput) error {
 	if err := os.WriteFile(path, raw, 0o644); err != nil {
 		return err
 	}
-	if _, err := rulesindex.Write(in.Repo, pin.Version); err != nil {
+	if _, err := rulesindex.Converge(in.Repo, pin.Version); err != nil {
 		return err
 	}
 	if _, err := rulesindex.EnsureImport(in.Repo); err != nil {

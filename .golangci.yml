@@ -26,26 +26,48 @@ linters:
           files:
             - "**/hooks/**"
             - "**/license/**"
-            - "**/tasks/**"
             - "**/growth/**"
             - "**/sdkserver/**"
             - "**/shared/**"
             - "!**/shared/descriptor/**"
-            - "!**/shared/skilltriggers/**"
+            - "!**/shared/jsregex/**"
+            - "!**/shared/mergepolicy/**"
+            - "!**/shared/taskspec/**"
           allow:
             - $gostd
             - github.com/missingbulb/ClaudiniteEngine/shared
-        skilltriggers:
-          # The skills' force-load patterns are written for the ECMAScript
-          # regex engine, as the declared checks' are, so the trigger
-          # grammar takes regexp2 too.
+        tasks:
           list-mode: strict
           files:
-            - "**/shared/skilltriggers/**"
+            - "**/tasks/**"
           allow:
             - $gostd
             - github.com/missingbulb/ClaudiniteEngine/shared
+            - github.com/missingbulb/ClaudiniteEngine/tasks
+        jsregex:
+          # Pack data writes its patterns for the ECMAScript regex engine
+          # (a skill's force-load triggers, a pack's merge rules), as the
+          # declared checks' are, so the one reader of them takes regexp2.
+          list-mode: strict
+          files:
+            - "**/shared/jsregex/**"
+          allow:
+            - $gostd
             - github.com/dlclark/regexp2
+        mergepolicy:
+          # The merge policy judges an edit's shape with the SDK's scanning
+          # helpers (comment-only), so a coded check, a declared one and the
+          # landing lane read a file the same way.
+          list-mode: strict
+          files:
+            - "**/shared/mergepolicy/**"
+            # The task contract reads a task-local preconditions.mjs as
+            # text, comments stripped the way a check strips them.
+            - "**/shared/taskspec/**"
+          allow:
+            - $gostd
+            - github.com/missingbulb/ClaudiniteEngine/shared
+            - github.com/missingbulb/ClaudiniteEngine/checksdk
         descriptor:
           # The one place the descriptor formats' parsers are imported
           # (pack, declared-checks and settings in JSON, YAML or TOML);

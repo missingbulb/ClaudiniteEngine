@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "tasks": {
+    "local/planted/wrong": {
+      "path": ".claudinite/local/packs/planted/tasks/wrong/task.json",
+      "declaration": {
+        "id": "wrong"
+      }
+    }
+  }
+}

@@ -560,8 +560,8 @@ func Int(p *int) int {
 // values, for the callers that do not need the distinction.
 type ParsedBody struct {
 	TaskPath, NotBefore, Model, Merge, TargetBranch, Woken string
-	BlockedBy, Supersedes                                []int
-	Request, EndsWhen, TargetPR                          int
+	BlockedBy, Supersedes                                  []int
+	Request, EndsWhen, TargetPR                            int
 }
 
 // ParseBody parses a body's fields with absence collapsed.
@@ -626,8 +626,24 @@ func ParseFields(body string) Fields {
 // Facts are an item's facts as a precondition term sees them.
 type Facts struct {
 	Fields
-	Number int  `json:"number"`
-	IsWoken bool `json:"wokenFlag"`
+	Number  int
+	IsWoken bool
+}
+
+// MarshalJSON writes the Node engine's shape: the fields, the number, and
+// woken as the flag rather than the field's instant.
+func (f Facts) MarshalJSON() ([]byte, error) {
+	raw, err := json.Marshal(f.Fields)
+	if err != nil {
+		return nil, err
+	}
+	var m map[string]any
+	if err := json.Unmarshal(raw, &m); err != nil {
+		return nil, err
+	}
+	m["number"] = f.Number
+	m["woken"] = f.IsWoken
+	return json.Marshal(m)
 }
 
 // ItemFacts are the body's fields plus the number and whether somebody
@@ -647,6 +663,28 @@ type RequestFields struct {
 	BlockedBy []int  `json:"blockedBy"`
 	NotBefore string `json:"notBefore"`
 	Ungated   bool   `json:"ungated"`
+}
+
+// MarshalJSON writes the Node engine's shape, an absent field as null.
+func (r RequestFields) MarshalJSON() ([]byte, error) {
+	null := func(s string) *string {
+		if s == "" {
+			return nil
+		}
+		return &s
+	}
+	blocked := r.BlockedBy
+	if blocked == nil {
+		blocked = []int{}
+	}
+	return json.Marshal(struct {
+		Task      *string `json:"task"`
+		Model     *string `json:"model"`
+		Merge     *string `json:"merge"`
+		BlockedBy []int   `json:"blockedBy"`
+		NotBefore *string `json:"notBefore"`
+		Ungated   bool    `json:"ungated"`
+	}{null(r.Task), null(r.Model), null(r.Merge), blocked, null(r.NotBefore), r.Ungated})
 }
 
 // ParseRequestFields reads a marked issue's parameters from the person's
@@ -724,6 +762,19 @@ func LastVerdictLines(at, reason, until string) []string {
 // LastVerdict is a roll's record read back.
 type LastVerdict struct {
 	At, Reason, Until string
+}
+
+// MarshalJSON writes the Node engine's shape, an absent next wake as null.
+func (v LastVerdict) MarshalJSON() ([]byte, error) {
+	var until *string
+	if v.Until != "" {
+		until = &v.Until
+	}
+	return json.Marshal(struct {
+		At     string  `json:"at"`
+		Reason string  `json:"reason"`
+		Until  *string `json:"until"`
+	}{v.At, v.Reason, until})
 }
 
 var (

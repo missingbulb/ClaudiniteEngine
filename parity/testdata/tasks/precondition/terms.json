@@ -1,0 +1,1626 @@
+{
+  "expect": [
+    {
+      "context": [],
+      "reason": "no conditions stated — the item itself is the ask",
+      "run": true
+    },
+    {
+      "context": [],
+      "reason": "no run in the daily period that opened 2026-09-16T00:00:00.000Z",
+      "run": true
+    },
+    {
+      "reason": "#12 already ran in the daily period that opened 2026-09-16T00:00:00.000Z",
+      "run": false
+    },
+    {
+      "reason": "#11 already ran in the daily period that opened 2026-09-16T00:00:00.000Z",
+      "run": false
+    },
+    {
+      "reason": "#11 already ran in the weekly period that opened 2026-09-13T00:00:00.000Z",
+      "run": false
+    },
+    {
+      "context": [],
+      "reason": "no run in the weekly period that opened 2026-09-13T00:00:00.000Z",
+      "run": true
+    },
+    {
+      "reason": "#5 already ran in the monthly period that opened 2026-09-01T00:00:00.000Z",
+      "run": false
+    },
+    {
+      "context": [],
+      "reason": "#40 was woken by hand — the wake stands in for the cadence",
+      "run": true
+    },
+    {
+      "error": "schedule: schedule:at-most-daily has no instant to place in a period: the caller supplied no `now`"
+    },
+    {
+      "reason": "#12 already ran in the daily period that opened 2026-09-16T00:00:00.000Z",
+      "run": false
+    },
+    {
+      "context": [],
+      "reason": "no run in the weekly period that opened 2026-09-13T00:00:00.000Z",
+      "run": true
+    },
+    {
+      "context": [],
+      "reason": "no run of this task to have failed",
+      "run": true
+    },
+    {
+      "reason": "the newest run, #20, stands at a failure park — this task declares it does not run past its own failure",
+      "run": false
+    },
+    {
+      "context": [],
+      "reason": "the newest run, #21, did not fail",
+      "run": true
+    },
+    {
+      "reason": "the newest run, #21, stands at a approval park — this task declares it does not run past a park of its own",
+      "run": false
+    },
+    {
+      "context": [],
+      "reason": "the newest run, #12, is not parked",
+      "run": true
+    },
+    {
+      "context": [],
+      "reason": "the repo was active in the window — a substantive commit landed, 1 issue(s) moved, 1 open PR(s) moved, a session was captured",
+      "run": true
+    },
+    {
+      "reason": "the repo was silent in the window — no substantive commit, no issue or PR of its own moved, and no session was captured",
+      "run": false
+    },
+    {
+      "reason": "the repo was silent in the window — no substantive commit, no issue or PR of its own moved, and no session was captured",
+      "run": false
+    },
+    {
+      "context": [
+        "Substantive commits in the window: aaaaaaa, ccccccc."
+      ],
+      "reason": "2 substantive default-branch commit(s) in the window",
+      "run": true
+    },
+    {
+      "reason": "no substantive default-branch change in the window",
+      "run": false
+    },
+    {
+      "context": [],
+      "reason": "a substantive default-branch commit(s) in the window",
+      "run": true
+    },
+    {
+      "context": [],
+      "reason": "3 default-branch commit(s) in the window",
+      "run": true
+    },
+    {
+      "reason": "no default-branch commit in the window",
+      "run": false
+    },
+    {
+      "context": [],
+      "reason": "a conversation log was captured in the window",
+      "run": true
+    },
+    {
+      "reason": "no conversation log was captured in the window",
+      "run": false
+    },
+    {
+      "context": [
+        "Issues touched in the window: #4."
+      ],
+      "reason": "1 issue(s) moved in the window",
+      "run": true
+    },
+    {
+      "reason": "no issue of this repo's own moved in the window",
+      "run": false
+    },
+    {
+      "context": [
+        "PRs opened or updated in the window: #7."
+      ],
+      "reason": "1 open PR(s) moved in the window",
+      "run": true
+    },
+    {
+      "reason": "no open PR was opened or updated in the window",
+      "run": false
+    },
+    {
+      "context": [
+        "Canon packs that changed in the window: basics, node."
+      ],
+      "reason": "declared pack(s) changed in the mounted canon: basics, node",
+      "run": true
+    },
+    {
+      "reason": "no declared pack's vendored files changed in the window",
+      "run": false
+    },
+    {
+      "context": [
+        "Paths under docs/ that changed in the window: docs/a.md, docs/c/d.md."
+      ],
+      "reason": "2 path(s) under docs/ changed in the window",
+      "run": true
+    },
+    {
+      "reason": "no path under nowhere/ changed in the window",
+      "run": false
+    },
+    {
+      "context": [
+        "Paths under p/ that changed in the window: p/0.txt, p/1.txt, p/2.txt, p/3.txt, p/4.txt, p/5.txt, p/6.txt, p/7.txt, p/8.txt, p/9.txt, p/10.txt, p/11.txt, p/12.txt, p/13.txt, p/14.txt, p/15.txt, p/16.txt, p/17.txt, p/18.txt, p/19.txt, p/20.txt, p/21.txt, p/22.txt, p/23.txt, p/24.txt, p/25.txt, p/26.txt, p/27.txt, p/28.txt, p/29.txt, p/30.txt, p/31.txt, p/32.txt, p/33.txt, p/34.txt, p/35.txt, p/36.txt, p/37.txt, p/38.txt, p/39.txt.",
+        "5 further path(s) under p/ are not named here."
+      ],
+      "reason": "45 path(s) under p/ changed in the window",
+      "run": true
+    },
+    {
+      "context": [
+        "Paths outside docs/ that changed in the window — work exactly these, and no others: src/b.go."
+      ],
+      "reason": "1 path(s) outside docs/ changed in the window",
+      "run": true
+    },
+    {
+      "reason": "nothing outside p/ changed in the window",
+      "run": false
+    },
+    {
+      "reason": "nothing outside p/ changed in the window",
+      "run": false
+    },
+    {
+      "context": [
+        "Paths outside x/ that changed in the window — work exactly these, and no others: p/0.txt, p/1.txt, p/2.txt, p/3.txt, p/4.txt, p/5.txt, p/6.txt, p/7.txt, p/8.txt, p/9.txt, p/10.txt, p/11.txt, p/12.txt, p/13.txt, p/14.txt, p/15.txt, p/16.txt, p/17.txt, p/18.txt, p/19.txt, p/20.txt, p/21.txt, p/22.txt, p/23.txt, p/24.txt, p/25.txt, p/26.txt, p/27.txt, p/28.txt, p/29.txt, p/30.txt, p/31.txt, p/32.txt, p/33.txt, p/34.txt, p/35.txt, p/36.txt, p/37.txt, p/38.txt, p/39.txt.",
+        "5 further path(s) changed in the window and are NOT in scope this round — say so in the wrap-up, so it is not read as a full sweep."
+      ],
+      "reason": "45 path(s) outside x/ changed in the window",
+      "run": true
+    },
+    {
+      "reason": "PR #7 has a pending docs/ change — this round waits for its review rather than stack a second unreviewed one on it",
+      "run": false
+    },
+    {
+      "reason": "PR #8's changed paths could not be read, so whether a src/ change is pending is unknown — a skipped round is cheaper than an unreviewed one stacked on it",
+      "run": false
+    },
+    {
+      "context": [],
+      "reason": "no open PR changes a path under docs/",
+      "run": true
+    },
+    {
+      "reason": "PR #7 is this pass's previous round, still open — this round waits for it to land rather than stack a second sweep on it",
+      "run": false
+    },
+    {
+      "context": [],
+      "reason": "no open PR titled \"Mine…\" — the previous round has landed",
+      "run": true
+    },
+    {
+      "context": [
+        "PRs opened or updated in the window: #7."
+      ],
+      "reason": "no run in the daily period that opened 2026-09-16T00:00:00.000Z; 1 open PR(s) moved in the window",
+      "run": true
+    },
+    {
+      "reason": "no substantive default-branch change in the window; nor no declared pack's vendored files changed in the window",
+      "run": false
+    },
+    {
+      "missing": [
+        "commits"
+      ],
+      "run": null,
+      "undecided": true
+    },
+    {
+      "reason": "#12 already ran in the daily period that opened 2026-09-16T00:00:00.000Z",
+      "run": false
+    },
+    {
+      "context": [],
+      "reason": "no run in the daily period that opened 2026-09-16T00:00:00.000Z",
+      "run": true
+    },
+    {
+      "missing": [
+        "commits"
+      ],
+      "run": null,
+      "undecided": true
+    },
+    {
+      "context": [],
+      "reason": "no run in the daily period that opened 2026-09-16T00:00:00.000Z",
+      "run": true
+    },
+    {
+      "error": "any-commit: the `commits` signal could not be read — HTTP 500"
+    },
+    {
+      "reason": "no default-branch commit in the window",
+      "run": false
+    },
+    {
+      "error": "unknown precondition \"nope\" — no built-in and none this task's preconditions.mjs exports"
+    },
+    {
+      "error": "\"schedule\" takes one of at-most-daily, at-most-weekly, at-most-monthly, not \"at-most-hourly\""
+    },
+    {
+      "error": "the precondition \"any-commit\" takes no argument but was given \"x\""
+    },
+    {
+      "error": "the precondition \"commits-under\" takes an inline argument and was given none"
+    },
+    {
+      "error": "the \"preconditions\" declaration is not legal: \"none\" is retired. A task with no condition states none: leave \"preconditions\" out, and the task runs only from an item somebody creates. Otherwise state when it runs: a cadence (`schedule:at-most-daily`) or the movement it waits for"
+    },
+    {
+      "error": "the \"preconditions\" declaration is not legal: it is not an array of condition strings"
+    },
+    {
+      "error": "the \"preconditions\" declaration is not legal: an alternative around \"||\" is empty"
+    },
+    {
+      "error": "unknown precondition \"request-eligible\" — no built-in and none this task's preconditions.mjs exports"
+    }
+  ],
+  "input": {
+    "cases": [
+      {
+        "preconditions": [],
+        "signals": {},
+        "now": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "preconditions": [
+          "schedule:at-most-daily"
+        ],
+        "signals": {
+          "runs": {
+            "list": []
+          }
+        },
+        "now": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "preconditions": [
+          "schedule:at-most-daily"
+        ],
+        "signals": {
+          "runs": {
+            "list": [
+              {
+                "number": 12,
+                "createdAt": "2026-09-16T01:00:00Z",
+                "closedAt": "2026-09-16T02:00:00Z",
+                "state": "closed",
+                "status": "task:status:done",
+                "park": null,
+                "outcome": "done"
+              }
+            ]
+          }
+        },
+        "now": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "preconditions": [
+          "schedule:at-most-daily"
+        ],
+        "signals": {
+          "runs": {
+            "list": [
+              {
+                "number": 11,
+                "createdAt": "2026-09-15T20:00:00Z",
+                "closedAt": "2026-09-16T00:30:00Z",
+                "state": "closed",
+                "park": null
+              }
+            ]
+          }
+        },
+        "now": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "preconditions": [
+          "schedule:at-most-weekly"
+        ],
+        "signals": {
+          "runs": {
+            "list": [
+              {
+                "number": 11,
+                "createdAt": "2026-09-15T20:00:00Z",
+                "closedAt": "2026-09-16T00:30:00Z",
+                "state": "closed",
+                "park": null
+              }
+            ]
+          }
+        },
+        "now": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "preconditions": [
+          "schedule:at-most-weekly"
+        ],
+        "signals": {
+          "runs": {
+            "list": [
+              {
+                "number": 5,
+                "createdAt": "2026-09-01T20:00:00Z",
+                "closedAt": "2026-09-02T00:30:00Z",
+                "state": "closed",
+                "park": null
+              }
+            ]
+          }
+        },
+        "now": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "preconditions": [
+          "schedule:at-most-monthly"
+        ],
+        "signals": {
+          "runs": {
+            "list": [
+              {
+                "number": 5,
+                "createdAt": "2026-09-01T20:00:00Z",
+                "closedAt": "2026-09-02T00:30:00Z",
+                "state": "closed",
+                "park": null
+              }
+            ]
+          }
+        },
+        "now": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "preconditions": [
+          "schedule:at-most-daily"
+        ],
+        "signals": {
+          "runs": {
+            "list": [
+              {
+                "number": 12,
+                "createdAt": "2026-09-16T01:00:00Z",
+                "closedAt": "2026-09-16T02:00:00Z",
+                "state": "closed",
+                "status": "task:status:done",
+                "park": null,
+                "outcome": "done"
+              }
+            ]
+          }
+        },
+        "now": "2026-09-16T10:30:00.000Z",
+        "item": {
+          "number": 40,
+          "woken": true
+        }
+      },
+      {
+        "preconditions": [
+          "schedule:at-most-daily"
+        ],
+        "signals": {
+          "runs": {
+            "list": []
+          }
+        },
+        "now": null
+      },
+      {
+        "preconditions": [
+          "due:daily"
+        ],
+        "signals": {
+          "runs": {
+            "list": [
+              {
+                "number": 12,
+                "createdAt": "2026-09-16T01:00:00Z",
+                "closedAt": "2026-09-16T02:00:00Z",
+                "state": "closed",
+                "status": "task:status:done",
+                "park": null,
+                "outcome": "done"
+              }
+            ]
+          }
+        },
+        "now": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "preconditions": [
+          "due:weekly"
+        ],
+        "signals": {
+          "runs": {
+            "list": []
+          }
+        },
+        "now": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "preconditions": [
+          "last-run-not-failed"
+        ],
+        "signals": {
+          "runs": {
+            "list": []
+          }
+        },
+        "now": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "preconditions": [
+          "last-run-not-failed"
+        ],
+        "signals": {
+          "runs": {
+            "list": [
+              {
+                "number": 20,
+                "createdAt": "2026-09-10T00:00:00Z",
+                "closedAt": null,
+                "state": "open",
+                "park": "failure"
+              }
+            ]
+          }
+        },
+        "now": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "preconditions": [
+          "last-run-not-failed"
+        ],
+        "signals": {
+          "runs": {
+            "list": [
+              {
+                "number": 21,
+                "createdAt": "2026-09-10T00:00:00Z",
+                "closedAt": null,
+                "state": "open",
+                "park": "approval"
+              }
+            ]
+          }
+        },
+        "now": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "preconditions": [
+          "last-run-not-parked"
+        ],
+        "signals": {
+          "runs": {
+            "list": [
+              {
+                "number": 21,
+                "createdAt": "2026-09-10T00:00:00Z",
+                "closedAt": null,
+                "state": "open",
+                "park": "approval"
+              }
+            ]
+          }
+        },
+        "now": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "preconditions": [
+          "last-run-not-parked"
+        ],
+        "signals": {
+          "runs": {
+            "list": [
+              {
+                "number": 12,
+                "createdAt": "2026-09-16T01:00:00Z",
+                "closedAt": "2026-09-16T02:00:00Z",
+                "state": "closed",
+                "status": "task:status:done",
+                "park": null,
+                "outcome": "done"
+              },
+              {
+                "number": 20,
+                "createdAt": "2026-09-10T00:00:00Z",
+                "closedAt": null,
+                "state": "open",
+                "park": "failure"
+              }
+            ]
+          }
+        },
+        "now": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "preconditions": [
+          "repo-active"
+        ],
+        "signals": {
+          "commits": {
+            "substantiveChange": true,
+            "count": 3,
+            "touchedPaths": [
+              "docs/a.md",
+              "src/b.go",
+              "docs/c/d.md"
+            ],
+            "list": [
+              {
+                "sha": "aaaaaaaaaa1",
+                "substantive": true
+              },
+              {
+                "sha": "bbbbbbbbbb2",
+                "substantive": false
+              },
+              {
+                "sha": "cccccccccc3",
+                "substantive": true
+              }
+            ]
+          },
+          "issues": {
+            "open": [
+              {
+                "number": 4,
+                "labels": [
+                  "bug"
+                ]
+              },
+              {
+                "number": 9,
+                "labels": [
+                  "task:status:done"
+                ]
+              },
+              {
+                "number": 10,
+                "labels": []
+              }
+            ],
+            "touched": [
+              4,
+              9,
+              99
+            ]
+          },
+          "prs": {
+            "open": [
+              {
+                "number": 7,
+                "title": "My sweep 3",
+                "changedPaths": [
+                  "docs/x.md"
+                ]
+              },
+              {
+                "number": 8,
+                "title": "Other",
+                "changedPaths": null
+              }
+            ],
+            "touched": [
+              7
+            ]
+          },
+          "conversationLogs": {
+            "newestLogAgeDays": 0.5
+          },
+          "runs": {
+            "list": [],
+            "window": {
+              "days": 1
+            }
+          }
+        },
+        "now": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "preconditions": [
+          "repo-active"
+        ],
+        "signals": {
+          "commits": {
+            "substantiveChange": false,
+            "count": 0,
+            "touchedPaths": [],
+            "list": []
+          },
+          "issues": {
+            "open": [],
+            "touched": []
+          },
+          "prs": {
+            "open": [],
+            "touched": []
+          },
+          "conversationLogs": {
+            "newestLogAgeDays": null
+          },
+          "runs": {
+            "list": [],
+            "window": {
+              "days": 7
+            }
+          }
+        },
+        "now": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "preconditions": [
+          "repo-active"
+        ],
+        "signals": {
+          "commits": {
+            "substantiveChange": false,
+            "count": 0,
+            "touchedPaths": [],
+            "list": []
+          },
+          "issues": {
+            "open": [],
+            "touched": []
+          },
+          "prs": {
+            "open": [],
+            "touched": []
+          },
+          "conversationLogs": {
+            "newestLogAgeDays": 3
+          }
+        },
+        "now": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "preconditions": [
+          "substantive-change"
+        ],
+        "signals": {
+          "commits": {
+            "substantiveChange": true,
+            "count": 3,
+            "touchedPaths": [
+              "docs/a.md",
+              "src/b.go",
+              "docs/c/d.md"
+            ],
+            "list": [
+              {
+                "sha": "aaaaaaaaaa1",
+                "substantive": true
+              },
+              {
+                "sha": "bbbbbbbbbb2",
+                "substantive": false
+              },
+              {
+                "sha": "cccccccccc3",
+                "substantive": true
+              }
+            ]
+          }
+        },
+        "now": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "preconditions": [
+          "substantive-change"
+        ],
+        "signals": {
+          "commits": {
+            "substantiveChange": false,
+            "count": 0,
+            "touchedPaths": [],
+            "list": []
+          }
+        },
+        "now": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "preconditions": [
+          "substantive-change"
+        ],
+        "signals": {
+          "commits": {
+            "substantiveChange": true
+          }
+        },
+        "now": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "preconditions": [
+          "any-commit"
+        ],
+        "signals": {
+          "commits": {
+            "substantiveChange": true,
+            "count": 3,
+            "touchedPaths": [
+              "docs/a.md",
+              "src/b.go",
+              "docs/c/d.md"
+            ],
+            "list": [
+              {
+                "sha": "aaaaaaaaaa1",
+                "substantive": true
+              },
+              {
+                "sha": "bbbbbbbbbb2",
+                "substantive": false
+              },
+              {
+                "sha": "cccccccccc3",
+                "substantive": true
+              }
+            ]
+          }
+        },
+        "now": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "preconditions": [
+          "any-commit"
+        ],
+        "signals": {
+          "commits": {}
+        },
+        "now": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "preconditions": [
+          "session-captured"
+        ],
+        "signals": {
+          "conversationLogs": {
+            "newestLogAgeDays": 2
+          },
+          "runs": {
+            "list": [],
+            "window": {
+              "days": 7
+            }
+          }
+        },
+        "now": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "preconditions": [
+          "session-captured"
+        ],
+        "signals": {
+          "conversationLogs": {
+            "newestLogAgeDays": 2
+          },
+          "runs": {
+            "list": [],
+            "window": {
+              "days": 1
+            }
+          }
+        },
+        "now": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "preconditions": [
+          "issues-touched"
+        ],
+        "signals": {
+          "issues": {
+            "open": [
+              {
+                "number": 4,
+                "labels": [
+                  "bug"
+                ]
+              },
+              {
+                "number": 9,
+                "labels": [
+                  "task:status:done"
+                ]
+              },
+              {
+                "number": 10,
+                "labels": []
+              }
+            ],
+            "touched": [
+              4,
+              9,
+              99
+            ]
+          }
+        },
+        "now": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "preconditions": [
+          "issues-touched"
+        ],
+        "signals": {
+          "issues": {
+            "open": [
+              {
+                "number": 9,
+                "labels": [
+                  "task:x"
+                ]
+              }
+            ],
+            "touched": [
+              9
+            ]
+          }
+        },
+        "now": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "preconditions": [
+          "prs-touched"
+        ],
+        "signals": {
+          "prs": {
+            "open": [
+              {
+                "number": 7,
+                "title": "My sweep 3",
+                "changedPaths": [
+                  "docs/x.md"
+                ]
+              },
+              {
+                "number": 8,
+                "title": "Other",
+                "changedPaths": null
+              }
+            ],
+            "touched": [
+              7
+            ]
+          }
+        },
+        "now": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "preconditions": [
+          "prs-touched"
+        ],
+        "signals": {
+          "prs": {
+            "open": []
+          }
+        },
+        "now": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "preconditions": [
+          "mount-moved"
+        ],
+        "signals": {
+          "sharedMount": {
+            "changedPacks": [
+              "basics",
+              "node"
+            ]
+          }
+        },
+        "now": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "preconditions": [
+          "mount-moved"
+        ],
+        "signals": {
+          "sharedMount": {}
+        },
+        "now": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "preconditions": [
+          "commits-under:docs/"
+        ],
+        "signals": {
+          "commits": {
+            "substantiveChange": true,
+            "count": 3,
+            "touchedPaths": [
+              "docs/a.md",
+              "src/b.go",
+              "docs/c/d.md"
+            ],
+            "list": [
+              {
+                "sha": "aaaaaaaaaa1",
+                "substantive": true
+              },
+              {
+                "sha": "bbbbbbbbbb2",
+                "substantive": false
+              },
+              {
+                "sha": "cccccccccc3",
+                "substantive": true
+              }
+            ]
+          }
+        },
+        "now": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "preconditions": [
+          "commits-under:nowhere/"
+        ],
+        "signals": {
+          "commits": {
+            "substantiveChange": true,
+            "count": 3,
+            "touchedPaths": [
+              "docs/a.md",
+              "src/b.go",
+              "docs/c/d.md"
+            ],
+            "list": [
+              {
+                "sha": "aaaaaaaaaa1",
+                "substantive": true
+              },
+              {
+                "sha": "bbbbbbbbbb2",
+                "substantive": false
+              },
+              {
+                "sha": "cccccccccc3",
+                "substantive": true
+              }
+            ]
+          }
+        },
+        "now": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "preconditions": [
+          "commits-under:p/"
+        ],
+        "signals": {
+          "commits": {
+            "touchedPaths": [
+              "p/0.txt",
+              "p/1.txt",
+              "p/2.txt",
+              "p/3.txt",
+              "p/4.txt",
+              "p/5.txt",
+              "p/6.txt",
+              "p/7.txt",
+              "p/8.txt",
+              "p/9.txt",
+              "p/10.txt",
+              "p/11.txt",
+              "p/12.txt",
+              "p/13.txt",
+              "p/14.txt",
+              "p/15.txt",
+              "p/16.txt",
+              "p/17.txt",
+              "p/18.txt",
+              "p/19.txt",
+              "p/20.txt",
+              "p/21.txt",
+              "p/22.txt",
+              "p/23.txt",
+              "p/24.txt",
+              "p/25.txt",
+              "p/26.txt",
+              "p/27.txt",
+              "p/28.txt",
+              "p/29.txt",
+              "p/30.txt",
+              "p/31.txt",
+              "p/32.txt",
+              "p/33.txt",
+              "p/34.txt",
+              "p/35.txt",
+              "p/36.txt",
+              "p/37.txt",
+              "p/38.txt",
+              "p/39.txt",
+              "p/40.txt",
+              "p/41.txt",
+              "p/42.txt",
+              "p/43.txt",
+              "p/44.txt"
+            ]
+          }
+        },
+        "now": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "preconditions": [
+          "commits-outside:docs/"
+        ],
+        "signals": {
+          "commits": {
+            "substantiveChange": true,
+            "count": 3,
+            "touchedPaths": [
+              "docs/a.md",
+              "src/b.go",
+              "docs/c/d.md"
+            ],
+            "list": [
+              {
+                "sha": "aaaaaaaaaa1",
+                "substantive": true
+              },
+              {
+                "sha": "bbbbbbbbbb2",
+                "substantive": false
+              },
+              {
+                "sha": "cccccccccc3",
+                "substantive": true
+              }
+            ]
+          }
+        },
+        "now": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "preconditions": [
+          "commits-outside:p/"
+        ],
+        "signals": {
+          "commits": {
+            "touchedPaths": [
+              "p/0.txt",
+              "p/1.txt",
+              "p/2.txt",
+              "p/3.txt",
+              "p/4.txt",
+              "p/5.txt",
+              "p/6.txt",
+              "p/7.txt",
+              "p/8.txt",
+              "p/9.txt",
+              "p/10.txt",
+              "p/11.txt",
+              "p/12.txt",
+              "p/13.txt",
+              "p/14.txt",
+              "p/15.txt",
+              "p/16.txt",
+              "p/17.txt",
+              "p/18.txt",
+              "p/19.txt",
+              "p/20.txt",
+              "p/21.txt",
+              "p/22.txt",
+              "p/23.txt",
+              "p/24.txt",
+              "p/25.txt",
+              "p/26.txt",
+              "p/27.txt",
+              "p/28.txt",
+              "p/29.txt",
+              "p/30.txt",
+              "p/31.txt",
+              "p/32.txt",
+              "p/33.txt",
+              "p/34.txt",
+              "p/35.txt",
+              "p/36.txt",
+              "p/37.txt",
+              "p/38.txt",
+              "p/39.txt",
+              "p/40.txt",
+              "p/41.txt",
+              "p/42.txt",
+              "p/43.txt",
+              "p/44.txt"
+            ]
+          }
+        },
+        "now": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "preconditions": [
+          "commits-outside:p/"
+        ],
+        "signals": {
+          "commits": {
+            "touchedPaths": [
+              "p/1"
+            ]
+          }
+        },
+        "now": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "preconditions": [
+          "commits-outside:x/"
+        ],
+        "signals": {
+          "commits": {
+            "touchedPaths": [
+              "p/0.txt",
+              "p/1.txt",
+              "p/2.txt",
+              "p/3.txt",
+              "p/4.txt",
+              "p/5.txt",
+              "p/6.txt",
+              "p/7.txt",
+              "p/8.txt",
+              "p/9.txt",
+              "p/10.txt",
+              "p/11.txt",
+              "p/12.txt",
+              "p/13.txt",
+              "p/14.txt",
+              "p/15.txt",
+              "p/16.txt",
+              "p/17.txt",
+              "p/18.txt",
+              "p/19.txt",
+              "p/20.txt",
+              "p/21.txt",
+              "p/22.txt",
+              "p/23.txt",
+              "p/24.txt",
+              "p/25.txt",
+              "p/26.txt",
+              "p/27.txt",
+              "p/28.txt",
+              "p/29.txt",
+              "p/30.txt",
+              "p/31.txt",
+              "p/32.txt",
+              "p/33.txt",
+              "p/34.txt",
+              "p/35.txt",
+              "p/36.txt",
+              "p/37.txt",
+              "p/38.txt",
+              "p/39.txt",
+              "p/40.txt",
+              "p/41.txt",
+              "p/42.txt",
+              "p/43.txt",
+              "p/44.txt"
+            ]
+          }
+        },
+        "now": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "preconditions": [
+          "no-open-pr-touching:docs/"
+        ],
+        "signals": {
+          "prs": {
+            "open": [
+              {
+                "number": 7,
+                "title": "My sweep 3",
+                "changedPaths": [
+                  "docs/x.md"
+                ]
+              },
+              {
+                "number": 8,
+                "title": "Other",
+                "changedPaths": null
+              }
+            ],
+            "touched": [
+              7
+            ]
+          }
+        },
+        "now": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "preconditions": [
+          "no-open-pr-touching:src/"
+        ],
+        "signals": {
+          "prs": {
+            "open": [
+              {
+                "number": 7,
+                "title": "My sweep 3",
+                "changedPaths": [
+                  "docs/x.md"
+                ]
+              },
+              {
+                "number": 8,
+                "title": "Other",
+                "changedPaths": null
+              }
+            ],
+            "touched": [
+              7
+            ]
+          }
+        },
+        "now": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "preconditions": [
+          "no-open-pr-touching:docs/"
+        ],
+        "signals": {
+          "prs": {
+            "open": [
+              {
+                "number": 7,
+                "title": "Other",
+                "changedPaths": [
+                  "src/x"
+                ]
+              }
+            ],
+            "touched": []
+          }
+        },
+        "now": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "preconditions": [
+          "no-open-pr-titled:My sweep"
+        ],
+        "signals": {
+          "prs": {
+            "open": [
+              {
+                "number": 7,
+                "title": "My sweep 3",
+                "changedPaths": [
+                  "docs/x.md"
+                ]
+              },
+              {
+                "number": 8,
+                "title": "Other",
+                "changedPaths": null
+              }
+            ],
+            "touched": [
+              7
+            ]
+          }
+        },
+        "now": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "preconditions": [
+          "no-open-pr-titled:Mine"
+        ],
+        "signals": {
+          "prs": {
+            "open": [
+              {
+                "number": 7,
+                "title": "My sweep 3",
+                "changedPaths": [
+                  "docs/x.md"
+                ]
+              },
+              {
+                "number": 8,
+                "title": "Other",
+                "changedPaths": null
+              }
+            ],
+            "touched": [
+              7
+            ]
+          }
+        },
+        "now": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change || prs-touched"
+        ],
+        "signals": {
+          "runs": {
+            "list": []
+          },
+          "commits": {
+            "substantiveChange": false,
+            "count": 0,
+            "touchedPaths": [],
+            "list": []
+          },
+          "prs": {
+            "open": [
+              {
+                "number": 7,
+                "title": "My sweep 3",
+                "changedPaths": [
+                  "docs/x.md"
+                ]
+              },
+              {
+                "number": 8,
+                "title": "Other",
+                "changedPaths": null
+              }
+            ],
+            "touched": [
+              7
+            ]
+          }
+        },
+        "now": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "preconditions": [
+          "schedule:at-most-daily",
+          "substantive-change || mount-moved"
+        ],
+        "signals": {
+          "runs": {
+            "list": []
+          },
+          "commits": {
+            "substantiveChange": false,
+            "count": 0,
+            "touchedPaths": [],
+            "list": []
+          },
+          "sharedMount": {
+            "changedPacks": []
+          }
+        },
+        "now": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "preconditions": [
+          "schedule:at-most-daily",
+          "any-commit"
+        ],
+        "signals": {
+          "runs": {
+            "list": []
+          }
+        },
+        "now": "2026-09-16T10:30:00.000Z",
+        "partial": true
+      },
+      {
+        "preconditions": [
+          "schedule:at-most-daily",
+          "any-commit"
+        ],
+        "signals": {
+          "runs": {
+            "list": [
+              {
+                "number": 12,
+                "createdAt": "2026-09-16T01:00:00Z",
+                "closedAt": "2026-09-16T02:00:00Z",
+                "state": "closed",
+                "status": "task:status:done",
+                "park": null,
+                "outcome": "done"
+              }
+            ]
+          }
+        },
+        "now": "2026-09-16T10:30:00.000Z",
+        "partial": true
+      },
+      {
+        "preconditions": [
+          "any-commit || schedule:at-most-daily"
+        ],
+        "signals": {
+          "runs": {
+            "list": []
+          }
+        },
+        "now": "2026-09-16T10:30:00.000Z",
+        "partial": true
+      },
+      {
+        "preconditions": [
+          "any-commit || schedule:at-most-daily"
+        ],
+        "signals": {
+          "runs": {
+            "list": [
+              {
+                "number": 12,
+                "createdAt": "2026-09-16T01:00:00Z",
+                "closedAt": "2026-09-16T02:00:00Z",
+                "state": "closed",
+                "status": "task:status:done",
+                "park": null,
+                "outcome": "done"
+              }
+            ]
+          }
+        },
+        "now": "2026-09-16T10:30:00.000Z",
+        "partial": true
+      },
+      {
+        "preconditions": [
+          "schedule:at-most-daily"
+        ],
+        "signals": {
+          "runs": {
+            "list": []
+          }
+        },
+        "now": "2026-09-16T10:30:00.000Z",
+        "partial": true
+      },
+      {
+        "preconditions": [
+          "any-commit"
+        ],
+        "signals": {
+          "commits": {
+            "error": "HTTP 500"
+          }
+        },
+        "now": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "preconditions": [
+          "any-commit"
+        ],
+        "signals": {},
+        "now": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "preconditions": [
+          "nope"
+        ],
+        "signals": {},
+        "now": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "preconditions": [
+          "schedule:at-most-hourly"
+        ],
+        "signals": {
+          "runs": {
+            "list": []
+          }
+        },
+        "now": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "preconditions": [
+          "any-commit:x"
+        ],
+        "signals": {
+          "commits": {
+            "substantiveChange": true,
+            "count": 3,
+            "touchedPaths": [
+              "docs/a.md",
+              "src/b.go",
+              "docs/c/d.md"
+            ],
+            "list": [
+              {
+                "sha": "aaaaaaaaaa1",
+                "substantive": true
+              },
+              {
+                "sha": "bbbbbbbbbb2",
+                "substantive": false
+              },
+              {
+                "sha": "cccccccccc3",
+                "substantive": true
+              }
+            ]
+          }
+        },
+        "now": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "preconditions": [
+          "commits-under"
+        ],
+        "signals": {
+          "commits": {
+            "substantiveChange": true,
+            "count": 3,
+            "touchedPaths": [
+              "docs/a.md",
+              "src/b.go",
+              "docs/c/d.md"
+            ],
+            "list": [
+              {
+                "sha": "aaaaaaaaaa1",
+                "substantive": true
+              },
+              {
+                "sha": "bbbbbbbbbb2",
+                "substantive": false
+              },
+              {
+                "sha": "cccccccccc3",
+                "substantive": true
+              }
+            ]
+          }
+        },
+        "now": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "preconditions": [
+          "none"
+        ],
+        "signals": {},
+        "now": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "preconditions": "x",
+        "signals": {},
+        "now": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "preconditions": [
+          "a || "
+        ],
+        "signals": {},
+        "now": "2026-09-16T10:30:00.000Z"
+      },
+      {
+        "preconditions": [
+          "request-eligible"
+        ],
+        "signals": {
+          "request": {}
+        },
+        "now": "2026-09-16T10:30:00.000Z"
+      }
+    ]
+  }
+}
