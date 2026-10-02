@@ -25,5 +25,9 @@
       "requireReview": false
     },
     "sharedConstants": []
+  },
+  "accounts": {
+    "the override for \"mine-no-todo\" on the top-level \"rules\" is set to \"blocking\", the retired spelling": "mapped rules.mine-no-todo \"blocking\" → \"block\"",
+    "the declared check \"mine-no-todo\" carries \"severity\", the retired name of its on_fail": "carries \"severity\": \"advisory\", the retired name of its on_fail"
   }
 }

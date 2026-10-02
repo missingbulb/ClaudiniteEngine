@@ -1,0 +1,5 @@
+mapped packs[0] "basics" → packs.declared "basics"
+mapped packs[1] "claudinite-lifecycle" → packs.declared "claudinite-lifecycle"
+mapped rules → checks.rules
+mapped accept → checks.accept
+mapped sharedConstants → packs.declared "basics" config.sharedConstants

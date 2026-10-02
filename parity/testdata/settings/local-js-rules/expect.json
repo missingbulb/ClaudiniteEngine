@@ -20,5 +20,11 @@
       "requireReview": false
     },
     "sharedConstants": []
+  },
+  "divergence": "record-79",
+  "cn": {
+    "breaks": [
+      "is a JavaScript check, and cn runs none"
+    ]
   }
 }

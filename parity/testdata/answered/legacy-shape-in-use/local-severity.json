@@ -1,0 +1,13 @@
+{
+  "nodeFiles": {
+    ".claudinite-settings.json": "{\"packs\":[\"basics\",\"local/mine\"]}\n",
+    ".claudinite/local/packs/mine/declared-checks.json": "[\n  {\n    \"id\": \"mine-no-todo\",\n    \"severity\": \"advisory\",\n    \"scanFiles\": \"notes.md\",\n    \"forbidLinesMatching\": \"/TODO/\",\n    \"failureMessage\": \"a TODO left in the notes\"\n  }\n]\n",
+    ".claudinite/local/packs/mine/pack.json": "{}\n",
+    ".claudinite/shared/engine/checks/check_the_world.mjs": "// sweep\n",
+    ".claudinite/shared/engine/checks/ci-work-scope.mjs": "// work\n"
+  },
+  "cnShape": "v8-local-severity",
+  "cnFiles": {},
+  "answeredBy": "local-pack-shape",
+  "nodeFires": true
+}

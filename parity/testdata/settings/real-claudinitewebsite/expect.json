@@ -84,5 +84,8 @@
       "requireReview": false
     },
     "sharedConstants": []
+  },
+  "accounts": {
+    "the local pack manifest declares \"marker\", a retired fingerprint field nothing reads": "declares \"marker\", a retired manifest field"
   }
 }

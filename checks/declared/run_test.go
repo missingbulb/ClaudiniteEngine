@@ -239,3 +239,23 @@ func TestApplyConfigDropsARuleSetOff(t *testing.T) {
 		t.Errorf("%+v", got)
 	}
 }
+
+func TestCheckParsedFilesReadsEveryDescriptorFormat(t *testing.T) {
+	check := `[{"id":"acme-check","on_fail":"block","failureMessage":"m","fix":"f",
+  "checkParsedFiles":[{"filesMatching":"/^conf\\.(yaml|toml|json)$/","requireValueInArray":{"atField":"list.names","value":"acme","matchingEntryObjectsByField":"id"},"what":"{path} lacks acme"}]}]`
+	cases := map[string][2]string{
+		"conf.yaml": {"list:\n  names: [other, {id: acme}]\n", "list:\n  names: [other]\n"},
+		"conf.toml": {"[list]\nnames = [\"other\", {id = \"acme\"}]\n", "[list]\nnames = [\"other\"]\n"},
+		"conf.json": {`{"list": {"names": ["other", "acme"]}}`, `{"list": {"names": ["other"]}}`},
+	}
+	for name, bodies := range cases {
+		for i, body := range bodies {
+			dir := member(t, testSettings, check, map[string]string{name: body})
+			fs, _ := runSet(t, dir, Selection{}, time.Now())
+			fired := strings.Contains(render(fs), name+" lacks acme")
+			if fired != (i == 1) {
+				t.Errorf("%s holding %q: fired %v\n%s", name, body, fired, render(fs))
+			}
+		}
+	}
+}

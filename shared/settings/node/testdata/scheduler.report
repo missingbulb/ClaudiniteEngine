@@ -1,0 +1,8 @@
+mapped packs[0] "claudinite-lifecycle" → packs.declared "claudinite-lifecycle"
+mapped packs[1] "claudinite-tasks" → packs.declared "claudinite-tasks"
+mapped taskScheduler.agenticTaskInvocationEndpoints → packs.declared "claudinite-tasks" config.agenticTaskInvocationEndpoints
+mapped taskScheduler.disabledTasks → packs.declared "claudinite-tasks" config.disabledTasks
+dropped taskScheduler.dispatch: the work-item queue is the only dispatch
+dropped taskScheduler.dailyHour: a cadence measures whole UTC periods (record row 73)
+dropped taskScheduler.weeklyDay: a cadence measures whole UTC periods (record row 73)
+dropped taskScheduler.monthlyDay: a cadence measures whole UTC periods (record row 73)

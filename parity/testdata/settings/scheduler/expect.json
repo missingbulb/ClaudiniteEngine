@@ -31,5 +31,10 @@
       "requireReview": false
     },
     "sharedConstants": []
+  },
+  "accounts": {
+    "taskScheduler.dailyHour is retired and nothing reads it": "dropped taskScheduler.dailyHour:",
+    "taskScheduler.weeklyDay is retired and nothing reads it": "dropped taskScheduler.weeklyDay:",
+    "taskScheduler.monthlyDay is retired and nothing reads it": "dropped taskScheduler.monthlyDay:"
   }
 }

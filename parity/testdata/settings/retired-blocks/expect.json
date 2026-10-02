@@ -23,5 +23,10 @@
       "requireReview": false
     },
     "sharedConstants": []
+  },
+  "accounts": {
+    "unknown setting \"claudinite\"": "refused claudinite:",
+    "unknown setting \"packConfig\"": "refused packConfig:",
+    "unknown setting \"maintenance\"": "refused maintenance:"
   }
 }

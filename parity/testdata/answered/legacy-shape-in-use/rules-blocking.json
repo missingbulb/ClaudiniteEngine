@@ -1,0 +1,11 @@
+{
+  "nodeFiles": {
+    ".claudinite-settings.json": "{\"packs\":[\"basics\"],\"rules\":{\"basics/shared-constants\":\"blocking\"}}\n",
+    ".claudinite/shared/engine/checks/check_the_world.mjs": "// sweep\n",
+    ".claudinite/shared/engine/checks/ci-work-scope.mjs": "// work\n"
+  },
+  "cnShape": "v8-rules-blocking",
+  "cnFiles": {},
+  "answeredBy": "settings-checks",
+  "nodeFires": true
+}

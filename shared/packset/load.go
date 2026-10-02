@@ -46,6 +46,10 @@ type Pack struct {
 	Skills   []string
 	Requires []string
 	Manifest Manifest
+	// JSRules are a local or temp pack's JavaScript rules, relative to
+	// Dir: worldRules/*.mjs, workRules/*.mjs and skills/*/checks.mjs. The
+	// pack loads, and none of them runs.
+	JSRules []string
 }
 
 // Token is the pack as a declaration names it.
@@ -150,7 +154,7 @@ func load(repo, engine string, session bool) (Set, error) {
 		}
 		for _, name := range subdirs(filepath.Join(repo, filepath.FromSlash(TempDir))) {
 			rel := TempDir + "/" + name
-			if _, err := readManifestAny(filepath.Join(repo, filepath.FromSlash(rel))); errors.Is(err, ErrNoManifest) {
+			if _, err := readManifestAny(filepath.Join(repo, filepath.FromSlash(rel)), true); errors.Is(err, ErrNoManifest) {
 				continue
 			}
 			if taken[name] {
@@ -186,7 +190,7 @@ func loadOne(repo string, kind Kind, id, rel, engine string) (Pack, string) {
 	if st, err := os.Stat(dir); err != nil || !st.IsDir() {
 		return Pack{}, rel + " is missing"
 	}
-	m, err := readManifestAny(dir)
+	m, err := readManifestAny(dir, kind != Canon)
 	if err != nil {
 		return Pack{}, err.Error()
 	}
@@ -208,6 +212,9 @@ func loadOne(repo string, kind Kind, id, rel, engine string) (Pack, string) {
 		}
 	}
 	p := Pack{ID: id, Kind: kind, Dir: dir, Rel: rel, Version: m.Version, MinEngine: m.MinEngineVersion, Requires: m.Requires, Manifest: m}
+	if kind != Canon {
+		p.JSRules = JSRules(dir)
+	}
 	switch {
 	case m.ProseSet:
 		p.Prose = m.Prose
@@ -232,6 +239,30 @@ func loadOne(repo string, kind Kind, id, rel, engine string) (Pack, string) {
 		p.Skills = dirs
 	}
 	return p, ""
+}
+
+// JSRules lists the Node engine's coded rules under a pack directory,
+// relative to it, sorted: worldRules/*.mjs, workRules/*.mjs and
+// skills/*/checks.mjs.
+//
+// @legacy-tolerance advisory:local-pack-shape retire:#53
+func JSRules(dir string) []string {
+	var out []string
+	for _, scope := range []string{"worldRules", "workRules"} {
+		entries, _ := os.ReadDir(filepath.Join(dir, scope))
+		for _, e := range entries {
+			if !e.IsDir() && filepath.Ext(e.Name()) == ".mjs" {
+				out = append(out, scope+"/"+e.Name())
+			}
+		}
+	}
+	for _, s := range subdirs(filepath.Join(dir, "skills")) {
+		if st, err := os.Stat(filepath.Join(dir, "skills", s, "checks.mjs")); err == nil && st.Mode().IsRegular() {
+			out = append(out, "skills/"+s+"/checks.mjs")
+		}
+	}
+	sort.Strings(out)
+	return out
 }
 
 func subdirs(dir string) []string {

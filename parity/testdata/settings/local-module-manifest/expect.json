@@ -20,5 +20,14 @@
       "requireReview": false
     },
     "sharedConstants": []
+  },
+  "divergence": "record-32",
+  "cn": {
+    "active": [
+      "claudinite-lifecycle"
+    ],
+    "breaks": [
+      "pack.mjs is a module manifest"
+    ]
   }
 }

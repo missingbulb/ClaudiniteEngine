@@ -22,32 +22,12 @@ const (
 // authorized landing for a person's review.
 const RequirePRReviewKey = "dailyClaudiniteUpdatesRequirePrReview"
 
-// NormalizeDelivery maps a stated delivery and its permanent legacy
-// aliases (push and auto, pr); anything else is "".
-func NormalizeDelivery(raw string) string {
-	switch strings.TrimSpace(raw) {
-	case "auto-merge", "auto", "push":
-		return AutoMerge
-	case "review", "pr":
-		return Review
-	}
-	return ""
-}
-
-// DeliveryFor is the member's delivery from its parsed settings: only an
-// explicit true withholds the PR. The retired maintenance.delivery speaks
-// where the current key is absent; an absent or unreadable setting lands.
+// DeliveryFor is the member's delivery from its claudinite-tasks config:
+// only an explicit true withholds the PR; an absent or unreadable setting
+// lands.
 func DeliveryFor(settings map[string]any) string {
-	v, present := settings[RequirePRReviewKey]
-	if v == true {
+	if settings[RequirePRReviewKey] == true {
 		return Review
-	}
-	if !present {
-		if m, ok := settings["maintenance"].(map[string]any); ok {
-			if s, ok := m["delivery"].(string); ok && NormalizeDelivery(s) == Review {
-				return Review
-			}
-		}
 	}
 	return AutoMerge
 }

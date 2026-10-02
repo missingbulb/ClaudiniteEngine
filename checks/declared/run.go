@@ -145,7 +145,7 @@ func LoadSet(repo, engine string, extra ...Builtin) (*Set, error) {
 	active := map[string]bool{}
 	for _, p := range set.Packs {
 		active[p.ID] = true
-		cs, err := Load(repo, p.Rel, p.ID)
+		cs, err := Load(repo, p.Rel, p.ID, p.Kind != packset.Canon)
 		if err != nil {
 			var le *LoadError
 			if errors.As(err, &le) {

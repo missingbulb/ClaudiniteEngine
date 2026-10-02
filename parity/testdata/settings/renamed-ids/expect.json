@@ -27,5 +27,10 @@
       "requireReview": false
     },
     "sharedConstants": []
+  },
+  "accounts": {
+    "the pack entry \"barriers\" names a pack that has been renamed or absorbed": "mapped packs[1] \"barriers\" → packs.declared \"basics\"",
+    "the pack entry \"tidy-repo\" names a pack that has been renamed or absorbed": "mapped packs[2] \"tidy-repo\" → packs.declared \"basics\"",
+    "the pack entry \"static-website\" names a pack that has been renamed or absorbed": "mapped packs[3] \"static-website\" → packs.declared \"public-website\""
   }
 }

@@ -15,3 +15,10 @@ v5-toml-declared-checks mount=ok packs=ok hooks=ok skills=skip scheduler=skip ru
 v5-yaml-pack mount=ok packs=ok hooks=ok skills=skip scheduler=skip rules=ok
 v6-shared-constants-entry mount=ok packs=ok hooks=ok skills=skip scheduler=skip rules=ok
 v7-update-as-task mount=ok packs=ok hooks=ok skills=skip scheduler=ok rules=ok
+v8-local-retired-fields mount=ok packs=ok hooks=ok skills=skip scheduler=ok rules=ok
+v8-local-severity mount=ok packs=ok hooks=ok skills=skip scheduler=ok rules=ok
+v8-node-declaration-beside mount=ok packs=ok hooks=ok skills=skip scheduler=ok rules=ok
+v8-node-mount-leftover mount=ok packs=ok hooks=ok skills=skip scheduler=ok rules=ok
+v8-old-index-path mount=ok packs=ok hooks=ok skills=skip scheduler=ok rules=ok
+v8-rules-blocking mount=ok packs=ok hooks=ok skills=skip scheduler=ok rules=ok
+v8-via-answers mount=ok packs=ok hooks=ok skills=skip scheduler=ok rules=ok

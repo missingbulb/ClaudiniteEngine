@@ -26,6 +26,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/shared/findings"
 	"github.com/missingbulb/ClaudiniteEngine/shared/packset"
 	"github.com/missingbulb/ClaudiniteEngine/shared/settings"
+	"github.com/missingbulb/ClaudiniteEngine/shared/settings/node"
 	"github.com/missingbulb/ClaudiniteEngine/shared/version"
 )
 
@@ -81,6 +82,8 @@ var rules = []rule{
 	{"settings-checks", checkSettingsChecks},
 	{"rules-index-current", checkRulesIndex},
 	{"claude-md-import", checkClaudeMDImport},
+	{"local-pack-shape", checkLocalPackShape},
+	{"node-leftovers", checkNodeLeftovers},
 }
 
 // RuleIDs lists the registered rules, sorted.
@@ -132,6 +135,9 @@ func anySettings(in Input) bool {
 
 func checkSettingsFile(in Input) []findings.Finding {
 	if _, _, err := settings.Find(in.Repo); err != nil && !anySettings(in) {
+		if _, ok := read(in, node.File); ok {
+			return []findings.Finding{brk("settings-file", node.File, "this repo is on the Node engine; `cn settings import` reads its declaration once the pin is written")}
+		}
 		return []findings.Finding{brk("settings-file", ".claudinite", err.Error())}
 	}
 	return nil
@@ -201,6 +207,9 @@ var Hooks = []HookWiring{
 	{"SessionEnd", ".claudinite/bin/cn hook session-end"},
 }
 
+// nodeHooks is where the Node engine's hook commands live in a member.
+const nodeHooks = ".claudinite/shared/engine/hooks/"
+
 func checkHooks(in Input) []findings.Finding {
 	var cfg struct {
 		Hooks map[string][]struct {
@@ -214,6 +223,20 @@ func checkHooks(in Input) []findings.Finding {
 		_ = json.Unmarshal(raw, &cfg)
 	}
 	var out []findings.Finding
+	events := make([]string, 0, len(cfg.Hooks))
+	for e := range cfg.Hooks {
+		events = append(events, e)
+	}
+	sort.Strings(events)
+	for _, event := range events {
+		for _, group := range cfg.Hooks[event] {
+			for _, c := range group.Hooks {
+				if strings.Contains(c.Command, nodeHooks) {
+					return []findings.Finding{brk("hooks", ".claude/settings.json", event+" runs the Node engine's hooks under "+nodeHooks+", which the move removes; the move skill wires every hook to cn")}
+				}
+			}
+		}
+	}
 	for _, h := range Hooks {
 		wired := false
 		for _, group := range cfg.Hooks[h.Event] {
@@ -335,6 +358,10 @@ func checkPackDeclared(in Input) []findings.Finding {
 	for _, id := range declared {
 		isDeclared[id] = true
 		if _, err := packset.ReadManifest(packset.Tree(in.Repo, id)); errors.Is(err, packset.ErrNoManifest) {
+			if today, ok := node.Renamed[id]; ok {
+				out = append(out, brk("pack-declared", packset.TreeRel(id), "the settings declare "+id+", which was renamed to or absorbed into "+today+"; declare "+today+" instead"))
+				continue
+			}
 			out = append(out, brk("pack-declared", packset.TreeRel(id), "the settings declare "+id+" but the repo does not hold it; vendor it with `cn adopt "+id+"`, or remove it from packs.declared"))
 		}
 	}
@@ -423,11 +450,14 @@ func declaredTrees(in Input) []string {
 func checkDescriptorFormat(in Input) []findings.Finding {
 	var out []findings.Finding
 	for _, rel := range declaredTrees(in) {
-		_, err := packset.ReadManifest(filepath.Join(in.Repo, filepath.FromSlash(rel)))
-		if err == nil || errors.Is(err, packset.ErrNoManifest) || errors.Is(err, descriptor.ErrDuplicate) {
-			continue
+		dir := filepath.Join(in.Repo, filepath.FromSlash(rel))
+		var err error
+		if strings.HasPrefix(rel, packset.LocalDir+"/") {
+			_, err = packset.ReadOwnManifest(dir)
+		} else {
+			_, err = packset.ReadManifest(dir)
 		}
-		if strings.HasSuffix(err.Error(), "has no version") && strings.HasPrefix(rel, packset.LocalDir+"/") {
+		if err == nil || errors.Is(err, packset.ErrNoManifest) || errors.Is(err, descriptor.ErrDuplicate) {
 			continue
 		}
 		out = append(out, brk("descriptor-format", rel, err.Error()+"; the engine does not load this pack until it parses"))
@@ -512,6 +542,13 @@ func checkSettingsChecks(in Input) []findings.Finding {
 		if strings.TrimSpace(a.Reason) == "" {
 			out = append(out, brk("settings-checks", rel, fmt.Sprintf("the acceptance of %s%s has no reason; an acceptance is reviewable only by its reason", a.Rule, onPath(a.Path))))
 		}
+	}
+	retired := append([]settings.RetiredOverride{}, parsed.Retired...)
+	sort.Slice(retired, func(i, k int) bool {
+		return retired[i].Where+retired[i].Rule < retired[k].Where+retired[k].Rule
+	})
+	for _, r := range retired {
+		out = append(out, dep("settings-checks", rel, fmt.Sprintf("rules.%s on %s is %q, the retired spelling; write %q", r.Rule, r.Where, r.Value, r.OnFail)))
 	}
 	if parsed.LegacySharedConstants {
 		out = append(out, dep("settings-checks", rel, "carries a top-level sharedConstants; move it to the basics entry's config (packs.declared: - id: basics, config: {sharedConstants: …}), where basics/shared-constants reads it"))

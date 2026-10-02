@@ -25,5 +25,9 @@
       "requireReview": false
     },
     "sharedConstants": []
+  },
+  "accounts": {
+    "the pack entry \"basics\" is stamped with the pre-2026-08-20 integer version 3": "dropped packs[1].version",
+    "engineVersion is the pre-2026-08-20 integer 5": "dropped engineVersion"
   }
 }

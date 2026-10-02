@@ -50,7 +50,18 @@ type Manifest struct {
 	// Engine is true when the pack's tasks are the engine's own, run under
 	// the license; absent is false.
 	Engine bool
+	// Retired are the retired keys a local or temp pack's manifest still
+	// carries, in RetiredKeys order; the reader ignores them.
+	Retired []string
 }
+
+// RetiredKeys are the Node manifest spec's retired fields, which a local
+// or temp pack's manifest may still carry: the fingerprint relevanceDetector
+// replaced (#2374) and the pack contributions (#2395). Nothing reads them;
+// a canon manifest carrying one fails as an unknown key.
+//
+// @legacy-tolerance advisory:local-pack-shape retire:#51
+var RetiredKeys = []string{"detect", "marker", "contributes", "contributedRules"}
 
 // ManifestName is the manifest's descriptor name.
 const ManifestName = "pack"
@@ -58,6 +69,9 @@ const ManifestName = "pack"
 // ModuleManifest is the Node engine's module spelling of the manifest,
 // which this engine does not read.
 const ModuleManifest = "pack.mjs"
+
+// ErrModuleManifest is a tree whose only manifest is pack.mjs.
+var ErrModuleManifest = errors.New("pack.mjs is a module manifest, which this engine does not read; write pack.json")
 
 // ErrNoManifest is returned when a tree holds no pack manifest at all.
 var ErrNoManifest = errors.New("holds no pack manifest (pack.json, pack.yaml or pack.toml)")
@@ -107,18 +121,22 @@ func IsManifestFile(name string) bool {
 // ReadManifest reads dir's one manifest. A version is required: a canon
 // pack's tree always has one, and Load waives it for a local or temp pack.
 func ReadManifest(dir string) (Manifest, error) {
-	m, err := readManifestAny(dir)
+	m, err := readManifestAny(dir, false)
 	if err == nil && m.Version == "" {
 		return Manifest{}, fmt.Errorf("%s has no version", m.File)
 	}
 	return m, err
 }
 
-func readManifestAny(dir string) (Manifest, error) {
+// ReadOwnManifest reads a local or temp pack's manifest: no version is
+// required, and the retired keys are read and listed in Retired.
+func ReadOwnManifest(dir string) (Manifest, error) { return readManifestAny(dir, true) }
+
+func readManifestAny(dir string, own bool) (Manifest, error) {
 	path, _, err := descriptor.Find(dir, ManifestName)
 	if errors.Is(err, descriptor.ErrAbsent) {
 		if st, e := os.Stat(filepath.Join(dir, ModuleManifest)); e == nil && st.Mode().IsRegular() {
-			return Manifest{}, errors.New("pack.mjs is a module manifest this engine does not read")
+			return Manifest{}, ErrModuleManifest
 		}
 		return Manifest{}, ErrNoManifest
 	}
@@ -129,7 +147,7 @@ func readManifestAny(dir string) (Manifest, error) {
 	if err != nil {
 		return Manifest{}, err
 	}
-	return parseManifest(filepath.Base(path), raw)
+	return parseManifestOf(filepath.Base(path), raw, own)
 }
 
 // ParseManifestFile reads a manifest's bytes, its format named by its file
@@ -146,6 +164,10 @@ func ParseManifestFile(name string, raw []byte) (Manifest, error) {
 func ParseManifest(raw []byte) (Manifest, error) { return ParseManifestFile("pack.json", raw) }
 
 func parseManifest(name string, raw []byte) (Manifest, error) {
+	return parseManifestOf(name, raw, false)
+}
+
+func parseManifestOf(name string, raw []byte, own bool) (Manifest, error) {
 	f := descriptor.FormatOf(name)
 	if f == "" {
 		return Manifest{}, fmt.Errorf("%s is not a manifest spelling", name)
@@ -158,6 +180,15 @@ func parseManifest(name string, raw []byte) (Manifest, error) {
 	if !ok {
 		return Manifest{}, fmt.Errorf("%s must hold an object", name)
 	}
+	var retired []string
+	if own {
+		for _, k := range RetiredKeys {
+			if _, ok := obj[k]; ok {
+				retired = append(retired, k)
+				delete(obj, k)
+			}
+		}
+	}
 	if errs := ManifestSchema.Validate(obj); len(errs) > 0 {
 		var s []string
 		for _, e := range errs {
@@ -165,7 +196,7 @@ func parseManifest(name string, raw []byte) (Manifest, error) {
 		}
 		return Manifest{}, fmt.Errorf("%s: %s", name, strings.Join(s, "; "))
 	}
-	m := Manifest{File: name}
+	m := Manifest{File: name, Retired: retired}
 	m.ID, _ = obj["id"].(string)
 	m.Version, _ = obj["version"].(string)
 	m.MinEngineVersion, _ = obj["minEngineVersion"].(string)

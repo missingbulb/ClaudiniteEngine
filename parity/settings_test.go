@@ -447,6 +447,11 @@ func checkCnSettings(t *testing.T, f SettingsFixture, a CnSettingsAnswer) {
 			t.Fatal(err)
 		}
 	}
+	defer func() {
+		if t.Failed() {
+			t.Logf("import (exit %d):\n%s\nverify:\n%s", a.Code, strings.Join(a.Report, "\n"), strings.Join(a.Verify, "\n"))
+		}
+	}()
 	for _, l := range a.Report {
 		if !reportLine.MatchString(l) {
 			t.Errorf("the import printed %q, which is not a report line", l)
@@ -549,7 +554,7 @@ func checkCnSettings(t *testing.T, f SettingsFixture, a CnSettingsAnswer) {
 	}
 	if f.Divergence != "" {
 		nodeFields, _ := fieldsOf(f.Expect)
-		if reflect.DeepEqual(got, nodeFields) && len(cnWant.Breaks) == 0 {
+		if reflect.DeepEqual(got, nodeFields) && len(cnWant.Breaks) == 0 && len(node.Errors) == 0 {
 			t.Errorf("%s is marked %s but cn now gives the Node answer: drop the divergence", f.Dir, f.Divergence)
 		}
 	}

@@ -22,5 +22,8 @@
       "requireReview": false
     },
     "sharedConstants": []
+  },
+  "accounts": {
+    "\"taskScheduler.dispatch\" must be one of queue, got \"slots\"": "refused taskScheduler.dispatch:"
   }
 }

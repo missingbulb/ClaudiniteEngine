@@ -23,5 +23,13 @@
       "requireReview": false
     },
     "sharedConstants": []
+  },
+  "accounts": {
+    "unknown setting \"servedBy\"": "dropped servedBy:",
+    "servedBy.mechanism is the retired alias \"updates\"": "dropped servedBy:"
+  },
+  "divergence": "record-73",
+  "cn": {
+    "breaks": []
   }
 }

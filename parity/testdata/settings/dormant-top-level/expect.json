@@ -22,5 +22,8 @@
       "requireReview": false
     },
     "sharedConstants": []
+  },
+  "accounts": {
+    "the declaration carries the retired top-level \"dormant\" block": "mapped dormant → packs.declared \"claudinite-tasks\" config.dormant"
   }
 }

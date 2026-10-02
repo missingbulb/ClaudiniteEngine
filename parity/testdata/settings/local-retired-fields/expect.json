@@ -23,5 +23,9 @@
       "requireReview": false
     },
     "sharedConstants": []
+  },
+  "accounts": {
+    "the local pack manifest declares \"marker\", a retired fingerprint field nothing reads": "declares \"marker\", a retired manifest field",
+    "the local pack manifest declares \"contributes\", a retired contribution field nothing reads": "declares \"contributes\", a retired manifest field"
   }
 }

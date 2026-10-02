@@ -1,0 +1,4 @@
+mapped packs[0] "claudinite-lifecycle" → packs.declared "claudinite-lifecycle"
+mapped packs[1] "basics" → packs.declared "basics"
+dropped packs[1].version: the installed version is the vendored pack.json's
+dropped engineVersion: the pin is engine.version in .claudinite/settings.*
