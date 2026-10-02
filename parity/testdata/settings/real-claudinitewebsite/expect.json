@@ -1,0 +1,88 @@
+{
+  "expect": {
+    "accept": [
+      {
+        "path": "site/dashboard/src/read/contributions.mjs",
+        "reason": "the dashboard reads a viewed repo's own .claudinite/ files over the GitHub API by path — the path is data about another repo, not a reach into this repo's mount (site/dashboard/UPSTREAM.md)",
+        "rule": "claudinite-isolation"
+      },
+      {
+        "path": "site/dashboard/src/read/usage.mjs",
+        "reason": "the dashboard reads a viewed repo's own .claudinite/ files over the GitHub API by path — the path is data about another repo, not a reach into this repo's mount (site/dashboard/UPSTREAM.md)",
+        "rule": "claudinite-isolation"
+      },
+      {
+        "path": "server/mounted-sources.js",
+        "reason": "the Worker serves the mount's own engine and queue modules to the dashboard, which imports them by design rather than restating them; server/test/mounted-modules.test.mjs holds the list to the page's import graph",
+        "rule": "claudinite-isolation"
+      },
+      {
+        "path": "server/mount-paths.js",
+        "reason": "names where in the mount the dashboard's out-of-tree imports live, for server/mounted-sources.js and its guard test",
+        "rule": "claudinite-isolation"
+      },
+      {
+        "path": "site/dashboard/src/read/flat.mjs",
+        "reason": "the dashboard reads a viewed repo's own flat declaration files over the GitHub API by path — the path is data about another repo, not a reach into this repo's mount (site/dashboard/UPSTREAM.md)",
+        "rule": "claudinite-isolation"
+      }
+    ],
+    "active": [
+      "basics",
+      "claudinite-lifecycle",
+      "git-github",
+      "claudinite-growth",
+      "html",
+      "product-wiki",
+      "local/claudinite-website",
+      "claude-code-web-users-support",
+      "claudinite-tasks",
+      "cloudflare-site",
+      "node",
+      "headless-browser",
+      "public-website"
+    ],
+    "advisories": [
+      "the local pack manifest declares \"marker\", a retired fingerprint field nothing reads"
+    ],
+    "config": {
+      "claude-code-web-users-support": {
+        "repo": "missingbulb/Shepherd"
+      },
+      "claudinite-growth": {
+        "retention_days": 10
+      }
+    },
+    "errors": [],
+    "installed": {
+      "engineVersion": "60928.1",
+      "packVersions": {
+        "basics": "60928.1",
+        "claude-code-web-users-support": "60928.1",
+        "claudinite-growth": "60930.1",
+        "claudinite-lifecycle": "60928.1",
+        "claudinite-tasks": "60928.2",
+        "cloudflare-site": "60928.1",
+        "git-github": "60928.1",
+        "headless-browser": "60928.1",
+        "html": "60928.1",
+        "node": "60928.1",
+        "product-wiki": "60928.1",
+        "public-website": "60928.1"
+      }
+    },
+    "rules": {},
+    "scheduler": {
+      "disabledTasks": [],
+      "dormant": false,
+      "endpoints": {
+        "default": {
+          "tokenSecret": "CCR_ROUTINE_TOKEN",
+          "url": "https://api.anthropic.com/v1/claude_code/routines/trig_017AvZ14PbvQdRVwNRGwKrxv/fire"
+        }
+      },
+      "requireReview": false
+    },
+    "sharedConstants": []
+  }
+}

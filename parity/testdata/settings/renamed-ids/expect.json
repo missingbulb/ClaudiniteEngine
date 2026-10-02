@@ -1,0 +1,31 @@
+{
+  "expect": {
+    "accept": [],
+    "active": [
+      "basics",
+      "public-website",
+      "claudinite-lifecycle"
+    ],
+    "advisories": [
+      "the pack entry \"barriers\" names a pack that has been renamed or absorbed",
+      "the pack entry \"tidy-repo\" names a pack that has been renamed or absorbed",
+      "the pack entry \"static-website\" names a pack that has been renamed or absorbed"
+    ],
+    "config": {},
+    "errors": [],
+    "installed": {
+      "engineVersion": null,
+      "packVersions": {}
+    },
+    "rules": {
+      "reference-integrity": "advise"
+    },
+    "scheduler": {
+      "disabledTasks": [],
+      "dormant": false,
+      "endpoints": {},
+      "requireReview": false
+    },
+    "sharedConstants": []
+  }
+}

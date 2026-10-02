@@ -1,0 +1,21 @@
+{
+  "packs": [
+    "claudinite-lifecycle",
+    "claudinite-tasks"
+  ],
+  "taskScheduler": {
+    "agenticTaskInvocationEndpoints": {
+      "default": {
+        "url": "https://api.anthropic.com/v1/claude_code/routines/trig_fixture/fire",
+        "tokenSecret": "CCR_ROUTINE_TOKEN"
+      }
+    },
+    "disabledTasks": [
+      "claudinite-lifecycle/update"
+    ],
+    "dispatch": "queue",
+    "dailyHour": 3,
+    "weeklyDay": 1,
+    "monthlyDay": 2
+  }
+}

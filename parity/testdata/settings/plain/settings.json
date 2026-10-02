@@ -1,0 +1,7 @@
+{
+  "packs": [
+    "basics",
+    "git-github",
+    "claudinite-lifecycle"
+  ]
+}

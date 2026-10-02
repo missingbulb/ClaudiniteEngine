@@ -1,0 +1,27 @@
+{
+  "expect": {
+    "accept": [],
+    "active": [
+      "claudinite-lifecycle"
+    ],
+    "advisories": [
+      "servedBy.mechanism is the retired alias \"updates\""
+    ],
+    "config": {},
+    "errors": [
+      "unknown setting \"servedBy\""
+    ],
+    "installed": {
+      "engineVersion": null,
+      "packVersions": {}
+    },
+    "rules": {},
+    "scheduler": {
+      "disabledTasks": [],
+      "dormant": false,
+      "endpoints": {},
+      "requireReview": false
+    },
+    "sharedConstants": []
+  }
+}

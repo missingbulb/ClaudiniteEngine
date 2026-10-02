@@ -1,0 +1,14 @@
+{
+  "packs": [
+    "claudinite-lifecycle"
+  ],
+  "claudinite": {
+    "engineVersion": "60901.1"
+  },
+  "packConfig": {
+    "basics": {}
+  },
+  "maintenance": {
+    "delivery": "pr"
+  }
+}

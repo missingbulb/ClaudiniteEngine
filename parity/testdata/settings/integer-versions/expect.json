@@ -1,0 +1,29 @@
+{
+  "expect": {
+    "accept": [],
+    "active": [
+      "claudinite-lifecycle",
+      "basics"
+    ],
+    "advisories": [
+      "the pack entry \"basics\" is stamped with the pre-2026-08-20 integer version 3",
+      "engineVersion is the pre-2026-08-20 integer 5"
+    ],
+    "config": {},
+    "errors": [],
+    "installed": {
+      "engineVersion": 5,
+      "packVersions": {
+        "basics": 3
+      }
+    },
+    "rules": {},
+    "scheduler": {
+      "disabledTasks": [],
+      "dormant": false,
+      "endpoints": {},
+      "requireReview": false
+    },
+    "sharedConstants": []
+  }
+}

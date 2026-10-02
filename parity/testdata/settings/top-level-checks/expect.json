@@ -1,0 +1,40 @@
+{
+  "expect": {
+    "accept": [
+      {
+        "path": "notes.md",
+        "reason": "notes cite another repo's paths",
+        "rule": "reference-integrity"
+      }
+    ],
+    "active": [
+      "basics",
+      "claudinite-lifecycle"
+    ],
+    "advisories": [],
+    "config": {},
+    "errors": [],
+    "installed": {
+      "engineVersion": null,
+      "packVersions": {}
+    },
+    "rules": {
+      "reference-integrity": "off"
+    },
+    "scheduler": {
+      "disabledTasks": [],
+      "dormant": false,
+      "endpoints": {},
+      "requireReview": false
+    },
+    "sharedConstants": [
+      {
+        "files": [
+          "a.js",
+          "b.js"
+        ],
+        "name": "port"
+      }
+    ]
+  }
+}

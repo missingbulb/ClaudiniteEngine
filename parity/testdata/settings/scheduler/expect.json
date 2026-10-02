@@ -1,0 +1,35 @@
+{
+  "expect": {
+    "accept": [],
+    "active": [
+      "claudinite-lifecycle",
+      "claudinite-tasks"
+    ],
+    "advisories": [
+      "taskScheduler.dailyHour is retired and nothing reads it",
+      "taskScheduler.weeklyDay is retired and nothing reads it",
+      "taskScheduler.monthlyDay is retired and nothing reads it"
+    ],
+    "config": {},
+    "errors": [],
+    "installed": {
+      "engineVersion": null,
+      "packVersions": {}
+    },
+    "rules": {},
+    "scheduler": {
+      "disabledTasks": [
+        "claudinite-lifecycle/update"
+      ],
+      "dormant": false,
+      "endpoints": {
+        "default": {
+          "tokenSecret": "CCR_ROUTINE_TOKEN",
+          "url": "https://api.anthropic.com/v1/claude_code/routines/trig_fixture/fire"
+        }
+      },
+      "requireReview": false
+    },
+    "sharedConstants": []
+  }
+}

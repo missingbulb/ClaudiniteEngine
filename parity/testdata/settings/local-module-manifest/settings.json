@@ -1,0 +1,6 @@
+{
+  "packs": [
+    "claudinite-lifecycle",
+    "local/mine"
+  ]
+}

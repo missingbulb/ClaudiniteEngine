@@ -1,0 +1,7 @@
+{
+  "packs": [
+    "claudinite-lifecycle",
+    "claudinite-tasks"
+  ],
+  "dailyClaudiniteUpdatesRequirePrReview": true
+}

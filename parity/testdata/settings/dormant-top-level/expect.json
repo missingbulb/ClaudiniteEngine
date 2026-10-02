@@ -1,0 +1,26 @@
+{
+  "expect": {
+    "accept": [],
+    "active": [
+      "claudinite-lifecycle",
+      "claudinite-tasks"
+    ],
+    "advisories": [
+      "the declaration carries the retired top-level \"dormant\" block"
+    ],
+    "config": {},
+    "errors": [],
+    "installed": {
+      "engineVersion": null,
+      "packVersions": {}
+    },
+    "rules": {},
+    "scheduler": {
+      "disabledTasks": [],
+      "dormant": true,
+      "endpoints": {},
+      "requireReview": false
+    },
+    "sharedConstants": []
+  }
+}

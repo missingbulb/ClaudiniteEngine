@@ -1,0 +1,37 @@
+{
+  "packs": [
+    "claudinite-lifecycle",
+    {
+      "id": "basics",
+      "version": "60928.1",
+      "config": {
+        "barriers": {
+          "rules": []
+        }
+      },
+      "rules": {
+        "reference-integrity": "advise"
+      },
+      "accept": [
+        {
+          "rule": "reference-integrity",
+          "path": "docs/",
+          "reason": "the docs cite paths of other repos"
+        }
+      ],
+      "via": [
+        "claudinite-lifecycle"
+      ]
+    },
+    {
+      "id": "claude-code-web-users-support",
+      "version": "60928.1",
+      "config": {
+        "repo": "acme/store"
+      },
+      "answers": {
+        "store": "acme/store, the store repo"
+      }
+    }
+  ]
+}

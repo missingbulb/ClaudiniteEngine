@@ -1,0 +1,25 @@
+{
+  "packs": [
+    "basics",
+    "claudinite-lifecycle"
+  ],
+  "rules": {
+    "reference-integrity": "off"
+  },
+  "accept": [
+    {
+      "rule": "reference-integrity",
+      "path": "notes.md",
+      "reason": "notes cite another repo's paths"
+    }
+  ],
+  "sharedConstants": [
+    {
+      "name": "port",
+      "files": [
+        "a.js",
+        "b.js"
+      ]
+    }
+  ]
+}

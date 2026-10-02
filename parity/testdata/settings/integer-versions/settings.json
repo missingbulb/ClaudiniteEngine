@@ -1,0 +1,10 @@
+{
+  "packs": [
+    "claudinite-lifecycle",
+    {
+      "id": "basics",
+      "version": 3
+    }
+  ],
+  "engineVersion": 5
+}

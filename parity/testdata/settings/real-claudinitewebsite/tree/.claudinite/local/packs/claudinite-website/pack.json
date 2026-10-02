@@ -1,0 +1,13 @@
+{
+  "id": "claudinite-website",
+  "ruleRoutingGuidance": {
+    "belongs": "conventions for claudinite.com — marketing pages, hosted dashboard, its Worker — and for maintaining this repo's Claudinite mount",
+    "excludes": "the Cloudflare deployment and its release — cloudflare-site; site markup and product research — html and product-wiki"
+  },
+  "marker": null,
+  "detect": null,
+  "prose": "RULES.md",
+  "skills": [
+    "site-visual-check"
+  ]
+}
