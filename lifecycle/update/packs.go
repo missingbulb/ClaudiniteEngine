@@ -597,10 +597,7 @@ func landPacks(d Deps, pr githubapi.PR, sha string) (string, error) {
 		}
 		landed = append(landed, id+" "+m.Version)
 	}
-	if err := d.GitHub.MergePull(pr.Number, sha, pr.Title); err != nil {
-		return "", err
-	}
-	if err := d.Git.DeleteRemoteBranch(remote, pr.HeadRef); err != nil {
+	if err := landPinned(d, pr, sha, pr.Title); err != nil {
 		return "", err
 	}
 	if err := d.GitHub.Dispatch(CIWorkflow, mainBranch, map[string]string{}); err != nil {

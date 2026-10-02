@@ -138,6 +138,34 @@ type Pull struct {
 	UpdatedAt string   `json:"updated_at"`
 	MergedAt  string   `json:"merged_at"`
 	Labels    []string `json:"labels"`
+	NodeID    string   `json:"node_id,omitempty"`
+}
+
+// Pulls is the target's half of the port: the pull requests a run works on.
+type Pulls interface {
+	// Pull reads one pull request; ErrGone when there is none.
+	Pull(n int) (Pull, error)
+	// Mergeable is whether pull request n merges cleanly into its base;
+	// nil while GitHub has not computed it.
+	Mergeable(n int) (*bool, error)
+	ClosePull(n int) error
+	CreatePull(title, body, head, base string) (Pull, error)
+}
+
+// OpenPulls lists every open pull request, newest first, or fails: an
+// unreadable page is never a shorter list.
+func OpenPulls(r Repo) ([]Pull, error) {
+	var all []Pull
+	for page := 1; ; page++ {
+		got, err := r.PullsPage("open", "created", "desc", page)
+		if err != nil {
+			return nil, err
+		}
+		all = append(all, got...)
+		if len(got) < PageSize {
+			return all, nil
+		}
+	}
 }
 
 // Branch is a branch and its tip.

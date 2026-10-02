@@ -1,9 +1,12 @@
 package sim
 
 import (
+	"fmt"
 	"sort"
+	"strings"
 	"sync"
 
+	"github.com/missingbulb/ClaudiniteEngine/tasks/land"
 	"github.com/missingbulb/ClaudiniteEngine/tasks/world"
 )
 
@@ -19,12 +22,179 @@ type Repo struct {
 	Trees    map[string][]string
 	// Unreadable fails every read, a 500 the platform answers.
 	Unreadable bool
+
+	// Heads are commits off the default branch, a pull request's head
+	// among them, which Commit reads and the history does not list.
+	Heads map[string]world.Commit
+	// MergeableReads answers successive Mergeable reads per pull request,
+	// the last answer repeating; absent reads true.
+	MergeableReads map[int][]*bool
+	// Runs are the workflow runs per head sha.
+	Runs map[string][]land.Run
+	// Workflows are the workflow files every ref carries.
+	Workflows []land.WorkflowFile
+	// Dispatchable names the workflows a dispatch is accepted for.
+	Dispatchable map[string]bool
+	// Protected is the default branch's protected flag; nil is unreadable.
+	Protected *bool
+	// Rules are the ruleset rule types on the default branch.
+	Rules []string
+	// MergeRefused refuses every merge with this status.
+	MergeRefused int
+	// Log records every write, in order.
+	Log []string
 }
 
-var _ world.Repo = (*Repo)(nil)
+var (
+	_ world.Repo  = (*Repo)(nil)
+	_ world.Pulls = (*Repo)(nil)
+	_ land.API    = (*Repo)(nil)
+)
 
 // NewRepo is an empty history.
-func NewRepo() *Repo { return &Repo{Trees: map[string][]string{}} }
+func NewRepo() *Repo {
+	return &Repo{Trees: map[string][]string{}, Heads: map[string]world.Commit{}, MergeableReads: map[int][]*bool{},
+		Runs: map[string][]land.Run{}, Dispatchable: map[string]bool{}}
+}
+
+func (r *Repo) logf(format string, a ...any) { r.Log = append(r.Log, fmt.Sprintf(format, a...)) }
+
+func (r *Repo) pull(n int) *world.Pull {
+	for i := range r.Pulls {
+		if r.Pulls[i].Number == n {
+			return &r.Pulls[i]
+		}
+	}
+	return nil
+}
+
+// Pull reads one pull request.
+func (r *Repo) Pull(n int) (world.Pull, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.Unreadable {
+		return world.Pull{}, ErrUnreadable
+	}
+	if p := r.pull(n); p != nil {
+		return *p, nil
+	}
+	return world.Pull{}, world.ErrGone
+}
+
+// Mergeable answers the next scripted read.
+func (r *Repo) Mergeable(n int) (*bool, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.Unreadable {
+		return nil, ErrUnreadable
+	}
+	if r.pull(n) == nil {
+		return nil, world.ErrGone
+	}
+	reads := r.MergeableReads[n]
+	if len(reads) == 0 {
+		yes := true
+		return &yes, nil
+	}
+	v := reads[0]
+	if len(reads) > 1 {
+		r.MergeableReads[n] = reads[1:]
+	}
+	return v, nil
+}
+
+// ClosePull closes a pull request.
+func (r *Repo) ClosePull(n int) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	p := r.pull(n)
+	if p == nil {
+		return world.ErrGone
+	}
+	p.State = "closed"
+	r.logf("close #%d", n)
+	return nil
+}
+
+// CreatePull opens a pull request numbered after every existing one.
+func (r *Repo) CreatePull(title, body, head, base string) (world.Pull, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	n := 100
+	for _, p := range r.Pulls {
+		n = max(n, p.Number+1)
+	}
+	p := world.Pull{Number: n, Title: title, Body: body, State: "open", HeadRef: head, HeadSHA: "sha-" + head, BaseRef: base, NodeID: fmt.Sprintf("PR_%d", n)}
+	r.Pulls = append(r.Pulls, p)
+	r.logf("open #%d %s", n, head)
+	return p, nil
+}
+
+// WorkflowFiles are the scripted workflows.
+func (r *Repo) WorkflowFiles(string) ([]land.WorkflowFile, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return append([]land.WorkflowFile{}, r.Workflows...), nil
+}
+
+// DispatchWorkflow accepts a dispatchable workflow.
+func (r *Repo) DispatchWorkflow(name, ref string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if !r.Dispatchable[name] {
+		return &land.StatusError{Status: 403}
+	}
+	r.logf("dispatch %s %s", name, ref)
+	return nil
+}
+
+// BranchProtected is the scripted flag.
+func (r *Repo) BranchProtected(string) (*bool, error) { return r.Protected, nil }
+
+// BranchRules are the scripted rules.
+func (r *Repo) BranchRules(string) ([]string, error) { return r.Rules, nil }
+
+// RunsForSHA are the scripted runs on a head.
+func (r *Repo) RunsForSHA(sha string) ([]land.Run, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return append([]land.Run{}, r.Runs[sha]...), nil
+}
+
+// MergePull merges a pull request at its pinned head.
+func (r *Repo) MergePull(m land.Merge) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.MergeRefused != 0 {
+		return &land.StatusError{Status: r.MergeRefused, Message: "refused"}
+	}
+	p := r.pull(m.Number)
+	if p == nil {
+		return world.ErrGone
+	}
+	if m.SHA != "" && p.HeadSHA != m.SHA {
+		return &land.StatusError{Status: 409, Message: "Head branch was modified"}
+	}
+	p.State, p.MergedAt = "closed", "merged"
+	r.logf("merge #%d %s %s", m.Number, m.SHA, strings.TrimSpace(m.Message))
+	return nil
+}
+
+// EnableAutoMerge arms a pull request.
+func (r *Repo) EnableAutoMerge(nodeID string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.logf("arm %s", nodeID)
+	return nil
+}
+
+// DeleteBranch removes a branch.
+func (r *Repo) DeleteBranch(ref string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.logf("delete %s", ref)
+	return nil
+}
 
 // AddCommit lands a commit on the default branch.
 func (r *Repo) AddCommit(c world.Commit) {
@@ -75,6 +245,9 @@ func (r *Repo) Commit(sha string) (world.Commit, error) {
 		if c.SHA == sha {
 			return c, nil
 		}
+	}
+	if c, ok := r.Heads[sha]; ok {
+		return c, nil
 	}
 	return world.Commit{}, world.ErrGone
 }

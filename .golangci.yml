@@ -87,6 +87,10 @@ linters:
             - $gostd
             - github.com/missingbulb/ClaudiniteEngine/shared
             - github.com/missingbulb/ClaudiniteEngine/lifecycle
+            # One landing lane for every pull request a run delivers: the
+            # update's landing enters it at the pinned-sha merge, so the
+            # update and a task cannot drift on how a PR lands.
+            - github.com/missingbulb/ClaudiniteEngine/tasks/land
         checks:
           list-mode: strict
           files:
