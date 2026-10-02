@@ -85,17 +85,25 @@ gh_pid=
 lic_pid=
 cdn_pids=
 cleanup() {
-  [ -n "$stub_pid" ] && kill "$stub_pid" 2>/dev/null
-  [ -n "$gh_pid" ] && kill "$gh_pid" 2>/dev/null
-  [ -n "$lic_pid" ] && kill "$lic_pid" 2>/dev/null
-  for p in $cdn_pids; do kill "$p" 2>/dev/null; done
-  # A background checks build a hook started may still be writing under
-  # $work; under set -e a failed removal here would turn a passing run red.
+  [ -z "$stub_pid" ] || kill "$stub_pid" 2>/dev/null || :
+  [ -z "$gh_pid" ] || kill "$gh_pid" 2>/dev/null || :
+  [ -z "$lic_pid" ] || kill "$lic_pid" 2>/dev/null || :
+  for p in $cdn_pids; do kill "$p" 2>/dev/null || :; done
+  # A hook starts the checks build detached, in its own session, so it is
+  # no child to wait on: stop any still running for a member under $work.
+  if command -v pkill >/dev/null 2>&1; then
+    pkill -f "check build --repo $work" 2>/dev/null || :
+    for _ in 1 2 3 4 5; do
+      pgrep -f "check build --repo $work" >/dev/null 2>&1 || break
+      sleep 1
+    done
+  fi
   chmod -R u+w "$work" 2>/dev/null || :
   for _ in 1 2 3 4 5; do
-    rm -rf "$work" 2>/dev/null && break
+    rm -rf "$work" 2>/dev/null && return 0
     sleep 1
   done
+  echo "rehearse: $work not removed" >&2
 }
 trap cleanup EXIT
 trap 'exit 1' HUP INT TERM
