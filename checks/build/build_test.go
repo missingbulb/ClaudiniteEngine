@@ -89,7 +89,7 @@ func TestSourcesAndKey(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(srcs) != 2 || srcs[0].Pack != "hello" || srcs[0].Path != "hello.go" || srcs[1].Path != "judge.go" {
+	if len(srcs) != 4 || srcs[0].Pack != "hello" || srcs[0].Path != "change.go" || srcs[3].Path != "judge.go" {
 		t.Fatalf("%d sources: %s %s", len(srcs), srcs[0].Path, srcs[len(srcs)-1].Path)
 	}
 	c := cfg(t)
@@ -301,7 +301,7 @@ func TestSourcesTakeLocalPacksAndSkipTemp(t *testing.T) {
 	for _, s := range srcs {
 		names = append(names, s.Pack+":"+s.Path)
 	}
-	if strings.Join(names, " ") != "hello:hello.go hello:judge.go local/probe:c.go" {
+	if strings.Join(names, " ") != "hello:change.go hello:config.go hello:hello.go hello:judge.go local/probe:c.go" {
 		t.Errorf("sources %v", names)
 	}
 	k := Key(cfg(t), srcs)

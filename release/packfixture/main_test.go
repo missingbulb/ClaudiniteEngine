@@ -196,3 +196,25 @@ func TestTheSourceIsThePublishedHelloPack(t *testing.T) {
 		t.Errorf("release/testdata/hello (%v) is not the published hello %s: %v\n%s", names, pj.Version, err, diff)
 	}
 }
+
+// ReadPack follows tools/vendor's rule: test/, docs/ and provenance/ at the
+// root and the Go tests beside the checks stay out; everything else ships.
+func TestReadPackDropsWhatVendoringDrops(t *testing.T) {
+	dir := t.TempDir()
+	for _, rel := range []string{"pack.json", "checks/a.go", "checks/a_test.go", "test/x_test.go", "docs/d.md", "provenance/p.md", "skills/s/s_test.go"} {
+		_ = os.MkdirAll(filepath.Join(dir, filepath.Dir(rel)), 0o755)
+		_ = os.WriteFile(filepath.Join(dir, rel), []byte("x\n"), 0o644)
+	}
+	files, err := ReadPack(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for n := range files {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	if got := strings.Join(names, " "); got != "checks/a.go pack.json skills/s/s_test.go" {
+		t.Errorf("vendored set %q", got)
+	}
+}

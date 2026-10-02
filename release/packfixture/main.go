@@ -29,6 +29,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -47,7 +48,8 @@ var Labels = map[string]string{"v1": "1.0", "v2": "1.3", "v3": "1.4", "v4": "1.5
 // unreachableEngine is v5's minEngineVersion.
 const unreachableEngine = "99999.0.0"
 
-// dropped are the folders tools/vendor leaves out at a pack's root.
+// dropped are the folders tools/vendor leaves out at a pack's root; it
+// also leaves out the Go tests beside a pack's checks (checks/*_test.go).
 var dropped = map[string]bool{"test": true, "docs": true, "provenance": true}
 
 // File is one file of a pack's vendored set.
@@ -69,6 +71,9 @@ func ReadPack(dir string) (map[string]File, error) {
 			if !strings.Contains(rel, "/") && dropped[rel] {
 				return filepath.SkipDir
 			}
+			return nil
+		}
+		if path.Dir(rel) == "checks" && strings.HasSuffix(rel, "_test.go") {
 			return nil
 		}
 		info, err := d.Info()

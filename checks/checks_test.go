@@ -1,9 +1,11 @@
 package checks
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -44,22 +46,43 @@ func TestRunTheHelloCheckByTag(t *testing.T) {
 	if _, err := exec.LookPath("go"); err != nil {
 		t.Skip("no go")
 	}
+	t.Setenv("CLAUDINITE_CHECKS_NO_FETCH", "1")
 	s := service(t)
 	repo := helloRepo(t)
-	res, crumb := s.Run(repo, "world", []string{"world"}, "", time.Minute, true, nil)
-	if res.Err != nil || len(res.Findings) != 0 || !strings.HasPrefix(crumb, "[cn] checks world ok ") {
-		t.Fatalf("%+v %q", res, crumb)
+	coded := func(o Outcome) []string {
+		var out []string
+		for _, f := range o.Findings {
+			if strings.HasPrefix(f.Name(), "hello/hello-") && f.Name() != "hello/hello-declared" && f.Name() != "hello/hello-declared-work" {
+				out = append(out, f.Name())
+			}
+		}
+		return out
+	}
+	o := s.RunAll(repo, "world", declared.Selection{Tags: []string{"world"}}, time.Minute, true, nil)
+	if o.Err != nil || len(o.Errors) != 0 || len(coded(o)) != 0 || !strings.HasPrefix(o.Crumb, "[cn] checks world ok ") {
+		t.Fatalf("%+v", o)
 	}
 	_ = os.WriteFile(filepath.Join(repo, "HELLO_FINDING"), nil, 0o644)
-	res, _ = s.Run(repo, "stop", []string{"work"}, "", time.Minute, false, nil)
-	if res.Err != nil || len(res.Findings) != 1 || res.Findings[0].Check != "hello/hello-check" || !res.Blocking() {
-		t.Fatalf("%+v", res)
+	o = s.RunAll(repo, "stop", declared.Selection{Tags: []string{"work"}}, time.Minute, false, nil)
+	if got := coded(o); o.Err != nil || len(o.Errors) != 0 || len(got) != 1 || got[0] != "hello/hello-check" {
+		t.Fatalf("%v %+v", got, o)
 	}
-	if res, _ := s.Run(repo, "tag", []string{"work"}, "other", time.Minute, false, nil); len(res.Findings) != 0 {
-		t.Errorf("--pack other ran hello's check: %+v", res)
+	if o := s.RunAll(repo, "tag", declared.Selection{Tags: []string{"work"}, Pack: "other"}, time.Minute, false, nil); len(coded(o)) != 0 {
+		t.Errorf("--pack other ran hello's check: %+v", o)
+	}
+	_ = os.Remove(filepath.Join(repo, "HELLO_FINDING"))
+	_ = os.WriteFile(filepath.Join(repo, ".claudinite/settings.yaml"), []byte("engine:\n  version: \"1.1.0\"\npacks:\n  declared:\n    - id: hello\n      config:\n        probe: true\n"), 0o644)
+	o = s.RunAll(repo, "world", declared.Selection{Tags: []string{"world"}}, time.Minute, true, nil)
+	if got := coded(o); len(got) != 1 || got[0] != "hello/hello-config" || o.SDKCrumb == "" {
+		t.Errorf("hello-config through the SDK: %v %+v", got, o)
 	}
 	listed, err := s.List(repo, time.Minute)
-	if err != nil || len(listed) != 2 || listed[0].Check != "hello/hello-check" || listed[1].Check != "hello/hello-judge" || !listed[1].Judge {
+	var names []string
+	for _, l := range listed {
+		names = append(names, fmt.Sprintf("%s:%v", l.Check, l.Judge))
+	}
+	sort.Strings(names)
+	if err != nil || strings.Join(names, " ") != "hello/hello-change:false hello/hello-check:false hello/hello-config:false hello/hello-judge:true" {
 		t.Errorf("%+v %v", listed, err)
 	}
 }
