@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -77,6 +76,17 @@ func TestDifferential(t *testing.T) {
 				t.Fatal(err)
 			}
 			ported := Ported()
+			shelf, err := ShelfChecks(node.Root)
+			if err != nil {
+				t.Fatal(err)
+			}
+			deferred, err := Deferred()
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, id := range StrayDeferrals(deferred, shelf) {
+				t.Errorf("deferred.txt names %s, which the frozen shelf does not carry", id)
+			}
 			for _, moment := range []string{"world", "work"} {
 				// cn runs the declared and built-in checks, and the coded
 				// checks of a ported pack; the rest of Node's coded
@@ -100,7 +110,7 @@ func TestDifferential(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				compare(t, filepath.Base(tree)+" "+moment, nf, cf, ids, listed, declared)
+				compare(t, filepath.Base(tree)+" "+moment, nf, cf, ids, listed, declared, shelf, deferred)
 			}
 		})
 	}
@@ -108,10 +118,10 @@ func TestDifferential(t *testing.T) {
 
 // compare asserts the two engines agree on the rules cn runs at one
 // moment, and that every rule subtracted from Node's findings is one cn
-// knows it does not run here: a Node coded check of a pack not yet ported,
-// which cn lists as coded or has never heard of. A declared check cn does not list failed to
-// load; one cn lists at another moment is a tagging fault.
-func compare(t *testing.T, label string, nf, cf []Finding, ids map[string]bool, listed map[string]Listed, declared []string) {
+// knows it does not run here (unexplained): a Node coded check of a pack
+// not yet ported, or a rule deferred.txt names with the slice that ports
+// it.
+func compare(t *testing.T, label string, nf, cf []Finding, ids map[string]bool, listed map[string]Listed, declared []string, shelf, deferred map[string]string) {
 	t.Helper()
 	subtracted := map[string]int{}
 	for _, f := range nf {
@@ -119,15 +129,10 @@ func compare(t *testing.T, label string, nf, cf []Finding, ids map[string]bool, 
 			subtracted[f.Rule]++
 		}
 	}
+	ported := Ported()
 	for r := range subtracted {
-		l, ok := listed[r]
-		switch {
-		case ok && l.Kind != "coded":
-			t.Errorf("%s: subtracted %s, which cn lists as %s %v", label, r, l.Kind, l.Tags)
-		case ok && Ported()[l.Pack]:
-			t.Errorf("%s: subtracted %s, a check of ported pack %s that cn runs at another moment %v", label, r, l.Pack, l.Tags)
-		case !ok && slices.Contains(declared, r):
-			t.Errorf("%s: subtracted %s, a declared check cn does not list: it did not load", label, r)
+		if why := unexplained(r, listed, declared, shelf, deferred, ported); why != "" {
+			t.Errorf("%s: %s", label, why)
 		}
 	}
 	kept := Keep(nf, ids)
