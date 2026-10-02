@@ -75,7 +75,7 @@ The engine is one binary, `cn`, and it contains everything that runs Claudinite:
 | --- | --- |
 | Hooks | Answers every Claude Code hook: builds the session context at SessionStart, runs guards on each tool call, runs work checks at Stop |
 | Check engine | Runs declarative checks and its own built-in checks in Go, compiles the packs' Go checks into one checks binary, and runs any of them by tag |
-| Task runner | The scheduler and executor: plans runs, claims work items, executes each task's `task.json`, fires a task's agentic phase as a Claude Code Remote routine, and converges items |
+| Task runner | The scheduler and executor: plans runs, claims work items, executes each task's `task.json`, fires a task's agentic phase as a Claude Code Remote routine, and converges items. The task contract, the scheduler run and both executor stages run in `cn`; a task's `worker.mjs` and a task-local `preconditions.mjs` run in Node through the runner `cn` embeds and unpacks beside itself; one landing lane lands both the nightly update's PRs and the tasks' |
 | Growth | Captures lessons from sessions and PRs and turns them into pack rules, skills and checks through tasks the runner executes |
 | Lifecycle | `init` and pack adoption, engine and pack updates, key requests, the self-test |
 | License verifier | Obtains the session key, Actions key or item grant, verifies it offline against the embedded root or standby root, and applies its feature list at every gated command |
@@ -89,13 +89,13 @@ A task is a `task.json` the binary executes. Its optional `worker.mjs`, and a pr
 
 **Hooks: the per-call verdict.** PreToolUse, PostToolUse and UserPromptSubmit each answer one verdict: a block, context, or nothing. A block on PreToolUse is exit 2 with the reason first on stderr, the one form Claude Code reads as a denial and records in the call's error result, where the Stop backstop reads `Blocked by <rule>:` back; no answer carries `permissionDecision`. A block on the other two events cannot block, so it is passed on as context. Context goes out as one `hookSpecificOutput.additionalContext`. Each hook runs under a 5 second deadline, and a guard that cannot decide lets the call through: a payload that is not JSON, a judge that fails or a deadline that passes answers `{}` and leaves an `error` or `deadline` breadcrumb. At Stop the hook reads the session's transcript (the session file and its subagents' streams) so the work checks can see the session's tool calls, skill loads and declared comment classes. Guards (declared action checks, the built-in remote-branch-delete guard, coded judges) run in every license state; forced skill loading (holds at PreToolUse, nudges at UserPromptSubmit and PostToolUse, the `skill-loaded-before-editing` backstop at Stop) runs only where the key's feature list carries it, and says so on stderr when it does not. A per-call hook derives the packs, their skills' triggers and the declared checks from the tree on every call; measured on the 38 canon packs it answers in about 30 to 45 ms, and about 145 ms when a hold reads a 5 MB transcript, so no derivation cache is kept.
 
-**Command surface.** The command is cn. Hooks call `cn hook <event>`; workflows and the tasks they run call `cn schedule run`, `cn schedule drain`, `cn execute loop`, `cn update engine`, `cn update packs` and `cn check world`; people call `cn init`, `cn adopt <pack>` and `cn login`. The full list is settled with the command reference.
+**Command surface.** The command is cn. Hooks call `cn hook <event>`; workflows and the tasks they run call `cn schedule run`, `cn schedule drain`, `cn schedule report-failure`, `cn execute loop`, `cn execute continue`, `cn update engine`, `cn update packs` and `cn check world`; a routine session calls `cn work validate`, `cn work converge` and `cn work record-exec`; people call `cn init`, `cn adopt <pack>`, `cn login`, `cn work create`, `cn work wake`, `cn tasks list` and `cn tasks flat`. The full list is settled with the command reference.
 
 **Engine versions and member files.** Within a major version the engine only adds. An old shape of a file the member owns (`.claudinite/settings`, pack declarations, local packs) keeps working, and the engine raises a deprecation finding wherever it is still used. No update rewrites member files, and legacy tolerances are removed only at the next major. When verify finds that a new version would break the repo, the update reports what broke, and a person brings the repo in line in a Claude session. There is no migration command and no agentic step in any update, engine or pack.
 
 **Workflow files.** No update changes `.github/workflows/`: the Claudinite App holds no permission that could, and a workflow change always needs a person anyway. Only these write or change them, and each lands through a PR a person merges:
 
-- **Adoption.** `cn init` writes the scheduler, executor and CI workflows in the adoption session, and they land with the adoption PR.
+- **Adoption.** `cn init` writes the update, CI, scheduler and executor workflows in the adoption session, and they land with the adoption PR.
 - **Adopting a pack later.** `cn adopt <pack>`, run in a Claude session, writes any workflow the new pack needs into that session's PR.
 - **A change the engine or a pack needs later** (a new workflow, a new secret, a changed step). The nightly update does not write it; it files an issue carrying the patch. A person applies it, usually in a Claude session, and merges it as an ordinary PR. The affected task stays off until then.
 
@@ -195,7 +195,7 @@ Every machine does the same thing: the launcher runs once at the start, then eve
 ### GitHub Actions
 
 - Each job has a download step, the only step that runs the launcher, with a read-only token and no secrets. Later steps call `.claudinite/bin/cn <command>` directly.
-- The scheduler, executor and CI workflows (the executor also runs the nightly update task) call `cn schedule run`, `cn execute loop`, `cn check world` and `cn update …`. `actions/setup-go` and `actions/setup-node` stay, for pack checks and task scripts.
+- The four workflows are `claudinite-update.yml` (`cn update engine` and `cn update packs`, nightly), `claudinite-ci.yml` (`cn check world` on each pull request), `claudinite-scheduler.yml` (`cn schedule run`, then `cn schedule drain` when the run filed or readied work, twice a day at a minute and hour hashed from the repository's name) and `claudinite-executor.yml` (`cn execute loop` on a label or a dispatch, `cn execute continue` when a run dies). Folding the nightly update into the executor, as the flows below draw it, is a recorded direction (design record) that waits on the owner's confirmation; until then it stays its own workflow. `actions/setup-go` and `actions/setup-node` stay, for pack checks and task scripts.
 - Each job downloads once, about a second for 10 MB, needing no token and no GitHub API quota.
 - A failed download or a hash mismatch exits non-zero, so the run goes red and failure reporting files it.
 
@@ -218,7 +218,7 @@ Every session, and every Actions run that reaches a license-asserting task, gets
 
 - **Web sessions** ask through GitHub, because a web VM cannot reach our server. SessionStart sends a `repository_dispatch` as the person, and the Claudinite GitHub App answers with a check run holding the signed key.
 - **Desktops** call the license server directly after a one-time `cn login`, which keeps the App's user token `0600` in the cache.
-- **Actions runs** fetch a key only when the task runner reaches a task that asserts a license in its task descriptor, which is the update tasks and growth. The runner then exchanges the job's OIDC token for a key that lasts the rest of the run and reuses it for later items. A run with no such task never contacts the license server, and the workflows themselves know nothing about licensing.
+- **Actions runs** fetch a key only when the nightly update runs or the task runner reaches an item that needs one: a task with an agentic phase, whose routine session needs a grant, or a task of the engine's own packs. The runner then exchanges the job's OIDC token for a key that lasts the rest of the run and reuses it for later items. A run with no such task never contacts the license server, and the workflows themselves know nothing about licensing.
 - **Routine sessions** the executor fires verify an item grant the executor posts on the item's issue, and never take a seat.
 - **Session state.** A session's request and key live in `<cache>/claudinite/sessions/<session id>.json`, `0600` in the cache's `0700` folder, where a resume on the same machine finds them and nothing can commit a key; the license design's "Key state within a session" placed them under the repo's `.claudinite/temp/` (record row 38).
 - **Verification.** A session key lasts 7 days, and a session renews it once it is 24 hours old, keeping the old key in use until the new one lands; a failed renewal waits 1, 2, 4 … up to 32 minutes before the next, and a session stops trying after ten. An Actions key lasts one run. The binary embeds a long-lived root key and a standby root, and accepts 90-day issuing keys certified by either, so rotating an issuing key never needs an engine release and a root compromise moves issuance to the standby without stranding a repo.
@@ -386,7 +386,7 @@ sequenceDiagram
 
 1. A scheduled, dispatched or label-triggered run checks out `main` and runs the download step. It contacts the license server only if an item's task asserts a license.
 2. The binary plans the run or drains work items, all on that one version. Engine and packs come from the same commit, and the update only ever commits pairs that satisfy each pack's `minEngineVersion`.
-3. For each item the binary executes the task's `task.json`, runs its `worker.mjs` in Node when it has one, makes named GitHub calls with the job token, and fires the agentic phase as a Claude Code Remote routine when the task has one, authenticated by the member's CCR\_ROUTINE\_TOKEN Actions secret, after posting an item grant from the license server on the item's issue so the routine session never takes a seat; the routine's cloud session does the work and opens the PR.
+3. For each item the binary executes the task's `task.json`, runs its `worker.mjs` in Node when it has one, makes named GitHub calls with the job token, and fires the agentic phase as a Claude Code Remote routine when the task has one, authenticated by the member's CCR\_ROUTINE\_TOKEN Actions secret, after posting an item grant on the item's issue so the routine session never takes a seat. The grant is asked of the license server with the run's Actions key as its bearer, and the routine session verifies it offline with `cn work validate`, bound to the item's issue. An item whose task has an agentic phase, or belongs to the engine's own packs, needs the run's key: without one, or with a degraded one, the item parks `needs-human-action` with the license notice and the loop picks the next. The routine's cloud session does the work and opens the PR.
 4. A work item that pushes a branch opens a PR whose CI runs that branch's pin.
 
 ```mermaid
@@ -420,7 +420,7 @@ sequenceDiagram
     end
     B->>GH: Named GitHub calls with the job token
     opt Task has an agentic phase
-      B->>LIC: Request an item grant with the job's OIDC token
+      B->>LIC: Request an item grant with the run's Actions key
       B->>GH: Post the grant on the item's issue
       B->>CCR: Fire the routine with CCR_ROUTINE_TOKEN
       CCR->>GH: Push branch with changes, open PR
