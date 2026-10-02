@@ -17,6 +17,60 @@ import (
 type Repo struct {
 	Root string
 	st   *state
+	// clk is the clock of the check holding this copy, paused while it
+	// waits on the engine; nil outside a run.
+	clk *clock
+}
+
+// clock is one check's budget: the time it ran less the time it spent
+// waiting on engine answers. A check's goroutines may have several calls
+// in flight; the clock is paused from the first one's start to the last
+// one's answer.
+type clock struct {
+	mu       sync.Mutex
+	start    time.Time
+	waited   time.Duration
+	depth    int
+	pausedAt time.Time
+}
+
+func newClock() *clock { return &clock{start: time.Now()} }
+
+func (c *clock) pause() {
+	if c == nil {
+		return
+	}
+	c.mu.Lock()
+	if c.depth == 0 {
+		c.pausedAt = time.Now()
+	}
+	c.depth++
+	c.mu.Unlock()
+}
+
+func (c *clock) resume() {
+	if c == nil {
+		return
+	}
+	c.mu.Lock()
+	c.depth--
+	if c.depth == 0 {
+		c.waited += time.Since(c.pausedAt)
+		c.pausedAt = time.Time{}
+	}
+	c.mu.Unlock()
+}
+
+// read is the check's own time so far and its time waiting on the engine,
+// a call still in flight counted as waiting.
+func (c *clock) read() (own, waited time.Duration) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	waited = c.waited
+	if !c.pausedAt.IsZero() {
+		waited += time.Since(c.pausedAt)
+	}
+	return time.Since(c.start) - waited, waited
 }
 
 // Handler answers one engine call: the method and its arguments, as JSON
@@ -89,7 +143,9 @@ func (r Repo) call(method string, args any, out any) error {
 	e, ok := r.st.memo[key]
 	r.st.mu.Unlock()
 	if !ok {
+		r.clk.pause()
 		e.raw, e.err = r.st.eng.handle(method, args)
+		r.clk.resume()
 		r.st.mu.Lock()
 		r.st.memo[key] = e
 		r.st.mu.Unlock()
@@ -342,3 +398,24 @@ func (r Repo) Parsed(rel string) (any, error) {
 
 // Session is the session transcript the run was given.
 func (r Repo) Session() Session { return Session{r} }
+
+// Pack is one pack of the run's declared set, as the engine loaded it:
+// Kind is canon, local or temp; Dir is repo-relative; Prose is the prose
+// file's name, "" for none.
+type Pack struct {
+	ID               string   `json:"id"`
+	Kind             string   `json:"kind"`
+	Dir              string   `json:"dir"`
+	Version          string   `json:"version"`
+	MinEngineVersion string   `json:"minEngineVersion"`
+	Prose            string   `json:"prose"`
+	Skills           []string `json:"skills"`
+	Requires         []string `json:"requires"`
+}
+
+// Packs is the member's declared pack set, in the engine's order.
+func (r Repo) Packs() []Pack {
+	out := []Pack{}
+	r.must("packs.list", nil, &out)
+	return out
+}

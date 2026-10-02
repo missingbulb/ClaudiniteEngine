@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"github.com/missingbulb/ClaudiniteEngine/checksdk"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -67,6 +68,13 @@ func TestVersionDayPrintsTodaysDayNumber(t *testing.T) {
 	got := strings.TrimSpace(out)
 	if got != strconv.Itoa(before) && got != strconv.Itoa(after) {
 		t.Fatalf("version --day printed %q, want %d", out, before)
+	}
+}
+
+func TestVersionFloorPrintsTheSDKsEngineFloor(t *testing.T) {
+	out, errOut, code := runInProc([]string{"version", "--floor"}, "")
+	if code != 0 || out != checksdk.EngineFloor+"\n" {
+		t.Fatalf("exit %d, %q %s", code, out, errOut)
 	}
 }
 

@@ -1,6 +1,7 @@
 package checksdk
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -149,5 +150,34 @@ func TestRepoHelpersOverAFakeEngine(t *testing.T) {
 	lines := MatchingLines(repo, []string{"docs/a.md", "README.md"}, mustRe(`old/`))
 	if len(lines) != 1 || lines[0].Path != "docs/a.md" || lines[0].Line != 1 {
 		t.Errorf("MatchingLines: %v", lines)
+	}
+}
+
+// Packs is the declared pack set, one engine call for the run however
+// often a check asks; the Fake answers its own Packs field.
+func TestPacksIsOneCallForTheRun(t *testing.T) {
+	calls := 0
+	repo := NewRepo(t.TempDir(), func(method string, _ json.RawMessage) (any, error) {
+		if method != "packs.list" {
+			t.Fatalf("unexpected call %s", method)
+		}
+		calls++
+		return json.RawMessage(`[{"id":"acme-pack","kind":"canon","dir":".claudinite/shared/packs/acme-pack","version":"1.2","minEngineVersion":"61001.1.0","prose":"RULES.md","skills":["how"],"requires":["basics"]}]`), nil
+	})
+	want := []Pack{{ID: "acme-pack", Kind: "canon", Dir: ".claudinite/shared/packs/acme-pack", Version: "1.2", MinEngineVersion: "61001.1.0", Prose: "RULES.md", Skills: []string{"how"}, Requires: []string{"basics"}}}
+	for range 2 {
+		if got := repo.Packs(); !reflect.DeepEqual(got, want) {
+			t.Errorf("Packs %+v", got)
+		}
+	}
+	if calls != 1 {
+		t.Errorf("%d calls, want 1", calls)
+	}
+	fake := (&Fake{Packs: []Pack{{ID: "mine", Kind: "local"}}}).Repo(t.TempDir())
+	if got := fake.Packs(); len(got) != 1 || got[0].ID != "mine" {
+		t.Errorf("Fake Packs %+v", got)
+	}
+	if got := (&Fake{}).Repo(t.TempDir()).Packs(); got == nil || len(got) != 0 {
+		t.Errorf("an empty Fake answers no packs, not nil: %#v", got)
 	}
 }

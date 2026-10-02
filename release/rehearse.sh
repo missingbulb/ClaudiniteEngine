@@ -85,12 +85,25 @@ gh_pid=
 lic_pid=
 cdn_pids=
 cleanup() {
-  [ -n "$stub_pid" ] && kill "$stub_pid" 2>/dev/null
-  [ -n "$gh_pid" ] && kill "$gh_pid" 2>/dev/null
-  [ -n "$lic_pid" ] && kill "$lic_pid" 2>/dev/null
-  for p in $cdn_pids; do kill "$p" 2>/dev/null; done
-  chmod -R u+w "$work" 2>/dev/null
-  rm -rf "$work"
+  [ -z "$stub_pid" ] || kill "$stub_pid" 2>/dev/null || :
+  [ -z "$gh_pid" ] || kill "$gh_pid" 2>/dev/null || :
+  [ -z "$lic_pid" ] || kill "$lic_pid" 2>/dev/null || :
+  for p in $cdn_pids; do kill "$p" 2>/dev/null || :; done
+  # A hook starts the checks build detached, in its own session, so it is
+  # no child to wait on: stop any still running for a member under $work.
+  if command -v pkill >/dev/null 2>&1; then
+    pkill -f "check build --repo $work" 2>/dev/null || :
+    for _ in 1 2 3 4 5; do
+      pgrep -f "check build --repo $work" >/dev/null 2>&1 || break
+      sleep 1
+    done
+  fi
+  chmod -R u+w "$work" 2>/dev/null || :
+  for _ in 1 2 3 4 5; do
+    rm -rf "$work" 2>/dev/null && return 0
+    sleep 1
+  done
+  echo "rehearse: $work not removed" >&2
 }
 trap cleanup EXIT
 trap 'exit 1' HUP INT TERM
@@ -849,6 +862,49 @@ GO
       cp "$work/settings.orig" "$settings"
       [ -z "$(cd "$member" && git status --porcelain)" ] || fail "packs 20: the checkout changed: $(cd "$member" && git status --porcelain)"
       step "packs 20: hello-change advises at Stop on a change under HELLO_CHANGED/, alone and in the block form; hello-config reads the entry's config; one sdk breadcrumb"
+
+      mkdir -p "$probe/checks"
+      printf '{}\n' > "$probe/pack.json"
+      printf 'package checks\n\nfunc init() { panic("probe init boom") }\n' > "$probe/checks/boom.go"
+      awk '{ print } /^    - hello$/ { print "    - local/probe" }' "$work/settings.orig" > "$settings"
+      if cn_member check --pack local/probe > "$work/check.out" 2>&1; then fail "packs 21: a check panicking in init passed"; fi
+      grep 'checks-run' "$work/check.out" | grep 'exited before answering' | grep -q 'panic: probe init boom' \
+        || fail "packs 21: the break does not carry the panic: $(cat "$work/check.out")"
+      rm "$probe/checks/boom.go"
+      cat > "$probe/checks/clock.go" <<'GO'
+package checks
+
+import (
+	"time"
+
+	"claudinite.com/checksdk"
+)
+
+func init() {
+	checksdk.Register(checksdk.Check{ID: "slow", Tags: []string{"work"}, Run: func(checksdk.Repo) []checksdk.Finding {
+		time.Sleep(300 * time.Millisecond)
+		return nil
+	}})
+	checksdk.Register(checksdk.Check{ID: "sibling", Tags: []string{"work"}, Run: func(checksdk.Repo) []checksdk.Finding {
+		return []checksdk.Finding{{Path: "pack.json", Sentence: "the sibling still lands"}}
+	}})
+}
+GO
+      if (CLAUDINITE_CHECK_DEADLINE_MS=100 && export CLAUDINITE_CHECK_DEADLINE_MS && cn_member check --pack local/probe) > "$work/check.out" 2>&1; then fail "packs 21: a check past its deadline passed"; fi
+      grep -q 'local/probe/slow: deadline (100ms) passed in run' "$work/check.out" || fail "packs 21: no deadline for slow: $(cat "$work/check.out")"
+      grep -q '^finding local/probe/sibling pack.json: the sibling still lands' "$work/check.out" || fail "packs 21: the sibling's finding did not land: $(cat "$work/check.out")"
+      rm -rf "$checks"
+      cn_member verify > "$work/verify.out" 2> "$work/verify.err" || fail "packs 21: verify failed: $(cat "$work/verify.out" "$work/verify.err")"
+      [ ! -e "$checks" ] || [ -z "$(ls -A "$checks")" ] || fail "packs 21: verify built into $checks: $(ls -A "$checks")"
+      [ "$(grep -c 'coded checks are not built' "$work/verify.err")" = 1 ] || fail "packs 21: verify did not name the unlisted coded checks once: $(cat "$work/verify.err")"
+      cn_member check world > "$work/world.out" 2> "$work/world.err" || true
+      [ -n "$(ls -A "$checks" 2>/dev/null)" ] || fail "packs 21: check world built nothing: $(cat "$work/world.err")"
+      cn_member verify > "$work/verify.out" 2> "$work/verify.err" || fail "packs 21: verify failed after the build: $(cat "$work/verify.out" "$work/verify.err")"
+      ! grep -q 'coded checks are not built' "$work/verify.err" || fail "packs 21: verify still says the coded checks are unbuilt after check world"
+      rm -r "$member/.claudinite/local"
+      cp "$work/settings.orig" "$settings"
+      [ -z "$(cd "$member" && git status --porcelain)" ] || fail "packs 21: the checkout changed: $(cd "$member" && git status --porcelain)"
+      step "packs 21: a panic in init names itself; a check past its deadline leaves its sibling's finding; verify never builds, and check world builds what it then lists"
       ;;
     license)
       step "license: a public member on $version with a GitHub origin, ghstub and licstub"

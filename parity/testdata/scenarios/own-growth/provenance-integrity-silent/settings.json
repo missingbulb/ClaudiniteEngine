@@ -1,0 +1,11 @@
+{
+  "packs": [
+    "claudinite-lifecycle",
+    "claudinite-growth",
+    "local/acme"
+  ],
+  "rules": {
+    "provenance-integrity": "block",
+    "provenance-change-recorded": "block"
+  }
+}

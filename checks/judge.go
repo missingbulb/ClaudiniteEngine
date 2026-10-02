@@ -32,7 +32,7 @@ func (s Service) Judge(repo, event string, call Call, session *transcript.Sessio
 	load := func() *declared.Set {
 		if set == nil {
 			var err error
-			if set, err = declared.LoadSet(repo, s.Build.Engine); err != nil {
+			if set, err = s.LoadSet(repo); err != nil {
 				set = &declared.Set{Repo: repo, Config: declared.Config{Rules: map[string]string{}}}
 				v.Errors = append(v.Errors, fmt.Sprintf("the declared checks could not load: %v", err))
 			}

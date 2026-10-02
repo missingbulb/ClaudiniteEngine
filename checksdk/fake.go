@@ -37,6 +37,8 @@ type Fake struct {
 	Checks     ChecksConfig
 	// Parsed answers doc.parse; a path it lacks parses as JSON from disk.
 	Parsed map[string]any
+	// Packs answers packs.list.
+	Packs []Pack
 }
 
 // Repo is a Repo at root that f answers.
@@ -91,6 +93,11 @@ func (f *Fake) answer(root, method string, raw json.RawMessage) (any, error) {
 		return or(f.AllFiles, func() []string { return or(f.Files, walk) }), nil
 	case "tree.untracked":
 		return or(f.Untracked, nil), nil
+	case "packs.list":
+		if f.Packs == nil {
+			return []Pack{}, nil
+		}
+		return f.Packs, nil
 	case "change.files":
 		return or(f.ChangedFiles, nil), nil
 	case "change.deleted":

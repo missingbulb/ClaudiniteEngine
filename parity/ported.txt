@@ -8,3 +8,5 @@ public-website
 executable-requirements
 python
 google-identity
+claudinite-lifecycle
+claudinite-growth

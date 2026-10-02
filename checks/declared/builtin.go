@@ -18,23 +18,14 @@ var declarationFile = mustRegex(`(^|/)declared-checks\.(json|ya?ml|toml)$`, "")
 // building that engine, so an unplaced key there is a fault, not skew.
 const LocalPacksPrefix = ".claudinite/local/packs/"
 
-func (s *Set) runBuiltin(b Builtin, ctx *Ctx, session *transcript.Session) []findings.Finding {
-	var out []findings.Finding
+func (s *Set) runBuiltin(b Builtin, ctx *Ctx, session *transcript.Session) (out []findings.Finding) {
 	defer func() {
 		if r := recover(); r != nil {
 			out = []findings.Finding{{Class: findings.Break, ID: "checks-run", Path: s.Config.SettingsPath,
 				Sentence: fmt.Sprintf("the built-in check %s could not run: %v", b.ID, recovered(r))}}
 		}
 	}()
-	switch b.ID {
-	case builtinSpecKeys.ID:
-		out = specKeyFindings(ctx)
-	case builtinBarrier.ID:
-		out = barrierFindings(ctx)
-	case builtinSkillLoaded.ID:
-		out = s.skillLoadedFindings(ctx, session)
-	}
-	return out
+	return b.Run(ctx, session)
 }
 
 func specKeyFindings(ctx *Ctx) []findings.Finding {

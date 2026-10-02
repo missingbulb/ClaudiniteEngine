@@ -61,7 +61,8 @@ func (hookGuards) Judge(repo string, call hooks.Call, deadline time.Time) hooks.
 
 // allFindings runs the declared and coded checks in the foreground and
 // turns a run that could not happen, or a check that failed, into a
-// break. verbose adds the coded checks' SDK calls, by method.
+// break. verbose adds the coded checks' SDK calls, by method, and the
+// tail of their stderr.
 func allFindings(repo, event string, sel declared.Selection, verbose bool, stderr io.Writer) []findings.Finding {
 	o := checksService().RunAll(repo, event, sel, buildWait, true, stderr)
 	fmt.Fprintln(stderr, o.DeclaredCrumb)
@@ -79,6 +80,11 @@ func allFindings(repo, event string, sel declared.Selection, verbose bool, stder
 		sort.Strings(methods)
 		for _, m := range methods {
 			fmt.Fprintf(stderr, "[cn] sdk %s %d\n", m, o.Calls[m])
+		}
+		for _, l := range strings.Split(strings.TrimRight(o.Stderr, "\n"), "\n") {
+			if l != "" {
+				fmt.Fprintf(stderr, "[cn] checks stderr: %s\n", l)
+			}
 		}
 	}
 	out := o.Findings
@@ -133,8 +139,10 @@ func cmdCheck(args []string, stdout, stderr io.Writer) error {
 	if scope == "" {
 		scope = "pack " + *pack
 	}
+	// A coded listing that failed still lists the declared and built-in
+	// checks; the run below reports the coded failure as a checks-run break.
 	listed, err := checksService().ListAll(*repo, buildWait)
-	if err != nil {
+	if err != nil && listed == nil {
 		return report.Wrap(report.Verify, "check", err)
 	}
 	for _, l := range listed {

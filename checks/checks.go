@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/missingbulb/ClaudiniteEngine/checks/build"
+	"github.com/missingbulb/ClaudiniteEngine/checks/builtin"
 	"github.com/missingbulb/ClaudiniteEngine/checks/declared"
 	"github.com/missingbulb/ClaudiniteEngine/checks/run"
 	"github.com/missingbulb/ClaudiniteEngine/sdkserver"
@@ -132,6 +133,30 @@ func (s Service) List(repo string, timeout time.Duration) ([]run.Listed, error) 
 	return run.Runner{Binary: s.Build.Binary(key), Engine: s.Build.Engine}.List()
 }
 
+// ErrNotBuilt is a listing that would have had to build the checks
+// binary.
+var ErrNotBuilt = errors.New("the coded checks are not built for the current packs")
+
+// ListBuilt returns the repo's coded checks from a binary already built
+// for the current packs, ErrNotBuilt when there is none; it never builds.
+func (s Service) ListBuilt(repo string) ([]run.Listed, error) {
+	key, _, err := s.Key(repo)
+	if err != nil || key == "" {
+		return nil, err
+	}
+	binary, err := build.Wait(s.Build, key, 0)
+	if err != nil {
+		return nil, ErrNotBuilt
+	}
+	return run.Runner{Binary: binary, Engine: s.Build.Engine}.List()
+}
+
+// LoadSet reads the repo's declared checks with the engine's own
+// built-ins, each where its pack is declared.
+func (s Service) LoadSet(repo string) (*declared.Set, error) {
+	return declared.LoadSet(repo, s.Build.Engine, builtin.All()...)
+}
+
 func hasSettings(repo string) bool {
 	for _, f := range settings.Formats {
 		if _, err := os.Stat(filepath.Join(repo, filepath.FromSlash(settings.RelPath(f)))); err == nil {
@@ -156,6 +181,8 @@ type Outcome struct {
 	Crumb, DeclaredCrumb, SDKCrumb string
 	// Calls counts the coded child's SDK calls by method.
 	Calls map[string]int
+	// Stderr is the tail of the coded child's stderr.
+	Stderr string
 }
 
 // Blocking reports whether any finding blocks.
@@ -169,7 +196,7 @@ func (s Service) RunAll(repo, event string, sel declared.Selection, wait time.Du
 	tags, pack := sel.Tags, sel.Pack
 	start := time.Now()
 	var out Outcome
-	set, err := declared.LoadSet(repo, s.Build.Engine)
+	set, err := s.LoadSet(repo)
 	var cfg declared.Config
 	n := 0
 	if err != nil {
@@ -184,7 +211,7 @@ func (s Service) RunAll(repo, event string, sel declared.Selection, wait time.Du
 	out.DeclaredCrumb = fmt.Sprintf("[cn] declared %d checks %dms", n, time.Since(start).Milliseconds())
 	srv := newServer(repo, set, sel.Session, start)
 	res, crumb := s.Run(repo, event, tags, pack, wait, foreground, srv)
-	out.Crumb, out.Errors, out.Err, out.SDKCrumb, out.Calls = crumb, res.Errors, res.Err, res.SDKCrumb, res.Calls
+	out.Crumb, out.Errors, out.Err, out.SDKCrumb, out.Calls, out.Stderr = crumb, res.Errors, res.Err, res.SDKCrumb, res.Calls, res.Stderr
 	for i, f := range res.Shared() {
 		out.Findings = append(out.Findings, declared.Grace(f, res.Findings[i].Since, start))
 	}
@@ -208,7 +235,7 @@ func newServer(repo string, set *declared.Set, session *transcript.Session, now 
 
 func (l *lazyServer) server() *sdkserver.Server {
 	if l.srv == nil {
-		cfg := sdkserver.Config{PackConfig: l.set.Config.PackConfig, Rules: l.set.Config.Rules}
+		cfg := sdkserver.Config{PackConfig: l.set.Config.PackConfig, Rules: l.set.Config.Rules, Packs: l.set.Packs}
 		for _, a := range l.set.Config.Accept {
 			cfg.Accept = append(cfg.Accept, sdkserver.Acceptance{Rule: a.Rule, Path: a.Path, Reason: a.Reason, Pack: a.Pack})
 		}
@@ -223,21 +250,33 @@ func (l *lazyServer) Handle(method string, args json.RawMessage) (json.RawMessag
 	return l.server().Handle(method, args)
 }
 
-// ListAll names the declared, built-in and coded checks, sorted by id.
+// ListAll names the declared, built-in and coded checks, sorted by id,
+// building the coded checks' binary here.
 func (s Service) ListAll(repo string, timeout time.Duration) ([]Listed, error) {
+	return s.listWith(repo, func() ([]run.Listed, error) { return s.List(repo, timeout) })
+}
+
+// ListAllBuilt is ListAll with the coded checks from ListBuilt: it never
+// builds, and with no binary it returns the declared and built-in checks
+// and ErrNotBuilt.
+//
+// Both return the declared and built-in checks beside an error listing
+// the coded ones.
+func (s Service) ListAllBuilt(repo string) ([]Listed, error) {
+	return s.listWith(repo, func() ([]run.Listed, error) { return s.ListBuilt(repo) })
+}
+
+func (s Service) listWith(repo string, coded func() ([]run.Listed, error)) ([]Listed, error) {
 	var out []Listed
-	set, err := declared.LoadSet(repo, s.Build.Engine)
+	set, err := s.LoadSet(repo)
 	if err != nil {
 		return nil, err
 	}
 	for _, l := range set.List() {
 		out = append(out, Listed{ID: l.ID, Pack: l.Pack, Kind: l.Kind, Tags: l.Tags, OnFail: l.OnFail, Since: l.Since})
 	}
-	coded, err := s.List(repo, timeout)
-	if err != nil {
-		return nil, err
-	}
-	for _, c := range coded {
+	listed, codedErr := coded()
+	for _, c := range listed {
 		pack, id := splitName(c.Check)
 		kind := "coded"
 		if c.Judge {
@@ -255,7 +294,7 @@ func (s Service) ListAll(repo string, timeout time.Duration) ([]Listed, error) {
 		}
 		return out[i].Pack < out[k].Pack
 	})
-	return out, nil
+	return out, codedErr
 }
 
 // Listed is one check as cn check list prints it.

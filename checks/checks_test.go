@@ -320,3 +320,80 @@ func TestRunAllOverCodedFindings(t *testing.T) {
 		}
 	}
 }
+
+// The pack-owned built-ins list beside the coded and declared checks,
+// under their pack and since, and --pack <canon pack> runs them.
+func TestBuiltinsListAndRunUnderTheirPack(t *testing.T) {
+	t.Setenv("CLAUDINITE_CHECKS_NO_FETCH", "1")
+	s := service(t)
+	repo := t.TempDir()
+	for rel, body := range map[string]string{
+		".claudinite/settings.yaml":                               "engine:\n  version: \"1.1.0\"\npacks:\n  declared:\n    - claudinite-lifecycle\n    - claudinite-growth\n",
+		".claudinite/shared/packs/claudinite-lifecycle/pack.json": "{\"version\": \"1\", \"minEngineVersion\": \"61001.1.0\"}\n",
+		".claudinite/shared/packs/claudinite-growth/pack.json":    "{\"version\": \"1\", \"minEngineVersion\": \"61001.1.0\", \"requires\": [\"claudinite-lifecycle\"]}\n",
+		".claudinite/local/packs/mine/pack.json":                  "{}\n",
+		".claudinite/local/packs/mine/tasks/nightly/task.md":      "Run `bash gather.sh`.\n",
+	} {
+		p := filepath.Join(repo, rel)
+		_ = os.MkdirAll(filepath.Dir(p), 0o755)
+		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if out, err := exec.Command("git", "-C", repo, "init", "-q").CombinedOutput(); err != nil {
+		t.Fatalf("%v %s", err, out)
+	}
+	listed, err := s.ListAll(repo, time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var rows []string
+	for _, l := range listed {
+		rows = append(rows, l.Name()+" "+l.Kind+" "+strings.Join(l.Tags, ",")+" "+l.OnFail+" "+l.Since)
+	}
+	joined := "|" + strings.Join(rows, "|") + "|"
+	for _, want := range []string{
+		"claudinite-growth/provenance-integrity builtin world,builtin,claudinite-growth block 2026-09-20",
+		"claudinite-growth/provenance-change-recorded builtin work,builtin,claudinite-growth block 2026-09-20",
+		"claudinite-lifecycle/shared-tree-immutable builtin work,builtin,claudinite-lifecycle advise 2026-09-06",
+	} {
+		if !strings.Contains(joined, "|"+want+"|") {
+			t.Errorf("list lacks %q: %v", want, rows)
+		}
+	}
+	o := s.RunAll(repo, "pack", declared.Selection{Pack: "claudinite-growth"}, time.Minute, true, nil)
+	if _, ok := byName(o.Findings)["claudinite-growth/routine-structure"]; !ok || o.Err != nil {
+		t.Errorf("--pack claudinite-growth did not run routine-structure: %v %v", o.Err, o.Findings)
+	}
+	o = s.RunAll(repo, "pack", declared.Selection{Pack: "claudinite-lifecycle"}, time.Minute, true, nil)
+	if _, ok := byName(o.Findings)["claudinite-growth/routine-structure"]; ok {
+		t.Errorf("--pack claudinite-lifecycle ran a growth built-in: %v", o.Findings)
+	}
+}
+
+// ListBuilt never builds: before a build it is ErrNotBuilt, and
+// ListAllBuilt still names the declared checks; after one it lists.
+func TestListBuiltNeverBuilds(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("no go")
+	}
+	t.Setenv("CLAUDINITE_CHECKS_NO_FETCH", "1")
+	s := service(t)
+	repo := helloRepo(t)
+	if _, err := s.ListBuilt(repo); err != ErrNotBuilt {
+		t.Fatalf("before a build: %v", err)
+	}
+	if entries, _ := os.ReadDir(s.Build.CacheRoot); len(entries) != 0 {
+		t.Errorf("ListBuilt built: %v", entries)
+	}
+	rows, err := s.ListAllBuilt(repo)
+	if err != ErrNotBuilt || len(rows) == 0 {
+		t.Errorf("ListAllBuilt before a build: %d rows, %v", len(rows), err)
+	}
+	if _, err := s.List(repo, time.Minute); err != nil {
+		t.Fatal(err)
+	}
+	if listed, err := s.ListBuilt(repo); err != nil || len(listed) == 0 {
+		t.Errorf("after a build: %v %v", listed, err)
+	}
+}

@@ -66,15 +66,25 @@ func TestVersionNext(t *testing.T) {
 }
 
 func TestVersionCheck(t *testing.T) {
-	repo := gitRepo(t, "v60928.2.0")
-	if out, code := versionSh(t, repo, "check", "60928.3.0"); code != 0 {
+	repo := gitRepo(t, "v61002.2.0")
+	if out, code := versionSh(t, repo, "check", "61002.3.0"); code != 0 {
 		t.Errorf("free version: exit %d %s", code, out)
 	}
-	if out, code := versionSh(t, repo, "check", "60928.2.0"); code != 1 {
+	if out, code := versionSh(t, repo, "check", "61002.2.0"); code != 1 {
 		t.Errorf("taken version: exit %d %s", code, out)
 	}
-	if out, code := versionSh(t, repo, "check", "60928.2"); code == 0 {
+	if out, code := versionSh(t, repo, "check", "61002.2"); code == 0 {
 		t.Errorf("malformed version accepted: %s", out)
+	}
+	// A version below the SDK's engine floor would ship an engine the
+	// floor says cannot answer SDK calls.
+	for _, below := range []string{"60930.4.0", "61000.9.0"} {
+		if out, code := versionSh(t, repo, "check", below); code == 0 || !strings.Contains(out, "below the engine floor 61001.1.0") {
+			t.Errorf("%s below the floor: exit %d %s", below, code, out)
+		}
+	}
+	if out, code := versionSh(t, repo, "check", "61001.1.0"); code != 0 {
+		t.Errorf("the floor itself: exit %d %s", code, out)
 	}
 }
 

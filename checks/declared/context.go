@@ -9,6 +9,7 @@ import (
 
 	"github.com/missingbulb/ClaudiniteEngine/checks/declared/refs"
 	"github.com/missingbulb/ClaudiniteEngine/shared/gitcmd"
+	"github.com/missingbulb/ClaudiniteEngine/shared/skilltriggers"
 )
 
 // SharedPrefix is the vendored mount, never part of the tree a check
@@ -29,6 +30,8 @@ type Ctx struct {
 	Now time.Time
 	// Config is the member's checks configuration.
 	Config Config
+	// Triggers are the active packs' skills' force-load declarations.
+	Triggers []skilltriggers.Trigger
 
 	git gitcmd.Repo
 
@@ -69,13 +72,16 @@ type Acceptance struct {
 
 // NewCtx reads the tree at root.
 func NewCtx(root string, cfg Config) *Ctx {
-	g := gitcmd.Repo{Dir: root}
+	g := gitcmd.Repo{Dir: root, Faults: &gitcmd.Faults{}}
 	c := &Ctx{Root: root, Config: cfg, Now: time.Now(), git: g, reads: map[string]*string{}, baseReads: map[string]*string{}}
 	c.BaseRef = g.BaseRef()
 	g.RefreshBaseRef(c.BaseRef)
 	c.Tracked, c.Untracked = g.ListFiles()
 	return c
 }
+
+// GitFaults are the git commands that timed out since the last call.
+func (c *Ctx) GitFaults() []string { return c.git.Faults.Take() }
 
 // AllFiles is the scanned set before vendored files are dropped.
 func (c *Ctx) AllFiles() []string {

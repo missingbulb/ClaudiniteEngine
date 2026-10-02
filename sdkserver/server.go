@@ -18,6 +18,7 @@ import (
 
 	"github.com/missingbulb/ClaudiniteEngine/shared/descriptor"
 	"github.com/missingbulb/ClaudiniteEngine/shared/gitcmd"
+	"github.com/missingbulb/ClaudiniteEngine/shared/packset"
 	"github.com/missingbulb/ClaudiniteEngine/shared/transcript"
 )
 
@@ -50,6 +51,20 @@ type Config struct {
 	PackConfig map[string]map[string]any
 	Rules      map[string]string
 	Accept     []Acceptance
+	// Packs is the run's pack set, in the set's order.
+	Packs []packset.Pack
+}
+
+// pack is one entry of packs.list.
+type pack struct {
+	ID        string   `json:"id"`
+	Kind      string   `json:"kind"`
+	Dir       string   `json:"dir"`
+	Version   string   `json:"version"`
+	MinEngine string   `json:"minEngineVersion"`
+	Prose     string   `json:"prose"`
+	Skills    []string `json:"skills"`
+	Requires  []string `json:"requires"`
 }
 
 // Acceptance is one accepted finding.
@@ -160,6 +175,13 @@ var methods = map[string]handler{
 			Accept []Acceptance      `json:"accept"`
 		}{rules, accept}, nil
 	},
+	"packs.list": func(s *Server, _ args) (any, error) {
+		out := []pack{}
+		for _, p := range s.cfg.Packs {
+			out = append(out, pack{p.ID, string(p.Kind), p.Rel, p.Version, p.MinEngine, p.Prose, list(p.Skills), list(p.Requires)})
+		}
+		return out, nil
+	},
 	"doc.parse": func(s *Server, a args) (any, error) {
 		rel, err := inRepo(a.Path)
 		if err != nil {
@@ -207,6 +229,11 @@ func (s *Server) Handle(method string, raw json.RawMessage) (json.RawMessage, er
 		}
 	}
 	v, err := h(s, a)
+	if f, ok := s.tree.(interface{ GitFaults() []string }); ok {
+		if faults := f.GitFaults(); len(faults) > 0 {
+			return nil, fmt.Errorf("%s: %s", method, strings.Join(faults, "; "))
+		}
+	}
 	if err != nil {
 		return nil, err
 	}

@@ -3,6 +3,7 @@ package gitcmd
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -39,11 +40,18 @@ func (r Repo) try(args ...string) (string, bool) {
 }
 
 func (r Repo) input(stdin string, args ...string) (string, bool) {
-	cmd := exec.Command("git", args...)
+	if r.Faults.spent(args) != nil {
+		return "", false
+	}
+	cmd, done := command(CommandTimeout, args, args...)
 	cmd.Dir = r.Dir
 	cmd.Env = childEnv()
 	cmd.Stdin = strings.NewReader(stdin)
 	out, err := cmd.Output()
+	var te *TimeoutError
+	if err = done(err); errors.As(err, &te) {
+		r.Faults.add(te.msg)
+	}
 	return string(out), err == nil
 }
 

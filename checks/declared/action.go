@@ -195,7 +195,7 @@ type GuardVerdict struct {
 // command that deletes a remote branch.
 const BuiltinRemoteBranchDelete = "remote-branch-delete"
 
-var builtinRemoteDelete = Builtin{ID: BuiltinRemoteBranchDelete, Pack: "cn", OnFail: "block", Tags: []string{"action", "pre-tool-use", "builtin"}}
+var builtinRemoteDelete = Builtin{ID: BuiltinRemoteBranchDelete, Pack: EnginePack, OnFail: "block", Tags: []string{"action", "pre-tool-use", "builtin"}}
 
 var (
 	deleteFlag  = mustRegex(`\bgit\s+push\b[^\n;&]*\s(--delete|-d)\s`, "")

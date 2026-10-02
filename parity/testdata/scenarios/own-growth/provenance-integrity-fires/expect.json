@@ -1,0 +1,28 @@
+{
+  "rules": "@../shared/packs/claudinite-growth/RULES.md\n@../shared/packs/claudinite-lifecycle/RULES.md\n@../local/packs/acme/RULES.md\n",
+  "mounts": [
+    "adopt-claudinite",
+    "adopt-pack",
+    "backfilling-provenance",
+    "changing-pack-elements",
+    "extract-from-activity",
+    "extract-from-conversations",
+    "extract-from-instructions",
+    "growth-dedup",
+    "learning-a-technology",
+    "prose-to-checks",
+    "revalidating-rules",
+    "triaging-usage-findings",
+    "unattended-agents",
+    "writing-pack-prose",
+    "writing-tasks"
+  ],
+  "world": [
+    "provenance-integrity .claudinite/local/packs/acme/RULES.md:4 block",
+    "provenance-integrity .claudinite/local/packs/acme/provenance/_pack.md:1 block"
+  ],
+  "work": [],
+  "only": [
+    "provenance-integrity"
+  ]
+}

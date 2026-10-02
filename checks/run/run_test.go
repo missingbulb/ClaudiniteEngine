@@ -21,6 +21,11 @@ func TestMain(m *testing.M) {
 }
 
 func fake(mode string) {
+	if mode == "crash" {
+		fmt.Fprint(os.Stderr, strings.Repeat("noise before the panic\n", 400))
+		fmt.Fprint(os.Stderr, "panic: boom\n\ngoroutine 1 [running]:\nclaudinite.com/packs/probe.init.0()\n\t/cache/checks/probe/a.go:12 +0x1d\n\n")
+		os.Exit(2)
+	}
 	in := bufio.NewScanner(os.Stdin)
 	in.Buffer(make([]byte, 1<<20), 32<<20)
 	if !in.Scan() {
@@ -140,6 +145,21 @@ func TestRunKillsAMisbehavingChild(t *testing.T) {
 		if !strings.HasPrefix(crumb, "[cn] checks world "+outcome+" ") {
 			t.Errorf("%s: breadcrumb %q", mode, crumb)
 		}
+	}
+}
+
+// The child's stderr is kept, bounded: an exit before answering names the
+// panic and its last line, and the whole tail rides on the result.
+func TestRunKeepsTheChildsStderrTail(t *testing.T) {
+	res, _ := runner(t, "crash").Run("world", []string{"world"}, "", "/repo")
+	if res.Err == nil || res.Err.Error() != "the checks binary exited before answering: panic: boom … /cache/checks/probe/a.go:12 +0x1d" {
+		t.Errorf("err %v", res.Err)
+	}
+	if len(res.Stderr) > 4096 || !strings.HasSuffix(strings.TrimSpace(res.Stderr), "a.go:12 +0x1d") || !strings.Contains(res.Stderr, "noise before") {
+		t.Errorf("tail of %d bytes: %q", len(res.Stderr), res.Stderr)
+	}
+	if res, _ := runner(t, "good").Run("stop", []string{"work"}, "hello", "/repo"); res.Stderr != "" {
+		t.Errorf("a quiet child left a tail %q", res.Stderr)
 	}
 }
 

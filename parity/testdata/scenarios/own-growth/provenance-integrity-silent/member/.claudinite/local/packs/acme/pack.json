@@ -1,0 +1,6 @@
+{
+  "ruleRoutingGuidance": {
+    "belongs": "this scenario's own rules",
+    "excludes": "everything else"
+  }
+}
