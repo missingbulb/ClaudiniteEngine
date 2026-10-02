@@ -342,3 +342,24 @@ func (r Repo) Parsed(rel string) (any, error) {
 
 // Session is the session transcript the run was given.
 func (r Repo) Session() Session { return Session{r} }
+
+// Pack is one pack of the run's declared set, as the engine loaded it:
+// Kind is canon, local or temp; Dir is repo-relative; Prose is the prose
+// file's name, "" for none.
+type Pack struct {
+	ID               string   `json:"id"`
+	Kind             string   `json:"kind"`
+	Dir              string   `json:"dir"`
+	Version          string   `json:"version"`
+	MinEngineVersion string   `json:"minEngineVersion"`
+	Prose            string   `json:"prose"`
+	Skills           []string `json:"skills"`
+	Requires         []string `json:"requires"`
+}
+
+// Packs is the member's declared pack set, in the engine's order.
+func (r Repo) Packs() []Pack {
+	out := []Pack{}
+	r.must("packs.list", nil, &out)
+	return out
+}

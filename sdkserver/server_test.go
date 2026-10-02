@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/missingbulb/ClaudiniteEngine/shared/gitcmd"
+	"github.com/missingbulb/ClaudiniteEngine/shared/packset"
 	"github.com/missingbulb/ClaudiniteEngine/shared/transcript"
 )
 
@@ -69,7 +70,11 @@ func TestEveryMethodAnswersJSON(t *testing.T) {
 	root := t.TempDir()
 	_ = os.WriteFile(filepath.Join(root, "b.yaml"), []byte("Resources:\n  F:\n    Handler: !Ref Name\n"), 0o644)
 	_ = os.WriteFile(filepath.Join(root, "p.toml"), []byte("[project]\nname = \"x\"\n"), 0o644)
-	cfg := Config{PackConfig: map[string]map[string]any{"acme-pack": {"probe": true}}, Rules: map[string]string{"acme-check": "off"}}
+	cfg := Config{PackConfig: map[string]map[string]any{"acme-pack": {"probe": true}}, Rules: map[string]string{"acme-check": "off"},
+		Packs: []packset.Pack{
+			{ID: "acme-pack", Kind: packset.Canon, Dir: filepath.Join(root, ".claudinite/shared/packs/acme-pack"), Rel: ".claudinite/shared/packs/acme-pack", Version: "1.2", MinEngine: "61001.1.0", Prose: "RULES.md", Skills: []string{"how"}, Requires: []string{"basics"}},
+			{ID: "mine", Kind: packset.Local, Rel: ".claudinite/local/packs/mine"},
+		}}
 	s := Serve(root, fakeTree{root}, session(t), cfg)
 	cases := map[string][2]string{
 		"tree.files":           {`{}`, `["a.md","b.yaml"]`},
@@ -92,6 +97,8 @@ func TestEveryMethodAnswersJSON(t *testing.T) {
 		"config.pack":          {`{"id":"acme-pack"}`, `{"probe":true}`},
 		"config.checks":        {`{}`, `{"rules":{"acme-check":"off"},"accept":[]}`},
 		"doc.parse":            {`{"path":"b.yaml"}`, `{"Resources":{"F":{"Handler":"Name"}}}`},
+		"packs.list": {`{}`, `[{"id":"acme-pack","kind":"canon","dir":".claudinite/shared/packs/acme-pack","version":"1.2","minEngineVersion":"61001.1.0","prose":"RULES.md","skills":["how"],"requires":["basics"]},` +
+			`{"id":"mine","kind":"local","dir":".claudinite/local/packs/mine","version":"","minEngineVersion":"","prose":"","skills":[],"requires":[]}]`},
 	}
 	for m, c := range cases {
 		if got := ask(t, s, m, c[0]); got != c[1] {

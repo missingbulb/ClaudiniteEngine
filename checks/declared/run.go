@@ -97,6 +97,8 @@ type Set struct {
 	Member bool
 	// Triggers are the active packs' skills' force-load declarations.
 	Triggers []skilltriggers.Trigger
+	// Packs are the active packs, in the pack set's order.
+	Packs []packset.Pack
 }
 
 // LoadSet reads the repo's settings and the declared checks of its active
@@ -133,6 +135,7 @@ func LoadSet(repo, engine string, extra ...Builtin) (*Set, error) {
 	if err != nil {
 		return nil, err
 	}
+	s.Packs = set.Packs
 	s.Triggers, _ = skilltriggers.FromPacks(set.Packs)
 	active := map[string]bool{}
 	for _, p := range set.Packs {

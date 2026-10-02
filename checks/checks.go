@@ -215,7 +215,7 @@ func newServer(repo string, set *declared.Set, session *transcript.Session, now 
 
 func (l *lazyServer) server() *sdkserver.Server {
 	if l.srv == nil {
-		cfg := sdkserver.Config{PackConfig: l.set.Config.PackConfig, Rules: l.set.Config.Rules}
+		cfg := sdkserver.Config{PackConfig: l.set.Config.PackConfig, Rules: l.set.Config.Rules, Packs: l.set.Packs}
 		for _, a := range l.set.Config.Accept {
 			cfg.Accept = append(cfg.Accept, sdkserver.Acceptance{Rule: a.Rule, Path: a.Path, Reason: a.Reason, Pack: a.Pack})
 		}
