@@ -83,11 +83,27 @@ func TestVerifyReadsTheDeclaredChecks(t *testing.T) {
 	_ = os.MkdirAll(filepath.Join(dir, ".claudinite/shared/packs/acme-pack/checks"), 0o755)
 	_ = os.WriteFile(filepath.Join(dir, ".claudinite/shared/packs/acme-pack/checks/coded.go"), []byte("package checks\n\nimport \"claudinite.com/checksdk\"\n\nfunc init() {\n\tchecksdk.Register(checksdk.Check{ID: \"acme-coded\", Tags: []string{\"world\"}, Run: func(checksdk.Repo) []checksdk.Finding { return nil }})\n}\n"), 0o644)
 	raw, _ = os.ReadFile(path)
-	_ = os.WriteFile(path, []byte(strings.Replace(string(raw), "    ghost-check: \"advise\"\n", "    acme-pack/acme-coded: \"off\"\n    acme-pack/acme-check: advise\n", 1)), 0o644)
-	out, _, _ = runCN(t, bin, nil, "", "verify", "--repo", dir)
-	if strings.Contains(out, "settings-checks") {
-		t.Errorf("a coded check or a pack-qualified name is reported:\n%s", out)
+	_ = os.WriteFile(path, []byte(strings.Replace(string(raw), "    ghost-check: \"advise\"\n", "    acme-pack/acme-coded: \"off\"\n    acme-pack/acme-check: advise\n    ghost-check: \"advise\"\n", 1)), 0o644)
+	// verify never builds: with the coded checks unbuilt it judges no rule
+	// key against them, says so once, and leaves the cache empty.
+	cache := t.TempDir()
+	env := []string{"XDG_CACHE_HOME=" + cache, "CLAUDINITE_CHECKS_NO_FETCH=1"}
+	out, errOut, _ := runCN(t, bin, env, "", "verify", "--repo", dir)
+	if strings.Contains(out, "settings-checks") || strings.Count(errOut, "coded checks") != 1 {
+		t.Errorf("an unbuilt list judged rule keys, or did not say so once:\n%s\n%s", out, errOut)
 	}
+	if entries, _ := os.ReadDir(cache); len(entries) != 0 {
+		t.Errorf("verify built into the cache: %v", entries)
+	}
+	if out, errOut, code := runCN(t, bin, env, "", "check", "--pack", "acme-pack", "--repo", dir); code != 0 && code != 1 {
+		t.Fatalf("check --pack acme-pack: exit %d\n%s\n%s", code, out, errOut)
+	}
+	out, errOut, _ = runCN(t, bin, env, "", "verify", "--repo", dir)
+	if !strings.Contains(out, `names rule "ghost-check"`) || strings.Contains(out, "acme-coded") || strings.Contains(out, `"acme-pack/acme-check"`) || strings.Contains(errOut, "coded checks") {
+		t.Errorf("once built, a coded check or a pack-qualified name is reported, or the ghost is not:\n%s\n%s", out, errOut)
+	}
+	raw, _ = os.ReadFile(path)
+	_ = os.WriteFile(path, []byte(strings.Replace(string(raw), "    ghost-check: \"advise\"\n", "", 1)), 0o644)
 	_ = os.WriteFile(filepath.Join(dir, ".claudinite/shared/packs/acme-pack/declared-checks.yaml"), []byte("[]\n"), 0o644)
 	out, _, _ = runCN(t, bin, nil, "", "verify", "--repo", dir)
 	if !strings.Contains(out, "break descriptor-duplicate") {

@@ -370,3 +370,30 @@ func TestBuiltinsListAndRunUnderTheirPack(t *testing.T) {
 		t.Errorf("--pack claudinite-lifecycle ran a growth built-in: %v", o.Findings)
 	}
 }
+
+// ListBuilt never builds: before a build it is ErrNotBuilt, and
+// ListAllBuilt still names the declared checks; after one it lists.
+func TestListBuiltNeverBuilds(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("no go")
+	}
+	t.Setenv("CLAUDINITE_CHECKS_NO_FETCH", "1")
+	s := service(t)
+	repo := helloRepo(t)
+	if _, err := s.ListBuilt(repo); err != ErrNotBuilt {
+		t.Fatalf("before a build: %v", err)
+	}
+	if entries, _ := os.ReadDir(s.Build.CacheRoot); len(entries) != 0 {
+		t.Errorf("ListBuilt built: %v", entries)
+	}
+	rows, err := s.ListAllBuilt(repo)
+	if err != ErrNotBuilt || len(rows) == 0 {
+		t.Errorf("ListAllBuilt before a build: %d rows, %v", len(rows), err)
+	}
+	if _, err := s.List(repo, time.Minute); err != nil {
+		t.Fatal(err)
+	}
+	if listed, err := s.ListBuilt(repo); err != nil || len(listed) == 0 {
+		t.Errorf("after a build: %v %v", listed, err)
+	}
+}

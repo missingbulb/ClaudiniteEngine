@@ -133,6 +133,24 @@ func (s Service) List(repo string, timeout time.Duration) ([]run.Listed, error) 
 	return run.Runner{Binary: s.Build.Binary(key), Engine: s.Build.Engine}.List()
 }
 
+// ErrNotBuilt is a listing that would have had to build the checks
+// binary.
+var ErrNotBuilt = errors.New("the coded checks are not built for the current packs")
+
+// ListBuilt returns the repo's coded checks from a binary already built
+// for the current packs, ErrNotBuilt when there is none; it never builds.
+func (s Service) ListBuilt(repo string) ([]run.Listed, error) {
+	key, _, err := s.Key(repo)
+	if err != nil || key == "" {
+		return nil, err
+	}
+	binary, err := build.Wait(s.Build, key, 0)
+	if err != nil {
+		return nil, ErrNotBuilt
+	}
+	return run.Runner{Binary: binary, Engine: s.Build.Engine}.List()
+}
+
 // LoadSet reads the repo's declared checks with the engine's own
 // built-ins, each where its pack is declared.
 func (s Service) LoadSet(repo string) (*declared.Set, error) {
@@ -232,8 +250,20 @@ func (l *lazyServer) Handle(method string, args json.RawMessage) (json.RawMessag
 	return l.server().Handle(method, args)
 }
 
-// ListAll names the declared, built-in and coded checks, sorted by id.
+// ListAll names the declared, built-in and coded checks, sorted by id,
+// building the coded checks' binary here.
 func (s Service) ListAll(repo string, timeout time.Duration) ([]Listed, error) {
+	return s.listWith(repo, func() ([]run.Listed, error) { return s.List(repo, timeout) })
+}
+
+// ListAllBuilt is ListAll with the coded checks from ListBuilt: it never
+// builds, and with no binary it returns the declared and built-in checks
+// and ErrNotBuilt.
+func (s Service) ListAllBuilt(repo string) ([]Listed, error) {
+	return s.listWith(repo, func() ([]run.Listed, error) { return s.ListBuilt(repo) })
+}
+
+func (s Service) listWith(repo string, coded func() ([]run.Listed, error)) ([]Listed, error) {
 	var out []Listed
 	set, err := s.LoadSet(repo)
 	if err != nil {
@@ -242,11 +272,8 @@ func (s Service) ListAll(repo string, timeout time.Duration) ([]Listed, error) {
 	for _, l := range set.List() {
 		out = append(out, Listed{ID: l.ID, Pack: l.Pack, Kind: l.Kind, Tags: l.Tags, OnFail: l.OnFail, Since: l.Since})
 	}
-	coded, err := s.List(repo, timeout)
-	if err != nil {
-		return nil, err
-	}
-	for _, c := range coded {
+	listed, codedErr := coded()
+	for _, c := range listed {
 		pack, id := splitName(c.Check)
 		kind := "coded"
 		if c.Judge {
@@ -264,6 +291,12 @@ func (s Service) ListAll(repo string, timeout time.Duration) ([]Listed, error) {
 		}
 		return out[i].Pack < out[k].Pack
 	})
+	if codedErr != nil {
+		if errors.Is(codedErr, ErrNotBuilt) {
+			return out, codedErr
+		}
+		return nil, codedErr
+	}
 	return out, nil
 }
 

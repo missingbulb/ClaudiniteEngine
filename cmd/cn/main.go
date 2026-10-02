@@ -166,7 +166,7 @@ func dispatch(args []string, stdin io.Reader, stdout, stderr io.Writer, start ti
 		}
 		return nil
 	case "verify":
-		return cmdVerify(args[1:], stdout)
+		return cmdVerify(args[1:], stdout, stderr)
 	case "check":
 		return cmdCheck(args[1:], stdout, stderr)
 	case "update":

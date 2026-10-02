@@ -7,6 +7,7 @@ import (
 	"io"
 	"time"
 
+	"github.com/missingbulb/ClaudiniteEngine/checks"
 	"github.com/missingbulb/ClaudiniteEngine/checks/declared"
 	"github.com/missingbulb/ClaudiniteEngine/checks/world"
 	"github.com/missingbulb/ClaudiniteEngine/launcher"
@@ -35,39 +36,48 @@ func flags(fs *flag.FlagSet, args []string) error {
 	return nil
 }
 
-func verifyFindings(repo string) []findings.Finding {
-	return verify.Verify(verify.Input{Repo: repo, Launcher: launcher.Script, Shipped: launcher.Shipped(), Declared: declaredChecks})
+func verifyFindings(repo string, stderr io.Writer) []findings.Finding {
+	return verify.Verify(verify.Input{Repo: repo, Launcher: launcher.Script, Shipped: launcher.Shipped(), Declared: declaredChecks(stderr)})
 }
 
 // declaredChecks answers verify's questions about the active packs'
 // checks: every declared, built-in and coded check by both names a rule
-// may use, and the descriptors that did not load.
-func declaredChecks(repo string) verify.DeclaredChecks {
-	set, err := checksService().LoadSet(repo)
-	if err != nil {
-		return verify.DeclaredChecks{}
+// may use, and the descriptors that did not load. The coded checks come
+// only from a binary already built, never a build: without one the list
+// is Partial, and stderr says once what went unjudged.
+func declaredChecks(stderr io.Writer) func(string) verify.DeclaredChecks {
+	said := false
+	return func(repo string) verify.DeclaredChecks {
+		set, err := checksService().LoadSet(repo)
+		if err != nil {
+			return verify.DeclaredChecks{}
+		}
+		out := verify.DeclaredChecks{}
+		listed, err := checksService().ListAllBuilt(repo)
+		if err != nil {
+			out.Partial = true
+			if errors.Is(err, checks.ErrNotBuilt) && !said {
+				said = true
+				fmt.Fprintln(stderr, "[cn] verify: the coded checks are not built, so rule keys in the settings were not judged against them; cn check world builds them")
+			}
+		}
+		for _, l := range listed {
+			out.IDs = append(out.IDs, declared.Names(l.Pack, l.ID)...)
+		}
+		for _, le := range set.LoadErrors {
+			out.Faults = append(out.Faults, verify.DescriptorFault{Path: le.Path, Sentence: le.Err.Error(), Duplicate: errors.Is(le.Err, descriptor.ErrDuplicate)})
+		}
+		return out
 	}
-	out := verify.DeclaredChecks{}
-	listed, err := checksService().ListAll(repo, buildWait)
-	if err != nil {
-		out.Partial = true
-	}
-	for _, l := range listed {
-		out.IDs = append(out.IDs, declared.Names(l.Pack, l.ID)...)
-	}
-	for _, le := range set.LoadErrors {
-		out.Faults = append(out.Faults, verify.DescriptorFault{Path: le.Path, Sentence: le.Err.Error(), Duplicate: errors.Is(le.Err, descriptor.ErrDuplicate)})
-	}
-	return out
 }
 
-func cmdVerify(args []string, stdout io.Writer) error {
+func cmdVerify(args []string, stdout, stderr io.Writer) error {
 	fs := flag.NewFlagSet("verify", flag.ContinueOnError)
 	repo := fs.String("repo", ".", "")
 	if err := flags(fs, args); err != nil {
 		return err
 	}
-	fs2 := verifyFindings(*repo)
+	fs2 := verifyFindings(*repo, stderr)
 	findings.Print(stdout, fs2)
 	if findings.AnyBreak(fs2) {
 		return report.New(report.Verify, "verify found a break in "+*repo)
@@ -91,7 +101,10 @@ func cmdCheckWorld(args []string, stdout, stderr io.Writer) error {
 	if *author != "" && *base == "" {
 		*base = g.BaseRef()
 	}
-	all := append(verifyFindings(*repo), allFindings(*repo, "world", declared.Selection{Tags: []string{"world"}}, false, stderr)...)
+	// The checks run first: their foreground build is the binary verify
+	// then lists the coded checks from.
+	ran := allFindings(*repo, "world", declared.Selection{Tags: []string{"world"}}, false, stderr)
+	all := append(verifyFindings(*repo, stderr), ran...)
 	in := world.Input{Repo: *repo, PRAuthor: *author, BaseRef: *base, Git: g, CheckPin: checkPin, Findings: all}
 	var code int
 	if *author == "" || *base == "" {
