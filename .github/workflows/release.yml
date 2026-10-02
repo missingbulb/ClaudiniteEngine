@@ -1,4 +1,4 @@
-# Builds one release candidate, gates it on all five platforms, proves its
+# Builds one release candidate for five platforms, gates it on linux-x64, proves its
 # own updater moves a member off it (hop, release/hop.sh), signs its
 # manifest in a job that runs no candidate code, publishes it to
 # @claudinite/cli-rc with trusted publishing, tags it, and smokes what the
@@ -79,11 +79,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # One leg until there are paying customers (#47); the build
+          # still publishes all five platforms.
           - { leg: linux-x64, runs-on: ubuntu-24.04 }
-          - { leg: linux-arm64, runs-on: ubuntu-24.04-arm }
-          - { leg: darwin-arm64, runs-on: macos-15 }
-          - { leg: darwin-x64, runs-on: macos-15-intel }
-          - { leg: windows-x64, runs-on: windows-2022 }
     runs-on: ${{ matrix.runs-on }}
     env:
       LEG: ${{ matrix.leg }}
@@ -279,11 +277,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # One leg until there are paying customers (#47); the build
+          # still publishes all five platforms.
           - { leg: linux-x64, runs-on: ubuntu-24.04 }
-          - { leg: linux-arm64, runs-on: ubuntu-24.04-arm }
-          - { leg: darwin-arm64, runs-on: macos-15 }
-          - { leg: darwin-x64, runs-on: macos-15-intel }
-          - { leg: windows-x64, runs-on: windows-2022 }
     runs-on: ${{ matrix.runs-on }}
     permissions:
       contents: read
