@@ -64,6 +64,16 @@ func (f *Faults) spent(args []string) error {
 	return &TimeoutError{fmt.Sprintf("git %s not run: %s", strings.Join(args, " "), f.first)}
 }
 
+// First is the first timeout, "" while none has spent the run's git.
+func (f *Faults) First() string {
+	if f == nil {
+		return ""
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.first
+}
+
 // Take returns the faults collected since the last Take.
 func (f *Faults) Take() []string {
 	if f == nil {

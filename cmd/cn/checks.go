@@ -61,8 +61,8 @@ func (hookGuards) Judge(repo string, call hooks.Call, deadline time.Time) hooks.
 
 // allFindings runs the declared and coded checks in the foreground and
 // turns a run that could not happen, or a check that failed, into a
-// break. verbose adds the coded checks' SDK calls, by method, and the
-// tail of their stderr.
+// break. verbose adds the coded checks' SDK calls, by method, the checks
+// a git fault skipped, and the tail of their stderr.
 func allFindings(repo, event string, sel declared.Selection, verbose bool, stderr io.Writer) []findings.Finding {
 	o := checksService().RunAll(repo, event, sel, buildWait, true, stderr)
 	fmt.Fprintln(stderr, o.DeclaredCrumb)
@@ -80,6 +80,9 @@ func allFindings(repo, event string, sel declared.Selection, verbose bool, stder
 		sort.Strings(methods)
 		for _, m := range methods {
 			fmt.Fprintf(stderr, "[cn] sdk %s %d\n", m, o.Calls[m])
+		}
+		for _, id := range o.Skipped {
+			fmt.Fprintf(stderr, "[cn] check skipped after a git fault: %s\n", id)
 		}
 		for _, l := range strings.Split(strings.TrimRight(o.Stderr, "\n"), "\n") {
 			if l != "" {
