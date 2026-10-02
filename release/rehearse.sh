@@ -753,7 +753,7 @@ for mode in $modes; do
       # hook EVENT ID: one hook of session ID; stdout to $work/hook.out,
       # stderr to $work/hook.err.
       hook() {
-        (cd "$member" && printf '{"session_id":"%s","hook_event_name":"x","stop_hook_active":false}' "$2" \
+        (cd "$member" && printf '{"session_id":"%s","hook_event_name":"x","tool_name":"Read","tool_input":{},"stop_hook_active":false}' "$2" \
           | CLAUDE_PROJECT_DIR=$member .claudinite/bin/cn hook "$1" > "$work/hook.out" 2> "$work/hook.err") || fail "license: hook $1 exited non-zero"
       }
       status() { cn_member license status --session "$1" > "$work/status.out" 2>&1 || fail "license: status $1: $(cat "$work/status.out")"; }
