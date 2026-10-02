@@ -32,10 +32,10 @@ func TestSubtractionIsClosed(t *testing.T) {
 func TestDeferredNamesShelfRules(t *testing.T) {
 	dir := t.TempDir()
 	for rel, src := range map[string]string{
-		"packs/a/worldRules/x.mjs":          "const rule = { id: 'x-check', on_fail: 'block' };",
-		"packs/a/workRules/y.mjs":           "const rule = {\n  id: \"y-check\",\n};",
-		"packs/b/skills/s/checks.mjs":       "export default [z];",
-		"packs/b/skills/s/z.mjs":            "const rule = { id: 'z-check' };",
+		"packs/a/worldRules/x.mjs":           "const rule = { id: 'x-check', on_fail: 'block' };",
+		"packs/a/workRules/y.mjs":            "const rule = {\n  id: \"y-check\",\n};",
+		"packs/b/skills/s/checks.mjs":        "export default [z];",
+		"packs/b/skills/s/z.mjs":             "const rule = { id: 'z-check' };",
 		"packs/b/test/worldRules/q.test.mjs": "const rule = { id: 'not-a-check' };",
 	} {
 		p := filepath.Join(dir, filepath.FromSlash(rel))

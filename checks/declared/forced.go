@@ -15,19 +15,19 @@ import (
 // sees (an edit through Bash, a session whose hook did not fire).
 const BuiltinSkillLoaded = "skill-loaded-before-editing"
 
-var builtinSkillLoaded = Builtin{ID: BuiltinSkillLoaded, Pack: "cn", OnFail: "block", Tags: []string{"work", "builtin"}}
+var builtinSkillLoaded = Builtin{ID: BuiltinSkillLoaded, Pack: EnginePack, OnFail: "block", Tags: []string{"work", "builtin"}, Why: skillLoadedWhy, Run: skillLoadedFindings}
 
 const skillLoadedWhy = "the pack scoped those files to a skill because editing them without it produces work the skill would have prevented; a load after the fact is the review the skill was meant to spare"
 
-func (s *Set) skillLoadedFindings(ctx *Ctx, session *transcript.Session) []findings.Finding {
+func skillLoadedFindings(ctx *Ctx, session *transcript.Session) []findings.Finding {
 	if !session.Present() || len(transcript.Entries(session.Path)) == 0 {
 		return nil
 	}
 	mk := func(path, what, fix string) findings.Finding {
-		return findings.Finding{Class: findings.Coded, ID: BuiltinSkillLoaded, Pack: "cn", Path: path, Sentence: what, Why: skillLoadedWhy, Fix: fix}
+		return findings.Finding{Class: findings.Coded, ID: BuiltinSkillLoaded, Pack: EnginePack, Path: path, Sentence: what, Why: skillLoadedWhy, Fix: fix}
 	}
 	var paths, calls []skilltriggers.Trigger
-	for _, t := range s.Triggers {
+	for _, t := range ctx.Triggers {
 		switch t.Kind {
 		case skilltriggers.Path:
 			paths = append(paths, t)

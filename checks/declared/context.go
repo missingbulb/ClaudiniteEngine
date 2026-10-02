@@ -9,6 +9,7 @@ import (
 
 	"github.com/missingbulb/ClaudiniteEngine/checks/declared/refs"
 	"github.com/missingbulb/ClaudiniteEngine/shared/gitcmd"
+	"github.com/missingbulb/ClaudiniteEngine/shared/skilltriggers"
 )
 
 // SharedPrefix is the vendored mount, never part of the tree a check
@@ -29,6 +30,8 @@ type Ctx struct {
 	Now time.Time
 	// Config is the member's checks configuration.
 	Config Config
+	// Triggers are the active packs' skills' force-load declarations.
+	Triggers []skilltriggers.Trigger
 
 	git gitcmd.Repo
 

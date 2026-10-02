@@ -1,0 +1,12 @@
+{
+  "rules": "@../shared/packs/claudinite-lifecycle/RULES.md\n",
+  "mounts": [
+    "adopt-claudinite",
+    "adopt-pack"
+  ],
+  "world": [],
+  "work": [],
+  "only": [
+    "shared-tree-immutable"
+  ]
+}

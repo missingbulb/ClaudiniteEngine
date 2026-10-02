@@ -43,7 +43,7 @@ func verifyFindings(repo string) []findings.Finding {
 // checks: every declared, built-in and coded check by both names a rule
 // may use, and the descriptors that did not load.
 func declaredChecks(repo string) verify.DeclaredChecks {
-	set, err := declared.LoadSet(repo, version.Version())
+	set, err := checksService().LoadSet(repo)
 	if err != nil {
 		return verify.DeclaredChecks{}
 	}

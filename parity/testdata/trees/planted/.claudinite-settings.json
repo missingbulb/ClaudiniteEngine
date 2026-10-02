@@ -7,7 +7,9 @@
     "public-website",
     "executable-requirements",
     "python",
-    "google-identity"
+    "google-identity",
+    "claudinite-lifecycle",
+    "claudinite-growth"
   ],
   "sharedConstants": [
     {

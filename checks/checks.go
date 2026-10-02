@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/missingbulb/ClaudiniteEngine/checks/build"
+	"github.com/missingbulb/ClaudiniteEngine/checks/builtin"
 	"github.com/missingbulb/ClaudiniteEngine/checks/declared"
 	"github.com/missingbulb/ClaudiniteEngine/checks/run"
 	"github.com/missingbulb/ClaudiniteEngine/sdkserver"
@@ -132,6 +133,12 @@ func (s Service) List(repo string, timeout time.Duration) ([]run.Listed, error) 
 	return run.Runner{Binary: s.Build.Binary(key), Engine: s.Build.Engine}.List()
 }
 
+// LoadSet reads the repo's declared checks with the engine's own
+// built-ins, each where its pack is declared.
+func (s Service) LoadSet(repo string) (*declared.Set, error) {
+	return declared.LoadSet(repo, s.Build.Engine, builtin.All()...)
+}
+
 func hasSettings(repo string) bool {
 	for _, f := range settings.Formats {
 		if _, err := os.Stat(filepath.Join(repo, filepath.FromSlash(settings.RelPath(f)))); err == nil {
@@ -169,7 +176,7 @@ func (s Service) RunAll(repo, event string, sel declared.Selection, wait time.Du
 	tags, pack := sel.Tags, sel.Pack
 	start := time.Now()
 	var out Outcome
-	set, err := declared.LoadSet(repo, s.Build.Engine)
+	set, err := s.LoadSet(repo)
 	var cfg declared.Config
 	n := 0
 	if err != nil {
@@ -226,7 +233,7 @@ func (l *lazyServer) Handle(method string, args json.RawMessage) (json.RawMessag
 // ListAll names the declared, built-in and coded checks, sorted by id.
 func (s Service) ListAll(repo string, timeout time.Duration) ([]Listed, error) {
 	var out []Listed
-	set, err := declared.LoadSet(repo, s.Build.Engine)
+	set, err := s.LoadSet(repo)
 	if err != nil {
 		return nil, err
 	}

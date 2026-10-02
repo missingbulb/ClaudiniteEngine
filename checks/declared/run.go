@@ -20,23 +20,61 @@ import (
 // findings are usually a backlog, not a regression.
 const GraceDays = 14
 
-// Builtin names a check the engine carries itself.
+// Builtin is a check the engine carries itself. Pack is the pack that
+// owns it: it runs only where that pack is declared, as the Node pack's
+// coded check rode its pack's activation; "" or EnginePack runs on every
+// member. Its findings take the grace window from Since and the member's
+// checks configuration like a declared check's.
 type Builtin struct {
 	ID     string
 	Pack   string
 	OnFail string
 	Tags   []string
+	// Since is the date the check was added, YYYY-MM-DD, for the grace
+	// window; Why is why a finding matters; Doc names the page that says
+	// more.
+	Since, Why, Doc string
+	// Run reports the check's findings over the run's walk and session
+	// (nil for none). A built-in with no Run is answered elsewhere: an
+	// action built-in, by the guard.
+	Run func(*Ctx, *transcript.Session) []findings.Finding
 }
 
-// Builtins are the engine's own world checks beside the declared ones:
-// declared-check-spec-keys always, and barrier, the basics pack's coded
-// check, mirrored while that pack's code is unported, when basics is
-// declared.
+// EnginePack is the pack token of the engine's own built-ins that belong
+// to no pack: they run on every member.
+const EnginePack = "cn"
+
+// Finding is one finding of the check, classed by its OnFail.
+func (b Builtin) Finding(path string, line int, what, fix string) findings.Finding {
+	return findings.Finding{Class: classOf(b.OnFail), ID: b.ID, Pack: b.Pack, Path: path, Line: line, Sentence: what, Why: b.Why, Fix: fix}
+}
+
+// Advice is one advisory finding of the check, whatever its OnFail.
+func (b Builtin) Advice(path string, line int, what, fix string) findings.Finding {
+	f := b.Finding(path, line, what, fix)
+	f.Class = findings.Advisory
+	return f
+}
+
+// active reports whether the built-in runs for a repo whose loaded packs
+// carry these ids.
+func (b Builtin) active(packs map[string]bool) bool {
+	return b.Pack == "" || b.Pack == EnginePack || packs[b.Pack]
+}
+
+// builtinSpecKeys checks every declaration's keys, on every member.
 var builtinSpecKeys = Builtin{ID: "declared-check-spec-keys", OnFail: "advise", Tags: []string{"world", "builtin"}}
 
 // builtinBarrier stands in for basics' coded barrier check, and goes away
 // when basics' coded checks port to Go and its own check runs instead.
 var builtinBarrier = Builtin{ID: "barrier", Pack: "basics", OnFail: "block", Tags: []string{"world", "builtin", "basics"}}
+
+// The two read their own ids into their findings, so their Run is set
+// once the vars exist.
+func init() {
+	builtinSpecKeys.Run = func(ctx *Ctx, _ *transcript.Session) []findings.Finding { return specKeyFindings(ctx) }
+	builtinBarrier.Run = func(ctx *Ctx, _ *transcript.Session) []findings.Finding { return barrierFindings(ctx) }
+}
 
 // Set is what a repo declares: its declared checks, the built-ins that
 // apply, the configuration, and the faults that kept a declaration from
@@ -62,8 +100,9 @@ type Set struct {
 }
 
 // LoadSet reads the repo's settings and the declared checks of its active
-// packs (canon, local, and temp packs present).
-func LoadSet(repo, engine string) (*Set, error) {
+// packs (canon, local, and temp packs present), and takes the engine's
+// own built-ins and extra, each where its pack is active.
+func LoadSet(repo, engine string, extra ...Builtin) (*Set, error) {
 	s := &Set{Repo: repo, Config: Config{Rules: map[string]string{}, PackConfig: map[string]map[string]any{}}}
 	path, format, err := settings.Find(repo)
 	if err != nil {
@@ -95,7 +134,9 @@ func LoadSet(repo, engine string) (*Set, error) {
 		return nil, err
 	}
 	s.Triggers, _ = skilltriggers.FromPacks(set.Packs)
+	active := map[string]bool{}
 	for _, p := range set.Packs {
+		active[p.ID] = true
 		cs, err := Load(repo, p.Rel, p.ID)
 		if err != nil {
 			var le *LoadError
@@ -107,11 +148,12 @@ func LoadSet(repo, engine string) (*Set, error) {
 			continue
 		}
 		s.Checks = append(s.Checks, cs...)
-		if p.ID == "basics" && p.Kind == packset.Canon {
-			s.Builtins = append(s.Builtins, builtinBarrier)
+	}
+	for _, b := range append([]Builtin{builtinBarrier, builtinSpecKeys, builtinSkillLoaded, builtinRemoteDelete}, extra...) {
+		if b.active(active) {
+			s.Builtins = append(s.Builtins, b)
 		}
 	}
-	s.Builtins = append(s.Builtins, builtinSpecKeys, builtinSkillLoaded, builtinRemoteDelete)
 	sort.SliceStable(s.Checks, func(i, k int) bool { return s.Checks[i].ID < s.Checks[k].ID })
 	return s, nil
 }
@@ -123,6 +165,7 @@ func (s *Set) Context(now time.Time) *Ctx {
 	if s.ctx == nil {
 		s.ctx = NewCtx(s.Repo, s.Config)
 		s.ctx.Now = now
+		s.ctx.Triggers = s.Triggers
 	}
 	return s.ctx
 }
@@ -217,7 +260,7 @@ func (s *Set) Run(sel Selection, now time.Time, stderr io.Writer) ([]findings.Fi
 	}
 	var builtins []Builtin
 	for _, b := range s.Builtins {
-		if !sel.takes(b.Tags, b.Pack) || s.Config.Rule(b.Pack, b.ID) == "off" || contains(b.Tags, "action") {
+		if !sel.takes(b.Tags, b.Pack) || s.Config.Rule(b.Pack, b.ID) == "off" || contains(b.Tags, "action") || b.Run == nil {
 			continue
 		}
 		if b.ID == BuiltinSkillLoaded && sel.SkipForcedLoading {
@@ -259,7 +302,9 @@ func (s *Set) Run(sel Selection, now time.Time, stderr io.Writer) ([]findings.Fi
 	}
 	for _, b := range builtins {
 		ran++
-		out = append(out, s.runBuiltin(b, ctx, sel.Session)...)
+		for _, f := range s.runBuiltin(b, ctx, sel.Session) {
+			out = append(out, Grace(f, b.Since, now))
+		}
 	}
 	return out, ran
 }
@@ -460,7 +505,7 @@ func (s *Set) List() []Listed {
 	}
 	if s.Member {
 		for _, b := range s.Builtins {
-			out = append(out, Listed{ID: b.ID, Pack: b.Pack, Kind: "builtin", Tags: b.Tags, OnFail: b.OnFail})
+			out = append(out, Listed{ID: b.ID, Pack: b.Pack, Kind: "builtin", Tags: b.Tags, OnFail: b.OnFail, Since: b.Since})
 		}
 	}
 	return out
