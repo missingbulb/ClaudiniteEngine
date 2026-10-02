@@ -47,6 +47,9 @@ type Manifest struct {
 	// GitHubActions are the named GitHub actions the pack's task scripts
 	// take through the SDK.
 	GitHubActions []string
+	// Engine is true when the pack's tasks are the engine's own, run under
+	// the license; absent is false.
+	Engine bool
 }
 
 // ManifestName is the manifest's descriptor name.
@@ -78,6 +81,7 @@ var ManifestSchema = descriptor.Schema{Name: "pack manifest", Keys: map[string]d
 	"seededByDefault":     descriptor.Bool,
 	"hidden":              descriptor.Bool,
 	"githubActions":       descriptor.StringList,
+	"engine":              descriptor.Bool,
 }}
 
 // ManifestFiles are the manifest's three spellings.
@@ -167,6 +171,7 @@ func parseManifest(name string, raw []byte) (Manifest, error) {
 	m.MinEngineVersion, _ = obj["minEngineVersion"].(string)
 	m.Requires = stringList(obj["requires"])
 	m.GitHubActions = stringList(obj["githubActions"])
+	m.Engine, _ = obj["engine"].(bool)
 	if p, ok := obj["prose"]; ok {
 		m.ProseSet = true
 		m.Prose, _ = p.(string)

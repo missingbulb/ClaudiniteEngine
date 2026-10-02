@@ -155,6 +155,14 @@
 //     auto-merge. land.TestDeliverMergesAtThePinnedShaWhenNoPRCIExists,
 //     land.TestDeliverLeavesAReviewMembersPRAfterStartingItsChecks,
 //     land.TestDeliverSkipsTheDoomedArmOnAnUngatedBaseAndLandsOnItsOwnEvidence
+//   - The landing lane judges the pull request's own diff against the
+//     task's automerge before it starts, arms or merges anything; a diff
+//     outside it parks the item at action with the policy's reason, and a
+//     green incumbent outside it never lands.
+//     land.TestPinnedLandsOnlyADiffThePolicyAuthorizes,
+//     land.TestDeliverJudgesBeforeArmingOrMerging,
+//     execute.TestADeliveryOutsideThePolicyParksForAction,
+//     execute.TestResolveLandsAGreenIncumbentOnlyInsideThePolicy
 //
 // # Recover
 //

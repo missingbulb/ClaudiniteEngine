@@ -1,0 +1,9 @@
+# Files of a ported pack that ClaudinitePacks changed on purpose after the
+# freeze, each with the design record row that says why: cn reads each at
+# the frozen shelf's content (absent when the shelf has none), so parity
+# compares the two engines over one input. The pack's own test/ cases in
+# ClaudinitePacks prove the new content against cn.
+claudinite-lifecycle/declared-checks.json record-71
+claudinite-lifecycle/skills/adopt-pack/SKILL.md record-71
+claudinite-lifecycle/tasks/update record-71
+claudinite-growth/tasks/growth-extract/task.json record-71

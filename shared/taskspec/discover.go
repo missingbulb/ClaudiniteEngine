@@ -142,6 +142,9 @@ type Task struct {
 	Decl     Decl
 	// Terms are the task's own precondition terms.
 	Terms Terms
+	// Engine is true for the engine's own tasks: a built-in, or a canon
+	// pack whose manifest says "engine": true.
+	Engine bool
 }
 
 // Path is the task as a work item's title names it.
@@ -162,10 +165,12 @@ type DiscoveryError struct {
 func Discover(repo string, packs []packset.Pack) ([]Task, []DiscoveryError) {
 	var tasks []Task
 	var active []packset.Pack
+	engine := map[string]bool{}
 	for _, p := range packs {
 		if p.Kind != packset.Temp {
 			active = append(active, p)
 		}
+		engine[p.ID] = p.Kind == packset.Canon && p.Manifest.Engine
 	}
 	found, errs := DeclarationFiles(active)
 	rel := func(p string) string {
@@ -192,7 +197,7 @@ func Discover(repo string, packs []packset.Pack) ([]Task, []DiscoveryError) {
 		if t, e := admit(f.Pack, f.Name, rel(f.File), d, terms); e != nil {
 			errs = append(errs, *e)
 		} else {
-			t.Dir, t.Rel = f.Dir, rel(f.Dir)
+			t.Dir, t.Rel, t.Engine = f.Dir, rel(f.Dir), engine[f.Pack]
 			tasks = append(tasks, t)
 		}
 	}
@@ -203,6 +208,7 @@ func Discover(repo string, packs []packset.Pack) ([]Task, []DiscoveryError) {
 	if t, e := admit(BuiltinPack, RequestTask, BuiltinPack+"/"+RequestTask, d, EngineTerms); e != nil {
 		errs = append(errs, *e)
 	} else {
+		t.Engine = true
 		tasks = append(tasks, t)
 	}
 	return tasks, errs

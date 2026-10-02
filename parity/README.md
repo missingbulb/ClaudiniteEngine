@@ -18,6 +18,11 @@ A fixture's `expect` is always the Node engine's answer, written by
 
 ## Divergences
 
+A ported pack file ClaudinitePacks changed on purpose after the freeze is
+listed in `diverged.txt` with its record row; cn reads it at the frozen
+shelf's content, so both engines judge one input, and the pack's own
+`test/` cases prove the new content.
+
 Where `cn` decides otherwise on purpose, an update fixture carries
 `"divergence": "record-<row>"`, the design record row that says why, and
 `cn`'s answer as `"cn"`. A verify-answers case carries the same field where

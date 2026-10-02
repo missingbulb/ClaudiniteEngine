@@ -187,10 +187,10 @@ func vendorPacks(dir, tree, nodeRoot, engine string, decl map[string]any) error 
 		}
 		src := filepath.Join(tree, "packs", id)
 		if engine == "cn" && Ported()[id] || !exists(src) {
-			var err error
-			if src, err = PackSource(id, filepath.Join(nodeRoot, "packs"), engine); err != nil {
+			if err := VendorPack(id, filepath.Join(nodeRoot, "packs"), engine, dst); err != nil {
 				return err
 			}
+			continue
 		}
 		if err := copyTree(src, dst); err != nil {
 			return err

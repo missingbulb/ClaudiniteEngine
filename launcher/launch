@@ -17,7 +17,7 @@
 # blocks the stop, and the next stop attempt hits it again, in a loop.
 #
 # Bootstrap: the @claudinite/cli packages carry this file as their bin, so
-# `npx --yes @claudinite/cli-rc init --packs ...` runs it from the package
+# `npx --yes @claudinite/cli init --packs ...` runs it from the package
 # npx unpacked, through a symlink. Run with init and no settings file beside
 # it, it takes the version and the binary's hash from the package's own
 # manifest.json, fetches and checks the binary as above, caches it with the

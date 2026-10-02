@@ -4,9 +4,11 @@ import "testing"
 
 func TestWhichItemsNeedTheRunsKey(t *testing.T) {
 	growth := agentless("fold")
-	growth.Pack = "claudinite-growth"
+	growth.Pack, growth.Engine = "acme-pack", true
+	named := agentless("fold")
+	named.Pack = "claudinite-growth" // @real-entity a pack's name alone does not make its tasks the engine's
 	builtin := loopTask("implement-request", nil)
-	builtin.Pack = "engine"
+	builtin.Pack, builtin.Engine = "engine", true
 	for _, c := range []struct {
 		name            string
 		task            func() KeyNeed
@@ -15,6 +17,7 @@ func TestWhichItemsNeedTheRunsKey(t *testing.T) {
 		{"a member's agentless task", func() KeyNeed { return KeyNeedOf(agentless("a")) }, false, false},
 		{"a member's agentic task", func() KeyNeed { return KeyNeedOf(loopTask("a", nil)) }, true, false},
 		{"an engine pack's agentless task", func() KeyNeed { return KeyNeedOf(growth) }, false, true},
+		{"a task whose pack only bears an engine pack's name", func() KeyNeed { return KeyNeedOf(named) }, false, false},
 		{"the built-in implementer", func() KeyNeed { return KeyNeedOf(builtin) }, true, true},
 	} {
 		n := c.task()

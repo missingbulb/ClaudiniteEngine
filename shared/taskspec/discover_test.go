@@ -28,6 +28,35 @@ const agentless = `{"id": "%s", "trigger": "schedule", "preconditions": ["due:da
 
 func decl(id string) string { return strings.Replace(agentless, "%s", id, 1) }
 
+// A task is the engine's own when its canon pack's manifest says so, or it
+// is a built-in; a local pack cannot claim it.
+func TestDiscoverMarksEngineTasks(t *testing.T) {
+	repo := t.TempDir()
+	put(t, repo, map[string]string{
+		".claudinite/shared/packs/acme-pack/tasks/nightly/task.json": decl("nightly"),
+		".claudinite/shared/packs/acme-other/tasks/weekly/task.json": decl("weekly"),
+		".claudinite/local/packs/acme-local/tasks/claimed/task.json": decl("claimed"),
+	})
+	packs := []packset.Pack{
+		{ID: "acme-pack", Kind: packset.Canon, Dir: filepath.Join(repo, ".claudinite/shared/packs/acme-pack"), Rel: ".claudinite/shared/packs/acme-pack", Manifest: packset.Manifest{Engine: true}},
+		{ID: "acme-other", Kind: packset.Canon, Dir: filepath.Join(repo, ".claudinite/shared/packs/acme-other"), Rel: ".claudinite/shared/packs/acme-other"},
+		{ID: "local/acme-local", Kind: packset.Local, Dir: filepath.Join(repo, ".claudinite/local/packs/acme-local"), Rel: ".claudinite/local/packs/acme-local", Manifest: packset.Manifest{Engine: true}},
+	}
+	tasks, errs := Discover(repo, packs)
+	if len(errs) > 0 {
+		t.Fatal(errs)
+	}
+	got := map[string]bool{}
+	for _, task := range tasks {
+		got[task.Path()] = task.Engine
+	}
+	for path, want := range map[string]bool{"acme-pack/nightly": true, "acme-other/weekly": false, "local/acme-local/claimed": false, "engine/implement-request": true} {
+		if e, ok := got[path]; !ok || e != want {
+			t.Errorf("%s: engine %v (found %v), want %v", path, e, ok, want)
+		}
+	}
+}
+
 func TestDiscover(t *testing.T) {
 	repo := t.TempDir()
 	put(t, repo, map[string]string{

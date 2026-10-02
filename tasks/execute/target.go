@@ -161,6 +161,9 @@ type TargetIn struct {
 	Seed     string
 	Sleep    func(time.Duration)
 	Log      func(string)
+	// Judgement is the task's policy a green incumbent's diff must pass
+	// before it lands; nil judges nothing.
+	Judgement *land.Judgement
 }
 
 // ResolveTarget reads exactly what the plan needs: nothing for the two
@@ -228,7 +231,7 @@ func ResolveTarget(in TargetIn) Target {
 	}
 	if disposition == land.DispMerge {
 		pr := land.PR{Number: newest.Number, NodeID: newest.NodeID, HeadRef: newest.HeadRef, HeadSHA: newest.HeadSHA}
-		mergeErr, tidy := land.Pinned(in.Lane, pr, "", in.TaskID)
+		mergeErr, tidy := land.Pinned(in.Lane, pr, "", in.TaskID, in.Judgement)
 		if mergeErr != nil {
 			in.Log(fmt.Sprintf("could not land #%d (%v) — superseding it instead", newest.Number, mergeErr))
 			disposition = land.DispClose

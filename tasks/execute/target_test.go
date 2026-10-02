@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/missingbulb/ClaudiniteEngine/shared/mergepolicy"
 	"github.com/missingbulb/ClaudiniteEngine/shared/workitem"
 	"github.com/missingbulb/ClaudiniteEngine/tasks/land"
 	"github.com/missingbulb/ClaudiniteEngine/tasks/sim"
@@ -209,6 +210,27 @@ func TestResolveSupersedesByTheRunsOnTheNewestHead(t *testing.T) {
 	got, _ = resolveOn(sim.NewGitHub(sim.NewClock(targetNow)), refused, "supersede_existing_pr", land.AutoMerge)
 	if got.Mode != ModeFresh || !reflect.DeepEqual(got.Supersedes, []int{5, 3}) || got.Landed != 0 {
 		t.Errorf("refused %+v", got)
+	}
+}
+
+// A green incumbent lands only when the task's policy authorizes its diff.
+func TestResolveLandsAGreenIncumbentOnlyInsideThePolicy(t *testing.T) {
+	repo := sim.NewRepo()
+	repo.Pulls = []world.Pull{pull(5, "claudinite/acme-pack-b/acme-task-c/2026-09-03-bbb", "shaB")}
+	repo.Runs["shaB"] = []land.Run{{Name: "ci", Status: "completed", Conclusion: "success"}}
+	code := "package main\n"
+	j := &land.Judgement{Automerge: []any{"doc-changes"}, Diff: func(land.PR) ([]mergepolicy.Entry, error) {
+		return []mergepolicy.Entry{{File: "src/main.go", After: &code}}, nil
+	}}
+	var said []string
+	got := ResolveTarget(TargetIn{Issues: sim.NewGitHub(sim.NewClock(targetNow)), Repo: repo, Pulls: repo, Lane: repo, TaskID: targetTask,
+		Outcome: "supersede_existing_pr", Delivery: land.AutoMerge, Now: targetNow, Seed: "seed01", Sleep: func(time.Duration) {},
+		Log: func(s string) { said = append(said, s) }, Judgement: j})
+	if got.Landed != 0 || got.Mode != ModeFresh || len(repo.Log) != 0 {
+		t.Errorf("an incumbent outside the policy landed: %+v %v", got, repo.Log)
+	}
+	if !strings.Contains(strings.Join(said, "\n"), "outside this task's automerge") {
+		t.Errorf("%v", said)
 	}
 }
 

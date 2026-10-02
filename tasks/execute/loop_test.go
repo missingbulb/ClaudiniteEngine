@@ -347,6 +347,21 @@ func TestADeliveredPRTheLaneMergedClosesDone(t *testing.T) {
 	}
 }
 
+// A delivery whose diff the task's policy does not authorize stands for a
+// person: the item parks for action with the policy's reason.
+func TestADeliveryOutsideThePolicyParksForAction(t *testing.T) {
+	h := newLoop(t)
+	h.item(1, "a")
+	h.drive([]taskspec.Task{loopTask("a", map[string]any{"agent_model": "none", "code_work": "w", "code_work_timeout": 60, "automerge": []any{"doc-changes"}})}, func(in *In) {
+		in.CodeWork = func(taskspec.Task, Work) CodeWorkResult { return CodeWorkResult{OK: true, DeliveredPR: 7} }
+		in.Land = func(taskspec.Task, int) Landed { return Landed{Refused: "src/main.go is covered by no rule"} }
+	})
+	h.wants(1, "open", workitem.StatusNeedsHumanAction)
+	if last := h.last(1); !strings.Contains(last, "src/main.go is covered by no rule") || !strings.Contains(last, "#7") {
+		t.Error(last)
+	}
+}
+
 // A merge the declared ceiling never allowed parks for a decision.
 func TestAMergeBeyondTheCeilingParksForADecision(t *testing.T) {
 	h := newLoop(t)
