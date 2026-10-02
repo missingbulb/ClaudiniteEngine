@@ -8,6 +8,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/checks/declared/refs"
 	"github.com/missingbulb/ClaudiniteEngine/shared/descriptor"
 	"github.com/missingbulb/ClaudiniteEngine/shared/findings"
+	"github.com/missingbulb/ClaudiniteEngine/shared/transcript"
 )
 
 var declarationFile = mustRegex(`(^|/)declared-checks\.(json|ya?ml|toml)$`, "")
@@ -17,7 +18,7 @@ var declarationFile = mustRegex(`(^|/)declared-checks\.(json|ya?ml|toml)$`, "")
 // building that engine, so an unplaced key there is a fault, not skew.
 const LocalPacksPrefix = ".claudinite/local/packs/"
 
-func (s *Set) runBuiltin(b Builtin, ctx *Ctx) []findings.Finding {
+func (s *Set) runBuiltin(b Builtin, ctx *Ctx, session *transcript.Session) []findings.Finding {
 	var out []findings.Finding
 	defer func() {
 		if r := recover(); r != nil {
@@ -30,6 +31,8 @@ func (s *Set) runBuiltin(b Builtin, ctx *Ctx) []findings.Finding {
 		out = specKeyFindings(ctx)
 	case builtinBarrier.ID:
 		out = barrierFindings(ctx)
+	case builtinSkillLoaded.ID:
+		out = s.skillLoadedFindings(ctx, session)
 	}
 	return out
 }

@@ -12,12 +12,17 @@
 // answered with the same proto, then any number of requests, one at a
 // time:
 //
-//	{"op":"list"}                                   -> {"checks":[{"check":"<pack>/<id>","tags":[...]}]}
+//	{"op":"list"}                                   -> {"checks":[{"check":"<pack>/<id>","tags":[...],"judge":true}]}
 //	{"op":"run","tags":[...],"pack":"","repo":DIR}  -> {"findings":[{"check","class","path","sentence"}],"errors":[...]}
+//	{"op":"judge","event":E,"call":{...},"repo":DIR} -> the same answer as run
 //
-// A run selects every check whose tags include each requested tag, from
-// one pack when pack is set. A check that panics is reported in errors and
-// the others still run. Lines are capped at 16 MiB.
+// A run selects every check with a Run whose tags include each requested
+// tag, from one pack when pack is set. A judge op selects every check with
+// a Judge tagged with its event (pre-tool-use, post-tool-use or
+// user-prompt-submit) and hands it the call: the tool's name, its input
+// and, after it ran, its response, as Claude Code sent them, or the
+// prompt. A check that panics is reported in errors and the others still
+// run. Lines are capped at 16 MiB.
 //
 // Its import path is claudinite.com/checksdk, which the engine resolves to
 // the copy it unpacks into its cache, never the network.
@@ -77,14 +82,43 @@ func (r Repo) Exists(rel string) bool {
 // ReadFile reads rel under the repo root.
 func (r Repo) ReadFile(rel string) ([]byte, error) { return os.ReadFile(r.Path(rel)) }
 
-// Check is one coded check.
+// Call is one call a hook judges: a tool call about to run
+// (pre-tool-use) or just run (post-tool-use, with its Response), or the
+// person's prompt (user-prompt-submit).
+type Call struct {
+	Tool     string          `json:"tool,omitempty"`
+	Input    json.RawMessage `json:"input,omitempty"`
+	Response json.RawMessage `json:"response,omitempty"`
+	Prompt   string          `json:"prompt,omitempty"`
+}
+
+// HookEvents are the tags a judge is selected by.
+var HookEvents = []string{"pre-tool-use", "post-tool-use", "user-prompt-submit"}
+
+// Check is one coded check: a Run over the repo, a Judge of a hook's
+// call, or both.
 type Check struct {
 	// ID is unique within its pack: lowercase letters, digits and dashes.
 	ID string
 	// Tags select the check: its scope (work, world or a hook event) and
-	// any the pack adds.
+	// any the pack adds. A check with a Judge carries the hook events it
+	// judges, and a check carrying one has a Judge.
 	Tags []string
 	Run  func(Repo) []Finding
+	// Judge judges one call. A finding of class finding blocks a call
+	// about to run; elsewhere every finding is passed on as context.
+	Judge func(Repo, Call) []Finding
+}
+
+func (c Check) hookEvent() bool {
+	for _, t := range c.Tags {
+		for _, e := range HookEvents {
+			if t == e {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 type registered struct {
@@ -132,10 +166,14 @@ func (r *registry) add(pack string, c Check) {
 	switch {
 	case !idPattern.MatchString(c.ID):
 		panic(fmt.Sprintf("checksdk: check id %q is not lowercase letters, digits and dashes", c.ID))
-	case c.Run == nil:
-		panic(fmt.Sprintf("checksdk: check %s has no Run", c.ID))
+	case c.Run == nil && c.Judge == nil:
+		panic(fmt.Sprintf("checksdk: check %s has no Run and no Judge", c.ID))
 	case len(c.Tags) == 0:
 		panic(fmt.Sprintf("checksdk: check %s has no tags", c.ID))
+	case c.Judge != nil && !c.hookEvent():
+		panic(fmt.Sprintf("checksdk: check %s has a Judge but no hook-event tag (%s)", c.ID, strings.Join(HookEvents, ", ")))
+	case c.Judge == nil && c.hookEvent():
+		panic(fmt.Sprintf("checksdk: check %s carries a hook-event tag but has no Judge", c.ID))
 	}
 	for _, e := range r.checks {
 		if e.pack == pack && e.ID == c.ID {
@@ -151,11 +189,14 @@ type request struct {
 	Tags  []string `json:"tags"`
 	Pack  string   `json:"pack"`
 	Repo  string   `json:"repo"`
+	Event string   `json:"event"`
+	Call  Call     `json:"call"`
 }
 
 type listed struct {
 	Check string   `json:"check"`
 	Tags  []string `json:"tags"`
+	Judge bool     `json:"judge,omitempty"`
 }
 
 type reported struct {
@@ -201,11 +242,13 @@ func (r *registry) serve(in io.Reader, out io.Writer) int {
 		case "list":
 			resp := response{Checks: []listed{}}
 			for _, c := range r.checks {
-				resp.Checks = append(resp.Checks, listed{c.pack + "/" + c.ID, c.Tags})
+				resp.Checks = append(resp.Checks, listed{c.pack + "/" + c.ID, c.Tags, c.Judge != nil})
 			}
 			_ = enc.Encode(resp)
 		case "run":
 			_ = enc.Encode(r.run(req))
+		case "judge":
+			_ = enc.Encode(r.judge(req))
 		default:
 			_ = enc.Encode(response{Error: fmt.Sprintf("unknown op %q", req.Op)})
 		}
@@ -234,23 +277,38 @@ func (r *registry) run(req request) response {
 	resp := response{Findings: []reported{}}
 	repo := Repo{Root: req.Repo}
 	for _, c := range r.checks {
-		if (req.Pack != "" && c.pack != req.Pack) || !hasAll(c.Tags, req.Tags) {
+		if c.Run == nil || (req.Pack != "" && c.pack != req.Pack) || !hasAll(c.Tags, req.Tags) {
 			continue
 		}
-		name := c.pack + "/" + c.ID
-		func() {
-			defer func() {
-				if p := recover(); p != nil {
-					resp.Errors = append(resp.Errors, fmt.Sprintf("%s: panic: %v", name, p))
-				}
-			}()
-			for _, f := range c.Run(repo) {
-				if f.Class != ClassFinding && f.Class != ClassAdvisory {
-					f.Class = ClassFinding
-				}
-				resp.Findings = append(resp.Findings, reported{name, f})
-			}
-		}()
+		resp.collect(c, func() []Finding { return c.Run(repo) })
 	}
 	return resp
+}
+
+func (r *registry) judge(req request) response {
+	resp := response{Findings: []reported{}}
+	repo := Repo{Root: req.Repo}
+	for _, c := range r.checks {
+		if c.Judge == nil || !hasAll(c.Tags, []string{req.Event}) {
+			continue
+		}
+		resp.collect(c, func() []Finding { return c.Judge(repo, req.Call) })
+	}
+	return resp
+}
+
+// collect adds what f reports for c, or its panic as an error.
+func (resp *response) collect(c registered, f func() []Finding) {
+	name := c.pack + "/" + c.ID
+	defer func() {
+		if p := recover(); p != nil {
+			resp.Errors = append(resp.Errors, fmt.Sprintf("%s: panic: %v", name, p))
+		}
+	}()
+	for _, fd := range f() {
+		if fd.Class != ClassFinding && fd.Class != ClassAdvisory {
+			fd.Class = ClassFinding
+		}
+		resp.Findings = append(resp.Findings, reported{name, fd})
+	}
 }

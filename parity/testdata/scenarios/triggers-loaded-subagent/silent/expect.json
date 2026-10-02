@@ -1,0 +1,24 @@
+{
+  "rules": "",
+  "mounts": [
+    "call-guide",
+    "prompt-guide",
+    "result-guide",
+    "scoped-guide"
+  ],
+  "world": [],
+  "work": [],
+  "pretooluse": [
+    {
+      "payload": {
+        "tool_name": "Edit",
+        "tool_input": {
+          "file_path": "docs/a.md",
+          "old_string": "a",
+          "new_string": "b"
+        }
+      },
+      "exit": 0
+    }
+  ]
+}

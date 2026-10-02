@@ -1,0 +1,56 @@
+{
+  "why": "coded hook judges are a cn surface the Node engine does not have",
+  "cnOnly": true,
+  "rules": "",
+  "mounts": [],
+  "world": [],
+  "work": [],
+  "pretooluse": [
+    {
+      "payload": {
+        "tool_name": "Bash",
+        "tool_input": {
+          "command": "rm -rf build"
+        }
+      },
+      "exit": 2,
+      "block": "Blocked by no-rm-rf: rm -rf is not run here"
+    },
+    {
+      "payload": {
+        "tool_name": "Bash",
+        "tool_input": {
+          "command": "ls"
+        }
+      },
+      "exit": 0
+    }
+  ],
+  "posttooluse": [
+    {
+      "payload": {
+        "tool_name": "Bash",
+        "tool_input": {
+          "command": "make"
+        },
+        "tool_response": {
+          "stdout": "FAILED"
+        }
+      },
+      "exit": 0,
+      "context": "[claudinite failed-command] the command failed; read its output before going on"
+    },
+    {
+      "payload": {
+        "tool_name": "Bash",
+        "tool_input": {
+          "command": "rm -rf build"
+        },
+        "tool_response": {
+          "stdout": "ok"
+        }
+      },
+      "exit": 0
+    }
+  ]
+}

@@ -22,6 +22,9 @@ const (
 	IO       Code = "io"
 	Verify   Code = "verify"
 	Internal Code = "internal"
+	// Block is a PreToolUse hook denying the call: its reason is already on
+	// stderr, and exit 2 is what Claude Code reads as the denial.
+	Block Code = "block"
 )
 
 // Error is an engine error with its class.
@@ -57,12 +60,16 @@ func CodeOf(err error) Code {
 
 // Exit prints err as one line, "cn: <code>: <message>", and returns the
 // process exit code: 0 for nil, 2 for usage, else 1 for a command and 0 for
-// a hook, which must never fail the session it serves.
+// a hook, which must never fail the session it serves. A hook's block
+// prints nothing and exits 2.
 func Exit(stderr io.Writer, err error, hook bool) int {
 	if err == nil {
 		return 0
 	}
 	code := CodeOf(err)
+	if code == Block {
+		return 2
+	}
 	msg := strings.Join(strings.Fields(err.Error()), " ")
 	fmt.Fprintf(stderr, "cn: %s: %s\n", code, msg)
 	switch {

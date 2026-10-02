@@ -1,0 +1,8 @@
+{
+  "packs": [
+    "local/guards"
+  ],
+  "rules": {
+    "a-override": "advise"
+  }
+}

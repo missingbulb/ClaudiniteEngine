@@ -174,7 +174,7 @@ func (h hookLicense) Hook(repo, sessionID string) hooks.LicenseStatus {
 
 func toHook(s license.Status) hooks.LicenseStatus {
 	return hooks.LicenseStatus{Line: s.Line, Notice: s.Notice, WorkChecks: s.Gates.On(license.SurfaceWorkChecks),
-		State: stateName(s.Verdict), Crumbs: s.Crumbs}
+		ForcedLoading: s.Gates.On(license.SurfaceForcedSkillLoading), State: stateName(s.Verdict), Crumbs: s.Crumbs}
 }
 
 func stateName(v license.Verdict) string {

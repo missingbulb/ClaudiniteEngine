@@ -9,6 +9,7 @@ package parity
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -17,6 +18,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // Finding is one finding as both engines' reports name it.
@@ -57,9 +59,70 @@ type Engine interface {
 	// Mounts are the skills the engine mounted, with each SKILL.md.
 	Mounts(dir string) (map[string]string, error)
 	// World and Work are the findings of a whole-repo sweep and of the
-	// change.
+	// change; Work reads the session transcript at transcript, "" for none.
 	World(dir string) ([]Finding, error)
-	Work(dir string) ([]Finding, error)
+	Work(dir, transcript string) ([]Finding, error)
+	// Hook answers one per-call hook event (pre-tool-use, post-tool-use,
+	// user-prompt-submit) for payload.
+	Hook(dir, event, payload string) (Verdict, error)
+}
+
+// Verdict is a per-call hook's answer: the exit code, stderr, and the
+// additionalContext of its stdout.
+type Verdict struct {
+	Exit    int
+	Stderr  string
+	Context string
+}
+
+// logLine is a line of either engine's own record on stderr: the Node
+// engine's hook log (<iso> run=<id> <hook>: …) or a cn breadcrumb.
+var logLine = regexp.MustCompile(`^(\d{4}-\d\d-\d\dT\S+Z run=\S+ \S+: |\[cn\] )`)
+
+// Block is the first line of a blocking answer's stderr that is not a log
+// line, the denial the transcript records; "" when the hook did not block.
+func (v Verdict) Block() string {
+	if v.Exit != 2 {
+		return ""
+	}
+	for _, l := range strings.Split(v.Stderr, "\n") {
+		if !logLine.MatchString(l) {
+			return l
+		}
+	}
+	return ""
+}
+
+// hookOutput is the additionalContext of a hook's stdout, with each
+// engine's own breadcrumb lines removed; stdout that is empty or {} says
+// nothing.
+func hookOutput(stdout string) (string, error) {
+	stdout = strings.TrimSpace(stdout)
+	if stdout == "" || stdout == "{}" {
+		return "", nil
+	}
+	var out struct {
+		HookSpecificOutput struct {
+			AdditionalContext string `json:"additionalContext"`
+		} `json:"hookSpecificOutput"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &out); err != nil {
+		return "", fmt.Errorf("hook stdout is not JSON: %q", stdout)
+	}
+	var keep []string
+	for _, l := range strings.Split(out.HookSpecificOutput.AdditionalContext, "\n") {
+		if !strings.HasPrefix(l, "[cn] ") {
+			keep = append(keep, l)
+		}
+	}
+	return strings.TrimRight(strings.Join(keep, "\n"), "\n"), nil
+}
+
+// nodeHookCommands are the Node engine's per-call hook entries.
+var nodeHookCommands = map[string]string{
+	"pre-tool-use":       "engine/hooks/pretooluse-command.mjs",
+	"post-tool-use":      "engine/hooks/post-tool-use-command.mjs",
+	"user-prompt-submit": "engine/hooks/user-prompt-submit-command.mjs",
 }
 
 func run(dir string, env []string, stdin string, name string, args ...string) (string, string, int, error) {
@@ -161,12 +224,29 @@ func (n Node) World(dir string) ([]Finding, error) {
 	return parseNode(out), nil
 }
 
-func (n Node) Work(dir string) ([]Finding, error) {
-	out, stderr, code, err := run(dir, n.env(dir), "", "node", filepath.Join(n.Root, "engine/checks/check_the_work.mjs"), "--root", dir)
+func (n Node) Work(dir, transcript string) ([]Finding, error) {
+	args := []string{filepath.Join(n.Root, "engine/checks/check_the_work.mjs"), "--root", dir}
+	if transcript != "" {
+		args = append(args, "--transcript", transcript)
+	}
+	out, stderr, code, err := run(dir, n.env(dir), "", "node", args...)
 	if err != nil || code > 1 {
 		return nil, fmt.Errorf("check_the_work: exit %d %v: %s", code, err, stderr)
 	}
 	return parseNode(out), nil
+}
+
+func (n Node) Hook(dir, event, payload string) (Verdict, error) {
+	cmd, ok := nodeHookCommands[event]
+	if !ok {
+		return Verdict{}, fmt.Errorf("no Node hook for %s", event)
+	}
+	out, stderr, code, err := run(dir, n.env(dir), payload, "node", filepath.Join(n.Root, cmd))
+	if err != nil {
+		return Verdict{}, err
+	}
+	ctx, err := hookOutput(out)
+	return Verdict{Exit: code, Stderr: stderr, Context: ctx}, err
 }
 
 // Cn is a built cn binary.
@@ -239,6 +319,40 @@ func (c Cn) Mounts(dir string) (map[string]string, error) {
 	return out, nil
 }
 
+// SessionID is the session every scenario's payloads name.
+const SessionID = "parity"
+
+// pending writes the session's license state as a request in flight, the
+// state in which every surface runs: the harness has no key, and forced
+// skill loading is gated on one (the hooks read the file fresh, so it is
+// written before each call).
+func (c Cn) pending() error {
+	dir := filepath.Join(c.Cache, "claudinite", "sessions")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return err
+	}
+	if err := os.Chmod(filepath.Join(c.Cache, "claudinite"), 0o700); err != nil {
+		return err
+	}
+	state := fmt.Sprintf(`{"v":1,"session_id":%q,"repo":"","mode":"web","nonce":"parity","requested_at":%q,"state":"pending"}`,
+		SessionID, time.Now().UTC().Format(time.RFC3339Nano))
+	path := filepath.Join(dir, SessionID+".json")
+	_ = os.Remove(path)
+	return os.WriteFile(path, []byte(state), 0o600)
+}
+
+func (c Cn) Hook(dir, event, payload string) (Verdict, error) {
+	if err := c.pending(); err != nil {
+		return Verdict{}, err
+	}
+	out, stderr, code, err := run(dir, c.env(dir), payload, c.Binary, "hook", event)
+	if err != nil {
+		return Verdict{}, err
+	}
+	ctx, err := hookOutput(out)
+	return Verdict{Exit: code, Stderr: stderr, Context: ctx}, err
+}
+
 var cnLine = regexp.MustCompile(`^(finding|advisory|break|deprecation) (\S+) (.*?): `)
 
 func parseCn(out string) []Finding {
@@ -273,8 +387,12 @@ func (c Cn) World(dir string) ([]Finding, error) {
 // Work runs the work-tagged checks through cn check --tag work: the Stop
 // hook runs the same selection, behind the license gate a harness has no
 // key for.
-func (c Cn) Work(dir string) ([]Finding, error) {
-	out, stderr, code, err := run(dir, c.env(dir), "", c.Binary, "check", "--tag", "work", "--repo", dir)
+func (c Cn) Work(dir, transcript string) ([]Finding, error) {
+	args := []string{"check", "--tag", "work", "--repo", dir}
+	if transcript != "" {
+		args = append(args, "--transcript", transcript)
+	}
+	out, stderr, code, err := run(dir, c.env(dir), "", c.Binary, args...)
 	if err != nil || code > 1 {
 		return nil, fmt.Errorf("cn check --tag work: exit %d %v: %s", code, err, stderr)
 	}

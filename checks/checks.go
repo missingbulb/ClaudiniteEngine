@@ -152,10 +152,11 @@ type Outcome struct {
 // Blocking reports whether any finding blocks.
 func (o Outcome) Blocking() bool { return findings.AnyBreak(o.Findings) }
 
-// RunAll runs the declared checks whose tags include every one of tags
-// (from pack when set) in this process, then the coded ones as Run does,
-// and applies the member's checks configuration over both.
-func (s Service) RunAll(repo, event string, tags []string, pack string, wait time.Duration, foreground bool, stderr io.Writer) Outcome {
+// RunAll runs the declared checks sel takes in this process, then the
+// coded ones with the same tags and pack as Run does, and applies the
+// member's checks configuration over both.
+func (s Service) RunAll(repo, event string, sel declared.Selection, wait time.Duration, foreground bool, stderr io.Writer) Outcome {
+	tags, pack := sel.Tags, sel.Pack
 	start := time.Now()
 	var out Outcome
 	set, err := declared.LoadSet(repo, s.Build.Engine)
@@ -165,7 +166,7 @@ func (s Service) RunAll(repo, event string, tags []string, pack string, wait tim
 		out.Findings = append(out.Findings, findings.Finding{Class: findings.Break, ID: "checks-run", Path: ".claudinite", Sentence: "the declared checks could not load: " + err.Error()})
 	} else {
 		var fs []findings.Finding
-		fs, n = set.Run(declared.Selection{Tags: tags, Pack: pack}, time.Now(), stderr)
+		fs, n = set.Run(sel, time.Now(), stderr)
 		out.Findings = append(out.Findings, fs...)
 		cfg = set.Config
 	}
@@ -196,7 +197,11 @@ func (s Service) ListAll(repo string, timeout time.Duration) ([]Listed, error) {
 		if !ok {
 			pack, id = "", c.Check
 		}
-		out = append(out, Listed{ID: id, Pack: pack, Kind: "coded", Tags: c.Tags, OnFail: "block"})
+		kind := "coded"
+		if c.Judge {
+			kind = "judge"
+		}
+		out = append(out, Listed{ID: id, Pack: pack, Kind: kind, Tags: c.Tags, OnFail: "block"})
 	}
 	sort.SliceStable(out, func(i, k int) bool {
 		if out[i].ID != out[k].ID {

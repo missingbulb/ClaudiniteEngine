@@ -325,6 +325,10 @@ for mode in $modes; do
       [ "$(git --git-dir "$origin" rev-list --count "main..$branch")" = 1 ] || fail "update 1: $branch is not one commit on main"
       [ "$(git --git-dir "$origin" diff --name-only main "$branch")" = .claudinite/settings.yaml ] || fail "update 1: the branch changes more than the pin"
       [ "$(gh_count 'st.dispatches.filter(d=>d.ref==="'"$branch"'"&&d.inputs.pr==="1").length')" = 1 ] || fail "update 1: dispatches $(gh_state)"
+      # The candidate's verify ran in this checkout: the token reached the
+      # push child alone, never the checkout's config.
+      [ -z "$(git -C "$member" config --get http.https://github.com/.extraheader)" ] || fail "update 1: the checkout holds an extraheader"
+      if grep -qi 'authorization' "$member/.git/config"; then fail "update 1: .git/config holds a credential"; fi
       step "update 1: $verdict"
 
       head=$(git --git-dir "$origin" rev-parse "$branch")
@@ -552,7 +556,7 @@ for mode in $modes; do
       fixture --publish v2
       main_run success
       update_packs
-      expect_verdict "opened #1 for packs hello 1.1"
+      expect_verdict "opened #1 for packs hello 1.2"
       if git --git-dir "$origin" diff --name-only main "$branch" | grep -v '^CLAUDE\.md$' | grep -qv '^\.claudinite/shared/packs/hello/'; then fail "packs 5: the branch changes more than the hello pack and CLAUDE.md"; fi
       [ "$(git --git-dir "$origin" show "$branch:CLAUDE.md")" = "$(printf '# Member\n@.claudinite/flat/claudinite-rules.GENERATED.md')" ] || fail "packs 5: the branch's CLAUDE.md: $(git --git-dir "$origin" show "$branch:CLAUDE.md")"
       [ "$(gh_count 'st.dispatches.filter(d=>d.ref==="'"$branch"'"&&d.inputs.pr==="1").length')" = 1 ] || fail "packs 5: dispatches $(gh_state)"
@@ -561,24 +565,23 @@ for mode in $modes; do
       cn_member check world --pr-author 'github-actions[bot]' --base-ref origin/main > "$work/world.out" 2>&1 || fail "packs 5: check world on the branch: $(cat "$work/world.out")"
       (cd "$member" && git checkout -q main) || fail "packs 5: back to main"
       land 1
-      expect_verdict "landed packs hello 1.1"
+      expect_verdict "landed packs hello 1.2"
       pull
-      grep -q '"version": "1.1"' "$member/.claudinite/shared/packs/hello/pack.json" || fail "packs 5: main does not hold hello 1.1"
+      grep -q '"version": "1.2"' "$member/.claudinite/shared/packs/hello/pack.json" || fail "packs 5: main does not hold hello 1.2"
       out=$(session_start) || fail "packs 5: SessionStart"
-      case $out in *"[cn] packs 1/1 loaded (hello 1.1: rules 2 skills 1)"*) ;; *) fail "packs 5: SessionStart on 1.1: $out" ;; esac
+      case $out in *"[cn] packs 1/1 loaded (hello 1.2: rules 3 skills 2)"*) ;; *) fail "packs 5: SessionStart on 1.2: $out" ;; esac
       case $out in *"rules not loaded"*) fail "packs 5: the import is still missing after the pack PR: $out" ;; esac
-      grep -q '^# hello 1.1$' "$member/.claudinite/shared/packs/hello/RULES.md" || fail "packs 5: hello's rules are not 1.1's"
+      grep -q '^# hello 1.2$' "$member/.claudinite/shared/packs/hello/RULES.md" || fail "packs 5: hello's rules are not 1.2's"
       cn_member check build --wait > "$work/build.out" 2>&1 || fail "packs 5: check build: $(cat "$work/build.out")"
-      # The key covers the engine, the SDK and the check sources; 1.1
-      # changes a rule and adds declared checks, which cn runs itself, so
-      # its checks binary is 1.0's.
-      [ "$(find "$checks" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')" = 1 ] || fail "packs 5: a rule change rebuilt the checks binary"
-      step "packs 5: opened, checked and landed hello 1.1 with the CLAUDE.md import restored; the session loads it on the same checks binary"
+      # The key covers the engine, the SDK and the check sources; 1.2 adds
+      # a coded judge, so its checks binary is a second one beside 1.0's.
+      [ "$(find "$checks" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')" = 2 ] || fail "packs 5: hello 1.2's judge did not build a second checks binary"
+      step "packs 5: opened, checked and landed hello 1.2 with the CLAUDE.md import restored; its judge builds a second checks binary"
 
       fixture --publish v3
       main_run success
       update_packs
-      expect_verdict "no PR: hello 1.2 fails this repo's checks"
+      expect_verdict "no PR: hello 1.3 fails this repo's checks"
       grep -q 'hello/always' "$work/update.out" || fail "packs 6: the finding was not printed: $(cat "$work/update.out")"
       [ -z "$(git --git-dir "$origin" branch --list 'claudinite/*')" ] || fail "packs 6: a branch was pushed"
       [ "$(gh_count 'st.pulls.length')" = 1 ] || fail "packs 6: a PR was opened"
@@ -586,19 +589,19 @@ for mode in $modes; do
 
       fixture --revoke v3 --publish v4
       update_packs
-      expect_verdict "opened #2 for packs hello 1.3"
-      grep -q '^hello 1.2 skipped: revoked$' "$work/update.out" || fail "packs 7: no revoked skip: $(cat "$work/update.out")"
+      expect_verdict "opened #2 for packs hello 1.4"
+      grep -q '^hello 1.3 skipped: revoked$' "$work/update.out" || fail "packs 7: no revoked skip: $(cat "$work/update.out")"
       land 2
-      expect_verdict "landed packs hello 1.3"
+      expect_verdict "landed packs hello 1.4"
       pull
       main_run success
-      step "packs 7: revoked 1.2 skipped; hello 1.3 landed"
+      step "packs 7: revoked 1.3 skipped; hello 1.4 landed"
 
       fixture --publish v5
       update_packs
       expect_verdict "up to date"
-      grep -q '^hello 1.4 skipped: not for this engine$' "$work/update.out" || fail "packs 8: no engine skip: $(cat "$work/update.out")"
-      step "packs 8: hello 1.4 skipped: not for this engine"
+      grep -q '^hello 1.5 skipped: not for this engine$' "$work/update.out" || fail "packs 8: no engine skip: $(cat "$work/update.out")"
+      step "packs 8: hello 1.5 skipped: not for this engine"
 
       # set_channel C: the member's packs channel, committed and pushed, main green.
       set_channel() {
@@ -707,6 +710,83 @@ for mode in $modes; do
       done
       [ -z "$(cd "$member" && git status --porcelain)" ] || fail "packs 14: the checkout changed: $(cd "$member" && git status --porcelain)"
       step "packs 14: an off rule silences hello-declared and the coded hello-check; an acceptance needs a reason; check list names both kinds"
+
+      # hook EVENT JSON [TRANSCRIPT]: the member's per-call hook on a payload;
+      # stdout to hook.out, stderr to hook.err, the exit code in $code.
+      hook() {
+        tp=
+        [ -n "${3:-}" ] && tp=",\"transcript_path\":\"$3\""
+        cmd=$(hook_command "$1")
+        set +e
+        (cd "$member" && printf '%s' "{\"session_id\":\"rehearse\",\"hook_event_name\":\"$1\"$tp,$2}" \
+          | CLAUDE_PROJECT_DIR=$member sh -c "$cmd") > "$work/hook.out" 2> "$work/hook.err"
+        code=$?
+        set -e
+      }
+      bash_call() { printf '"tool_name":"Bash","tool_input":{"command":"%s"}' "$1"; }
+      hook PreToolUse "$(bash_call 'echo HELLO_GUARD')"
+      [ "$code" = 2 ] || fail "packs 15: HELLO_GUARD exited $code: $(cat "$work/hook.out" "$work/hook.err")"
+      head -n 1 "$work/hook.err" | grep -q '^Blocked by hello-guard: ' || fail "packs 15: HELLO_GUARD block: $(cat "$work/hook.err")"
+      [ ! -s "$work/hook.out" ] || fail "packs 15: a block wrote stdout: $(cat "$work/hook.out")"
+      hook PreToolUse "$(bash_call 'echo HELLO_JUDGE')"
+      [ "$code" = 2 ] || fail "packs 15: HELLO_JUDGE exited $code: $(cat "$work/hook.out" "$work/hook.err")"
+      head -n 1 "$work/hook.err" | grep -q '^Blocked by hello-judge: ' || fail "packs 15: HELLO_JUDGE block: $(cat "$work/hook.err")"
+      hook PreToolUse "$(bash_call ls)"
+      [ "$code:$(cat "$work/hook.out")" = "0:{}" ] || fail "packs 15: ls exited $code: $(cat "$work/hook.out" "$work/hook.err")"
+      step "packs 15: PreToolUse blocks the declared hello-guard and the coded hello-judge, and lets ls through"
+
+      transcripts=$work/transcripts
+      mkdir -p "$transcripts"
+      loaded=$transcripts/loaded.jsonl
+      printf '%s\n' '{"type":"user","message":{"role":"user","content":"go"}}' \
+        '{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"s1","name":"Skill","input":{"skill":"hello-guide"}}]}}' > "$loaded"
+      edit='"tool_name":"Edit","tool_input":{"file_path":"HELLO_SCOPED/x","old_string":"a","new_string":"b"}'
+      hook PreToolUse "$edit"
+      [ "$code" = 2 ] || fail "packs 16: the scoped edit exited $code: $(cat "$work/hook.out" "$work/hook.err")"
+      head -n 1 "$work/hook.err" | grep -q '^Blocked: HELLO_SCOPED/x is edited only with the .hello-guide. skill loaded .*Skill tool, skill: "hello-guide"' \
+        || fail "packs 16: the hold: $(cat "$work/hook.err")"
+      hook PreToolUse "$edit" "$loaded"
+      [ "$code" = 0 ] || fail "packs 16: the scoped edit with hello-guide loaded exited $code: $(cat "$work/hook.err")"
+      hook UserPromptSubmit '"prompt":"say HELLO PROMPT"'
+      grep -q 'this prompt matches the .hello-guide. skill' "$work/hook.out" || fail "packs 16: no prompt nudge: $(cat "$work/hook.out" "$work/hook.err")"
+      hook UserPromptSubmit '"prompt":"say HELLO PROMPT"' "$loaded"
+      if grep -q 'hello-guide' "$work/hook.out"; then fail "packs 16: a loaded skill was nudged again: $(cat "$work/hook.out")"; fi
+      hook PostToolUse "$(bash_call ls),\"tool_response\":{\"stdout\":\"HELLO_RESULT\"}"
+      grep -q 'this Bash result matches the .hello-guide. skill' "$work/hook.out" || fail "packs 16: no result nudge: $(cat "$work/hook.out" "$work/hook.err")"
+      step "packs 16: the hello-guide triggers hold a scoped edit until it is loaded, and nudge a prompt and a result"
+
+      session=$transcripts/stop.jsonl
+      printf '%s\n' '{"type":"user","message":{"role":"user","content":"go"}}' \
+        '{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"b1","name":"Bash","input":{"command":"echo HELLO_GUARD"}}]}}' \
+        '{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"b1","is_error":true,"content":"Blocked by hello-guard: the command names HELLO_GUARD."}]}}' \
+        '{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"b2","name":"Bash","input":{"command":"sed -i s/a/b/ HELLO_SCOPED/x"}}]}}' > "$session"
+      mkdir -p "$member/HELLO_SCOPED"
+      echo b > "$member/HELLO_SCOPED/x"
+      out=$(cd "$member" && printf '%s' "{\"session_id\":\"rehearse\",\"hook_event_name\":\"Stop\",\"stop_hook_active\":false,\"transcript_path\":\"$session\"}" \
+        | CLAUDE_PROJECT_DIR=$member sh -c "$(hook_command Stop)" 2>/dev/null)
+      case $out in *'"decision":"block"'*skill-loaded-before-editing*) ;; *) fail "packs 17: Stop did not block on the unloaded skill: $out" ;; esac
+      case $out in *'hello-guard'*'(denied at the hook)'*) ;; *) fail "packs 17: Stop names no denied hello-guard call: $out" ;; esac
+      rm -r "$member/HELLO_SCOPED"
+      step "packs 17: Stop blocks on skill-loaded-before-editing and records the denied hello-guard call"
+
+      with_checks '  rules:
+    hello-guard: "off"
+    remote-branch-delete: "off"'
+      hook PreToolUse "$(bash_call 'echo HELLO_GUARD')"
+      [ "$code" = 0 ] || fail "packs 18: hello-guard off still exited $code: $(cat "$work/hook.err")"
+      hook PreToolUse "$(bash_call 'git push origin --delete x')"
+      [ "$code" = 0 ] || fail "packs 18: remote-branch-delete off still exited $code: $(cat "$work/hook.err")"
+      cp "$work/settings.orig" "$settings"
+      hook PreToolUse "$(bash_call 'git push origin --delete x')"
+      [ "$code" = 2 ] || fail "packs 18: remote-branch-delete on exited $code: $(cat "$work/hook.err")"
+      cn_member check list > "$work/list.out" 2>&1 || fail "packs 18: check list: $(cat "$work/list.out")"
+      for want in '^hello/hello-guard declared (action, work, pre-tool-use[,)]' '^hello/hello-judge judge (pre-tool-use)'; do
+        grep -q "$want" "$work/list.out" || fail "packs 18: check list has no $want: $(cat "$work/list.out")"
+      done
+      cn_member check --tag pre-tool-use > "$work/check.out" 2>&1 || fail "packs 18: check --tag pre-tool-use: $(cat "$work/check.out")"
+      grep -q '^judge hello/hello-judge (pre-tool-use) runs only in its hook' "$work/check.out" || fail "packs 18: check --tag pre-tool-use: $(cat "$work/check.out")"
+      [ -z "$(cd "$member" && git status --porcelain)" ] || fail "packs 18: the checkout changed: $(cd "$member" && git status --porcelain)"
+      step "packs 18: rules off silence hello-guard and remote-branch-delete; check list names the guard's three tags and the judge"
       ;;
     license)
       step "license: a public member on $version with a GitHub origin, ghstub and licstub"
@@ -749,7 +829,7 @@ for mode in $modes; do
       # hook EVENT ID: one hook of session ID; stdout to $work/hook.out,
       # stderr to $work/hook.err.
       hook() {
-        (cd "$member" && printf '{"session_id":"%s","hook_event_name":"x","stop_hook_active":false}' "$2" \
+        (cd "$member" && printf '{"session_id":"%s","hook_event_name":"x","tool_name":"Read","tool_input":{},"stop_hook_active":false}' "$2" \
           | CLAUDE_PROJECT_DIR=$member .claudinite/bin/cn hook "$1" > "$work/hook.out" 2> "$work/hook.err") || fail "license: hook $1 exited non-zero"
       }
       status() { cn_member license status --session "$1" > "$work/status.out" 2>&1 || fail "license: status $1: $(cat "$work/status.out")"; }

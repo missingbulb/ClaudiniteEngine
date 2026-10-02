@@ -1,0 +1,15 @@
+{
+  "why": "the guard is a check a member turns off in cn; the Node engine blocks it unconditionally",
+  "cnOnly": true,
+  "pretooluse": [
+    {
+      "payload": {
+        "tool_name": "Bash",
+        "tool_input": {
+          "command": "git push origin --delete x"
+        }
+      },
+      "exit": 0
+    }
+  ]
+}

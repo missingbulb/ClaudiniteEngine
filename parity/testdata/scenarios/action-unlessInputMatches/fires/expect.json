@@ -1,0 +1,19 @@
+{
+  "rules": "",
+  "mounts": [],
+  "world": [],
+  "work": [],
+  "pretooluse": [
+    {
+      "payload": {
+        "tool_name": "Write",
+        "tool_input": {
+          "file_path": "a.md",
+          "content": "x"
+        }
+      },
+      "exit": 2,
+      "block": "Blocked by a-unlessInputMatches: writes a.md. the a-unlessInputMatches guard. Fix: edit instead"
+    }
+  ]
+}

@@ -67,13 +67,13 @@ func TestANoticeIsPassedOnAsAdditionalContext(t *testing.T) {
 	repo := member(t, nil, nil)
 	for event, name := range map[string]string{"pre-tool-use": "PreToolUse", "user-prompt-submit": "UserPromptSubmit", "post-tool-use": "PostToolUse"} {
 		fl := &fakeLicense{hook: LicenseStatus{Notice: "[cn] license degraded: tell the person."}}
-		out, _ := hook(t, Handler{License: fl, ProjectDir: repo}, event, `{"session_id":"abc"}`)
+		out, _ := hook(t, Handler{License: fl, ProjectDir: repo}, event, `{"session_id":"abc","tool_name":"Read"}`)
 		var got sessionStartOut
 		if err := json.Unmarshal([]byte(out), &got); err != nil || got.HookSpecificOutput.HookEventName != name || got.HookSpecificOutput.AdditionalContext != fl.hook.Notice {
 			t.Errorf("%s: %q %v", event, out, err)
 		}
 		fl.hook.Notice = ""
-		if out, _ := hook(t, Handler{License: fl, ProjectDir: repo}, event, `{"session_id":"abc"}`); strings.TrimSpace(out) != "{}" {
+		if out, _ := hook(t, Handler{License: fl, ProjectDir: repo}, event, `{"session_id":"abc","tool_name":"Read"}`); strings.TrimSpace(out) != "{}" {
 			t.Errorf("%s without a notice: %q", event, out)
 		}
 	}

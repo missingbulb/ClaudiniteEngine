@@ -1,12 +1,15 @@
 // Package gitcmd runs the git binary for the updater: branch, commit,
 // push, read a file at a ref, and list what a branch changed. Commits are
 // made as github-actions[bot], the identity whose pin changes CI accepts.
-// No token reaches a git child: pushing uses the credentials the checkout
-// configured.
+// No token variable reaches a git child: a child that talks to the remote
+// (fetch, push, ls-remote) gets the job token as an http.extraheader
+// through GIT_CONFIG_* in its own environment, and nothing writes it to
+// .git/config, so a program run in the checkout finds no credential there.
 package gitcmd
 
 import (
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"os"
 	"os/exec"
@@ -19,8 +22,16 @@ const (
 	BotEmail = "41898282+github-actions[bot]@users.noreply.github.com"
 )
 
-// Repo is a working tree.
-type Repo struct{ Dir string }
+// Repo is a working tree. Token, when set, authenticates the children
+// that talk to the remote.
+type Repo struct {
+	Dir   string
+	Token string
+}
+
+// extraheader is the config key that carries the token, as
+// actions/checkout writes it when it persists credentials.
+const extraheader = "http.https://github.com/.extraheader"
 
 // secretEnv names variables no git child may inherit.
 var secretEnv = []string{"GITHUB_TOKEN", "GH_TOKEN", "ACTIONS_RUNTIME_TOKEN", "ACTIONS_ID_TOKEN_REQUEST_TOKEN", "NODE_AUTH_TOKEN"}
@@ -28,7 +39,7 @@ var secretEnv = []string{"GITHUB_TOKEN", "GH_TOKEN", "ACTIONS_RUNTIME_TOKEN", "A
 func childEnv() []string {
 	var out []string
 	for _, kv := range os.Environ() {
-		keep := true
+		keep := !strings.HasPrefix(kv, "GIT_CONFIG_COUNT=") && !strings.HasPrefix(kv, "GIT_CONFIG_KEY_") && !strings.HasPrefix(kv, "GIT_CONFIG_VALUE_")
 		for _, s := range secretEnv {
 			if strings.HasPrefix(kv, s+"=") {
 				keep = false
@@ -41,10 +52,28 @@ func childEnv() []string {
 	return append(out, "GIT_TERMINAL_PROMPT=0")
 }
 
-func (r Repo) run(args ...string) ([]byte, error) {
+func (r Repo) run(args ...string) ([]byte, error) { return r.exec(false, args...) }
+
+// remote runs a child that talks to the remote, with the token when set.
+func (r Repo) remote(args ...string) ([]byte, error) { return r.exec(true, args...) }
+
+func (r Repo) remoteLine(args ...string) (string, error) {
+	out, err := r.remote(args...)
+	return strings.TrimSpace(string(out)), err
+}
+
+func (r Repo) exec(remote bool, args ...string) ([]byte, error) {
 	cmd := exec.Command("git", append([]string{"-c", "user.name=" + BotName, "-c", "user.email=" + BotEmail}, args...)...)
 	cmd.Dir = r.Dir
 	cmd.Env = childEnv()
+	if remote && r.Token != "" {
+		cred := base64.StdEncoding.EncodeToString([]byte("x-access-token:" + r.Token))
+		// The empty first value clears any header .git/config persisted,
+		// since the values accumulate.
+		cmd.Env = append(cmd.Env, "GIT_CONFIG_COUNT=2",
+			"GIT_CONFIG_KEY_0="+extraheader, "GIT_CONFIG_VALUE_0=",
+			"GIT_CONFIG_KEY_1="+extraheader, "GIT_CONFIG_VALUE_1=AUTHORIZATION: basic "+cred)
+	}
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()
@@ -95,27 +124,27 @@ func (r Repo) Commit(message string, paths ...string) error {
 // Push pushes branch to remote, replacing a remote branch of that name,
 // which only the updater writes.
 func (r Repo) Push(remote, branch string) error {
-	_, err := r.run("push", "-q", "--force", remote, "refs/heads/"+branch+":refs/heads/"+branch)
+	_, err := r.remote("push", "-q", "--force", remote, "refs/heads/"+branch+":refs/heads/"+branch)
 	return err
 }
 
 // DeleteRemoteBranch deletes branch on remote; an already absent branch is
 // not an error.
 func (r Repo) DeleteRemoteBranch(remote, branch string) error {
-	out, err := r.run("ls-remote", "--heads", remote, "refs/heads/"+branch)
+	out, err := r.remote("ls-remote", "--heads", remote, "refs/heads/"+branch)
 	if err != nil {
 		return err
 	}
 	if strings.TrimSpace(string(out)) == "" {
 		return nil
 	}
-	_, err = r.run("push", "-q", remote, "--delete", "refs/heads/"+branch)
+	_, err = r.remote("push", "-q", remote, "--delete", "refs/heads/"+branch)
 	return err
 }
 
 // Fetch fetches refspecs from remote.
 func (r Repo) Fetch(remote string, refspecs ...string) error {
-	_, err := r.run(append([]string{"fetch", "-q", remote}, refspecs...)...)
+	_, err := r.remote(append([]string{"fetch", "-q", remote}, refspecs...)...)
 	return err
 }
 

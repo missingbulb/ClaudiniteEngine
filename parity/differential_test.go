@@ -54,71 +54,88 @@ func TestDifferential(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			ids, listed := map[string]bool{}, map[string]Listed{}
+			listed := map[string]Listed{}
 			for _, l := range list {
 				listed[l.ID] = l
-				if l.Kind != "coded" && contains(l.Tags, "world") {
-					ids[l.ID] = true
-				}
 			}
 			declared, err := DeclaredIDs(nodeDir)
 			if err != nil {
 				t.Fatal(err)
 			}
-			nw, err := node.World(nodeDir)
-			if err != nil {
-				t.Fatal(err)
-			}
-			cw, err := cn.World(cnDir)
-			if err != nil {
-				t.Fatal(err)
-			}
-			subtracted := map[string]int{}
-			for _, f := range nw {
-				if !ids[f.Rule] {
-					subtracted[f.Rule]++
+			for _, moment := range []string{"world", "work"} {
+				ids := map[string]bool{}
+				for _, l := range list {
+					if l.Kind != "coded" && contains(l.Tags, moment) {
+						ids[l.ID] = true
+					}
 				}
-			}
-			// A subtracted rule must be one cn knows it does not run, an
-			// action check, or one it has never heard of, a Node coded
-			// check; a declared check cn does not list failed to load.
-			for r := range subtracted {
-				l, ok := listed[r]
-				switch {
-				case ok && !contains(l.Tags, "action"):
-					t.Errorf("subtracted %s, which cn lists as %s %v", r, l.Kind, l.Tags)
-				case !ok && slices.Contains(declared, r):
-					t.Errorf("subtracted %s, a declared check cn does not list: it did not load", r)
+				var nf, cf []Finding
+				if moment == "world" {
+					if nf, err = node.World(nodeDir); err == nil {
+						cf, err = cn.World(cnDir)
+					}
+				} else {
+					if nf, err = node.Work(nodeDir, ""); err == nil {
+						cf, err = cn.Work(cnDir, "")
+					}
 				}
+				if err != nil {
+					t.Fatal(err)
+				}
+				compare(t, filepath.Base(tree)+" "+moment, nf, cf, ids, listed, declared)
 			}
-			kept := Keep(nw, ids)
-			perRule := map[string]int{}
-			for _, f := range kept {
-				perRule[f.Rule]++
-			}
-			var counts []string
-			for r, k := range perRule {
-				counts = append(counts, fmt.Sprintf("%s %d", r, k))
-			}
-			sort.Strings(counts)
-			t.Logf("%s: %d distinct rules found: %s", filepath.Base(tree), len(perRule), strings.Join(counts, ", "))
-			onlyNode, onlyCn, agreed := diff(kept, Keep(cw, ids))
-			for _, f := range onlyNode {
-				t.Errorf("only node: %s", f)
-			}
-			for _, f := range onlyCn {
-				t.Errorf("only cn: %s", f)
-			}
-			n := 0
-			var rules []string
-			for r, k := range subtracted {
-				n += k
-				rules = append(rules, fmt.Sprintf("%s %d", r, k))
-			}
-			sort.Strings(rules)
-			t.Logf("%s: agreed %d, only-node %d, only-cn %d, subtracted %d (action, coded: %s)", filepath.Base(tree), agreed, len(onlyNode), len(onlyCn), n, strings.Join(rules, ", "))
 		})
 	}
+}
+
+// compare asserts the two engines agree on the rules cn runs at one
+// moment, and that every rule subtracted from Node's findings is one cn
+// knows it does not run here: a Node coded check, which cn lists as coded
+// or has never heard of. A declared check cn does not list failed to
+// load; one cn lists at another moment is a tagging fault.
+func compare(t *testing.T, label string, nf, cf []Finding, ids map[string]bool, listed map[string]Listed, declared []string) {
+	t.Helper()
+	subtracted := map[string]int{}
+	for _, f := range nf {
+		if !ids[f.Rule] {
+			subtracted[f.Rule]++
+		}
+	}
+	for r := range subtracted {
+		l, ok := listed[r]
+		switch {
+		case ok && l.Kind != "coded":
+			t.Errorf("%s: subtracted %s, which cn lists as %s %v", label, r, l.Kind, l.Tags)
+		case !ok && slices.Contains(declared, r):
+			t.Errorf("%s: subtracted %s, a declared check cn does not list: it did not load", label, r)
+		}
+	}
+	kept := Keep(nf, ids)
+	perRule := map[string]int{}
+	for _, f := range kept {
+		perRule[f.Rule]++
+	}
+	var counts []string
+	for r, k := range perRule {
+		counts = append(counts, fmt.Sprintf("%s %d", r, k))
+	}
+	sort.Strings(counts)
+	t.Logf("%s: %d distinct rules found: %s", label, len(perRule), strings.Join(counts, ", "))
+	onlyNode, onlyCn, agreed := diff(kept, Keep(cf, ids))
+	for _, f := range onlyNode {
+		t.Errorf("%s: only node: %s", label, f)
+	}
+	for _, f := range onlyCn {
+		t.Errorf("%s: only cn: %s", label, f)
+	}
+	n := 0
+	var rules []string
+	for r, k := range subtracted {
+		n += k
+		rules = append(rules, fmt.Sprintf("%s %d", r, k))
+	}
+	sort.Strings(rules)
+	t.Logf("%s: agreed %d, only-node %d, only-cn %d, subtracted %d (coded: %s)", label, agreed, len(onlyNode), len(onlyCn), n, strings.Join(rules, ", "))
 }
 
 // cnSettings writes cn's translation of the declaration, kept out of git.

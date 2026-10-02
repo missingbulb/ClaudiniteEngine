@@ -28,12 +28,21 @@ func TestExitCodesFollowTheClass(t *testing.T) {
 		{New(Internal, "bug"), true, 0},
 		{errors.New("plain"), false, 1},
 		{fmt.Errorf("wrapped: %w", New(Usage, "x")), false, 2},
+		{New(Block, "denied"), true, 2},
 	}
 	for _, c := range cases {
 		var buf bytes.Buffer
 		if got := Exit(&buf, c.err, c.hook); got != c.want {
 			t.Errorf("Exit(%v, hook=%v) = %d, want %d", c.err, c.hook, got, c.want)
 		}
+	}
+}
+
+// A hook's block is its verdict, already written: exit 2 and nothing more.
+func TestABlockExitsTwoSilently(t *testing.T) {
+	var buf bytes.Buffer
+	if got := Exit(&buf, New(Block, "denied"), true); got != 2 || buf.Len() != 0 {
+		t.Errorf("exit %d, stderr %q", got, buf.String())
 	}
 }
 

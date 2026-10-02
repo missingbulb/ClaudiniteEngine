@@ -25,7 +25,7 @@ jobs:
         with:
           version: v2.5.0
       - run: go test ./...
-      - run: shellcheck -s sh launcher/launch release/*.sh probe/desktop-timings/run.sh
+      - run: shellcheck -s sh launcher/launch release/*.sh probe/desktop-timings/run.sh probe/hook-latency/run.sh
       # actionlint v1.7.11, the last release that builds on Go 1.24, over the engine's workflows and
       # the member templates; it runs shellcheck over every run: body too.
       - run: go run github.com/rhysd/actionlint/cmd/actionlint@393031adb9afb225ee52ae2ccd7a5af5525e03e8 .github/workflows/*.yml lifecycle/workflows/templates/*.yml
@@ -54,6 +54,12 @@ jobs:
           CLAUDINITE_NODE_ENGINE: ${{ github.workspace }}/claudinite-frozen
           CLAUDINITE_PARITY_TREES: ${{ github.workspace }}/claudinite-frozen
           CLAUDINITE_CN: ${{ runner.temp }}/cn
+      # The per-call hooks' latency on the runner, over the frozen tree's packs, held to its budgets; the table lands in the log.
+      - run: |
+          rc=0
+          sh probe/hook-latency/run.sh --node claudinite-frozen --out "$RUNNER_TEMP/hook-latency" --budget || rc=$?
+          cat "$RUNNER_TEMP"/hook-latency/*.md
+          exit "$rc"
 
   build:
     runs-on: ubuntu-24.04

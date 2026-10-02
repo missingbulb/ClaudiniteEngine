@@ -13,6 +13,70 @@ import (
 // check error, reported as a checks-run break, never a hang.
 var MatchTimeout = 2 * time.Second
 
+// CheckDeadline bounds the time one check's own work takes over a whole
+// run, every match of every file it sweeps: checked before each match and
+// passed into it as the match's remaining budget.
+var CheckDeadline = 10 * time.Second
+
+// budget is one check's clock over a run: the time its own work has
+// taken, so one slow check never spends another's.
+type budget struct {
+	limit time.Duration
+	used  time.Duration
+	// since is when the work now running started; zero when none is.
+	since time.Time
+}
+
+// left is what remains of the budget.
+func (b *budget) left() time.Duration {
+	l := b.limit - b.used
+	if !b.since.IsZero() {
+		l -= time.Since(b.since)
+	}
+	return l
+}
+
+// run times f against the budget.
+func (b *budget) run(f func()) {
+	if b == nil {
+		f()
+		return
+	}
+	b.since = time.Now()
+	defer func() {
+		b.used += time.Since(b.since)
+		b.since = time.Time{}
+	}()
+	f()
+}
+
+func (b *budget) exceeded() timeoutError {
+	return timeoutError{fmt.Errorf("ran past its %v deadline", b.limit)}
+}
+
+// bind sets b as the budget of every pattern in v, a check's spec or a
+// part of it; nil clears it.
+func bind(v any, b *budget) {
+	switch x := v.(type) {
+	case *Regex:
+		if x != nil {
+			x.budget = b
+		}
+	case map[string]any:
+		for _, e := range x {
+			bind(e, b)
+		}
+	case []any:
+		for _, e := range x {
+			bind(e, b)
+		}
+	case []map[string]any:
+		for _, e := range x {
+			bind(e, b)
+		}
+	}
+}
+
 // Regex is one compiled pattern, matched with ECMAScript semantics so a
 // declaration's lookarounds and backreferences run as written.
 type Regex struct {
@@ -20,6 +84,9 @@ type Regex struct {
 	Source string
 	Flags  string
 	names  []string
+	// budget is the clock of the check the pattern belongs to while it
+	// runs; nil outside a run, where only MatchTimeout bounds a match.
+	budget *budget
 }
 
 // Match is one match: its rune offset, its text and its named groups.
@@ -63,7 +130,6 @@ func compileRegex(body, flags string) (*Regex, error) {
 	if err != nil {
 		return nil, err
 	}
-	re.MatchTimeout = MatchTimeout
 	r := &Regex{re: re, Source: body, Flags: flags}
 	for _, n := range re.GetGroupNames() {
 		if !isDigits(n) {
@@ -119,14 +185,42 @@ func isDigits(s string) bool {
 	return true
 }
 
+// arm gives the next match its timeout: MatchTimeout, or what is left of
+// the check's budget when that is less; a check already past its
+// deadline stops here.
+func (r *Regex) arm() {
+	t := MatchTimeout
+	if r.budget != nil {
+		left := r.budget.left()
+		if left <= 0 {
+			panic(r.budget.exceeded())
+		}
+		if left < t {
+			t = left
+		}
+	}
+	if r.re.MatchTimeout != t {
+		r.re.MatchTimeout = t
+	}
+}
+
+// failed is the panic for a match that returned err.
+func (r *Regex) failed(err error) {
+	if r.budget != nil && r.budget.left() <= 0 {
+		panic(r.budget.exceeded())
+	}
+	panic(timeoutError{fmt.Errorf("the pattern /%s/%s: %w", r.Source, r.Flags, err)})
+}
+
 // Test reports whether s holds a match.
 func (r *Regex) Test(s string) bool {
 	if r == nil {
 		return false
 	}
+	r.arm()
 	ok, err := r.re.MatchString(s)
 	if err != nil {
-		panic(timeoutError{fmt.Errorf("the pattern /%s/%s: %w", r.Source, r.Flags, err)})
+		r.failed(err)
 	}
 	return ok
 }
@@ -140,9 +234,10 @@ func (r *Regex) execAt(s string, start int) *Match {
 	if r == nil {
 		return nil
 	}
+	r.arm()
 	m, err := r.re.FindStringMatchStartingAt(s, start)
 	if err != nil {
-		panic(timeoutError{fmt.Errorf("the pattern /%s/%s: %w", r.Source, r.Flags, err)})
+		r.failed(err)
 	}
 	return r.wrap(m)
 }
@@ -205,9 +300,10 @@ func (r *Regex) split(s string) []string {
 	var out []string
 	last, from := 0, 0
 	for from <= len(runes) {
+		r.arm()
 		m, err := r.re.FindRunesMatchStartingAt(runes, from)
 		if err != nil {
-			panic(timeoutError{err})
+			r.failed(err)
 		}
 		if m == nil || m.Index >= len(runes) {
 			break

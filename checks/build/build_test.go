@@ -64,8 +64,8 @@ func TestSourcesAndKey(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(srcs) != 1 || srcs[0].Pack != "hello" || srcs[0].Path != "hello.go" {
-		t.Fatalf("%+v", srcs)
+	if len(srcs) != 2 || srcs[0].Pack != "hello" || srcs[0].Path != "hello.go" || srcs[1].Path != "judge.go" {
+		t.Fatalf("%d sources: %s %s", len(srcs), srcs[0].Path, srcs[len(srcs)-1].Path)
 	}
 	c := cfg(t)
 	k1 := Key(c, srcs)
@@ -110,6 +110,11 @@ func TestBuildRunsOnceAndRebuildsNothing(t *testing.T) {
 	st, err := os.Stat(bin)
 	if err != nil || st.Mode().Perm() != 0o555 {
 		t.Fatalf("binary %v %v", st, err)
+	}
+	// The judges manifest beside the binary names each hook event's
+	// judges, so a hook knows without starting the child.
+	if j, err := Judges(c, key); err != nil || strings.Join(j["pre-tool-use"], ",") != "hello/hello-judge" || len(j) != 1 {
+		t.Errorf("judges %v %v", j, err)
 	}
 	log, _ := os.ReadFile(filepath.Join(c.Dir(key), "build.log"))
 	if !strings.HasPrefix(string(log), "go version go1.") {

@@ -1,0 +1,20 @@
+{
+  "rules": "@../shared/packs/claudinite-lifecycle/RULES.md\n",
+  "mounts": [
+    "adopt-claudinite",
+    "adopt-pack",
+    "call-guide",
+    "prompt-guide",
+    "result-guide",
+    "scoped-guide"
+  ],
+  "world": [],
+  "work": [
+    "skill-loaded-before-editing (session) Bash call block",
+    "skill-loaded-before-editing docs/a.md block",
+    "skill-loaded-before-editing src/x.go block"
+  ],
+  "only": [
+    "skill-loaded-before-editing"
+  ]
+}

@@ -1,5 +1,8 @@
 // Package githubapi is the few GitHub REST calls the updater makes, with
-// the job's own token, which it holds in memory only. Nothing a pack can
+// the job's own token, which it holds in memory only: the workflow checks
+// out without persisting it, cn removes it from its environment on start,
+// and of its children only git's remote calls are handed it (gitcmd), so
+// the candidate engine an update runs finds it nowhere. Nothing a pack can
 // reach calls it. CLAUDINITE_GITHUB_API overrides the base URL for the
 // rehearsal's stub, as CLAUDINITE_REGISTRY does for npm.
 //

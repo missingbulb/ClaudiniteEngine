@@ -1,0 +1,49 @@
+{
+  "rules": "",
+  "mounts": [
+    "call-guide",
+    "prompt-guide",
+    "result-guide",
+    "scoped-guide"
+  ],
+  "world": [],
+  "work": [],
+  "posttooluse": [
+    {
+      "payload": {
+        "tool_name": "Bash",
+        "tool_input": {
+          "command": "curl x"
+        },
+        "tool_response": {
+          "stdout": "EGRESS_BLOCKED by policy",
+          "stderr": ""
+        }
+      },
+      "exit": 0,
+      "context": "Claudinite: this Bash result matches the `result-guide` skill's trigger (Bash /EGRESS_BLOCKED/, the guards pack) — load it before acting on the result: Skill tool, skill: \"result-guide\", or Read .claudinite/local/packs/guards/skills/result-guide/SKILL.md."
+    },
+    {
+      "payload": {
+        "tool_name": "Read",
+        "tool_input": {
+          "file_path": "x"
+        },
+        "tool_response": "EGRESS_BLOCKED"
+      },
+      "exit": 0
+    },
+    {
+      "payload": {
+        "tool_name": "Bash",
+        "tool_input": {
+          "command": "ls"
+        },
+        "tool_response": {
+          "stdout": "fine"
+        }
+      },
+      "exit": 0
+    }
+  ]
+}

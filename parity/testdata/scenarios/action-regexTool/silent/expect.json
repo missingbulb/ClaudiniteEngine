@@ -1,0 +1,26 @@
+{
+  "rules": "",
+  "mounts": [],
+  "world": [],
+  "work": [],
+  "pretooluse": [
+    {
+      "payload": {
+        "tool_name": "mcp__github__get_issue",
+        "tool_input": {
+          "owner": "o"
+        }
+      },
+      "exit": 0
+    },
+    {
+      "payload": {
+        "tool_name": "mcp__github__search_code",
+        "tool_input": {
+          "perPage": 5
+        }
+      },
+      "exit": 0
+    }
+  ]
+}

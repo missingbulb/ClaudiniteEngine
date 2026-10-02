@@ -16,6 +16,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -29,6 +30,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/missingbulb/ClaudiniteEngine/checks/run"
 	"github.com/missingbulb/ClaudiniteEngine/shared/packset"
 	"github.com/missingbulb/ClaudiniteEngine/shared/paths"
 )
@@ -345,7 +347,61 @@ func build(c Config, key string, srcs []Source, log *bytes.Buffer) error {
 	if err := os.Chmod(filepath.Join(dir, tmp), 0o555); err != nil {
 		return err
 	}
+	if err := writeJudges(c, key, filepath.Join(dir, tmp)); err != nil {
+		return fmt.Errorf("listing the built checks: %w", err)
+	}
 	return os.Rename(filepath.Join(dir, tmp), c.Binary(key))
+}
+
+// judgesPath is the judges manifest beside the key's binary.
+func (c Config) judgesPath(key string) string { return filepath.Join(c.Dir(key), "judges.json") }
+
+// writeJudges asks the freshly built binary for its checks and writes the
+// judges manifest: each hook event's judges, by name. It is written before
+// the binary is placed, so a placed binary always has one.
+func writeJudges(c Config, key, binary string) error {
+	listed, err := run.Runner{Binary: binary, Engine: c.Engine}.List()
+	if err != nil {
+		return err
+	}
+	judges := map[string][]string{}
+	for _, l := range listed {
+		if !l.Judge {
+			continue
+		}
+		for _, t := range l.Tags {
+			if HookEvent(t) {
+				judges[t] = append(judges[t], l.Check)
+			}
+		}
+	}
+	raw, err := json.Marshal(judges)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(c.judgesPath(key), raw, 0o644)
+}
+
+// HookEvent reports whether a tag is one a judge is selected by.
+func HookEvent(tag string) bool {
+	return tag == "pre-tool-use" || tag == "post-tool-use" || tag == "user-prompt-submit"
+}
+
+// Judges reads the key's judges manifest: each hook event's judges. An
+// absent manifest is no judges.
+func Judges(c Config, key string) (map[string][]string, error) {
+	raw, err := os.ReadFile(c.judgesPath(key))
+	if errors.Is(err, os.ErrNotExist) {
+		return map[string][]string{}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	var out map[string][]string
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return nil, fmt.Errorf("%s: %w", c.judgesPath(key), err)
+	}
+	return out, nil
 }
 
 // Start runs `<exe> check build --repo REPO --key KEY` detached, in its

@@ -1,0 +1,17 @@
+[
+  {
+    "id": "a-match",
+    "on_fail": "block",
+    "scope": "action",
+    "failureMessage": "the a-match guard",
+    "guardToolCalls": [
+      {
+        "tool": "Bash",
+        "inputField": "command",
+        "match": "/\\bgit\\s+(?<verb>push|pull)\\b/",
+        "what": "{tool} runs git {verb} ({match}) from {field}",
+        "fix": "do not {verb} here"
+      }
+    ]
+  }
+]

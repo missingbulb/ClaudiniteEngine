@@ -37,13 +37,22 @@ type CheckResult struct {
 	Crumb    string
 }
 
-// Checks runs the declared packs' coded checks.
+// RunScope is which checks one run takes and what they read: the checks
+// tagged with every one of Tags, the session's transcript ("" for none),
+// and whether the license turned forced skill loading off.
+type RunScope struct {
+	Tags              []string
+	Transcript        string
+	SkipForcedLoading bool
+}
+
+// Checks runs the declared packs' checks.
 type Checks interface {
 	// Start begins building the checks binary and returns at once.
 	Start(repo string) error
-	// Run runs the checks tagged with every one of tags, waiting up to
-	// wait for the binary.
-	Run(repo, event string, tags []string, wait time.Duration) CheckResult
+	// Run runs the checks scope selects, waiting up to wait for the
+	// binary.
+	Run(repo, event string, scope RunScope, wait time.Duration) CheckResult
 }
 
 // LicenseStatus is the session's license as one hook applies it.
@@ -55,6 +64,8 @@ type LicenseStatus struct {
 	Notice string
 	// WorkChecks is the gate's work-checks row.
 	WorkChecks bool
+	// ForcedLoading is the gate's forced-skill-loading row.
+	ForcedLoading bool
 	// State names the state for the stderr line (pending, ok, degraded).
 	State string
 	// Crumbs are license breadcrumbs this hook observed.
@@ -75,6 +86,8 @@ type RulesIndex interface {
 	Write(repo, engine string) (bool, error)
 	// HasImport reports whether the member's CLAUDE.md imports the index.
 	HasImport(repo string) bool
+	// HasRules reports whether the index imports any prose.
+	HasRules(repo, engine string) bool
 }
 
 // MissingImport is SessionStart's line for a member whose CLAUDE.md does
@@ -82,9 +95,11 @@ type RulesIndex interface {
 const MissingImport = `[cn] rules not loaded: CLAUDE.md does not import .claudinite/flat/claudinite-rules.GENERATED.md; add the line "@.claudinite/flat/claudinite-rules.GENERATED.md"`
 
 // Handler answers hook events. A nil Checks runs no coded checks; a nil
-// License gates nothing; a nil Index writes no rules index.
+// Guards judges no call; a nil License gates nothing; a nil Index writes
+// no rules index.
 type Handler struct {
 	Checks  Checks
+	Guards  Guards
 	License License
 	Index   RulesIndex
 	// ProjectDir overrides where the repo is found.
@@ -99,6 +114,7 @@ type hookInput struct {
 	HookEventName  string `json:"hook_event_name"`
 	Cwd            string `json:"cwd"`
 	StopHookActive bool   `json:"stop_hook_active"`
+	TranscriptPath string `json:"transcript_path"`
 }
 
 // contextEvents are the events whose answer may carry additionalContext,
@@ -158,25 +174,9 @@ func (h Handler) Run(event string, stdin io.Reader, stdout, stderr io.Writer, st
 		}
 		return h.sessionStart(h.projectDir(in), in.SessionID, outcome, stdout, start)
 	case "stop":
-		return h.stop(h.projectDir(in), in.SessionID, in.StopHookActive, stdout, stderr, start)
+		return h.stop(h.projectDir(in), in, stdout, stderr, start)
 	}
-	answer := "{}"
-	if name, ok := contextEvents[event]; ok && h.License != nil {
-		st := h.License.Hook(h.projectDir(in), sessionKey(in.SessionID))
-		for _, c := range st.Crumbs {
-			fmt.Fprintln(stderr, c)
-		}
-		if st.Notice != "" {
-			var out sessionStartOutput
-			out.HookSpecificOutput.HookEventName = name
-			out.HookSpecificOutput.AdditionalContext = st.Notice
-			raw, _ := json.Marshal(out)
-			answer = string(raw)
-		}
-	}
-	fmt.Fprintln(stdout, answer)
-	fmt.Fprintln(stderr, breadcrumb.Line("hooks", event, breadcrumb.OK, time.Since(start)))
-	return nil
+	return h.perCall(event, raw, readErr, stdout, stderr, start)
 }
 
 // sessionKey is the state file's name for a session id; a hook input that
@@ -205,7 +205,7 @@ func (h Handler) sessionStart(repo, sessionID string, outcome breadcrumb.Outcome
 		if _, err := h.Index.Write(repo, h.engine()); err != nil {
 			fmt.Fprintf(&b, "[cn] rules index not written: %v\n", err)
 		}
-		if ctx.prose && !h.Index.HasImport(repo) {
+		if !h.Index.HasImport(repo) && h.Index.HasRules(repo, h.engine()) {
 			b.WriteString(MissingImport + "\n")
 		}
 	}
@@ -234,11 +234,12 @@ func (h Handler) sessionStart(repo, sessionID string, outcome breadcrumb.Outcome
 // block form, unless Claude Code is already continuing because of a stop
 // hook (stop_hook_active), when the findings go to stderr instead so a
 // finding the session cannot clear never loops.
-func (h Handler) stop(repo, sessionID string, active bool, stdout, stderr io.Writer, start time.Time) error {
+func (h Handler) stop(repo string, in hookInput, stdout, stderr io.Writer, start time.Time) error {
 	answer := "{}"
 	work := true
+	scope := RunScope{Tags: []string{"work"}, Transcript: in.TranscriptPath}
 	if h.License != nil {
-		st := h.License.Hook(repo, sessionKey(sessionID))
+		st := h.License.Hook(repo, sessionKey(in.SessionID))
 		for _, c := range st.Crumbs {
 			fmt.Fprintln(stderr, c)
 		}
@@ -248,17 +249,20 @@ func (h Handler) stop(repo, sessionID string, active bool, stdout, stderr io.Wri
 		if !st.WorkChecks {
 			work = false
 			fmt.Fprintf(stderr, "[cn] license: work checks off (%s)\n", st.State)
+		} else if !st.ForcedLoading {
+			scope.SkipForcedLoading = true
+			fmt.Fprintf(stderr, "[cn] license: forced skill loading off (%s)\n", st.State)
 		}
 	}
 	if h.Checks != nil && work {
-		res := h.Checks.Run(repo, "stop", []string{"work"}, StopWait)
+		res := h.Checks.Run(repo, "stop", scope, StopWait)
 		for _, e := range res.Errors {
 			fmt.Fprintln(stderr, "[cn] check error: "+e)
 		}
 		if res.Err != nil {
 			fmt.Fprintf(stderr, "[cn] checks did not run: %v\n", res.Err)
 		}
-		if findings.AnyBreak(res.Findings) && !active {
+		if findings.AnyBreak(res.Findings) && !in.StopHookActive {
 			var reason strings.Builder
 			reason.WriteString("Claudinite checks found work to finish before stopping:\n")
 			for _, f := range res.Findings {

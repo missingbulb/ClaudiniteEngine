@@ -122,120 +122,149 @@ func (w *sweeper) visit(subs []*job, path, text string, roles map[*job]role) {
 	}
 	var lineJobs []lineJob
 	for _, j := range subs {
-		s := j.spec
-		r := role{scanning: true}
-		if roles != nil {
-			r = roles[j]
-		}
-		if r.collecting {
-			for _, col := range j.collectors {
-				pm := re(col.s["inFilesMatching"]).Exec(path)
-				if pm == nil {
-					continue
+		w.guard(j, path, 0, func() {
+			s := j.spec
+			r := role{scanning: true}
+			if roles != nil {
+				r = roles[j]
+			}
+			if r.collecting {
+				for _, col := range j.collectors {
+					pm := re(col.s["inFilesMatching"]).Exec(path)
+					if pm == nil {
+						continue
+					}
+					view := linesFor(j)
+					for i, l := range view {
+						collectLine(col.s, l, path, i+1, pm.groupVars(), col.add)
+					}
 				}
+			}
+			if !r.scanning {
+				return
+			}
+			if has(s, "checkSections") {
+				w.assertSections(j, path, mdDoc)
+			}
+			if ml, ok := s["maxLines"].(map[string]any); ok {
+				limit := num(ml["limit"])
+				if n := len(rawLines()); float64(n) > limit {
+					j.push(path, int(limit)+1, get(ml, "what"), get(ml, "fix"), map[string]any{"lines": float64(n), "limit": ml["limit"]})
+				}
+			}
+			if mll, ok := s["maxLineLength"].(map[string]any); ok {
+				limit := num(mll["bytes"])
+				count, first, longest := 0, 0, 0
+				for i, ln := range linesFor(j) {
+					if float64(len(ln)) > limit {
+						count++
+						if first == 0 {
+							first = i + 1
+						}
+						if len(ln) > longest {
+							longest = len(ln)
+						}
+					}
+				}
+				if count > 0 {
+					j.push(path, first, get(mll, "what"), get(mll, "fix"), map[string]any{"count": float64(count), "bytes": mll["bytes"], "longest": float64(longest)})
+				}
+			}
+			for _, a := range items(s["countMatchingLines"]) {
 				view := linesFor(j)
+				count, overflowAt := 0, 0
+				atMost, hasMost := a["atMost"]
 				for i, l := range view {
-					collectLine(col.s, l, path, i+1, pm.groupVars(), col.add)
-				}
-			}
-		}
-		if !r.scanning {
-			continue
-		}
-		if has(s, "checkSections") {
-			w.assertSections(j, path, mdDoc)
-		}
-		if ml, ok := s["maxLines"].(map[string]any); ok {
-			limit := num(ml["limit"])
-			if n := len(rawLines()); float64(n) > limit {
-				j.push(path, int(limit)+1, get(ml, "what"), get(ml, "fix"), map[string]any{"lines": float64(n), "limit": ml["limit"]})
-			}
-		}
-		if mll, ok := s["maxLineLength"].(map[string]any); ok {
-			limit := num(mll["bytes"])
-			count, first, longest := 0, 0, 0
-			for i, ln := range linesFor(j) {
-				if float64(len(ln)) > limit {
+					if !re(a["linesMatching"]).Test(l) {
+						continue
+					}
 					count++
-					if first == 0 {
-						first = i + 1
-					}
-					if len(ln) > longest {
-						longest = len(ln)
+					if overflowAt == 0 && hasMost && float64(count) == num(atMost)+1 {
+						overflowAt = i + 1
 					}
 				}
-			}
-			if count > 0 {
-				j.push(path, first, get(mll, "what"), get(mll, "fix"), map[string]any{"count": float64(count), "bytes": mll["bytes"], "longest": float64(longest)})
-			}
-		}
-		for _, a := range items(s["countMatchingLines"]) {
-			view := linesFor(j)
-			count, overflowAt := 0, 0
-			atMost, hasMost := a["atMost"]
-			for i, l := range view {
-				if !re(a["linesMatching"]).Test(l) {
+				atLeast, hasLeast := a["atLeast"]
+				under := hasLeast && float64(count) < num(atLeast)
+				if !under && overflowAt == 0 {
 					continue
 				}
-				count++
-				if overflowAt == 0 && hasMost && float64(count) == num(atMost)+1 {
-					overflowAt = i + 1
+				vars := map[string]any{"count": float64(count)}
+				if hasLeast {
+					vars["atLeast"] = atLeast
+				}
+				if hasMost {
+					vars["atMost"] = atMost
+				}
+				line := overflowAt
+				if under {
+					line = 0
+				}
+				j.push(path, line, get(a, "what"), get(a, "fix"), vars)
+			}
+			for _, a := range items(s["checkEachFile"]) {
+				if rw, ok := a["relevantWhen"]; ok && truthy(rw) && !w.relevant(rw) {
+					continue
+				}
+				all := true
+				for _, m := range arr(a["whenFileMatches"]) {
+					if !re(m).Test(textFor(j)) {
+						all = false
+						break
+					}
+				}
+				if !all {
+					continue
+				}
+				var bad bool
+				if f := re(a["forbid"]); f != nil && truthy(a["forbid"]) {
+					bad = f.Test(textFor(j))
+				} else {
+					bad = !re(a["require"]).Test(textFor(j))
+				}
+				if bad {
+					j.out = append(j.out, hit{File: path, What: jsString(get(a, "what")), Fix: jsString(get(a, "fix"))})
 				}
 			}
-			atLeast, hasLeast := a["atLeast"]
-			under := hasLeast && float64(count) < num(atLeast)
-			if !under && overflowAt == 0 {
-				continue
-			}
-			vars := map[string]any{"count": float64(count)}
-			if hasLeast {
-				vars["atLeast"] = atLeast
-			}
-			if hasMost {
-				vars["atMost"] = atMost
-			}
-			line := overflowAt
-			if under {
-				line = 0
-			}
-			j.push(path, line, get(a, "what"), get(a, "fix"), vars)
-		}
-		for _, a := range items(s["checkEachFile"]) {
-			if rw, ok := a["relevantWhen"]; ok && truthy(rw) && !w.relevant(rw) {
-				continue
-			}
-			all := true
-			for _, m := range arr(a["whenFileMatches"]) {
-				if !re(m).Test(textFor(j)) {
-					all = false
+			for _, st := range j.repoStates {
+				if re(st.a["unlessSomeFileMatches"]).Test(textFor(j)) {
+					st.satisfied = true
+				}
+				if excluded(path, get(st.a, "neverFlagFiles")) {
+					continue
+				}
+				for _, g := range arr(st.a["flagFilesMatching"]) {
+					group := arr(g)
+					ok := true
+					for _, r := range group {
+						if !re(r).Test(textFor(j)) {
+							ok = false
+							break
+						}
+					}
+					if !ok {
+						continue
+					}
+					at := 0
+					if len(group) > 0 {
+						for i, ln := range linesFor(j) {
+							if re(group[0]).Test(ln) {
+								at = i + 1
+								break
+							}
+						}
+					}
+					st.hits = append(st.hits, hit{File: path, Line: at, What: jsString(get(st.a, "what")), Fix: jsString(get(st.a, "fix"))})
 					break
 				}
 			}
-			if !all {
-				continue
-			}
-			var bad bool
-			if f := re(a["forbid"]); f != nil && truthy(a["forbid"]) {
-				bad = f.Test(textFor(j))
-			} else {
-				bad = !re(a["require"]).Test(textFor(j))
-			}
-			if bad {
-				j.out = append(j.out, hit{File: path, What: jsString(get(a, "what")), Fix: jsString(get(a, "fix"))})
-			}
-		}
-		for _, st := range j.repoStates {
-			if re(st.a["unlessSomeFileMatches"]).Test(textFor(j)) {
-				st.satisfied = true
-			}
-			if excluded(path, get(st.a, "neverFlagFiles")) {
-				continue
-			}
-			for _, g := range arr(st.a["flagFilesMatching"]) {
-				group := arr(g)
+			var eligible []map[string]any
+			for _, a := range items(s["matchLines"]) {
+				if wp := re(a["whenPathMatches"]); wp != nil && !wp.Test(path) {
+					continue
+				}
 				ok := true
-				for _, r := range group {
-					if !re(r).Test(textFor(j)) {
+				for _, m := range arr(a["whenFileMatches"]) {
+					if !re(m).Test(textFor(j)) {
 						ok = false
 						break
 					}
@@ -243,42 +272,15 @@ func (w *sweeper) visit(subs []*job, path, text string, roles map[*job]role) {
 				if !ok {
 					continue
 				}
-				at := 0
-				if len(group) > 0 {
-					for i, ln := range linesFor(j) {
-						if re(group[0]).Test(ln) {
-							at = i + 1
-							break
-						}
-					}
+				if uf := re(a["unlessFileMatches"]); uf != nil && uf.Test(textFor(j)) {
+					continue
 				}
-				st.hits = append(st.hits, hit{File: path, Line: at, What: jsString(get(st.a, "what")), Fix: jsString(get(st.a, "fix"))})
-				break
+				eligible = append(eligible, a)
 			}
-		}
-		var eligible []map[string]any
-		for _, a := range items(s["matchLines"]) {
-			if wp := re(a["whenPathMatches"]); wp != nil && !wp.Test(path) {
-				continue
+			if len(eligible) > 0 {
+				lineJobs = append(lineJobs, lineJob{j, eligible, linesFor(j)})
 			}
-			ok := true
-			for _, m := range arr(a["whenFileMatches"]) {
-				if !re(m).Test(textFor(j)) {
-					ok = false
-					break
-				}
-			}
-			if !ok {
-				continue
-			}
-			if uf := re(a["unlessFileMatches"]); uf != nil && uf.Test(textFor(j)) {
-				continue
-			}
-			eligible = append(eligible, a)
-		}
-		if len(eligible) > 0 {
-			lineJobs = append(lineJobs, lineJob{j, eligible, linesFor(j)})
-		}
+		})
 	}
 	if len(lineJobs) == 0 {
 		return
@@ -286,42 +288,44 @@ func (w *sweeper) visit(subs []*job, path, text string, roles map[*job]role) {
 	n := len(rawLines())
 	for i := 0; i < n; i++ {
 		for _, lj := range lineJobs {
-			if i >= len(lj.viewLines) {
-				continue
-			}
-			ln := lj.viewLines[i]
-			if skip := re(lj.j.spec["skipLinesMatching"]); skip != nil && skip.Test(ln) {
-				continue
-			}
-			for _, a := range lj.eligible {
-				m := matchOrEmpty(re(a["match"]), ln)
-				if m == nil {
-					continue
+			w.guard(lj.j, path, i+1, func() {
+				if i >= len(lj.viewLines) {
+					return
 				}
-				if r := re(a["andLineMatches"]); r != nil && !r.Test(ln) {
-					continue
+				ln := lj.viewLines[i]
+				if skip := re(lj.j.spec["skipLinesMatching"]); skip != nil && skip.Test(ln) {
+					return
 				}
-				if r := re(a["unlessLineMatches"]); r != nil && r.Test(ln) {
-					continue
+				for _, a := range lj.eligible {
+					m := matchOrEmpty(re(a["match"]), ln)
+					if m == nil {
+						continue
+					}
+					if r := re(a["andLineMatches"]); r != nil && !r.Test(ln) {
+						continue
+					}
+					if r := re(a["unlessLineMatches"]); r != nil && r.Test(ln) {
+						continue
+					}
+					if r := re(a["unlessPreviousLineMatches"]); r != nil && i > 0 && r.Test(lj.viewLines[i-1]) {
+						continue
+					}
+					if r := re(a["andIndentedBlockBelowMatches"]); r != nil && !anyMatch(blockBelow(lj.viewLines, i), r) {
+						continue
+					}
+					if r := re(a["unlessIndentedBlockBelowMatches"]); r != nil && anyMatch(blockBelow(lj.viewLines, i), r) {
+						continue
+					}
+					if r := re(a["andWithinBlockOpenedBy"]); r != nil && !enclosedBy(lj.viewLines, i, r) {
+						continue
+					}
+					if r := re(a["unlessWithinBlockOpenedBy"]); r != nil && enclosedBy(lj.viewLines, i, r) {
+						continue
+					}
+					lj.j.push(path, i+1, get(a, "what"), get(a, "fix"), map[string]any{"match": m.Text})
+					break
 				}
-				if r := re(a["unlessPreviousLineMatches"]); r != nil && i > 0 && r.Test(lj.viewLines[i-1]) {
-					continue
-				}
-				if r := re(a["andIndentedBlockBelowMatches"]); r != nil && !anyMatch(blockBelow(lj.viewLines, i), r) {
-					continue
-				}
-				if r := re(a["unlessIndentedBlockBelowMatches"]); r != nil && anyMatch(blockBelow(lj.viewLines, i), r) {
-					continue
-				}
-				if r := re(a["andWithinBlockOpenedBy"]); r != nil && !enclosedBy(lj.viewLines, i, r) {
-					continue
-				}
-				if r := re(a["unlessWithinBlockOpenedBy"]); r != nil && enclosedBy(lj.viewLines, i, r) {
-					continue
-				}
-				lj.j.push(path, i+1, get(a, "what"), get(a, "fix"), map[string]any{"match": m.Text})
-				break
-			}
+			})
 		}
 	}
 	_ = ctx

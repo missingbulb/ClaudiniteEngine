@@ -1,0 +1,8 @@
+{
+  "rules": "",
+  "mounts": [],
+  "world": [],
+  "work": [
+    "r-gated a.txt:1 block"
+  ]
+}

@@ -1,6 +1,7 @@
 package gitcmd
 
 import (
+	"encoding/base64"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -89,6 +90,69 @@ func TestChildEnvironmentHoldsNoToken(t *testing.T) {
 		if strings.Contains(kv, "ghs_secret") {
 			t.Errorf("child environment carries %s", kv)
 		}
+	}
+}
+
+// The token reaches only the children that talk to the remote, as an
+// http.extraheader in their environment, never in .git/config; every other
+// child, and a Repo with no token, sees none.
+func TestOnlyRemoteChildrenCarryTheToken(t *testing.T) {
+	r, _ := clone(t)
+	r.Token = "ghs_secret"
+	key := "http.https://github.com/.extraheader"
+	want := "AUTHORIZATION: basic " + base64.StdEncoding.EncodeToString([]byte("x-access-token:ghs_secret"))
+	if got, err := r.remoteLine("config", "--get", key); err != nil || got != want {
+		t.Errorf("remote child: %q %v", got, err)
+	}
+	if got, _ := r.line("config", "--get", key); got != "" {
+		t.Errorf("a local child sees %q", got)
+	}
+	if raw, _ := os.ReadFile(filepath.Join(r.Dir, ".git", "config")); strings.Contains(string(raw), "ghs_secret") || strings.Contains(string(raw), base64.StdEncoding.EncodeToString([]byte("x-access-token:ghs_secret"))) {
+		t.Error(".git/config holds the token")
+	}
+	r.Token = ""
+	if got, _ := r.remoteLine("config", "--get", key); got != "" {
+		t.Errorf("no token: %q", got)
+	}
+	// A push still works with the header set (the remote here is a path,
+	// which ignores it).
+	r.Token = "ghs_secret"
+	if err := r.CreateBranch("authed", "HEAD"); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.Push("origin", "authed"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// A checkout from the old template persists actions/checkout's header in
+// .git/config. http.extraheader values accumulate and an empty value
+// clears the list, so a remote child must send the env's header alone:
+// the entries after the last empty one are exactly the token's.
+func TestTheTokenReplacesAPersistedHeader(t *testing.T) {
+	r, _ := clone(t)
+	key := "http.https://github.com/.extraheader"
+	if _, err := r.run("config", "--add", key, "AUTHORIZATION: basic cGVyc2lzdGVk"); err != nil {
+		t.Fatal(err)
+	}
+	r.Token = "ghs_secret"
+	want := "AUTHORIZATION: basic " + base64.StdEncoding.EncodeToString([]byte("x-access-token:ghs_secret"))
+	out, err := r.remote("config", "--get-all", key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	values := strings.Split(strings.TrimSuffix(string(out), "\n"), "\n")
+	effective := values
+	for i, v := range values {
+		if v == "" {
+			effective = values[i+1:]
+		}
+	}
+	if len(effective) != 1 || effective[0] != want {
+		t.Errorf("a remote child sends %q (all values %q)", effective, values)
+	}
+	if got, _ := r.line("config", "--get-all", key); got != "AUTHORIZATION: basic cGVyc2lzdGVk" {
+		t.Errorf("a local child sees %q", got)
 	}
 }
 

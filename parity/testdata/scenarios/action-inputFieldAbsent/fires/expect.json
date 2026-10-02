@@ -1,0 +1,19 @@
+{
+  "rules": "",
+  "mounts": [],
+  "world": [],
+  "work": [],
+  "pretooluse": [
+    {
+      "payload": {
+        "tool_name": "Bash",
+        "tool_input": {
+          "command": "ls",
+          "description": "list"
+        }
+      },
+      "exit": 2,
+      "block": "Blocked by a-inputFieldAbsent: Bash call lacks a field. the a-inputFieldAbsent guard. Fix: describe it"
+    }
+  ]
+}

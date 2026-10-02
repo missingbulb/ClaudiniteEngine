@@ -1,0 +1,18 @@
+[
+  {
+    "id": "a-regexTool",
+    "on_fail": "advise",
+    "scope": "action",
+    "failureMessage": "the a-regexTool guard",
+    "guardToolCalls": [
+      {
+        "tool": "/^mcp__github__(list|search)_/",
+        "inputFieldAbsent": [
+          "perPage"
+        ],
+        "what": "{tool} pages with no perPage",
+        "fix": "pass perPage"
+      }
+    ]
+  }
+]

@@ -27,8 +27,6 @@ var ruleLine = regexp.MustCompile(`(?m)^[-*] `)
 type assembled struct {
 	notes     []string
 	selfCheck string
-	// prose reports that a loaded pack has rules for the index to import.
-	prose bool
 	// skills are the mounted skills' metadata, by name.
 	skills map[string]skillfm.Meta
 }
@@ -59,7 +57,6 @@ func assemble(repo, engine string) assembled {
 		var body []byte
 		if path := p.ProsePath(); path != "" {
 			body, _ = os.ReadFile(path)
-			a.prose = true
 		}
 		if hasCoded(p.Dir) {
 			a.notes = append(a.notes, fmt.Sprintf("pack %s: its coded checks (worldRules/, workRules/, skills/*/checks.mjs) and tasks are not run by this engine; its declared checks are", p.Token()))
@@ -88,6 +85,7 @@ func assemble(repo, engine string) assembled {
 	var mountNotes []string
 	a.skills, mountNotes = mount(repo, offered)
 	a.notes = append(a.notes, mountNotes...)
+	a.notes = append(a.notes, malformedNotes(set.Packs)...)
 	a.selfCheck = fmt.Sprintf("[cn] packs %d/%d loaded", len(set.Packs), len(set.Packs)+len(set.NotLoaded))
 	if len(parts) > 0 {
 		a.selfCheck += " (" + strings.Join(parts, "; ") + ")"

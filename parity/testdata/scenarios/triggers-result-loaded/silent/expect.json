@@ -1,0 +1,25 @@
+{
+  "rules": "",
+  "mounts": [
+    "call-guide",
+    "prompt-guide",
+    "result-guide",
+    "scoped-guide"
+  ],
+  "world": [],
+  "work": [],
+  "posttooluse": [
+    {
+      "payload": {
+        "tool_name": "Bash",
+        "tool_input": {
+          "command": "curl x"
+        },
+        "tool_response": {
+          "stdout": "EGRESS_BLOCKED"
+        }
+      },
+      "exit": 0
+    }
+  ]
+}

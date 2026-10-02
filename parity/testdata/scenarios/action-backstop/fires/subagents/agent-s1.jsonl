@@ -1,0 +1,1 @@
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"b4","name":"Bash","input":{"command":"git push"}}]},"isSidechain":true}

@@ -1,0 +1,19 @@
+{
+  "rules": "",
+  "mounts": [],
+  "world": [],
+  "work": [],
+  "pretooluse": [
+    {
+      "payload": {
+        "tool_name": "Bash",
+        "tool_input": {
+          "command": "ls",
+          "description": "list",
+          "timeout": 5
+        }
+      },
+      "exit": 0
+    }
+  ]
+}

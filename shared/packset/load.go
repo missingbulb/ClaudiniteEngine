@@ -93,8 +93,17 @@ type Set struct {
 // when session is true, every temp pack present, by directory name. A
 // pack whose requires names an undeclared pack loads, and is recorded in
 // Unmet. A development engine (0.0.0) skips the minEngineVersion check.
-// It returns an error only when the declaration cannot be read.
+// It returns an error only when the declaration cannot be read. Under
+// Memoize the first answer stands for the process.
 func Load(repo, engine string, session bool) (Set, error) {
+	l := Remember(loadKey(repo, engine, session), func() any {
+		s, err := load(repo, engine, session)
+		return loaded{s, err}
+	}).(loaded)
+	return l.set, l.err
+}
+
+func load(repo, engine string, session bool) (Set, error) {
 	declared, err := Declared(repo)
 	if err != nil {
 		return Set{}, err

@@ -1,0 +1,18 @@
+[
+  {
+    "id": "a-unlessMatches",
+    "on_fail": "block",
+    "scope": "action",
+    "failureMessage": "the a-unlessMatches guard",
+    "guardToolCalls": [
+      {
+        "tool": "Bash",
+        "inputField": "command",
+        "match": "/git push/",
+        "unlessMatches": "/--dry-run/",
+        "what": "pushes",
+        "fix": "dry-run"
+      }
+    ]
+  }
+]

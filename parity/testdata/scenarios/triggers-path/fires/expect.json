@@ -1,0 +1,125 @@
+{
+  "rules": "",
+  "mounts": [
+    "call-guide",
+    "prompt-guide",
+    "result-guide",
+    "scoped-guide"
+  ],
+  "world": [],
+  "work": [],
+  "pretooluse": [
+    {
+      "payload": {
+        "tool_name": "Edit",
+        "tool_input": {
+          "file_path": "docs/a/b.md",
+          "old_string": "a",
+          "new_string": "b"
+        }
+      },
+      "exit": 2,
+      "block": "Blocked: docs/a/b.md is edited only with the `scoped-guide` skill loaded (the guards pack's skill forces itself for docs/**). Load it first — Skill tool, skill: \"scoped-guide\", or Read .claudinite/local/packs/guards/skills/scoped-guide/SKILL.md — then retry the edit."
+    },
+    {
+      "payload": {
+        "tool_name": "Write",
+        "tool_input": {
+          "file_path": "src/x.go",
+          "content": ""
+        }
+      },
+      "exit": 2,
+      "block": "Blocked: src/x.go is edited only with the `scoped-guide` skill loaded (the guards pack's skill forces itself for src/*.go). Load it first — Skill tool, skill: \"scoped-guide\", or Read .claudinite/local/packs/guards/skills/scoped-guide/SKILL.md — then retry the edit."
+    },
+    {
+      "payload": {
+        "tool_name": "Edit",
+        "tool_input": {
+          "file_path": "src/sub/x.go",
+          "old_string": "a",
+          "new_string": "b"
+        }
+      },
+      "exit": 0
+    },
+    {
+      "payload": {
+        "tool_name": "Edit",
+        "tool_input": {
+          "file_path": "cfg/a.json",
+          "old_string": "a",
+          "new_string": "b"
+        }
+      },
+      "exit": 2,
+      "block": "Blocked: cfg/a.json is edited only with the `scoped-guide` skill loaded (the guards pack's skill forces itself for cfg/{a,b}.json). Load it first — Skill tool, skill: \"scoped-guide\", or Read .claudinite/local/packs/guards/skills/scoped-guide/SKILL.md — then retry the edit."
+    },
+    {
+      "payload": {
+        "tool_name": "Edit",
+        "tool_input": {
+          "file_path": "cfg/c.json",
+          "old_string": "a",
+          "new_string": "b"
+        }
+      },
+      "exit": 0
+    },
+    {
+      "payload": {
+        "tool_name": "Edit",
+        "tool_input": {
+          "file_path": "deep/er/NOTES.md",
+          "old_string": "a",
+          "new_string": "b"
+        }
+      },
+      "exit": 2,
+      "block": "Blocked: deep/er/NOTES.md is edited only with the `scoped-guide` skill loaded (the guards pack's skill forces itself for **/NOTES.md). Load it first — Skill tool, skill: \"scoped-guide\", or Read .claudinite/local/packs/guards/skills/scoped-guide/SKILL.md — then retry the edit."
+    },
+    {
+      "payload": {
+        "tool_name": "Edit",
+        "tool_input": {
+          "file_path": "NOTES.md",
+          "old_string": "a",
+          "new_string": "b"
+        }
+      },
+      "exit": 2,
+      "block": "Blocked: NOTES.md is edited only with the `scoped-guide` skill loaded (the guards pack's skill forces itself for **/NOTES.md). Load it first — Skill tool, skill: \"scoped-guide\", or Read .claudinite/local/packs/guards/skills/scoped-guide/SKILL.md — then retry the edit."
+    },
+    {
+      "payload": {
+        "tool_name": "Edit",
+        "tool_input": {
+          "file_path": "/etc/outside.md",
+          "old_string": "a",
+          "new_string": "b"
+        }
+      },
+      "exit": 0
+    },
+    {
+      "payload": {
+        "tool_name": "NotebookEdit",
+        "tool_input": {
+          "notebook_path": "docs/n.ipynb",
+          "new_source": ""
+        }
+      },
+      "exit": 2,
+      "block": "Blocked: docs/n.ipynb is edited only with the `scoped-guide` skill loaded (the guards pack's skill forces itself for docs/**). Load it first — Skill tool, skill: \"scoped-guide\", or Read .claudinite/local/packs/guards/skills/scoped-guide/SKILL.md — then retry the edit."
+    },
+    {
+      "payload": {
+        "tool_name": "Read",
+        "tool_input": {
+          "file_path": "docs/a.md"
+        }
+      },
+      "exit": 0
+    }
+  ]
+}

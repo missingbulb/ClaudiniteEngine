@@ -1,0 +1,10 @@
+{
+  "rules": "",
+  "mounts": [],
+  "world": [],
+  "work": [
+    "a-match (session) Bash call #1 advise",
+    "a-match (session) Bash call #2 advise",
+    "a-match (session) Bash call #3 advise"
+  ]
+}

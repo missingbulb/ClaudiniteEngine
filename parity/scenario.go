@@ -1,6 +1,7 @@
 package parity
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 )
 
 // A scenario is a directory:
@@ -21,6 +23,8 @@ import (
 //	merge/         files committed on a side branch off main and merged
 //	               into change with a merge commit
 //	untracked/     files laid over the result and left untracked
+//	transcript.jsonl  the session transcript the work run and every hook
+//	               payload read, with subagents/agent-*.jsonl beside it
 //	expect.json    what every engine must answer (Expect)
 //
 // A declared pack that is not local/ is copied from the frozen engine's
@@ -47,9 +51,101 @@ type Expect struct {
 	// (the Node engine's config check, cn's verify), which differ by
 	// design.
 	LoaderOnly bool `json:"loaderOnly,omitempty"`
-	// Why says why a scenario narrows what is compared; LoaderOnly needs
-	// one.
+	// Why says why a scenario narrows what is compared; LoaderOnly and
+	// CnOnly need one.
 	Why string `json:"why,omitempty"`
+	// The per-call hooks' answers, each to its payload.
+	PreToolUse  []HookCase `json:"pretooluse,omitempty"`
+	Prompt      []HookCase `json:"prompt,omitempty"`
+	PostToolUse []HookCase `json:"posttooluse,omitempty"`
+	// CnOnly runs the scenario against cn alone, for a surface the Node
+	// engine does not have (pack hook judges).
+	CnOnly bool `json:"cnOnly,omitempty"`
+}
+
+// HookCase is one per-call hook payload and the answer it must get: the
+// exit code, the first line of a block, the context. The runner adds the
+// session id, the event name and, unless NoTranscript, the transcript.
+type HookCase struct {
+	// Payload keeps its key order: a pattern over the serialized input
+	// reads it.
+	Payload      json.RawMessage `json:"payload"`
+	NoTranscript bool           `json:"noTranscript,omitempty"`
+	Exit         int            `json:"exit"`
+	Block        string         `json:"block,omitempty"`
+	Context      string         `json:"context,omitempty"`
+}
+
+// hookEvents are the per-call events, as expect.json and cn hook name them,
+// with Claude Code's event name.
+var hookEvents = []struct{ key, event, name string }{
+	{"pretooluse", "pre-tool-use", "PreToolUse"},
+	{"prompt", "user-prompt-submit", "UserPromptSubmit"},
+	{"posttooluse", "post-tool-use", "PostToolUse"},
+}
+
+func (x *Expect) cases(key string) *[]HookCase {
+	switch key {
+	case "pretooluse":
+		return &x.PreToolUse
+	case "prompt":
+		return &x.Prompt
+	}
+	return &x.PostToolUse
+}
+
+// Payload is the case's payload as the hook reads it.
+func (c HookCase) payload(name, transcript string) (string, error) {
+	body := strings.TrimSpace(string(c.Payload))
+	if !strings.HasPrefix(body, "{") {
+		return "", fmt.Errorf("a payload is a JSON object, not %s", body)
+	}
+	head := map[string]string{"session_id": SessionID, "hook_event_name": name}
+	if transcript != "" && !c.NoTranscript {
+		head["transcript_path"] = transcript
+	}
+	var b strings.Builder
+	b.WriteString("{")
+	for _, k := range []string{"session_id", "hook_event_name", "transcript_path"} {
+		if v, ok := head[k]; ok {
+			q, _ := json.Marshal(v)
+			fmt.Fprintf(&b, "%q:%s,", k, q)
+		}
+	}
+	rest := strings.TrimSpace(body[1:])
+	if rest == "}" {
+		return strings.TrimSuffix(b.String(), ",") + "}", nil
+	}
+	b.WriteString(rest)
+	return b.String(), nil
+}
+
+// Transcript lays the scenario's transcript out under parent as Claude
+// Code does (<id>.jsonl beside <id>/subagents/) and names the session
+// file; "" when the scenario has none.
+func (s Scenario) Transcript(parent string) (string, error) {
+	src := filepath.Join(s.Dir, "transcript.jsonl")
+	if !exists(src) {
+		return "", nil
+	}
+	dir := filepath.Join(parent, "session")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", err
+	}
+	b, err := os.ReadFile(src)
+	if err != nil {
+		return "", err
+	}
+	path := filepath.Join(dir, SessionID+".jsonl")
+	if err := os.WriteFile(path, b, 0o644); err != nil {
+		return "", err
+	}
+	if sub := filepath.Join(s.Dir, "subagents"); exists(sub) {
+		if err := copyTree(sub, filepath.Join(dir, SessionID, "subagents")); err != nil {
+			return "", err
+		}
+	}
+	return path, nil
 }
 
 // Builtins are the built-in checks both engines run.
@@ -104,6 +200,9 @@ func loadScenario(group, name, dir string) (Scenario, error) {
 	}
 	if s.Expect.LoaderOnly && s.Expect.Why == "" {
 		return s, fmt.Errorf("%s/%s expect.json: loaderOnly without a why", group, name)
+	}
+	if s.Expect.CnOnly && s.Expect.Why == "" {
+		return s, fmt.Errorf("%s/%s expect.json: cnOnly without a why", group, name)
 	}
 	return s, nil
 }
@@ -186,8 +285,8 @@ func (s Scenario) Materialize(parent, canonPacks string, e Engine) (string, erro
 }
 
 // Comparable is the set of rules whose findings the engines must agree
-// on in dir: Only when the scenario names it, else every non-action
-// declared check in the tree plus the built-ins.
+// on in dir: Only when the scenario names it, else every declared check
+// in the tree plus the built-ins.
 func (s Scenario) Comparable(dir string) (map[string]bool, error) {
 	set := map[string]bool{}
 	if s.Expect.LoaderOnly {
@@ -209,8 +308,8 @@ func (s Scenario) Comparable(dir string) (map[string]bool, error) {
 	return set, err
 }
 
-// DeclaredIDs are the ids of the world and work checks every
-// declared-checks.json under dir declares.
+// DeclaredIDs are the ids of the checks every declared-checks.json under
+// dir declares.
 func DeclaredIDs(dir string) ([]string, error) {
 	var ids []string
 	err := filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
@@ -233,7 +332,7 @@ func DeclaredIDs(dir string) ([]string, error) {
 		}
 		for _, c := range decls {
 			id, _ := c["id"].(string)
-			if scope, _ := c["scope"].(string); id != "" && scope != "action" {
+			if id != "" {
 				ids = append(ids, id)
 			}
 		}
@@ -260,6 +359,18 @@ func (s Scenario) CanonPacks() []string {
 	var out []string
 	for _, id := range PackIDs(s.Node) {
 		if !strings.HasPrefix(id, "local/") {
+			out = append(out, id)
+		}
+	}
+	return out
+}
+
+// UnvendoredPacks are the declared canon packs the member does not hold
+// itself, which come from the frozen engine's shelf.
+func (s Scenario) UnvendoredPacks() []string {
+	var out []string
+	for _, id := range s.CanonPacks() {
+		if !exists(filepath.Join(s.Dir, "member/.claudinite/shared/packs", id)) {
 			out = append(out, id)
 		}
 	}
@@ -365,6 +476,10 @@ func appendFile(p, s string) error {
 	return err
 }
 
+// TodayToken in a scenario file is replaced by today's UTC date as it is
+// copied, so a check's grace window ("since") can be pinned open.
+const TodayToken = "@@TODAY@@"
+
 func copyTree(src, dst string) error {
 	return filepath.WalkDir(src, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -379,6 +494,7 @@ func copyTree(src, dst string) error {
 		if err != nil {
 			return err
 		}
+		b = bytes.ReplaceAll(b, []byte(TodayToken), []byte(time.Now().UTC().Format("2006-01-02")))
 		info, err := d.Info()
 		if err != nil {
 			return err

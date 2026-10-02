@@ -143,25 +143,18 @@ func Packs(d Deps, o Options) (string, error) {
 		return "", err
 	}
 	if len(moves) == 0 {
-		return "up to date", nil
+		needed, err := indexNeedsPR(d.Repo)
+		if err != nil || !needed {
+			return "up to date", err
+		}
+		if prev != nil && prev.Title == IndexTitle {
+			return pendingPR(d, *prev, prevState, "for the rules index")
+		}
+		return openPackPR(d, o, nil, prev)
 	}
 	set := describe(moves, false)
 	if prev != nil && strings.HasSuffix(prev.Title, ": "+describe(moves, true)) {
-		why := "its CI concluded " + prevState
-		switch prevState {
-		case "no run":
-			why = "has no CI run"
-		case "queued", "in_progress", "waiting", "pending", "requested":
-			why = "its CI is " + prevState
-		}
-		switch prevState {
-		case "no run", "cancelled", "timed_out":
-			if err := d.GitHub.Dispatch(CIWorkflow, prev.HeadRef, map[string]string{"pr": strconv.Itoa(prev.Number)}); err != nil {
-				return "", err
-			}
-			why += "; dispatched its CI again"
-		}
-		return fmt.Sprintf("skipped: #%d for packs %s is open and %s", prev.Number, set, why), nil
+		return pendingPR(d, *prev, prevState, "for packs "+set)
 	}
 	for i := range moves {
 		data, err := d.Packs.Archive(moves[i].id, moves[i].entry)
@@ -171,6 +164,48 @@ func Packs(d Deps, o Options) (string, error) {
 		moves[i].archive = data
 	}
 	return openPackPR(d, o, moves, prev)
+}
+
+// IndexTitle is the title of a pack PR that moves no pack and carries only
+// the rules index and the CLAUDE.md import.
+const IndexTitle = "claudinite: rules index"
+
+// indexNeedsPR reports whether the member's rules index is stale or
+// absent, or CLAUDE.md lacks the import of an index that imports prose:
+// what a pack PR converges even when no pack moves.
+func indexNeedsPR(repo string) (bool, error) {
+	st, _, err := rulesindex.Check(repo, pinVersion(repo))
+	if err != nil {
+		return false, err
+	}
+	switch st {
+	case rulesindex.Empty:
+		return false, nil
+	case rulesindex.Stale, rulesindex.Absent:
+		return true, nil
+	}
+	return !rulesindex.HasImport(repo), nil
+}
+
+// pendingPR is the verdict on the open pack PR proposing what this run
+// would: its CI state, dispatching its CI again when it never ran or was
+// cut short.
+func pendingPR(d Deps, prev githubapi.PR, prevState, what string) (string, error) {
+	why := "its CI concluded " + prevState
+	switch prevState {
+	case "no run":
+		why = "has no CI run"
+	case "queued", "in_progress", "waiting", "pending", "requested":
+		why = "its CI is " + prevState
+	}
+	switch prevState {
+	case "no run", "cancelled", "timed_out":
+		if err := d.GitHub.Dispatch(CIWorkflow, prev.HeadRef, map[string]string{"pr": strconv.Itoa(prev.Number)}); err != nil {
+			return "", err
+		}
+		why += "; dispatched its CI again"
+	}
+	return fmt.Sprintf("skipped: #%d %s is open and %s", prev.Number, what, why), nil
 }
 
 // proposePacks selects, for each declared pack in declared order, the
@@ -297,9 +332,11 @@ func packsTitle(day int, moves []move) string {
 
 // openPackPR writes the moves on a fresh branch, runs this repo's check
 // world over it and, when it passes, pushes it, opens and labels the PR
-// and dispatches its CI. The checkout ends where it was.
+// and dispatches its CI. With no moves the branch carries the rules index
+// and the import alone. The checkout ends where it was.
 func openPackPR(d Deps, o Options, moves []move, prev *githubapi.PR) (string, error) {
 	set := describe(moves, false)
+	what := "packs " + set
 	back, err := d.Git.CurrentBranch()
 	if err != nil {
 		return "", err
@@ -307,6 +344,9 @@ func openPackPR(d Deps, o Options, moves []move, prev *githubapi.PR) (string, er
 	day := version.Today(d.Now())
 	branch := fmt.Sprintf("%s%d", PackBranchPrefix, day)
 	title := packsTitle(day, moves)
+	if len(moves) == 0 {
+		set, what, title = "the rules index", "the rules index", IndexTitle
+	}
 	if err := d.Git.CreateBranch(branch, "HEAD"); err != nil {
 		return "", err
 	}
@@ -368,7 +408,11 @@ func openPackPR(d Deps, o Options, moves []move, prev *githubapi.PR) (string, er
 
 	var b strings.Builder
 	fmt.Fprintf(&b, "Moves this repo's vendored Claudinite packs. Only `%s/` and the rules index `%s` change, and `%s` gains the line importing that index when it lacks it.\n\n", packset.Dir, rulesindex.File, rulesindex.ClaudeMD)
-	b.WriteString("| Pack | From | To | Channel | Index serial | Source | Key | Archive SHA-256 |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n")
+	if len(moves) == 0 {
+		b.WriteString("No pack moves: the rules index or the import had fallen behind the packs this repo already holds.\n\n")
+	} else {
+		b.WriteString("| Pack | From | To | Channel | Index serial | Source | Key | Archive SHA-256 |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n")
+	}
 	for _, m := range moves {
 		old := m.old
 		if old == "" {
@@ -387,7 +431,7 @@ func openPackPR(d Deps, o Options, moves []move, prev *githubapi.PR) (string, er
 	b.WriteString("The updater merges this PR once the CI run it dispatched is green.\n")
 
 	if prev != nil {
-		if err := closeUpdatePR(d, *prev, "Superseded: a newer pack set is proposed ("+set+")."); err != nil {
+		if err := closeUpdatePR(d, *prev, "Superseded: "+set+" is proposed instead."); err != nil {
 			return "", err
 		}
 		if prev.HeadRef == branch {
@@ -409,7 +453,7 @@ func openPackPR(d Deps, o Options, moves []move, prev *githubapi.PR) (string, er
 	if err := d.Git.DeleteBranch(branch); err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("opened #%d for packs %s", pr.Number, set), nil
+	return fmt.Sprintf("opened #%d for %s", pr.Number, what), nil
 }
 
 // onlyAppendsImport refuses a CLAUDE.md on sha that is anything but
@@ -561,6 +605,9 @@ func landPacks(d Deps, pr githubapi.PR, sha string) (string, error) {
 	}
 	if err := d.GitHub.Dispatch(CIWorkflow, mainBranch, map[string]string{}); err != nil {
 		return "", err
+	}
+	if len(landed) == 0 {
+		return "landed the rules index", nil
 	}
 	return "landed packs " + strings.Join(landed, ", "), nil
 }

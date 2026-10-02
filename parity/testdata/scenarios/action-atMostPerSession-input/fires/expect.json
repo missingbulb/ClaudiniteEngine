@@ -1,0 +1,29 @@
+{
+  "rules": "",
+  "mounts": [],
+  "world": [],
+  "work": [],
+  "pretooluse": [
+    {
+      "payload": {
+        "tool_name": "WebFetch",
+        "tool_input": {
+          "url": "https://x.example",
+          "prompt": "p"
+        }
+      },
+      "exit": 0,
+      "context": "[claudinite a-atMostWhole] WebFetch fetched the same input twice. the a-atMostWhole guard. Fix: reuse the result"
+    },
+    {
+      "payload": {
+        "tool_name": "WebFetch",
+        "tool_input": {
+          "prompt": "p",
+          "url": "https://x.example"
+        }
+      },
+      "exit": 0
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+{"type":"user","message":{"role":"user","content":"go"}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"c1","name":"Bash","input":{"command":"sed -i s/a/b/ docs/a.md"}}]}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"c2","name":"Bash","input":{"command":"make deploy"}}]}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"c3","name":"Bash","input":{"command":"make deploy again"}}]}}

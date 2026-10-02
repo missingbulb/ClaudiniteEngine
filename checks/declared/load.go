@@ -122,6 +122,9 @@ func loadDir(dir, rel, pack, skill string) ([]*Check, error) {
 		}
 		c.Pack, c.Skill, c.File = pack, skill, fileRel
 		c.Tags = []string{c.Kind(), "declared", pack}
+		if c.Scope == "action" {
+			c.Tags = []string{"action", "work", "pre-tool-use", "declared", pack}
+		}
 		out = append(out, c)
 	}
 	return out, nil
