@@ -10,6 +10,7 @@ import (
 
 	"github.com/missingbulb/ClaudiniteEngine/checks/declared"
 	"github.com/missingbulb/ClaudiniteEngine/checksdk"
+	"github.com/missingbulb/ClaudiniteEngine/shared/descriptor"
 	"github.com/missingbulb/ClaudiniteEngine/shared/findings"
 	"github.com/missingbulb/ClaudiniteEngine/shared/provenance"
 	"github.com/missingbulb/ClaudiniteEngine/shared/transcript"
@@ -189,7 +190,7 @@ func runProvenanceChangeRecorded(ctx *declared.Ctx, _ *transcript.Session) []fin
 				}
 				if bt, ok := base.Read(file); ok {
 					ht, _ := head.Read(file)
-					if strings.HasSuffix(file, ".json") && sameJSON(bt, ht) || checksdk.CommentOnly(file, &bt, &ht) {
+					if sameManifest(file, bt, ht) {
 						continue
 					}
 				}
@@ -367,12 +368,16 @@ func declarationChanged(before, after, id string) bool {
 	return !reflect.DeepEqual(find(before), find(after))
 }
 
-// sameJSON reports two texts that parse to the same value: a re-indented
-// manifest decided nothing.
-func sameJSON(a, b string) bool {
-	var x, y any
-	if json.Unmarshal([]byte(a), &x) != nil || json.Unmarshal([]byte(b), &y) != nil {
-		return false
+// sameManifest reports whether a manifest's change left its meaning
+// alone: the same data for a descriptor (JSON, YAML, TOML), whose layout
+// and comments are not data and of which JSON has none; comments alone for
+// the Node engine's module.
+func sameManifest(file, a, b string) bool {
+	f := descriptor.FormatOf(file)
+	if f == "" {
+		return checksdk.CommentOnly(file, &a, &b)
 	}
-	return reflect.DeepEqual(x, y)
+	x, errA := descriptor.ParseBytes([]byte(a), f)
+	y, errB := descriptor.ParseBytes([]byte(b), f)
+	return errA == nil && errB == nil && reflect.DeepEqual(x, y)
 }
