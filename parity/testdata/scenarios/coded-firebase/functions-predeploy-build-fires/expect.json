@@ -1,0 +1,15 @@
+{
+  "rules": "@../shared/packs/firebase/RULES.md\n",
+  "mounts": [
+    "create-release-plan",
+    "firebase-functions",
+    "firestore-security-rules"
+  ],
+  "world": [
+    "functions-predeploy-build firebase.json block"
+  ],
+  "work": [],
+  "only": [
+    "functions-predeploy-build"
+  ]
+}

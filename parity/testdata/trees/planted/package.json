@@ -1,0 +1,9 @@
+{
+  "version": "61002.1.0",
+  "scripts": {
+    "test": "node --test .hidden/**/*.test.mjs"
+  },
+  "dependencies": {
+    "a": "1.0.0"
+  }
+}

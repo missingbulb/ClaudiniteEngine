@@ -14,7 +14,8 @@ import (
 // from its fields and from the files under the Repo's root, so a check
 // runs without cn. A nil list is derived where it can be: Files, Tracked
 // and AllFiles walk the root (.git skipped), ChangedFiles is empty,
-// AddedLines reads every line of a changed file the Base does not hold.
+// AddedLines reads every line of a changed file the Base does not hold,
+// and GrepTracked skips the vendored mount, as the engine's does.
 type Fake struct {
 	Files, Tracked, AllFiles, Untracked []string
 	ChangedFiles, Deleted               []string
@@ -156,6 +157,9 @@ func (f *Fake) answer(root, method string, raw json.RawMessage) (any, error) {
 	case "change.grep":
 		out := []Line{}
 		for _, p := range or(f.Tracked, walk) {
+			if strings.HasPrefix(p, ".claudinite/shared/") {
+				continue
+			}
 			b, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(p)))
 			if err != nil {
 				continue

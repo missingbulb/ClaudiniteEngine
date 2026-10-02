@@ -1,0 +1,4 @@
+{
+  "$schema": "schemas/thing.schema.json",
+  "name": "x"
+}

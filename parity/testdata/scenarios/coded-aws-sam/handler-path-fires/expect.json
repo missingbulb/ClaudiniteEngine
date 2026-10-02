@@ -1,0 +1,14 @@
+{
+  "rules": "@../shared/packs/aws-sam/RULES.md\n",
+  "mounts": [
+    "sam-build-and-deps",
+    "sam-template"
+  ],
+  "world": [
+    "handler-path template.yaml block"
+  ],
+  "work": [],
+  "only": [
+    "handler-path"
+  ]
+}

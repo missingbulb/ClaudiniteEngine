@@ -1,0 +1,13 @@
+{
+  "rules": "@../shared/packs/node/RULES.md\n",
+  "mounts": [
+    "node-test-discovery"
+  ],
+  "world": [
+    "test-discovery-resolves package.json:2 block"
+  ],
+  "work": [],
+  "only": [
+    "test-discovery-resolves"
+  ]
+}

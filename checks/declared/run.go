@@ -44,7 +44,7 @@ var builtinBarrier = Builtin{ID: "barrier", Pack: "basics", OnFail: "block", Tag
 type Set struct {
 	// ctx is the run's one walk of the tree, shared by the declared,
 	// built-in and coded checks.
-	ctx *Ctx
+	ctx      *Ctx
 	Repo     string
 	Checks   []*Check
 	Builtins []Builtin

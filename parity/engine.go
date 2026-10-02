@@ -211,7 +211,7 @@ func parseNode(out string) []Finding {
 		if m[1] == "ADVISORY" {
 			onFail = "advise"
 		}
-		fs = append(fs, Finding{Rule: m[2], Path: normPath(path), Line: line, OnFail: onFail})
+		fs = append(fs, Finding{Rule: bareRule(m[2]), Path: normPath(path), Line: line, OnFail: onFail})
 	}
 	return fs
 }
@@ -362,10 +362,7 @@ func parseCn(out string) []Finding {
 		if m == nil {
 			continue
 		}
-		rule := m[2]
-		if i := strings.LastIndex(rule, "/"); i >= 0 {
-			rule = rule[i+1:]
-		}
+		rule := bareRule(m[2])
 		path, line := parseLoc(m[3])
 		onFail := "block"
 		if m[1] == "advisory" || m[1] == "deprecation" {
@@ -401,11 +398,21 @@ func (c Cn) Work(dir, transcript string) ([]Finding, error) {
 
 // Listed is one check cn lists.
 type Listed struct {
-	ID, Kind string
-	Tags     []string
+	ID, Pack, Kind string
+	Tags           []string
 }
 
-var listLine = regexp.MustCompile(`^(\S+) (declared|builtin|coded) \(([^)]*)\) (\S+)$`)
+var listLine = regexp.MustCompile(`^(\S+) (declared|builtin|coded|judge) \(([^)]*)\) (\S+)(?: since \S+)?$`)
+
+// bareRule is a rule's id without its pack: the Node engine names a few
+// coded checks <pack>/<id> and cn names every check so; both compare by
+// the id.
+func bareRule(rule string) string {
+	if i := strings.LastIndex(rule, "/"); i >= 0 {
+		return rule[i+1:]
+	}
+	return rule
+}
 
 // List is cn check list over dir.
 func (c Cn) List(dir string) ([]Listed, error) {
@@ -419,11 +426,11 @@ func (c Cn) List(dir string) ([]Listed, error) {
 		if m == nil {
 			continue
 		}
-		id := m[1]
+		pack, id := "", m[1]
 		if i := strings.LastIndex(id, "/"); i >= 0 {
-			id = id[i+1:]
+			pack, id = id[:i], id[i+1:]
 		}
-		ls = append(ls, Listed{ID: id, Kind: m[2], Tags: strings.Split(m[3], ", ")})
+		ls = append(ls, Listed{ID: id, Pack: pack, Kind: m[2], Tags: strings.Split(m[3], ", ")})
 	}
 	return ls, nil
 }

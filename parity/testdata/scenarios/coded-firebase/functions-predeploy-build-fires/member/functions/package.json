@@ -1,0 +1,9 @@
+{
+  "name": "fns",
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "build": "tsc"
+  }
+}

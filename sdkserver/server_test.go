@@ -36,9 +36,11 @@ func (fakeTree) RemovedLines(string) []gitcmd.Line { return nil }
 func (fakeTree) CommitsWithFiles() []gitcmd.Commit {
 	return []gitcmd.Commit{{Sha: "s1", Date: "2026-10-01T00:00:00Z", Subject: "one", Files: []string{"a.md"}}}
 }
-func (fakeTree) Commits() []string                 { return []string{"one\nbody"} }
-func (fakeTree) IntroducedMerges() []gitcmd.Merge  { return nil }
-func (fakeTree) GrepTracked(n string) []gitcmd.Hit { return []gitcmd.Hit{{Path: "v.md", Line: 2, Text: "x " + n}} }
+func (fakeTree) Commits() []string                { return []string{"one\nbody"} }
+func (fakeTree) IntroducedMerges() []gitcmd.Merge { return nil }
+func (fakeTree) GrepTracked(n string) []gitcmd.Hit {
+	return []gitcmd.Hit{{Path: "v.md", Line: 2, Text: "x " + n}}
+}
 
 func session(t *testing.T) *transcript.Session {
 	t.Helper()

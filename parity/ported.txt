@@ -1,0 +1,10 @@
+# The packs whose cn tree the parity harness reads from the ClaudinitePacks
+# checkout at claudinitepacks.ref: ported to Go, measured before any merge.
+basics
+node
+aws-sam
+firebase
+public-website
+executable-requirements
+python
+google-identity

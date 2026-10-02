@@ -189,10 +189,10 @@ func check(t *testing.T, s Scenario, e string, a Answer) {
 		e = "node (a scenario that fails on the Node engine is a wrong scenario, not a cn bug)"
 	}
 	x := s.Expect
-	if s.Name == "fires" && !a.fired() {
+	if strings.HasSuffix(s.Name, "fires") && !a.fired() {
 		t.Errorf("%s: a fires scenario found nothing", e)
 	}
-	if s.Name == "silent" && a.fired() {
+	if strings.HasSuffix(s.Name, "silent") && a.fired() {
 		t.Errorf("%s: a silent scenario found something", e)
 	}
 	for _, ev := range hookEvents {

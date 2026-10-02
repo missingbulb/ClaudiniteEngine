@@ -1,0 +1,9 @@
+{
+  "rules": "@../shared/packs/public-website/RULES.md\n",
+  "mounts": [],
+  "world": [],
+  "work": [],
+  "only": [
+    "version-stamp-matches-package"
+  ]
+}

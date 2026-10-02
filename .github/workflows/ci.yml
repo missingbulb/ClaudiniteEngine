@@ -41,6 +41,15 @@ jobs:
           ref: 057841ac43de1f90b821f7a57e0f3d21eb6ff0e7
           path: claudinite-frozen
           persist-credentials: false
+      # The ported packs, from ClaudinitePacks at the commit parity/claudinitepacks.ref pins.
+      - id: packs
+        run: echo "ref=$(cat parity/claudinitepacks.ref)" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: missingbulb/ClaudinitePacks
+          ref: ${{ steps.packs.outputs.ref }}
+          path: claudinitepacks
+          persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: "1.24"
@@ -52,7 +61,14 @@ jobs:
       - run: go test ./parity -run 'Parity|Differential' -v
         env:
           CLAUDINITE_NODE_ENGINE: ${{ github.workspace }}/claudinite-frozen
-          CLAUDINITE_PARITY_TREES: ${{ github.workspace }}/claudinite-frozen
+          CLAUDINITE_PARITY_TREES: ${{ github.workspace }}/claudinite-frozen:${{ github.workspace }}/parity/testdata/trees/planted
+          CLAUDINITE_PACKS_TREE: ${{ github.workspace }}/claudinitepacks
+          CLAUDINITE_CN: ${{ runner.temp }}/cn
+      # The ported packs' Go tests and cn check --pack fixtures, against this cn, until
+      # ClaudinitePacks pins a published one (#2).
+      - run: sh tools/checks/test.sh
+        working-directory: claudinitepacks
+        env:
           CLAUDINITE_CN: ${{ runner.temp }}/cn
       # The per-call hooks' latency on the runner, over the frozen tree's packs, held to its budgets; the table lands in the log.
       - run: |

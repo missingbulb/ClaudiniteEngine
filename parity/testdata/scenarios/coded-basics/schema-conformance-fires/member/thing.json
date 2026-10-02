@@ -1,0 +1,4 @@
+{
+  "$schema": "schemas/thing.schema.json",
+  "extra": true
+}

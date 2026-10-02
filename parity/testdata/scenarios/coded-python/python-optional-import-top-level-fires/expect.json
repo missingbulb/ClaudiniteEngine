@@ -1,0 +1,13 @@
+{
+  "rules": "@../shared/packs/python/RULES.md\n",
+  "mounts": [
+    "python-optional-deps"
+  ],
+  "world": [
+    "python-optional-import-top-level pkg/m.py:2 block"
+  ],
+  "work": [],
+  "only": [
+    "python-optional-import-top-level"
+  ]
+}

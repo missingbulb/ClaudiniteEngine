@@ -14,7 +14,8 @@ import (
 
 // treesEnv names real repos (path-list separated) to sweep with both
 // engines: each declares its packs in .claudinite-settings.json, as a
-// member of the Node engine does.
+// member of the Node engine does. A tree that is not a git repo (the
+// planted tree under testdata/trees) is committed as one first.
 const treesEnv = "CLAUDINITE_PARITY_TREES"
 
 func TestDifferential(t *testing.T) {
@@ -37,13 +38,26 @@ func TestDifferential(t *testing.T) {
 			}
 			parent := t.TempDir()
 			nodeDir, cnDir := filepath.Join(parent, "node"), filepath.Join(parent, "cn")
-			for _, d := range []string{nodeDir, cnDir} {
-				if out, err := exec.Command("git", "clone", "-q", "--no-hardlinks", tree, d).CombinedOutput(); err != nil {
-					t.Fatalf("clone: %v %s", err, out)
+			src := tree
+			if !exists(filepath.Join(tree, ".git")) {
+				src = filepath.Join(parent, "src")
+				if err := copyTree(tree, src); err != nil {
+					t.Fatal(err)
+				}
+				if err := gitDo(src, "init", "-q", "-b", "main"); err != nil {
+					t.Fatal(err)
+				}
+				if err := commitAll(src, "planted"); err != nil {
+					t.Fatal(err)
 				}
 			}
 			for _, d := range []string{nodeDir, cnDir} {
-				if err := vendorPacks(d, tree, node.Root, decl); err != nil {
+				if out, err := exec.Command("git", "clone", "-q", "--no-hardlinks", src, d).CombinedOutput(); err != nil {
+					t.Fatalf("clone: %v %s", err, out)
+				}
+			}
+			for d, engine := range map[string]string{nodeDir: "node", cnDir: "cn"} {
+				if err := vendorPacks(d, tree, node.Root, engine, decl); err != nil {
 					t.Fatal(err)
 				}
 			}
@@ -62,10 +76,14 @@ func TestDifferential(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			ported := Ported()
 			for _, moment := range []string{"world", "work"} {
+				// cn runs the declared and built-in checks, and the coded
+				// checks of a ported pack; the rest of Node's coded
+				// findings are subtracted.
 				ids := map[string]bool{}
 				for _, l := range list {
-					if l.Kind != "coded" && contains(l.Tags, moment) {
+					if contains(l.Tags, moment) && (l.Kind == "declared" || l.Kind == "builtin" || l.Kind == "coded" && ported[l.Pack]) {
 						ids[l.ID] = true
 					}
 				}
@@ -90,8 +108,8 @@ func TestDifferential(t *testing.T) {
 
 // compare asserts the two engines agree on the rules cn runs at one
 // moment, and that every rule subtracted from Node's findings is one cn
-// knows it does not run here: a Node coded check, which cn lists as coded
-// or has never heard of. A declared check cn does not list failed to
+// knows it does not run here: a Node coded check of a pack not yet ported,
+// which cn lists as coded or has never heard of. A declared check cn does not list failed to
 // load; one cn lists at another moment is a tagging fault.
 func compare(t *testing.T, label string, nf, cf []Finding, ids map[string]bool, listed map[string]Listed, declared []string) {
 	t.Helper()
@@ -106,6 +124,8 @@ func compare(t *testing.T, label string, nf, cf []Finding, ids map[string]bool, 
 		switch {
 		case ok && l.Kind != "coded":
 			t.Errorf("%s: subtracted %s, which cn lists as %s %v", label, r, l.Kind, l.Tags)
+		case ok && Ported()[l.Pack]:
+			t.Errorf("%s: subtracted %s, a check of ported pack %s that cn runs at another moment %v", label, r, l.Pack, l.Tags)
 		case !ok && slices.Contains(declared, r):
 			t.Errorf("%s: subtracted %s, a declared check cn does not list: it did not load", label, r)
 		}
@@ -149,8 +169,9 @@ func cnSettings(dir string, decl map[string]any) error {
 
 // vendorPacks lays the declared canon packs where a member holds them,
 // kept out of git, so both engines sweep the tree a member would have: a
-// tree that is the canon itself takes them from its own packs/.
-func vendorPacks(dir, tree, nodeRoot string, decl map[string]any) error {
+// ported pack comes from ClaudinitePacks for cn; otherwise a tree that is
+// the canon itself takes them from its own packs/.
+func vendorPacks(dir, tree, nodeRoot, engine string, decl map[string]any) error {
 	for _, id := range PackIDs(decl) {
 		if strings.HasPrefix(id, "local/") {
 			continue
@@ -160,8 +181,11 @@ func vendorPacks(dir, tree, nodeRoot string, decl map[string]any) error {
 			continue
 		}
 		src := filepath.Join(tree, "packs", id)
-		if !exists(src) {
-			src = filepath.Join(nodeRoot, "packs", id)
+		if engine == "cn" && Ported()[id] || !exists(src) {
+			var err error
+			if src, err = PackSource(id, filepath.Join(nodeRoot, "packs"), engine); err != nil {
+				return err
+			}
 		}
 		if err := copyTree(src, dst); err != nil {
 			return err
