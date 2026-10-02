@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -173,6 +174,37 @@ func TestATimeoutIsABreakNamingTheCheck(t *testing.T) {
 	}
 	if !strings.Contains(out, "finding acme-pack/acme-check x.txt:1: fast") {
 		t.Errorf("the other check lost its finding:\n%s", out)
+	}
+	if !strings.Contains(out, "acme-slow could not run: in x.txt line 1: the pattern /^(a+)+$/") {
+		t.Errorf("the break does not name the file and line in flight:\n%s", out)
+	}
+}
+
+// One clock per check over the whole sweep: a pattern that stays under the
+// per-match bound on every line still stops at the check's deadline, as a
+// break naming how far it got, while the other checks keep their hits.
+func TestACheckPastItsDeadlineIsABreak(t *testing.T) {
+	old := CheckDeadline
+	CheckDeadline = 150 * time.Millisecond
+	t.Cleanup(func() { CheckDeadline = old })
+	check := `[{"id":"acme-slow","on_fail":"block","failureMessage":"w","fix":"f","scanFiles":"/\\.txt$/",
+	  "matchLines":[{"match":"/^(a+)+$/","what":"slow"}]},
+	 {"id":"acme-check","on_fail":"block","failureMessage":"w","fix":"f","scanFiles":"/\\.txt$/",
+	  "matchLines":[{"match":"/^a/","what":"fast"}]}]`
+	line := strings.Repeat("a", 20) + "b\n"
+	dir := member(t, testSettings, check, map[string]string{"x.txt": strings.Repeat(line, 3000)})
+	start := time.Now()
+	fs, _ := runSet(t, dir, Selection{}, time.Now())
+	took := time.Since(start)
+	out := render(fs)
+	if !regexp.MustCompile(`acme-slow could not run: in x\.txt line [0-9]+: ran past its 150ms deadline`).MatchString(out) {
+		t.Errorf("no deadline break naming the line in flight:\n%.2000s", out)
+	}
+	if !strings.Contains(out, "finding acme-pack/acme-check x.txt:1: fast") {
+		t.Errorf("the other check lost its finding:\n%.2000s", out)
+	}
+	if took > 5*time.Second {
+		t.Errorf("the sweep took %v past a 150ms deadline", took)
 	}
 }
 

@@ -217,7 +217,12 @@ func (s *Set) Run(sel Selection, now time.Time, stderr io.Writer) ([]findings.Fi
 	ctx := NewCtx(s.Repo, s.Config)
 	ctx.Now = now
 	all := append(append([]*Check{}, world...), work...)
-	hits, errs := safeSweep(ctx, all)
+	defer func() {
+		for _, c := range all {
+			bind(c.Spec, nil)
+		}
+	}()
+	hits, errs := sweep(ctx, all)
 	for _, c := range all {
 		ran++
 		if e, ok := errs[c]; ok {
@@ -285,32 +290,6 @@ func graceUntil(since string, now time.Time) (string, bool) {
 		return "", false
 	}
 	return until.Format("2006-01-02"), true
-}
-
-func safeSweep(ctx *Ctx, checks []*Check) (hits map[*Check][]hit, errs map[*Check]error) {
-	errs = map[*Check]error{}
-	if h, err := trySweep(ctx, checks); err == nil {
-		return h, errs
-	}
-	hits = map[*Check][]hit{}
-	for _, c := range checks {
-		h, err := trySweep(ctx, []*Check{c})
-		if err != nil {
-			errs[c] = err
-			continue
-		}
-		hits[c] = h[c]
-	}
-	return hits, errs
-}
-
-func trySweep(ctx *Ctx, checks []*Check) (h map[*Check][]hit, err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			err = recovered(r)
-		}
-	}()
-	return sweep(ctx, checks), nil
 }
 
 func safeWork(c *Check, ctx *Ctx) (h []hit, err error) {

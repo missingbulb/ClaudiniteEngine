@@ -42,7 +42,11 @@ type collector struct {
 }
 
 type job struct {
-	c          *Check
+	c *Check
+	// err is the check's failure: the panic or timeout that stopped it,
+	// with the file and line in flight; a failed job runs no further.
+	err        error
+	budget     *budget
 	spec       map[string]any
 	out        []hit
 	repoStates []*repoState
@@ -94,6 +98,31 @@ type sweeper struct {
 	ctx  *Ctx
 	docs map[string]any
 	refs *refs.Scan
+}
+
+// guard runs one piece of a job's work over file (line, when one is in
+// flight), unless the job already failed; a panic or a timeout fails that
+// job alone, recorded with where it happened, and the others go on.
+func (w *sweeper) guard(j *job, file string, line int, f func()) {
+	if j.err != nil {
+		return
+	}
+	defer func() {
+		r := recover()
+		if r == nil {
+			return
+		}
+		err := recovered(r)
+		switch {
+		case file != "" && line > 0:
+			j.err = fmt.Errorf("in %s line %d: %w", file, line, err)
+		case file != "":
+			j.err = fmt.Errorf("in %s: %w", file, err)
+		default:
+			j.err = err
+		}
+	}()
+	j.budget.run(f)
 }
 
 func (w *sweeper) parsed(path string) any {
@@ -178,40 +207,61 @@ func (w *sweeper) relevant(when any) bool {
 
 // sweep runs every world assertion of checks over the tree and returns
 // each check's hits.
-func sweep(ctx *Ctx, checks []*Check) map[*Check][]hit {
+// sweep runs the checks over the tree in one pass, each on its own clock
+// (CheckDeadline of its own work). A check that panics or runs out
+// of time is returned in errs, naming the file and line in flight, and
+// the others keep their hits.
+func sweep(ctx *Ctx, checks []*Check) (map[*Check][]hit, map[*Check]error) {
 	w := &sweeper{ctx: ctx, docs: map[string]any{}, refs: ctx.refs()}
 	res := map[*Check][]hit{}
+	errs := map[*Check]error{}
 	var jobs []*job
 	for _, c := range checks {
 		res[c] = nil
-		if !w.relevant(get(c.Spec, "relevantWhen")) {
+		b := &budget{limit: CheckDeadline}
+		bind(c.Spec, b)
+		j := &job{c: c, spec: c.Spec, budget: b}
+		relevant := false
+		w.guard(j, "", 0, func() { relevant = w.relevant(get(c.Spec, "relevantWhen")) })
+		if j.err != nil {
+			errs[c] = j.err
 			continue
 		}
-		j := &job{c: c, spec: c.Spec}
+		if !relevant {
+			continue
+		}
 		for _, a := range items(c.Spec["repoWide"]) {
 			j.repoStates = append(j.repoStates, &repoState{a: a})
 		}
 		jobs = append(jobs, j)
 	}
 	for _, j := range jobs {
-		if j.c.namedScan != nil {
-			j.named = w.namedScanSet(j)
-		}
-		if has(j.spec, "extractValueSets") {
-			w.resolveValueSets(j)
-		}
+		w.guard(j, "", 0, func() {
+			if j.c.namedScan != nil {
+				j.named = w.namedScanSet(j)
+			}
+			if has(j.spec, "extractValueSets") {
+				w.resolveValueSets(j)
+			}
+		})
 	}
 	for _, j := range jobs {
-		w.assertTreeShape(j)
-		w.assertParsedShape(j)
-		if len(j.c.edges) > 0 {
-			w.assertReferenceEdges(j)
-		}
+		w.guard(j, "", 0, func() {
+			w.assertTreeShape(j)
+			w.assertParsedShape(j)
+			if len(j.c.edges) > 0 {
+				w.assertReferenceEdges(j)
+			}
+		})
 		path, ok := j.spec["scanFiles"].(string)
-		if !ok {
+		if !ok || j.err != nil {
 			continue
 		}
-		text, ok := ctx.Read(path)
+		var text string
+		w.guard(j, path, 0, func() { text, ok = ctx.Read(path) })
+		if j.err != nil {
+			continue
+		}
 		if !ok {
 			if wm, ok := j.spec["whenMissing"].(map[string]any); ok {
 				j.out = append(j.out, hit{File: path, What: jsString(get(wm, "what")), Fix: jsString(get(wm, "fix"))})
@@ -245,6 +295,9 @@ func sweep(ctx *Ctx, checks []*Check) map[*Check][]hit {
 			roles := map[*job]role{}
 			var order []*job
 			for _, j := range swept {
+				if j.err != nil {
+					continue
+				}
 				base := scanned
 				if truthy(j.spec["scanTracked"]) {
 					base = tracked
@@ -285,30 +338,43 @@ func sweep(ctx *Ctx, checks []*Check) map[*Check][]hit {
 	}
 	for _, j := range jobs {
 		if has(j.spec, "extractValueSets") {
-			w.assertSetShape(j)
+			w.guard(j, "", 0, func() { w.assertSetShape(j) })
 		}
 	}
 	for _, j := range jobs {
-		for _, st := range j.repoStates {
-			if !st.satisfied {
-				j.out = append(j.out, st.hits...)
-			}
-		}
-		if marker := re(obj(j.spec["relevantWhen"])["repoContains"]); marker != nil && len(j.out) > 0 {
-			found := false
-			for _, f := range ctx.Files() {
-				if !j.excluded(f) && marker.Test(ctx.read(f)) {
-					found = true
-					break
-				}
-			}
-			if !found {
-				j.out = nil
-			}
+		w.guard(j, "", 0, func() { w.settle(j) })
+		if j.err != nil {
+			errs[j.c] = j.err
+			delete(res, j.c)
+			continue
 		}
 		res[j.c] = j.out
 	}
-	return res
+	return res, errs
+}
+
+// settle is a job's last step: the repo-wide states left unsatisfied
+// become hits, and a check relevant only where some file holds its marker
+// drops its hits when none does.
+func (w *sweeper) settle(j *job) {
+	ctx := w.ctx
+	for _, st := range j.repoStates {
+		if !st.satisfied {
+			j.out = append(j.out, st.hits...)
+		}
+	}
+	if marker := re(obj(j.spec["relevantWhen"])["repoContains"]); marker != nil && len(j.out) > 0 {
+		found := false
+		for _, f := range ctx.Files() {
+			if !j.excluded(f) && marker.Test(ctx.read(f)) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			j.out = nil
+		}
+	}
 }
 
 type role struct{ scanning, collecting bool }
