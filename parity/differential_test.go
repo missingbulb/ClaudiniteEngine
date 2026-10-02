@@ -60,7 +60,7 @@ func TestDifferential(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			if err := cnSettings(cnDir, decl); err != nil {
+			if err := cnSettings(cn, cnDir, decl); err != nil {
 				t.Fatal(err)
 			}
 			list, err := cn.List(cnDir)
@@ -163,9 +163,9 @@ func compare(t *testing.T, label string, nf, cf []Finding, ids map[string]bool, 
 	t.Logf("%s: agreed %d, only-node %d, only-cn %d, subtracted %d (coded: %s)", label, agreed, len(onlyNode), len(onlyCn), n, strings.Join(rules, ", "))
 }
 
-// cnSettings writes cn's translation of the declaration, kept out of git.
-func cnSettings(dir string, decl map[string]any) error {
-	rel, err := Cn{}.Settings(dir, decl)
+// cnSettings writes cn's import of the declaration, kept out of git.
+func cnSettings(cn Cn, dir string, decl map[string]any) error {
+	rel, err := cn.Settings(dir, decl)
 	if err != nil {
 		return err
 	}

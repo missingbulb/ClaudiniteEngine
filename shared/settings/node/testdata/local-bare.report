@@ -1,0 +1,2 @@
+mapped packs[0] "claudinite-lifecycle" → packs.declared "claudinite-lifecycle"
+mapped packs[1] "mine" → packs.declared "local/mine": a local pack declared by its bare name

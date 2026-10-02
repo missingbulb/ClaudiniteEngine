@@ -1,0 +1,32 @@
+{
+  "expect": {
+    "accept": [],
+    "active": [
+      "claudinite-lifecycle"
+    ],
+    "advisories": [],
+    "config": {},
+    "errors": [
+      "unknown setting \"claudinite\"",
+      "unknown setting \"packConfig\"",
+      "unknown setting \"maintenance\""
+    ],
+    "installed": {
+      "engineVersion": null,
+      "packVersions": {}
+    },
+    "rules": {},
+    "scheduler": {
+      "disabledTasks": [],
+      "dormant": false,
+      "endpoints": {},
+      "requireReview": false
+    },
+    "sharedConstants": []
+  },
+  "accounts": {
+    "unknown setting \"claudinite\"": "refused claudinite:",
+    "unknown setting \"packConfig\"": "refused packConfig:",
+    "unknown setting \"maintenance\"": "refused maintenance:"
+  }
+}

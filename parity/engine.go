@@ -273,19 +273,31 @@ func (c Cn) env(dir string) []string {
 	return []string{"CLAUDE_PROJECT_DIR=" + dir, "CLAUDINITE_CHECKS_NO_FETCH=1", "XDG_CACHE_HOME=" + c.Cache}
 }
 
-// Settings translates the Node declaration into .claudinite/settings.yaml:
-// its packs become packs.declared (an entry object keeps id, config,
-// rules and accept), its top-level rules and accept become the checks
-// block.
+// Settings writes the development pin into .claudinite/settings.yaml and
+// has cn import the Node declaration into it, `cn settings import`, the
+// one reader of .claudinite-settings.json. The declaration is written
+// beside dir, never into it, so the member holds no Node file.
 func (c Cn) Settings(dir string, node map[string]any) (string, error) {
-	raw, err := Translate(node)
+	raw, err := jsonIndent(node)
 	if err != nil {
+		return "", err
+	}
+	from := strings.TrimSuffix(dir, string(filepath.Separator)) + ".claudinite-settings.json"
+	if err := os.WriteFile(from, raw, 0o644); err != nil {
 		return "", err
 	}
 	if err := os.MkdirAll(filepath.Join(dir, ".claudinite"), 0o755); err != nil {
 		return "", err
 	}
-	return ".claudinite/settings.yaml", os.WriteFile(filepath.Join(dir, ".claudinite/settings.yaml"), raw, 0o644)
+	pin := fmt.Sprintf("engine:\n  version: \"0.0.0\"\n  manifest: %q\n", DevManifest)
+	if err := os.WriteFile(filepath.Join(dir, ".claudinite/settings.yaml"), []byte(pin), 0o644); err != nil {
+		return "", err
+	}
+	out, stderr, code, err := run(dir, c.env(dir), "", c.Binary, "settings", "import", "--from", from, "--repo", dir)
+	if err != nil || code != 0 {
+		return "", fmt.Errorf("cn settings import: exit %d %v: %s%s", code, err, out, stderr)
+	}
+	return ".claudinite/settings.yaml", nil
 }
 
 const indexRel = ".claudinite/flat/claudinite-rules.GENERATED.md"

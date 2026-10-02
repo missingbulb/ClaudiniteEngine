@@ -1,0 +1,33 @@
+{
+  "expect": {
+    "accept": [],
+    "active": [
+      "claudinite-lifecycle",
+      "local/mine"
+    ],
+    "advisories": [],
+    "config": {},
+    "errors": [],
+    "installed": {
+      "engineVersion": null,
+      "packVersions": {}
+    },
+    "rules": {},
+    "scheduler": {
+      "disabledTasks": [],
+      "dormant": false,
+      "endpoints": {},
+      "requireReview": false
+    },
+    "sharedConstants": []
+  },
+  "divergence": "record-32",
+  "cn": {
+    "active": [
+      "claudinite-lifecycle"
+    ],
+    "breaks": [
+      "pack.mjs is a module manifest"
+    ]
+  }
+}

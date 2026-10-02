@@ -84,7 +84,7 @@ func TestReadManifestRefuses(t *testing.T) {
 	}
 	dir := t.TempDir()
 	write(t, filepath.Join(dir, "pack.mjs"), "export default {}\n")
-	if _, err := ReadManifest(dir); err == nil || !strings.Contains(err.Error(), "pack.mjs is a module manifest this engine does not read") {
+	if _, err := ReadManifest(dir); err == nil || !strings.Contains(err.Error(), "pack.mjs is a module manifest, which this engine does not read") {
 		t.Errorf("pack.mjs: %v", err)
 	}
 }

@@ -8,6 +8,9 @@ claudinite-lifecycle/declared-checks.json record-71
 claudinite-lifecycle/skills/adopt-pack/SKILL.md record-71
 claudinite-lifecycle/tasks/update record-71
 claudinite-growth/tasks/growth-extract/task.json record-71
+# Engine chunk 12: the member's declaration is .claudinite/settings.*, and a
+# fix text naming the Node file names it there (record row 77):
+basics/declared-checks.json record-77
 # ClaudinitePacks#20 moved the task runner into the engine and its pack
 # workers onto @claudinite/sdk (record row 5):
 basics/tasks/ci-performance/github-api.mjs record-5

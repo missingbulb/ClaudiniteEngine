@@ -1,0 +1,98 @@
+{
+  "packs": [
+    {
+      "id": "basics",
+      "version": "60928.1"
+    },
+    {
+      "id": "claudinite-lifecycle",
+      "version": "60928.1"
+    },
+    {
+      "id": "git-github",
+      "version": "60928.1",
+      "via": [
+        "basics"
+      ]
+    },
+    {
+      "id": "claudinite-growth",
+      "version": "60930.1",
+      "config": {
+        "retention_days": 10
+      }
+    },
+    {
+      "id": "html",
+      "version": "60928.1"
+    },
+    {
+      "id": "product-wiki",
+      "version": "60928.1"
+    },
+    "local/claudinite-website",
+    {
+      "id": "claude-code-web-users-support",
+      "version": "60928.1",
+      "config": {
+        "repo": "missingbulb/Shepherd"
+      }
+    },
+    {
+      "id": "claudinite-tasks",
+      "version": "60928.2"
+    },
+    {
+      "id": "cloudflare-site",
+      "version": "60928.1"
+    },
+    {
+      "id": "node",
+      "version": "60928.1"
+    },
+    {
+      "id": "headless-browser",
+      "version": "60928.1"
+    },
+    {
+      "id": "public-website",
+      "version": "60928.1"
+    }
+  ],
+  "taskScheduler": {
+    "agenticTaskInvocationEndpoints": {
+      "default": {
+        "url": "https://api.anthropic.com/v1/claude_code/routines/trig_017AvZ14PbvQdRVwNRGwKrxv/fire",
+        "tokenSecret": "CCR_ROUTINE_TOKEN"
+      }
+    }
+  },
+  "engineVersion": "60928.1",
+  "accept": [
+    {
+      "rule": "claudinite-isolation",
+      "path": "site/dashboard/src/read/contributions.mjs",
+      "reason": "the dashboard reads a viewed repo's own .claudinite/ files over the GitHub API by path — the path is data about another repo, not a reach into this repo's mount (site/dashboard/UPSTREAM.md)"
+    },
+    {
+      "rule": "claudinite-isolation",
+      "path": "site/dashboard/src/read/usage.mjs",
+      "reason": "the dashboard reads a viewed repo's own .claudinite/ files over the GitHub API by path — the path is data about another repo, not a reach into this repo's mount (site/dashboard/UPSTREAM.md)"
+    },
+    {
+      "rule": "claudinite-isolation",
+      "path": "server/mounted-sources.js",
+      "reason": "the Worker serves the mount's own engine and queue modules to the dashboard, which imports them by design rather than restating them; server/test/mounted-modules.test.mjs holds the list to the page's import graph"
+    },
+    {
+      "rule": "claudinite-isolation",
+      "path": "server/mount-paths.js",
+      "reason": "names where in the mount the dashboard's out-of-tree imports live, for server/mounted-sources.js and its guard test"
+    },
+    {
+      "rule": "claudinite-isolation",
+      "path": "site/dashboard/src/read/flat.mjs",
+      "reason": "the dashboard reads a viewed repo's own flat declaration files over the GitHub API by path — the path is data about another repo, not a reach into this repo's mount (site/dashboard/UPSTREAM.md)"
+    }
+  ]
+}

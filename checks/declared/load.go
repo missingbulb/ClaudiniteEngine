@@ -10,6 +10,7 @@ import (
 
 	"github.com/missingbulb/ClaudiniteEngine/checks/declared/refs"
 	"github.com/missingbulb/ClaudiniteEngine/shared/descriptor"
+	"github.com/missingbulb/ClaudiniteEngine/shared/settings"
 )
 
 // Name is the descriptor a pack or skill declares its checks in.
@@ -33,6 +34,9 @@ type Check struct {
 	File string
 	Tags []string
 	Spec map[string]any
+	// RetiredSeverity is the "severity" a local or temp pack's
+	// declaration still carries, read as its on_fail; "" for none.
+	RetiredSeverity string
 
 	scanMatchers    []*Regex
 	excludeMatchers []any
@@ -57,10 +61,12 @@ func (c *Check) Kind() string {
 
 // Load reads the declared checks of the pack at dir (relative path rel in
 // the repo): its own declaration and each skills/<name>/ one. A broken
-// declaration fails the whole pack's load, naming the file.
-func Load(repo, rel, pack string) ([]*Check, error) {
+// declaration fails the whole pack's load, naming the file. own is true
+// for a local or temp pack, whose declarations may still spell on_fail as
+// the retired severity.
+func Load(repo, rel, pack string, own bool) ([]*Check, error) {
 	dir := filepath.Join(repo, filepath.FromSlash(rel))
-	out, err := loadDir(dir, rel, pack, "")
+	out, err := loadDir(dir, rel, pack, "", own)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +79,7 @@ func Load(repo, rel, pack string) ([]*Check, error) {
 	}
 	sort.Strings(names)
 	for _, n := range names {
-		cs, err := loadDir(filepath.Join(dir, "skills", n), rel+"/skills/"+n, pack, n)
+		cs, err := loadDir(filepath.Join(dir, "skills", n), rel+"/skills/"+n, pack, n, own)
 		if err != nil {
 			return nil, err
 		}
@@ -93,7 +99,7 @@ type LoadError struct {
 func (e *LoadError) Error() string { return e.Path + ": " + e.Err.Error() }
 func (e *LoadError) Unwrap() error { return e.Err }
 
-func loadDir(dir, rel, pack, skill string) ([]*Check, error) {
+func loadDir(dir, rel, pack, skill string, own bool) ([]*Check, error) {
 	path, format, err := descriptor.Find(dir, Name)
 	if errors.Is(err, descriptor.ErrAbsent) {
 		return nil, nil
@@ -116,11 +122,20 @@ func loadDir(dir, rel, pack, skill string) ([]*Check, error) {
 	}
 	var out []*Check
 	for _, d := range decls {
+		severity := ""
+		// @legacy-tolerance advisory:local-pack-shape retire:#52
+		if s, _ := d["severity"].(string); own && settings.RetiredOnFail[s] != "" {
+			if _, set := d["on_fail"]; !set {
+				d["on_fail"] = settings.RetiredOnFail[s]
+			}
+			delete(d, "severity")
+			severity = s
+		}
 		c, err := Compile(d, selfExclude)
 		if err != nil {
 			return nil, &LoadError{fileRel, err}
 		}
-		c.Pack, c.Skill, c.File = pack, skill, fileRel
+		c.Pack, c.Skill, c.File, c.RetiredSeverity = pack, skill, fileRel, severity
 		c.Tags = []string{c.Kind(), "declared", pack}
 		if c.Scope == "action" {
 			c.Tags = []string{"action", "work", "pre-tool-use", "declared", pack}

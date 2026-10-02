@@ -1,0 +1,9 @@
+{
+  "packs": [
+    "claudinite-lifecycle",
+    "local/mine"
+  ],
+  "rules": {
+    "mine-no-todo": "blocking"
+  }
+}

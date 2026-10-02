@@ -1,0 +1,3 @@
+mapped packs[0] "basics" → packs.declared "basics"
+mapped packs[1] "git-github" → packs.declared "git-github"
+mapped packs[2] "claudinite-lifecycle" → packs.declared "claudinite-lifecycle"

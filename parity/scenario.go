@@ -3,7 +3,6 @@ package parity
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -507,80 +506,6 @@ func PackIDs(node map[string]any) []string {
 // DevManifest is the integrity string a development engine's settings
 // carry; nothing reads it at 0.0.0.
 const DevManifest = "sha512-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
-
-// Translate turns a Node declaration (.claudinite-settings.json) into
-// cn's settings: each pack entry keeps id, config, rules and accept (a
-// bare id when nothing else is left), the top-level rules and accept
-// become the checks block, a top-level sharedConstants moves to the basics
-// entry's config (dropped when basics is not declared, since nothing else
-// reads it), and the engine block pins the development engine. version, answers and via are the adoption and update slices'
-// and are dropped. The result is YAML, which cn reads as
-// .claudinite/settings.yaml.
-func Translate(node map[string]any) ([]byte, error) {
-	var declared []any
-	packs, _ := node["packs"].([]any)
-	for _, p := range packs {
-		switch v := p.(type) {
-		case string:
-			declared = append(declared, v)
-		case map[string]any:
-			e := map[string]any{}
-			for _, k := range []string{"id", "config", "rules", "accept"} {
-				if x, ok := v[k]; ok {
-					e[k] = x
-				}
-			}
-			if _, ok := e["id"]; !ok {
-				return nil, errors.New("a pack entry with no id")
-			}
-			if len(e) == 1 {
-				declared = append(declared, e["id"])
-			} else {
-				declared = append(declared, e)
-			}
-		default:
-			return nil, fmt.Errorf("a pack entry %v is neither an id nor an object", p)
-		}
-	}
-	if sc, ok := node["sharedConstants"]; ok {
-		for i, d := range declared {
-			e, isMap := d.(map[string]any)
-			if d != "basics" && (!isMap || e["id"] != "basics") {
-				continue
-			}
-			if !isMap {
-				e = map[string]any{"id": "basics"}
-			}
-			cfg := map[string]any{}
-			if old, ok := e["config"].(map[string]any); ok {
-				for k, v := range old {
-					cfg[k] = v
-				}
-			}
-			cfg["sharedConstants"] = sc
-			e["config"] = cfg
-			declared[i] = e
-		}
-	}
-	if declared == nil {
-		declared = []any{}
-	}
-	out := map[string]any{
-		"engine": map[string]any{"version": "0.0.0", "manifest": DevManifest},
-		"packs":  map[string]any{"declared": declared},
-	}
-	checks := map[string]any{}
-	for _, k := range []string{"rules", "accept"} {
-		if x, ok := node[k]; ok {
-			checks[k] = x
-		}
-	}
-	if len(checks) > 0 {
-		out["checks"] = checks
-	}
-	doc, err := yamlDoc(out)
-	return []byte(doc), err
-}
 
 func jsonIndent(v any) ([]byte, error) {
 	b, err := json.MarshalIndent(v, "", "  ")

@@ -1,0 +1,154 @@
+{
+  "expect": {
+    "accept": [
+      {
+        "path": "engine/pack_loader/flat-dir.mjs",
+        "reason": "the file holds the two index paths from before .claudinite/flat/ (#2322) as the one place the engine spells them: converge removes an old index it finds there and rewrites the CLAUDE.md import naming it, so the paths must not resolve to a file in the canon and every member still carrying one must keep being recognised. Collected here so this waiver is one entry, the tests reading them from it; #2323 retires the tolerance",
+        "rule": "reference-integrity"
+      },
+      {
+        "path": "packs/claudinite-lifecycle/tasks/update/worker.mjs",
+        "reason": "the update worker has a SECOND, deliberate caller: .github/workflows/canary-rehearsal.yml drives it directly to qualify a release ref, and CLAUDINITE_CANON_REF is that harness's own parameter, set there and read nowhere else. The rule's concern is a parameter channel that has silently stopped being delivered; this one is delivered by the workflow beside it, in the same repo, and its absence under code-work is the normal case the worker already handles (rehearsalRef null = a real cycle)",
+        "rule": "task-code-work-env"
+      },
+      {
+        "path": "packs/claudinite-tasks/test/legacy-protocol.mjs",
+        "reason": "the file holds the LEGACY WIRE LITERALS, which are data rather than pointers: a work item minted before the task surface moved (#1317) still carries `engine/scheduler/` in its machine block, and `BUILT_IN_PATH_RE` accepts that root permanently because it is a validator — dropping it rejects that half of the ad-hoc request lane outright. The path must not resolve to a file; a decoder must keep understanding it. Collected here so this waiver is one entry rather than five across the tests that exercise the decode",
+        "rule": "reference-integrity"
+      },
+      {
+        "path": ".github/workflows/canary-rehearsal.yml",
+        "reason": "the live canary gate names packs/claudinite-lifecycle/tasks/update because the worker is ITSELF vendored content, so a release that changes the worker cannot be rehearsed by the canary's vendored copy — that copy predates the release by definition, and a rehearsal driving it would ignore CLAUDINITE_CANON_REF entirely and run a real cycle against main, opening a PR on the canary instead of qualifying the ref. The crossing buys the one property the gate exists for: the code under test is the code every member runs the moment the release reaches them. The workflow names no pack CONTENT — only the entry point of the task that performs the converge",
+        "rule": "barrier"
+      },
+      {
+        "path": "packs/chrome-extension/tasks/store-release/worker.mjs",
+        "reason": "every task's work step moved from a `code_work` command to a `code_worker_mjs` module, so the 17 workers that exported `main` as their entry point now export `worker` instead. None of the three discharges fits. A task's worker is spawned BY PATH and never imported, and the old `main` took no arguments and read the whole code-work environment, so it is unusable outside the subprocess the executor starts: no member can hold a consumer of that name, which is what the rule's harm (a local pack failing to load and wedging the converge) requires. A re-export shim would keep the name resolvable while giving it an incompatible signature, trading a loud load-time error for a quiet runtime one. A rehearsal fixture cannot prove anything about a name that is gone. A migration record would spend an agent session in every member converging to a no-op. Owner's call, taken in session on 2026-09-22 with all three alternatives on the table",
+        "rule": "consumer-safe-change"
+      }
+    ],
+    "active": [
+      "claudinite-lifecycle",
+      "claudinite-tasks",
+      "basics",
+      "git-github",
+      "claudinite-growth",
+      "local/claudinite",
+      "claudinite-canon-curation",
+      "claude-code-web-users-support"
+    ],
+    "advisories": [],
+    "config": {
+      "basics": {
+        "barriers": {
+          "rules": [
+            {
+              "except": [
+                {
+                  "path": "extending.md",
+                  "reason": "inherent(#385): the engine map documents where the adoption-interview machinery lives now that it is bundled in the adoption skill (moved with that skill into the claudinite-lifecycle pack, #835)",
+                  "to": [
+                    "packs/claudinite-lifecycle"
+                  ]
+                },
+                {
+                  "path": ".github/workflows/claudinite-scheduler.yml",
+                  "reason": "inherent(#1317): a member's scheduler workflow is the one file that cannot converge, so its `run:` line names the mount path of the pack that owns the run — the pack boundary is what the workflow points across",
+                  "to": [
+                    "packs/claudinite-tasks"
+                  ]
+                },
+                {
+                  "path": ".github/workflows/claudinite-executor.yml",
+                  "reason": "inherent(#1317): a member's executor workflow is the one file that cannot converge, so its `run:` line names the mount path of the pack that owns the executor",
+                  "to": [
+                    "packs/claudinite-tasks"
+                  ]
+                },
+                {
+                  "path": ".github/workflows/pack-versions.yml",
+                  "reason": "inherent(#1723): the canon's push-to-main trigger is a workflow, the one thing no task can be, so its `run:` line names the worker of the pack that owns pack versioning",
+                  "to": [
+                    "packs/claudinite-canon-curation"
+                  ]
+                },
+                "engine/migrations",
+                {
+                  "path": "engine/pack_loader/renamed-packs.mjs",
+                  "reason": "inherent(#1022): a map from a pack's old id to its current one IS a list of pack names - there is nothing else for it to be made of, and the loader must hold it so a member declaring either spelling keeps its packs",
+                  "to": [
+                    "packs/public-website"
+                  ]
+                },
+                {
+                  "path": "engine/RELEASES.md",
+                  "reason": "inherent(#1022): the release log says what each engine version shipped, and version 5 shipped a pack rename — a row that could not name the packs would not be a record of it",
+                  "to": [
+                    "packs/claudinite-lifecycle",
+                    "packs/claudinite-growth"
+                  ]
+                }
+              ],
+              "from": [
+                "engine",
+                ".github",
+                "bootstrap.md",
+                "consumer-safe-changes.md",
+                "extending.md"
+              ],
+              "matchNames": true,
+              "matchUniqueFilenames": false,
+              "reason": "core is the engine that runs pack content — it must not name the specific packs it runs (extending.md)",
+              "to": "packs/*"
+            },
+            {
+              "except": [
+                "packs/claudinite-lifecycle/updates",
+                "packs/*/provenance"
+              ],
+              "reason": "docs/ is outside the vendor set, so a pack file's reference to it resolves to nothing in every consumer (#424) — cite the doc from the issue or PR instead; a pack's updates/ is carved out because no vendor set carries that either, so the premise cannot arise there (#1317). packs/claudinite-tasks/docs/ joined it on the same footing (#1755): a pack's own docs/ is maintainer reference cited by § from code comments, never vendored, so another pack's file referencing it by path is exactly the same dangling crossing",
+              "siblings": "packs",
+              "to": [
+                "docs",
+                "packs/claudinite-tasks/docs"
+              ]
+            }
+          ]
+        }
+      },
+      "claude-code-web-users-support": {
+        "repo": "missingbulb/Shepherd"
+      },
+      "local/claudinite": {
+        "canaryRepo": "missingbulb/ClaudiniteCanary"
+      }
+    },
+    "errors": [],
+    "installed": {
+      "engineVersion": null,
+      "packVersions": {}
+    },
+    "rules": {
+      "declared-check-spec-keys": "block"
+    },
+    "scheduler": {
+      "disabledTasks": [
+        "claudinite-lifecycle/update",
+        "claudinite-growth/logs-prune"
+      ],
+      "dormant": false,
+      "endpoints": {
+        "default": {
+          "tokenSecret": "CCR_ROUTINE_TOKEN",
+          "url": "https://api.anthropic.com/v1/claude_code/routines/trig_01N7pUAHt3fs391BTqfN2bwM/fire"
+        },
+        "fleet": {
+          "tokenSecret": "CCR_FLEET_ROUTINE_TOKEN",
+          "url": "https://api.anthropic.com/v1/claude_code/routines/trig_0135i4BKGwoLbRGvKRiqqE4r/fire"
+        }
+      },
+      "requireReview": false
+    },
+    "sharedConstants": []
+  }
+}

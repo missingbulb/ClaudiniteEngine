@@ -1,0 +1,8 @@
+{
+  "packs": [
+    "claudinite-lifecycle"
+  ],
+  "servedBy": {
+    "mechanism": "updates"
+  }
+}

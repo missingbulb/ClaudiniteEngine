@@ -19,11 +19,8 @@ func TestDeliveryForOnlyAnExplicitTrueWithholdsThePR(t *testing.T) {
 		{map[string]any{"dailyClaudiniteUpdatesRequirePrReview": false}, AutoMerge},
 		{map[string]any{"packs": []any{"acme-pack"}}, AutoMerge},
 		{nil, AutoMerge},
-		{map[string]any{"maintenance": map[string]any{"delivery": "review"}}, Review},
-		{map[string]any{"maintenance": map[string]any{"delivery": "pr"}}, Review},
-		{map[string]any{"maintenance": map[string]any{"delivery": "auto-merge"}}, AutoMerge},
-		{map[string]any{"maintenance": map[string]any{"delivery": "nonsense"}}, AutoMerge},
-		{map[string]any{"dailyClaudiniteUpdatesRequirePrReview": false, "maintenance": map[string]any{"delivery": "review"}}, AutoMerge},
+		{map[string]any{"dailyClaudiniteUpdatesRequirePrReview": "true"}, AutoMerge},
+		{map[string]any{"maintenance": map[string]any{"delivery": "review"}}, AutoMerge},
 	}
 	for _, c := range cases {
 		if got := DeliveryFor(c.settings); got != c.want {

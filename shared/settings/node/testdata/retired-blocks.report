@@ -1,0 +1,4 @@
+mapped packs[0] "claudinite-lifecycle" → packs.declared "claudinite-lifecycle"
+refused claudinite: the retired stamp block (#1640), which the Node engine refuses too; cn's pin is engine.version and a pack's version is its vendored pack.json's
+refused packConfig: the retired top-level pack parameters (#1640), which the Node engine refuses too; a pack's parameters are its entry's config
+refused maintenance: the retired delivery block (#1640), which the Node engine refuses too; the update auto-merges (record row 71)

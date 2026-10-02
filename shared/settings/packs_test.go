@@ -1,6 +1,7 @@
 package settings
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -63,13 +64,9 @@ func TestReadPacksRefuses(t *testing.T) {
 		"duplicate id":       {YAML, "packs:\n  declared:\n    - hello\n    - hello\n"},
 		"unknown top key":    {YAML, "packs:\n  declared:\n    - hello\nafter: 1\n"},
 		"entry version":      {YAML, "packs:\n  declared:\n    - id: hello\n      version: \"1.0\"\n"},
-		"entry answers":      {JSON, `{"packs": {"declared": [{"id": "hello", "answers": {}}]}}`},
-		"entry via":          {TOML, "[[packs.declared]]\nid = \"hello\"\nvia = \"x\"\n"},
 		"entry stray key":    {YAML, "packs:\n  declared:\n    - id: hello\n      extra: 1\n"},
 		"entry without id":   {YAML, "packs:\n  declared:\n    - config: {}\n"},
 		"entry bad local":    {YAML, "packs:\n  declared:\n    - local/\n"},
-		"severity spelling":  {YAML, "checks:\n  rules:\n    x: blocking\n"},
-		"entry severity":     {YAML, "packs:\n  declared:\n    - id: hello\n      rules: {x: advisory}\n"},
 		"accept stray key":   {YAML, "checks:\n  accept:\n    - rule: x\n      reason: y\n      until: z\n"},
 		"accept no rule":     {YAML, "checks:\n  accept:\n    - reason: y\n"},
 		"checks stray key":   {YAML, "checks:\n  severity: {}\n"},
@@ -87,6 +84,33 @@ func TestReadPacksRefuses(t *testing.T) {
 		if p, err := ReadPacks([]byte(c.raw), c.f); err == nil {
 			t.Errorf("%s: accepted %+v", name, p)
 		}
+	}
+}
+
+// The Node engine's pack-entry via and answers are carried opaque, and an
+// override in the retired severity spelling is read as its on_fail and
+// recorded for verify to name.
+func TestParseFileReadsTheNodeShapes(t *testing.T) {
+	raw := "packs:\n  declared:\n    - id: hello\n      via: [basics]\n      answers: {store: \"o/r\"}\n      rules: {x: advisory}\nchecks:\n  rules:\n    y: blocking\n    z: \"off\"\n"
+	p, err := ParseFile([]byte(raw), YAML)
+	if err != nil {
+		t.Fatal(err)
+	}
+	e := p.Packs.Entries[0]
+	if !reflect.DeepEqual(e.Via, []any{"basics"}) || !reflect.DeepEqual(e.Answers, map[string]any{"store": "o/r"}) {
+		t.Errorf("via %v, answers %v", e.Via, e.Answers)
+	}
+	rules, _, _ := p.Effective()
+	if !reflect.DeepEqual(rules, map[string]string{"x": "advise", "y": "block", "z": "off"}) {
+		t.Errorf("rules %v", rules)
+	}
+	got := map[string]string{}
+	for _, r := range p.Retired {
+		got[r.Rule] = r.Where + " " + r.Value + " " + r.OnFail
+	}
+	want := map[string]string{"x": "the hello pack entry advisory advise", "y": "the top-level checks block blocking block"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("retired %v", got)
 	}
 }
 

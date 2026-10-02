@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strings"
 	"testing"
@@ -260,6 +261,55 @@ func TestRules(t *testing.T) {
 			raw, _ := os.ReadFile(filepath.Join(d, ".claudinite/settings.yaml"))
 			write(t, d, ".claudinite/settings.yaml", string(raw)+"license:\n  plan: public\n")
 		}, []string{"license-plan"}, nil},
+		{"local pack with retired manifest keys", func(t *testing.T, d string) {
+			declare(t, d, "local/mine", "")
+			write(t, d, ".claudinite/local/packs/mine/pack.json", "{\n  \"marker\": null,\n  \"detect\": null,\n  \"contributes\": {}\n}\n")
+		}, nil, []string{"local-pack-shape", "local-pack-shape", "local-pack-shape"}},
+		{"local pack declaration with severity", func(t *testing.T, d string) {
+			declare(t, d, "local/mine", "")
+			write(t, d, ".claudinite/local/packs/mine/pack.json", "{}")
+			write(t, d, ".claudinite/local/packs/mine/declared-checks.json", `[{"id": "mine-x", "severity": "advisory", "scanFiles": "a", "forbidLinesMatching": "/x/", "failureMessage": "m"}]`)
+		}, nil, []string{"local-pack-shape"}},
+		{"local pack with JavaScript rules", func(t *testing.T, d string) {
+			declare(t, d, "local/mine", "")
+			write(t, d, ".claudinite/local/packs/mine/pack.json", "{}")
+			write(t, d, ".claudinite/local/packs/mine/worldRules/a.mjs", "export default {};\n")
+			write(t, d, ".claudinite/local/packs/mine/workRules/b.mjs", "export default {};\n")
+			write(t, d, ".claudinite/local/packs/mine/skills/s/checks.mjs", "export default [];\n")
+		}, []string{"local-pack-shape", "local-pack-shape", "local-pack-shape"}, nil},
+		{"temp pack with retired manifest keys", func(t *testing.T, d string) {
+			write(t, d, ".claudinite/temp/packs/current_user/pack.json", `{"marker": "x"}`)
+		}, nil, []string{"local-pack-shape"}},
+		{"canon manifest with a retired key", func(t *testing.T, d string) {
+			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "60930.1.0", "marker": null}`)
+		}, []string{"descriptor-format"}, nil},
+		{"local module manifest", func(t *testing.T, d string) {
+			declare(t, d, "local/mine", "")
+			write(t, d, ".claudinite/local/packs/mine/pack.mjs", "export default {};\n")
+		}, []string{"descriptor-format"}, nil},
+		{"override in the retired spelling", func(t *testing.T, d string) {
+			appendSettings(t, d, "checks:\n  rules:\n    acme-check: blocking\n")
+		}, nil, []string{"settings-checks"}},
+		{"via and answers on an entry", func(t *testing.T, d string) {
+			appendSettings(t, d, "packs:\n  declared:\n    - id: acme-pack\n      via: [basics]\n      answers: {store: \"o/r\"}\n")
+			write(t, d, ".claudinite/shared/packs/acme-pack/pack.json", `{"version": "1.0", "minEngineVersion": "60930.1.0"}`)
+		}, nil, nil},
+		{"a renamed pack declared", func(t *testing.T, d string) {
+			declare(t, d, "tidy-repo", "")
+		}, []string{"pack-declared"}, nil},
+		{"the Node declaration beside", func(t *testing.T, d string) {
+			write(t, d, ".claudinite-settings.json", `{"packs": []}`)
+		}, nil, []string{"node-leftovers"}},
+		{"the Node mount left", func(t *testing.T, d string) {
+			write(t, d, ".claudinite/shared/engine/hooks/x.mjs", "\n")
+		}, nil, []string{"node-leftovers"}},
+		{"an index at the old path", func(t *testing.T, d string) {
+			write(t, d, ".claudinite/claudinite-rules.GENERATED.md", "\n")
+			write(t, d, ".claudinite/claudinite-skills.GENERATED.md", "\n")
+		}, nil, []string{"node-leftovers", "node-leftovers"}},
+		{"hooks naming the Node engine", func(t *testing.T, d string) {
+			write(t, d, ".claude/settings.json", `{"hooks": {"SessionStart": [{"hooks": [{"type": "command", "command": "node .claudinite/shared/engine/hooks/run-session-start.mjs"}]}]}}`)
+		}, []string{"hooks"}, nil},
 		{"malformed packs block", func(t *testing.T, d string) {
 			raw, _ := os.ReadFile(filepath.Join(d, ".claudinite/settings.yaml"))
 			write(t, d, ".claudinite/settings.yaml", string(raw)+"packs:\n  channel: \"nightly\"\n")
@@ -280,6 +330,35 @@ func TestRules(t *testing.T) {
 				t.Errorf("%s: finding without a path or sentence: %+v", c.name, f)
 			}
 		}
+	}
+}
+
+// A repo on the Node engine, with no cn settings at all, gets the one
+// settings-file break, and it names the import.
+func TestANodeMemberBreaksNamingTheImport(t *testing.T) {
+	dir := t.TempDir()
+	write(t, dir, ".claudinite-settings.json", `{"packs": ["basics"]}`)
+	fs := run(t, dir)
+	if len(fs) != 1 || fs[0].ID != "settings-file" || fs[0].Class != findings.Break || !strings.Contains(fs[0].Sentence, "cn settings import") {
+		t.Fatalf("%v", fs)
+	}
+}
+
+// The deprecations name the line: the manifest key's, and the severity's.
+func TestLocalPackShapeNamesTheLine(t *testing.T) {
+	dir := newShape(t)
+	declare(t, dir, "local/mine", "")
+	write(t, dir, ".claudinite/local/packs/mine/pack.json", "{\n  \"ruleRoutingGuidance\": {\n    \"belongs\": \"x\",\n    \"marker\": \"x\",\n    \"excludes\": \"x\"\n  },\n  \"marker\": null\n}\n")
+	write(t, dir, ".claudinite/local/packs/mine/declared-checks.json", "[\n  {\n    \"id\": \"mine-x-old\",\n    \"failureMessage\": \"severity\",\n    \"scanFiles\": \"a\"\n  },\n  {\n    \"id\": \"mine-x\",\n    \"severity\": \"blocking\",\n    \"scanFiles\": \"a\"\n  }\n]\n")
+	got := map[string]bool{}
+	for _, f := range run(t, dir) {
+		if f.ID == "local-pack-shape" {
+			got[f.Location()] = true
+		}
+	}
+	want := map[string]bool{".claudinite/local/packs/mine/pack.json:7": true, ".claudinite/local/packs/mine/declared-checks.json:9": true}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("%v", got)
 	}
 }
 

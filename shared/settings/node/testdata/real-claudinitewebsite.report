@@ -1,0 +1,31 @@
+mapped packs[0] "basics" → packs.declared "basics"
+dropped packs[0].version: the installed version is the vendored pack.json's
+mapped packs[1] "claudinite-lifecycle" → packs.declared "claudinite-lifecycle"
+dropped packs[1].version: the installed version is the vendored pack.json's
+mapped packs[2] "git-github" → packs.declared "git-github"
+dropped packs[2].version: the installed version is the vendored pack.json's
+carried packs[2].via
+mapped packs[3] "claudinite-growth" → packs.declared "claudinite-growth"
+dropped packs[3].version: the installed version is the vendored pack.json's
+mapped packs[3].config → packs.declared "claudinite-growth" config
+mapped packs[4] "html" → packs.declared "html"
+dropped packs[4].version: the installed version is the vendored pack.json's
+mapped packs[5] "product-wiki" → packs.declared "product-wiki"
+dropped packs[5].version: the installed version is the vendored pack.json's
+mapped packs[6] "local/claudinite-website" → packs.declared "local/claudinite-website"
+mapped packs[7] "claude-code-web-users-support" → packs.declared "claude-code-web-users-support"
+dropped packs[7].version: the installed version is the vendored pack.json's
+mapped packs[7].config → packs.declared "claude-code-web-users-support" config
+mapped packs[8] "claudinite-tasks" → packs.declared "claudinite-tasks"
+dropped packs[8].version: the installed version is the vendored pack.json's
+mapped packs[9] "cloudflare-site" → packs.declared "cloudflare-site"
+dropped packs[9].version: the installed version is the vendored pack.json's
+mapped packs[10] "node" → packs.declared "node"
+dropped packs[10].version: the installed version is the vendored pack.json's
+mapped packs[11] "headless-browser" → packs.declared "headless-browser"
+dropped packs[11].version: the installed version is the vendored pack.json's
+mapped packs[12] "public-website" → packs.declared "public-website"
+dropped packs[12].version: the installed version is the vendored pack.json's
+mapped taskScheduler.agenticTaskInvocationEndpoints → packs.declared "claudinite-tasks" config.agenticTaskInvocationEndpoints
+dropped engineVersion: the pin is engine.version in .claudinite/settings.*
+mapped accept → checks.accept

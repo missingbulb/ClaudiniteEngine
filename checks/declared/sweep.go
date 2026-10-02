@@ -133,6 +133,8 @@ func (w *sweeper) parsed(path string) any {
 	if text, ok := w.ctx.Read(path); ok {
 		if yamlPath.Test(path) {
 			doc, _ = descriptor.ParseDocument([]byte(text), descriptor.YAML)
+		} else if tomlPath.Test(path) {
+			doc, _ = descriptor.ParseDocument([]byte(text), descriptor.TOML)
 		} else {
 			if err := json.Unmarshal([]byte(text), &doc); err != nil {
 				doc = nil
@@ -143,7 +145,10 @@ func (w *sweeper) parsed(path string) any {
 	return doc
 }
 
-var yamlPath = mustRegex(`\.ya?ml$`, "")
+var (
+	yamlPath = mustRegex(`\.ya?ml$`, "")
+	tomlPath = mustRegex(`\.toml$`, "")
+)
 
 func (w *sweeper) relevant(when any) bool {
 	m, ok := when.(map[string]any)

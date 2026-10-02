@@ -1,0 +1,30 @@
+{
+  "expect": {
+    "accept": [],
+    "active": [
+      "claudinite-lifecycle",
+      "local/mine"
+    ],
+    "advisories": [],
+    "config": {},
+    "errors": [],
+    "installed": {
+      "engineVersion": null,
+      "packVersions": {}
+    },
+    "rules": {},
+    "scheduler": {
+      "disabledTasks": [],
+      "dormant": false,
+      "endpoints": {},
+      "requireReview": false
+    },
+    "sharedConstants": []
+  },
+  "divergence": "record-79",
+  "cn": {
+    "breaks": [
+      "is a JavaScript check, and cn runs none"
+    ]
+  }
+}

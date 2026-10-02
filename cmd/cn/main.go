@@ -54,6 +54,11 @@ commands:
                  member files and vendor the packs and what they require
   adopt ID [--repo DIR]
                  declare and vendor one more pack on an adopted repo
+  settings import [--from FILE] [--stdout] [--repo DIR]
+                 read the Node engine's .claudinite-settings.json into the
+                 pinned .claudinite/settings.* as its packs and checks
+                 blocks, one report line per key; --stdout prints the
+                 blocks as YAML instead; exit 1 when a key is refused
   login [--logout] [--force]
                  log in to the Claudinite App on this machine (GitHub's
                  device flow), so desktop sessions request their key
@@ -221,6 +226,8 @@ func dispatch(args []string, stdin io.Reader, stdout, stderr io.Writer, start ti
 		return cmdInit(args[1:], stdout, stderr)
 	case "adopt":
 		return cmdAdopt(args[1:], stdout)
+	case "settings":
+		return cmdSettings(args[1:], stdout)
 	case "login":
 		return cmdLogin(args[1:], stdout)
 	case "license":

@@ -1,0 +1,14 @@
+{
+  "packs": [
+    "basics",
+    "barriers",
+    {
+      "id": "tidy-repo",
+      "rules": {
+        "reference-integrity": "advise"
+      }
+    },
+    "static-website",
+    "claudinite-lifecycle"
+  ]
+}

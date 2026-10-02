@@ -1,0 +1,6 @@
+export default {
+  ruleRoutingGuidance: {
+    belongs: "this fixture's own conventions",
+    excludes: 'everything the canon packs carry: their own packs',
+  },
+};

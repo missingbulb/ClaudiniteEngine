@@ -1,0 +1,6 @@
+mapped packs[0] "basics" → packs.declared "basics"
+mapped packs[1] "barriers" → packs.declared "basics": renamed or absorbed into basics (record row 80); merged into the entry declared before it, whose own values win
+mapped packs[2] "tidy-repo" → packs.declared "basics": renamed or absorbed into basics (record row 80); merged into the entry declared before it, whose own values win
+mapped packs[2].rules → packs.declared "basics" rules
+mapped packs[3] "static-website" → packs.declared "public-website": renamed or absorbed into public-website (record row 80)
+mapped packs[4] "claudinite-lifecycle" → packs.declared "claudinite-lifecycle"

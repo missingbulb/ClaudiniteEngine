@@ -1,0 +1,8 @@
+{
+  "ruleRoutingGuidance": {
+    "belongs": "this repo's own conventions",
+    "excludes": "the canon packs' content: their own packs"
+  },
+  "marker": null,
+  "detect": null
+}

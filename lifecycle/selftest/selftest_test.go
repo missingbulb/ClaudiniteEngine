@@ -199,6 +199,10 @@ func TestEachMemberProbeFails(t *testing.T) {
 		{"packs", "basics: ", func(t *testing.T, repo string) {
 			edit(t, filepath.Join(repo, ".claudinite/shared/packs/basics/pack.json"), "{", `{"skills": ["absent"],`)
 		}},
+		{"packs", "local/mine: pack.mjs is a module manifest", func(t *testing.T, repo string) {
+			edit(t, filepath.Join(repo, ".claudinite/settings.yaml"), "  declared:\n", "  declared:\n    - local/mine\n")
+			write(t, filepath.Join(repo, ".claudinite/local/packs/mine/pack.mjs"), "export default {};\n")
+		}},
 		{"hooks", "PreToolUse → cn hook pre-tool-uses, an event this binary does not answer", func(t *testing.T, repo string) {
 			edit(t, filepath.Join(repo, ".claude/settings.json"), "cn hook pre-tool-use", "cn hook pre-tool-uses")
 		}},
@@ -217,7 +221,7 @@ func TestEachMemberProbeFails(t *testing.T) {
 		}},
 	}
 	for _, c := range cases {
-		t.Run(c.probe, func(t *testing.T) {
+		t.Run(c.probe+" "+c.detail, func(t *testing.T) {
 			repo := copyShape(t, shape)
 			if p := probe(t, repo, c.probe); p.Status == Fail {
 				t.Fatalf("%s fails before the break: %s", c.probe, p.Detail)

@@ -1,0 +1,9 @@
+{
+  "packs": [
+    "claudinite-lifecycle",
+    "claudinite-tasks"
+  ],
+  "taskScheduler": {
+    "dispatch": "slots"
+  }
+}

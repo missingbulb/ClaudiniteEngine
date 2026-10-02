@@ -1,0 +1,46 @@
+{
+  "expect": {
+    "accept": [
+      {
+        "pack": "basics",
+        "path": "docs/",
+        "reason": "the docs cite paths of other repos",
+        "rule": "reference-integrity"
+      }
+    ],
+    "active": [
+      "claudinite-lifecycle",
+      "basics",
+      "claude-code-web-users-support"
+    ],
+    "advisories": [],
+    "config": {
+      "basics": {
+        "barriers": {
+          "rules": []
+        }
+      },
+      "claude-code-web-users-support": {
+        "repo": "acme/store"
+      }
+    },
+    "errors": [],
+    "installed": {
+      "engineVersion": null,
+      "packVersions": {
+        "basics": "60928.1",
+        "claude-code-web-users-support": "60928.1"
+      }
+    },
+    "rules": {
+      "reference-integrity": "advise"
+    },
+    "scheduler": {
+      "disabledTasks": [],
+      "dormant": false,
+      "endpoints": {},
+      "requireReview": false
+    },
+    "sharedConstants": []
+  }
+}
