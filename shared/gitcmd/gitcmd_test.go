@@ -125,6 +125,37 @@ func TestOnlyRemoteChildrenCarryTheToken(t *testing.T) {
 	}
 }
 
+// A checkout from the old template persists actions/checkout's header in
+// .git/config. http.extraheader values accumulate and an empty value
+// clears the list, so a remote child must send the env's header alone:
+// the entries after the last empty one are exactly the token's.
+func TestTheTokenReplacesAPersistedHeader(t *testing.T) {
+	r, _ := clone(t)
+	key := "http.https://github.com/.extraheader"
+	if _, err := r.run("config", "--add", key, "AUTHORIZATION: basic cGVyc2lzdGVk"); err != nil {
+		t.Fatal(err)
+	}
+	r.Token = "ghs_secret"
+	want := "AUTHORIZATION: basic " + base64.StdEncoding.EncodeToString([]byte("x-access-token:ghs_secret"))
+	out, err := r.remote("config", "--get-all", key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	values := strings.Split(strings.TrimSuffix(string(out), "\n"), "\n")
+	effective := values
+	for i, v := range values {
+		if v == "" {
+			effective = values[i+1:]
+		}
+	}
+	if len(effective) != 1 || effective[0] != want {
+		t.Errorf("a remote child sends %q (all values %q)", effective, values)
+	}
+	if got, _ := r.line("config", "--get-all", key); got != "AUTHORIZATION: basic cGVyc2lzdGVk" {
+		t.Errorf("a local child sees %q", got)
+	}
+}
+
 func TestCloneBranchAndReadTree(t *testing.T) {
 	r, bare := clone(t)
 	if err := r.CreateBranch("vendored", "HEAD"); err != nil {

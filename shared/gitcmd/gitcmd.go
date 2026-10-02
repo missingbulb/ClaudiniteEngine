@@ -68,7 +68,11 @@ func (r Repo) exec(remote bool, args ...string) ([]byte, error) {
 	cmd.Env = childEnv()
 	if remote && r.Token != "" {
 		cred := base64.StdEncoding.EncodeToString([]byte("x-access-token:" + r.Token))
-		cmd.Env = append(cmd.Env, "GIT_CONFIG_COUNT=1", "GIT_CONFIG_KEY_0="+extraheader, "GIT_CONFIG_VALUE_0=AUTHORIZATION: basic "+cred)
+		// The empty first value clears any header .git/config persisted,
+		// since the values accumulate.
+		cmd.Env = append(cmd.Env, "GIT_CONFIG_COUNT=2",
+			"GIT_CONFIG_KEY_0="+extraheader, "GIT_CONFIG_VALUE_0=",
+			"GIT_CONFIG_KEY_1="+extraheader, "GIT_CONFIG_VALUE_1=AUTHORIZATION: basic "+cred)
 	}
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
