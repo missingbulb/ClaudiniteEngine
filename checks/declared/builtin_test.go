@@ -1,11 +1,14 @@
 package declared
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/missingbulb/ClaudiniteEngine/shared/findings"
+	"github.com/missingbulb/ClaudiniteEngine/shared/gitcmd"
 	"github.com/missingbulb/ClaudiniteEngine/shared/transcript"
 )
 
@@ -133,4 +136,33 @@ func TestABuiltinThatPanicsIsABreak(t *testing.T) {
 		}
 	}
 	t.Fatalf("no checks-run break for the panicking built-in: %v", fs)
+}
+
+// A git that never answers is a checks-run break naming the command, not
+// a hang and not a silent empty read.
+func TestAHungGitIsACheckRunBreak(t *testing.T) {
+	dir := member(t, testSettings, "[]\n", map[string]string{"probe.txt": "x\n"})
+	s, err := LoadSet(dir, "0.0.0", probe("on-acme", "acme-pack", ""))
+	if err != nil {
+		t.Fatal(err)
+	}
+	bin := t.TempDir()
+	if err := os.WriteFile(filepath.Join(bin, "git"), []byte("#!/bin/sh\nexec sleep 30\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv("CLAUDINITE_CHECKS_NO_FETCH", "1")
+	old := gitcmd.CommandTimeout
+	gitcmd.CommandTimeout = 100 * time.Millisecond
+	defer func() { gitcmd.CommandTimeout = old }()
+	fs, _ := s.Run(Selection{Tags: []string{"world"}}, time.Now(), nil)
+	var breaks []string
+	for _, f := range fs {
+		if f.ID == "checks-run" && f.Class == findings.Break {
+			breaks = append(breaks, f.Sentence)
+		}
+	}
+	if len(breaks) == 0 || !strings.Contains(strings.Join(breaks, "\n"), "timed out after 100ms") {
+		t.Errorf("breaks %q in %v", breaks, fs)
+	}
 }

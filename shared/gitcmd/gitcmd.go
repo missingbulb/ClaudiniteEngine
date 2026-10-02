@@ -9,12 +9,72 @@ package gitcmd
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
+	"time"
 )
+
+// CommandTimeout bounds a local git command; RemoteTimeout one that talks
+// to a remote (a push, a clone), which moves data a local read does not.
+// A command past its bound is killed and fails naming its arguments.
+var (
+	CommandTimeout = 30 * time.Second
+	RemoteTimeout  = 5 * time.Minute
+)
+
+// Faults collects the commands that timed out, for a caller whose reads
+// report only ok; nil collects nothing.
+type Faults struct {
+	mu   sync.Mutex
+	list []string
+}
+
+func (f *Faults) add(msg string) {
+	if f == nil {
+		return
+	}
+	f.mu.Lock()
+	f.list = append(f.list, msg)
+	f.mu.Unlock()
+}
+
+// Take returns the faults collected since the last Take.
+func (f *Faults) Take() []string {
+	if f == nil {
+		return nil
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	out := f.list
+	f.list = nil
+	return out
+}
+
+// command is git with args under timeout; done reports a timeout as the
+// error naming shown, else passes err through.
+func command(timeout time.Duration, shown []string, args ...string) (cmd *exec.Cmd, done func(error) error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	cmd = exec.CommandContext(ctx, "git", args...)
+	cmd.WaitDelay = time.Second
+	return cmd, func(err error) error {
+		defer cancel()
+		if err != nil && errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			return &TimeoutError{fmt.Sprintf("git %s timed out after %v", strings.Join(shown, " "), timeout)}
+		}
+		return err
+	}
+}
+
+// TimeoutError is a git command killed at its bound.
+type TimeoutError struct{ msg string }
+
+func (e *TimeoutError) Error() string { return e.msg }
 
 // Bot is the identity update commits carry.
 const (
@@ -27,6 +87,8 @@ const (
 type Repo struct {
 	Dir   string
 	Token string
+	// Faults, when set, collects every command that timed out.
+	Faults *Faults
 }
 
 // extraheader is the config key that carries the token, as
@@ -63,7 +125,11 @@ func (r Repo) remoteLine(args ...string) (string, error) {
 }
 
 func (r Repo) exec(remote bool, args ...string) ([]byte, error) {
-	cmd := exec.Command("git", append([]string{"-c", "user.name=" + BotName, "-c", "user.email=" + BotEmail}, args...)...)
+	timeout := CommandTimeout
+	if remote {
+		timeout = RemoteTimeout
+	}
+	cmd, done := command(timeout, args, append([]string{"-c", "user.name=" + BotName, "-c", "user.email=" + BotEmail}, args...)...)
 	cmd.Dir = r.Dir
 	cmd.Env = childEnv()
 	if remote && r.Token != "" {
@@ -77,7 +143,12 @@ func (r Repo) exec(remote bool, args ...string) ([]byte, error) {
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()
-	if err != nil {
+	if err = done(err); err != nil {
+		var te *TimeoutError
+		if errors.As(err, &te) {
+			r.Faults.add(te.msg)
+			return out, te
+		}
 		return out, fmt.Errorf("git %s: %v: %s", strings.Join(args, " "), err, strings.TrimSpace(stderr.String()))
 	}
 	return out, nil
@@ -187,12 +258,17 @@ func (r Repo) DiffStat(base, head string) (string, error) {
 // path) into dir, with no credential: no helper is consulted, and the
 // token variables never reach the child. Blobs arrive as they are read.
 func Clone(url, branch, dir string) error {
-	cmd := exec.Command("git", "-c", "credential.helper=", "-c", "core.askPass=", "clone", "-q", "--depth", "1",
-		"--filter=blob:none", "--no-checkout", "--single-branch", "--branch", branch, "--", url, dir)
+	args := []string{"-c", "credential.helper=", "-c", "core.askPass=", "clone", "-q", "--depth", "1",
+		"--filter=blob:none", "--no-checkout", "--single-branch", "--branch", branch, "--", url, dir}
+	cmd, done := command(RemoteTimeout, args[4:], args...)
 	cmd.Env = childEnv()
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
+	if err := done(cmd.Run()); err != nil {
+		var te *TimeoutError
+		if errors.As(err, &te) {
+			return te
+		}
 		return fmt.Errorf("git clone %s (%s): %v: %s", url, branch, err, strings.TrimSpace(stderr.String()))
 	}
 	return nil

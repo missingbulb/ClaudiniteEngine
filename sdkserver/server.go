@@ -229,6 +229,11 @@ func (s *Server) Handle(method string, raw json.RawMessage) (json.RawMessage, er
 		}
 	}
 	v, err := h(s, a)
+	if f, ok := s.tree.(interface{ GitFaults() []string }); ok {
+		if faults := f.GitFaults(); len(faults) > 0 {
+			return nil, fmt.Errorf("%s: %s", method, strings.Join(faults, "; "))
+		}
+	}
 	if err != nil {
 		return nil, err
 	}

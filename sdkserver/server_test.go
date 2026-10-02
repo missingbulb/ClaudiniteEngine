@@ -134,3 +134,24 @@ func TestRefusals(t *testing.T) {
 		}
 	}
 }
+
+// hungTree is a tree whose git timed out behind one answer.
+type hungTree struct {
+	fakeTree
+	faults *[]string
+}
+
+func (h hungTree) GitFaults() []string { out := *h.faults; *h.faults = nil; return out }
+
+// A git timeout behind an answer is that call's error, never a plausible
+// empty answer; the next call answers normally.
+func TestAGitTimeoutIsTheCallsError(t *testing.T) {
+	faults := []string{"git show abc:a.md timed out after 30s"}
+	s := Serve(t.TempDir(), hungTree{fakeTree{}, &faults}, nil, Config{})
+	if _, err := s.Handle("change.readBase", json.RawMessage(`{"path":"a.md"}`)); err == nil || !strings.Contains(err.Error(), "timed out after 30s") {
+		t.Errorf("err %v", err)
+	}
+	if got := ask(t, s, "change.files", `{}`); got != `["a.md"]` {
+		t.Errorf("after the fault: %s", got)
+	}
+}

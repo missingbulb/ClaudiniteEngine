@@ -309,6 +309,10 @@ func (s *Set) Run(sel Selection, now time.Time, stderr io.Writer) ([]findings.Fi
 			out = append(out, Grace(f, b.Since, now))
 		}
 	}
+	for _, msg := range ctx.GitFaults() {
+		out = append(out, findings.Finding{Class: findings.Break, ID: "checks-run", Path: ".",
+			Sentence: "the checks read the repository through git, and " + msg})
+	}
 	return out, ran
 }
 
