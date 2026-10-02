@@ -98,3 +98,31 @@ func TestVersionRefusesAShallowClone(t *testing.T) {
 		t.Fatalf("shallow clone: exit %d, %q", code, out)
 	}
 }
+
+// check reads the floor from the file the SDK embeds, so it runs with no
+// Go toolchain on PATH.
+func TestVersionCheckRunsWithoutGo(t *testing.T) {
+	repo := gitRepo(t, "v61002.2.0")
+	gitBin, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatal(err)
+	}
+	bin := t.TempDir()
+	if err := os.Symlink(gitBin, filepath.Join(bin, "git")); err != nil {
+		t.Fatal(err)
+	}
+	script, _ := filepath.Abs("version.sh")
+	cmd := exec.Command("/bin/sh", script, "check", "61002.9.0")
+	cmd.Dir = repo
+	cmd.Env = []string{"PATH=" + bin + ":/usr/bin:/bin", "HOME=" + t.TempDir()}
+	if _, err := exec.LookPath("go"); err == nil {
+		for _, d := range []string{"/usr/bin", "/bin"} {
+			if _, err := os.Stat(filepath.Join(d, "go")); err == nil {
+				t.Skipf("a go binary in %s is on every PATH this test can build", d)
+			}
+		}
+	}
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("check with no go on PATH: %v\n%s", err, out)
+	}
+}

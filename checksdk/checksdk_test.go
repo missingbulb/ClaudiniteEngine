@@ -210,3 +210,15 @@ func TestEngineFloorIsBehindTheClock(t *testing.T) {
 		t.Errorf("EngineFloor %s is after today's day %d", EngineFloor, today)
 	}
 }
+
+// The floor's file, which release tooling reads without a Go toolchain,
+// and the constant agree.
+func TestEngineFloorFileAgrees(t *testing.T) {
+	raw, err := os.ReadFile("engine_floor.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.TrimSpace(string(raw)); got != EngineFloor || string(raw) != got+"\n" {
+		t.Errorf("engine_floor.txt %q, EngineFloor %q", raw, EngineFloor)
+	}
+}
