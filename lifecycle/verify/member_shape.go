@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"github.com/missingbulb/ClaudiniteEngine/shared/descriptor"
@@ -52,7 +51,7 @@ func checkLocalPackShape(in Input) []findings.Finding {
 			raw, _ := os.ReadFile(filepath.Join(dir, m.File))
 			for _, k := range m.Retired {
 				f := dep("local-pack-shape", p.rel+"/"+m.File, fmt.Sprintf("declares %q, a retired manifest field nothing reads; %s", k, where))
-				f.Line = keyLine(raw, k)
+				f.Line = descriptor.KeyLines(raw, descriptor.FormatOf(m.File))[k]
 				out = append(out, f)
 			}
 		}
@@ -89,8 +88,6 @@ func declaredFiles(dir, rel string) []string {
 	return out
 }
 
-var retiredSeverity = map[string]string{"blocking": "block", "advisory": "advise"}
-
 func severityUses(in Input, rel string) []findings.Finding {
 	raw, ok := read(in, rel)
 	if !ok {
@@ -101,50 +98,29 @@ func severityUses(in Input, rel string) []findings.Finding {
 		return nil
 	}
 	var list []any
+	prefix := ""
 	switch x := v.(type) {
 	case []any:
 		list = x
 	case map[string]any:
 		list, _ = x["check"].([]any)
+		prefix = "check."
 	}
+	lines := descriptor.KeyLines(raw, descriptor.FormatOf(rel))
 	var out []findings.Finding
-	for _, e := range list {
+	for i, e := range list {
 		m, _ := e.(map[string]any)
 		s, _ := m["severity"].(string)
-		to, known := retiredSeverity[s]
+		to, known := settings.RetiredOnFail[s]
 		if !known {
 			continue
 		}
 		id, _ := m["id"].(string)
 		f := dep("local-pack-shape", rel, fmt.Sprintf("the declared check %q carries \"severity\": %q, the retired name of its on_fail; write \"on_fail\": %q", id, s, to))
-		f.Line = lineAfter(raw, id, "severity")
+		f.Line = lines[fmt.Sprintf("%s%d.severity", prefix, i)]
 		out = append(out, f)
 	}
 	return out
-}
-
-// keyLine is the 1-based line where key opens a manifest entry, or 0.
-func keyLine(raw []byte, key string) int {
-	re := regexp.MustCompile(`(?m)^[ \t]*"?` + regexp.QuoteMeta(key) + `"?[ \t]*[:=]`)
-	loc := re.FindIndex(raw)
-	if loc == nil {
-		return 0
-	}
-	return strings.Count(string(raw[:loc[0]]), "\n") + 1
-}
-
-// lineAfter is the line of the first word after the first mention of id.
-func lineAfter(raw []byte, id, word string) int {
-	text := string(raw)
-	from := strings.Index(text, id)
-	if from < 0 {
-		from = 0
-	}
-	at := strings.Index(text[from:], word)
-	if at < 0 {
-		return 0
-	}
-	return strings.Count(text[:from+at], "\n") + 1
 }
 
 // checkNodeLeftovers deprecates what a half-moved member still carries

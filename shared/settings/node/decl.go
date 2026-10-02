@@ -33,6 +33,20 @@ var Renamed = map[string]string{
 	"static-website": "public-website",
 }
 
+// Absorbed are the renamed ids whose pack was absorbed rather than renamed,
+// each with the answers retired with its questions: the Node engine's
+// absorbedPackConfig records (the lifecycle pack's barriers-absorbed
+// migration at the freeze). An absorbed entry's config nests under its old
+// id on the survivor, where the survivor reads it.
+var Absorbed = map[string]AbsorbedSpec{
+	"barriers": {DropAnswers: []string{"goals"}},
+}
+
+// AbsorbedSpec is one absorbedPackConfig record.
+type AbsorbedSpec struct {
+	DropAnswers []string
+}
+
 // Tree answers what the import needs to know of the member's tree.
 type Tree interface {
 	// HasLocal reports whether .claudinite/local/packs/<name>/ exists.
@@ -119,9 +133,6 @@ var retiredTop = map[string]string{
 	"maintenance": "the retired delivery block (#1640), which the Node engine refuses too; the update auto-merges (record row 71)",
 	"packConfig":  "the retired top-level pack parameters (#1640), which the Node engine refuses too; a pack's parameters are its entry's config",
 }
-
-// Retired override spellings, the Node engine's LEGACY_ON_FAIL.
-var retiredOnFail = map[string]string{"blocking": "block", "advisory": "advise"}
 
 type importer struct {
 	tree    Tree
@@ -286,6 +297,7 @@ func (im *importer) declare(key, id string, obj *settings.Ordered) {
 	}
 	im.add(Mapped, fmt.Sprintf("%s %q", key, id), fmt.Sprintf("packs.declared %q", tok), why)
 	e := &entry{token: tok}
+	spec, absorbed := Absorbed[id]
 	if obj != nil {
 		for _, k := range obj.Keys() {
 			val, _ := obj.Get(k)
@@ -297,6 +309,13 @@ func (im *importer) declare(key, id string, obj *settings.Ordered) {
 			case "config":
 				if _, ok := val.(*settings.Ordered); !ok {
 					im.add(Refused, sub, "", "must be an object of the pack's parameters")
+					continue
+				}
+				if absorbed {
+					nested := settings.NewOrdered()
+					nested.Set(id, val)
+					e.object().Set("config", nested)
+					im.add(Mapped, sub, fmt.Sprintf("packs.declared %q config.%s", tok, id), "an absorbed pack's parameters nest under its old id")
 					continue
 				}
 				e.object().Set("config", val)
@@ -316,7 +335,26 @@ func (im *importer) declare(key, id string, obj *settings.Ordered) {
 				}
 				e.object().Set("accept", val)
 				im.add(Mapped, sub, fmt.Sprintf("packs.declared %q accept", tok), "")
-			case "via", "answers":
+			case "answers":
+				if a, ok := val.(*settings.Ordered); ok && absorbed && len(spec.DropAnswers) > 0 {
+					kept := settings.NewOrdered()
+					for _, q := range a.Keys() {
+						ans, _ := a.Get(q)
+						if contains(spec.DropAnswers, q) {
+							im.add(Dropped, sub+"."+q, "", "its question was retired with the absorbed pack")
+							continue
+						}
+						kept.Set(q, ans)
+					}
+					if kept.Len() > 0 {
+						e.object().Set(k, kept)
+						im.add(Carried, sub, "", "")
+					}
+					continue
+				}
+				e.object().Set(k, val)
+				im.add(Carried, sub, "", "")
+			case "via":
 				e.object().Set(k, val)
 				im.add(Carried, sub, "", "")
 			default:
@@ -341,10 +379,11 @@ func joinWhy(a, b string) string {
 	return a + "; " + b
 }
 
-// merge folds absorbed into survivor as the Node engine's applyPackRenames
-// did: an object is merged key by key, deeply, the survivor's value
-// winning; lists concatenate, dropping an element the survivor already
-// holds; a scalar the survivor holds stands.
+// merge folds absorbed into survivor as the Node engine's
+// mergeDeclarationEntries did: a key the survivor lacks is taken whole;
+// two lists concatenate, dropping an element the survivor already holds;
+// two objects merge one level, the survivor's keys winning; a scalar the
+// survivor holds stands.
 func merge(survivor, absorbed *settings.Ordered) {
 	for _, k := range absorbed.Keys() {
 		if k == "id" {
@@ -359,7 +398,12 @@ func merge(survivor, absorbed *settings.Ordered) {
 		switch h := have.(type) {
 		case *settings.Ordered:
 			if a, ok := val.(*settings.Ordered); ok {
-				merge(h, a)
+				for _, ak := range a.Keys() {
+					if _, own := h.Get(ak); !own {
+						av, _ := a.Get(ak)
+						h.Set(ak, av)
+					}
+				}
 			}
 		case []any:
 			if a, ok := val.([]any); ok {
@@ -405,7 +449,7 @@ func (im *importer) rules(r *settings.Ordered, key string) *settings.Ordered {
 	for _, id := range r.Keys() {
 		v, _ := r.Get(id)
 		if s, ok := v.(string); ok {
-			if to, retired := retiredOnFail[s]; retired {
+			if to, retired := settings.RetiredOnFail[s]; retired {
 				im.add(Mapped, fmt.Sprintf("%s.%s %q", key, id, s), fmt.Sprintf("%q", to), "the retired severity spelling")
 				v = to
 			}
@@ -544,4 +588,13 @@ func get(o *settings.Ordered, k string) any {
 	}
 	v, _ := o.Get(k)
 	return v
+}
+
+func contains(list []string, s string) bool {
+	for _, x := range list {
+		if x == s {
+			return true
+		}
+	}
+	return false
 }

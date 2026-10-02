@@ -348,15 +348,15 @@ func TestANodeMemberBreaksNamingTheImport(t *testing.T) {
 func TestLocalPackShapeNamesTheLine(t *testing.T) {
 	dir := newShape(t)
 	declare(t, dir, "local/mine", "")
-	write(t, dir, ".claudinite/local/packs/mine/pack.json", "{\n  \"ruleRoutingGuidance\": {},\n  \"marker\": null\n}\n")
-	write(t, dir, ".claudinite/local/packs/mine/declared-checks.json", "[\n  {\n    \"id\": \"mine-x\",\n    \"severity\": \"blocking\",\n    \"scanFiles\": \"a\"\n  }\n]\n")
+	write(t, dir, ".claudinite/local/packs/mine/pack.json", "{\n  \"ruleRoutingGuidance\": {\n    \"belongs\": \"x\",\n    \"marker\": \"x\",\n    \"excludes\": \"x\"\n  },\n  \"marker\": null\n}\n")
+	write(t, dir, ".claudinite/local/packs/mine/declared-checks.json", "[\n  {\n    \"id\": \"mine-x-old\",\n    \"failureMessage\": \"severity\",\n    \"scanFiles\": \"a\"\n  },\n  {\n    \"id\": \"mine-x\",\n    \"severity\": \"blocking\",\n    \"scanFiles\": \"a\"\n  }\n]\n")
 	got := map[string]bool{}
 	for _, f := range run(t, dir) {
 		if f.ID == "local-pack-shape" {
 			got[f.Location()] = true
 		}
 	}
-	want := map[string]bool{".claudinite/local/packs/mine/pack.json:3": true, ".claudinite/local/packs/mine/declared-checks.json:4": true}
+	want := map[string]bool{".claudinite/local/packs/mine/pack.json:7": true, ".claudinite/local/packs/mine/declared-checks.json:9": true}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("%v", got)
 	}

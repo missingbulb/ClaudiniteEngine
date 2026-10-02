@@ -92,11 +92,12 @@ type RetiredOverride struct {
 	Where, Rule, Value, OnFail string
 }
 
-// retiredOnFail maps the retired severity spelling an override may still
-// carry to its on_fail.
+// RetiredOnFail maps the retired severity spelling, the Node engine's
+// LEGACY_ON_FAIL, to its on_fail: an override may still carry it, and so
+// may a member's own declared check (#52, checks/declared).
 //
 // @legacy-tolerance advisory:settings-checks retire:#50
-var retiredOnFail = map[string]string{"blocking": "block", "advisory": "advise"}
+var RetiredOnFail = map[string]string{"blocking": "block", "advisory": "advise"}
 
 var topSchema = descriptor.Schema{Name: "settings", Keys: map[string]descriptor.Kind{
 	"engine": descriptor.Object, "license": descriptor.Object, "packs": descriptor.Object, "checks": descriptor.Object,
@@ -274,7 +275,7 @@ func parseChecks(raw any, where string, retired *[]RetiredOverride) (Checks, err
 			if !ok {
 				return Checks{}, fmt.Errorf("%s: rules.%s must be \"block\", \"advise\" or \"off\"", where, id)
 			}
-			if to, ok := retiredOnFail[s]; ok {
+			if to, ok := RetiredOnFail[s]; ok {
 				label := where
 				if where == "checks" {
 					label = "the top-level checks block"

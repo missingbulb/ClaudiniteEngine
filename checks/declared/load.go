@@ -10,6 +10,7 @@ import (
 
 	"github.com/missingbulb/ClaudiniteEngine/checks/declared/refs"
 	"github.com/missingbulb/ClaudiniteEngine/shared/descriptor"
+	"github.com/missingbulb/ClaudiniteEngine/shared/settings"
 )
 
 // Name is the descriptor a pack or skill declares its checks in.
@@ -98,12 +99,6 @@ type LoadError struct {
 func (e *LoadError) Error() string { return e.Path + ": " + e.Err.Error() }
 func (e *LoadError) Unwrap() error { return e.Err }
 
-// retiredSeverity maps the retired severity a member's own declaration may
-// still carry to its on_fail.
-//
-// @legacy-tolerance advisory:local-pack-shape retire:#52
-var retiredSeverity = map[string]string{"blocking": "block", "advisory": "advise"}
-
 func loadDir(dir, rel, pack, skill string, own bool) ([]*Check, error) {
 	path, format, err := descriptor.Find(dir, Name)
 	if errors.Is(err, descriptor.ErrAbsent) {
@@ -128,9 +123,10 @@ func loadDir(dir, rel, pack, skill string, own bool) ([]*Check, error) {
 	var out []*Check
 	for _, d := range decls {
 		severity := ""
-		if s, _ := d["severity"].(string); own && retiredSeverity[s] != "" {
+		// @legacy-tolerance advisory:local-pack-shape retire:#52
+		if s, _ := d["severity"].(string); own && settings.RetiredOnFail[s] != "" {
 			if _, set := d["on_fail"]; !set {
-				d["on_fail"] = retiredSeverity[s]
+				d["on_fail"] = settings.RetiredOnFail[s]
 			}
 			delete(d, "severity")
 			severity = s

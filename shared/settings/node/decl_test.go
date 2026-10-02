@@ -97,7 +97,7 @@ func TestEveryKeyHasALine(t *testing.T) {
 		_, r := readFixture(t, d.Name())
 		rewrites := 0
 		for _, l := range r {
-			if strings.Contains(l.Why, "the retired severity spelling") {
+			if strings.Contains(l.Why, "the retired severity spelling") || strings.Contains(l.Key, ".answers.") {
 				rewrites++
 			}
 		}
@@ -116,6 +116,50 @@ func TestRenamedIDsMerge(t *testing.T) {
 	}}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("%v\n%s", got, r)
+	}
+}
+
+// An absorbed pack's entry is reshaped before it merges, as the Node
+// engine's barriers-absorbed record did: its config nests under the old id
+// and the answer to its retired question goes; then the two entries merge
+// one level deep, the survivor's keys winning.
+func TestAbsorbedEntryNestsBeforeItMerges(t *testing.T) {
+	d, r := readFixture(t, "renamed-ids-config")
+	basics := settings.Plain(d.Packs).(map[string]any)["declared"].([]any)[0].(map[string]any)
+	cfg := basics["config"].(map[string]any)
+	if _, ok := cfg["sharedConstants"]; !ok {
+		t.Errorf("the survivor's own config is lost: %v\n%s", cfg, r)
+	}
+	nested, ok := cfg["barriers"].(map[string]any)
+	if !ok || nested["rules"] == nil || cfg["rules"] != nil {
+		t.Errorf("barriers' config did not nest under config.barriers: %v\n%s", cfg, r)
+	}
+	if !reflect.DeepEqual(basics["answers"], map[string]any{"kept": "yes"}) {
+		t.Errorf("answers: %v", basics["answers"])
+	}
+	if _, ok := basics["via"]; ok {
+		t.Errorf("via names the survivor itself: %v", basics["via"])
+	}
+
+	survivor := settings.NewOrdered()
+	inner := settings.NewOrdered()
+	inner.Set("a", 1.0)
+	deep := settings.NewOrdered()
+	deep.Set("x", 1.0)
+	inner.Set("deep", deep)
+	survivor.Set("config", inner)
+	absorbed := settings.NewOrdered()
+	other := settings.NewOrdered()
+	other.Set("a", 2.0)
+	other.Set("b", 2.0)
+	deep2 := settings.NewOrdered()
+	deep2.Set("y", 2.0)
+	other.Set("deep", deep2)
+	absorbed.Set("config", other)
+	merge(survivor, absorbed)
+	want := map[string]any{"config": map[string]any{"a": 1.0, "b": 2.0, "deep": map[string]any{"x": 1.0}}}
+	if got := settings.Plain(survivor); !reflect.DeepEqual(got, want) {
+		t.Errorf("merge is one level, the survivor's keys winning: %v", got)
 	}
 }
 
@@ -258,9 +302,6 @@ func TestSpliceEveryFormat(t *testing.T) {
 			back, err := settings.ParseBytesTop(out, f)
 			if err != nil {
 				t.Fatal(err)
-			}
-			if f == settings.TOML {
-				continue
 			}
 			if got, want := normalize(back["packs"]), normalize(settings.Plain(decl.Packs)); !reflect.DeepEqual(got, want) {
 				t.Errorf("%s %s: packs read back differ:\n%v\n%v", d.Name(), f, got, want)

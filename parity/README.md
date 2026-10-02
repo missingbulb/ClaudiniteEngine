@@ -51,10 +51,11 @@ the import or verify prints. Where `cn` decides otherwise on purpose it
 carries the same `divergence` and `cn` fields; `cn.breaks` are verify
 breaks Node never raised.
 
-Settings face divergences: 3 of 18 fixtures.
+Settings face divergences: 4 of 19 fixtures.
 
 | Row | Fixtures | Why |
 | --- | --- | --- |
 | 32 | local-module-manifest | a local `pack.mjs` is a module manifest no engine of cn's reads; verify breaks and the pack does not load |
 | 73 | served-by-updates | Node errs on `servedBy`; cn has one update mechanism, so the import drops it |
 | 79 | local-js-rules | cn runs no JavaScript check; verify breaks on each one in a local pack |
+| 80 | renamed-ids-config | Node's reader lets the last entry for an id replace the config wholesale, losing basics' own; the import does what Node's barriers-absorbed record writes, nesting barriers' config under `config.barriers` and merging |

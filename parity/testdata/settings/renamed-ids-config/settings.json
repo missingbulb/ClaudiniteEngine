@@ -1,0 +1,25 @@
+{
+  "packs": [
+    {
+      "id": "basics",
+      "config": {
+        "sharedConstants": [{"name": "the deadline", "files": ["a.js", "b.js"]}]
+      },
+      "rules": {
+        "reference-integrity": "advise"
+      }
+    },
+    {
+      "id": "barriers",
+      "config": {
+        "rules": [{"from": "src", "to": "test", "reason": "code does not reach into tests"}]
+      },
+      "answers": {
+        "goals": "keep src independent of test",
+        "kept": "yes"
+      },
+      "via": ["basics"]
+    },
+    "claudinite-lifecycle"
+  ]
+}

@@ -1,0 +1,66 @@
+{
+  "expect": {
+    "accept": [],
+    "active": [
+      "basics",
+      "claudinite-lifecycle"
+    ],
+    "advisories": [
+      "the pack entry \"barriers\" names a pack that has been renamed or absorbed"
+    ],
+    "config": {
+      "basics": {
+        "rules": [
+          {
+            "from": "src",
+            "reason": "code does not reach into tests",
+            "to": "test"
+          }
+        ]
+      }
+    },
+    "errors": [],
+    "installed": {
+      "engineVersion": null,
+      "packVersions": {}
+    },
+    "rules": {
+      "reference-integrity": "advise"
+    },
+    "scheduler": {
+      "disabledTasks": [],
+      "dormant": false,
+      "endpoints": {},
+      "requireReview": false
+    },
+    "sharedConstants": []
+  },
+  "accounts": {
+    "the pack entry \"barriers\" names a pack that has been renamed or absorbed": "mapped packs[1] \"barriers\" → packs.declared \"basics\""
+  },
+  "divergence": "record-80",
+  "cn": {
+    "config": {
+      "basics": {
+        "barriers": {
+          "rules": [
+            {
+              "from": "src",
+              "reason": "code does not reach into tests",
+              "to": "test"
+            }
+          ]
+        }
+      }
+    },
+    "sharedConstants": [
+      {
+        "files": [
+          "a.js",
+          "b.js"
+        ],
+        "name": "the deadline"
+      }
+    ]
+  }
+}
