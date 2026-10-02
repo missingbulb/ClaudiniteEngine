@@ -1,4 +1,8 @@
-package main
+// Package ghport is the task runner's port over GitHub's REST API: the
+// issues and repository reads the scheduler and executor make, the pull
+// requests a run works on, the landing lane's calls and what the SDK's
+// actions reach, each one call (or one page of one).
+package ghport
 
 import (
 	"errors"
@@ -11,16 +15,18 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/tasks/world"
 )
 
-// ghWorld is the task runner's port over the REST API: each operation
-// the runner names, one call (or one page of one) here.
-type ghWorld struct{ c *githubapi.Client }
+// World is the port over one repository's client.
+type World struct{ c *githubapi.Client }
+
+// New is the port over c.
+func New(c *githubapi.Client) World { return World{c} }
 
 var (
-	_ world.Issues = ghWorld{}
-	_ world.Repo   = ghWorld{}
+	_ world.Issues = World{}
+	_ world.Repo   = World{}
 )
 
-func (g ghWorld) path(format string, a ...any) string {
+func (g World) path(format string, a ...any) string {
 	return "/repos/" + g.c.Repo + fmt.Sprintf(format, a...)
 }
 
@@ -53,7 +59,7 @@ func (w wireIssue) issue() world.Issue {
 	return out
 }
 
-func (g ghWorld) IssuesPage(q world.Query, page int) ([]world.Issue, error) {
+func (g World) IssuesPage(q world.Query, page int) ([]world.Issue, error) {
 	sort, dir := q.Order()
 	v := url.Values{"state": {q.State}, "sort": {sort}, "direction": {dir}, "per_page": {strconv.Itoa(world.PageSize)}, "page": {strconv.Itoa(page)}}
 	if q.Since != "" {
@@ -73,7 +79,7 @@ func (g ghWorld) IssuesPage(q world.Query, page int) ([]world.Issue, error) {
 	return out, nil
 }
 
-func (g ghWorld) Issue(n int) (world.Issue, error) {
+func (g World) Issue(n int) (world.Issue, error) {
 	var w wireIssue
 	if err := g.c.Call("GET", g.path("/issues/%d", n), nil, &w); err != nil {
 		return world.Issue{}, gone(err)
@@ -81,7 +87,7 @@ func (g ghWorld) Issue(n int) (world.Issue, error) {
 	return w.issue(), nil
 }
 
-func (g ghWorld) CreateIssue(title, body string, labels []string) (int, error) {
+func (g World) CreateIssue(title, body string, labels []string) (int, error) {
 	var out struct {
 		Number int `json:"number"`
 	}
@@ -89,26 +95,26 @@ func (g ghWorld) CreateIssue(title, body string, labels []string) (int, error) {
 	return out.Number, err
 }
 
-func (g ghWorld) patch(n int, fields map[string]any) error {
+func (g World) patch(n int, fields map[string]any) error {
 	return gone(g.c.Call("PATCH", g.path("/issues/%d", n), fields, nil))
 }
 
-func (g ghWorld) CloseIssue(n int, reason string) error {
+func (g World) CloseIssue(n int, reason string) error {
 	return g.patch(n, map[string]any{"state": "closed", "state_reason": reason})
 }
-func (g ghWorld) ReopenIssue(n int) error { return g.patch(n, map[string]any{"state": "open"}) }
-func (g ghWorld) SetIssueBody(n int, body string) error {
+func (g World) ReopenIssue(n int) error { return g.patch(n, map[string]any{"state": "open"}) }
+func (g World) SetIssueBody(n int, body string) error {
 	return g.patch(n, map[string]any{"body": body})
 }
-func (g ghWorld) SetIssueTitle(n int, title string) error {
+func (g World) SetIssueTitle(n int, title string) error {
 	return g.patch(n, map[string]any{"title": title})
 }
 
-func (g ghWorld) AddLabel(n int, label string) error {
+func (g World) AddLabel(n int, label string) error {
 	return gone(g.c.Call("POST", g.path("/issues/%d/labels", n), map[string]any{"labels": []string{label}}, nil))
 }
 
-func (g ghWorld) RemoveLabel(n int, label string) error {
+func (g World) RemoveLabel(n int, label string) error {
 	err := g.c.Call("DELETE", g.path("/issues/%d/labels/%s", n, url.PathEscape(label)), nil, nil)
 	if githubapi.StatusOf(err) == 404 {
 		return nil
@@ -118,7 +124,7 @@ func (g ghWorld) RemoveLabel(n int, label string) error {
 
 // EnsureLabels creates each label, reconciling one that exists to spec;
 // a label that cannot be ensured is reported and the rest still tried.
-func (g ghWorld) EnsureLabels(labels []workitem.Label) error {
+func (g World) EnsureLabels(labels []workitem.Label) error {
 	var failed []error
 	for _, l := range labels {
 		err := g.c.Call("POST", g.path("/labels"), map[string]any{"name": l.Name, "color": l.Color, "description": l.Description}, nil)
@@ -139,7 +145,7 @@ type wireComment struct {
 	User      wireLogin `json:"user"`
 }
 
-func (g ghWorld) Comments(n int) ([]world.Comment, error) {
+func (g World) Comments(n int) ([]world.Comment, error) {
 	var out []world.Comment
 	for page := 1; ; page++ {
 		var raw []wireComment
@@ -155,7 +161,7 @@ func (g ghWorld) Comments(n int) ([]world.Comment, error) {
 	}
 }
 
-func (g ghWorld) Comment(n int, body string) (int64, error) {
+func (g World) Comment(n int, body string) (int64, error) {
 	var out struct {
 		ID int64 `json:"id"`
 	}
@@ -163,11 +169,11 @@ func (g ghWorld) Comment(n int, body string) (int64, error) {
 	return out.ID, gone(err)
 }
 
-func (g ghWorld) EditComment(id int64, body string) error {
+func (g World) EditComment(id int64, body string) error {
 	return gone(g.c.Call("PATCH", g.path("/issues/comments/%d", id), map[string]any{"body": body}, nil))
 }
 
-func (g ghWorld) Permission(login string) (string, error) {
+func (g World) Permission(login string) (string, error) {
 	var out struct {
 		Permission string `json:"permission"`
 		RoleName   string `json:"role_name"`
@@ -204,7 +210,7 @@ func (w wireCommit) login() string {
 	return w.Author.Login
 }
 
-func (g ghWorld) CommitsPage(branch, since string, page int) ([]world.CommitRef, error) {
+func (g World) CommitsPage(branch, since string, page int) ([]world.CommitRef, error) {
 	v := url.Values{"sha": {branch}, "per_page": {strconv.Itoa(world.PageSize)}, "page": {strconv.Itoa(page)}}
 	if since != "" {
 		v.Set("since", since)
@@ -220,7 +226,7 @@ func (g ghWorld) CommitsPage(branch, since string, page int) ([]world.CommitRef,
 	return out, nil
 }
 
-func (g ghWorld) Commit(sha string) (world.Commit, error) {
+func (g World) Commit(sha string) (world.Commit, error) {
 	var c wireCommit
 	if err := g.c.Call("GET", g.path("/commits/%s", url.PathEscape(sha)), nil, &c); err != nil {
 		return world.Commit{}, gone(err)
@@ -261,7 +267,7 @@ func (w wirePull) pull() world.Pull {
 		HeadRef: w.Head.Ref, HeadSHA: w.Head.SHA, BaseRef: w.Base.Ref, UpdatedAt: w.UpdatedAt, MergedAt: w.MergedAt, Labels: w.Labels, NodeID: w.NodeID}
 }
 
-func (g ghWorld) PullsPage(state, sortBy, direction string, page int) ([]world.Pull, error) {
+func (g World) PullsPage(state, sortBy, direction string, page int) ([]world.Pull, error) {
 	v := url.Values{"state": {state}, "sort": {sortBy}, "direction": {direction}, "per_page": {strconv.Itoa(world.PageSize)}, "page": {strconv.Itoa(page)}}
 	var raw []wirePull
 	if err := g.c.Call("GET", g.path("/pulls?%s", v.Encode()), nil, &raw); err != nil {
@@ -274,7 +280,7 @@ func (g ghWorld) PullsPage(state, sortBy, direction string, page int) ([]world.P
 	return out, nil
 }
 
-func (g ghWorld) PullFilesPage(n, page int) ([]string, error) {
+func (g World) PullFilesPage(n, page int) ([]string, error) {
 	var raw []struct {
 		Filename string `json:"filename"`
 	}
@@ -297,7 +303,7 @@ type wireBranch struct {
 	} `json:"commit"`
 }
 
-func (g ghWorld) BranchesPage(page int) ([]world.Branch, error) {
+func (g World) BranchesPage(page int) ([]world.Branch, error) {
 	var raw []wireBranch
 	if err := g.c.Call("GET", g.path("/branches?per_page=%d&page=%d", world.PageSize, page), nil, &raw); err != nil {
 		return nil, err
@@ -309,7 +315,7 @@ func (g ghWorld) BranchesPage(page int) ([]world.Branch, error) {
 	return out, nil
 }
 
-func (g ghWorld) Branch(name string) (world.Branch, error) {
+func (g World) Branch(name string) (world.Branch, error) {
 	var b wireBranch
 	if err := g.c.Call("GET", g.path("/branches/%s", url.PathEscape(name)), nil, &b); err != nil {
 		return world.Branch{}, gone(err)
@@ -317,7 +323,7 @@ func (g ghWorld) Branch(name string) (world.Branch, error) {
 	return world.Branch{Name: b.Name, SHA: b.Commit.SHA}, nil
 }
 
-func (g ghWorld) TreePaths(ref string) ([]string, error) {
+func (g World) TreePaths(ref string) ([]string, error) {
 	var t struct {
 		Tree []struct {
 			Path string `json:"path"`
@@ -333,7 +339,7 @@ func (g ghWorld) TreePaths(ref string) ([]string, error) {
 	return out, nil
 }
 
-func (g ghWorld) LatestRelease() (string, error) {
+func (g World) LatestRelease() (string, error) {
 	var r struct {
 		TagName string `json:"tag_name"`
 	}

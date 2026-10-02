@@ -444,3 +444,11 @@ func (g *GitHub) EditComment(id int64, body string) error {
 	}
 	return world.ErrGone
 }
+
+// MarkMerged closes pull request n as merged now.
+func (g *GitHub) MarkMerged(n int) error {
+	return g.mutate(fmt.Sprintf("PUT pulls/%d/merge", n), n, func(i *StoredIssue) error {
+		i.State, i.MergedAt, i.ClosedAt = "closed", g.now(), g.now()
+		return nil
+	})
+}

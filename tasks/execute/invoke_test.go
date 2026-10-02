@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -108,17 +109,17 @@ func TestAnEmptyTokenNamesTheSecretAndFiresNothing(t *testing.T) {
 }
 
 func TestAFireWithNoAnswerIsUnknownAndNeverRetried(t *testing.T) {
-	hits := 0
+	var hits atomic.Int32
 	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		hits++
+		hits.Add(1)
 		time.Sleep(300 * time.Millisecond)
 	}))
 	t.Cleanup(srv.Close)
 	iv := invoker(srv, map[string]string{"CCR_ROUTINE_TOKEN": "sk"})
 	iv.Timeout = 50 * time.Millisecond
 	inv := iv.Invoke(loopTask("a", nil), workitem.Issue{Number: 12}, "n")
-	if inv.OK || inv.Answered || !strings.Contains(inv.Error, "gave no answer") || hits != 1 {
-		t.Errorf("%+v hits %d", inv, hits)
+	if inv.OK || inv.Answered || !strings.Contains(inv.Error, "gave no answer") || hits.Load() != 1 {
+		t.Errorf("%+v hits %d", inv, hits.Load())
 	}
 }
 

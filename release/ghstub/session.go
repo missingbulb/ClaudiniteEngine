@@ -138,10 +138,14 @@ func (s *stub) serveSession(w http.ResponseWriter, r *http.Request, body map[str
 		ref, _ := url.PathUnescape(repoCommitPath.FindStringSubmatch(rest)[1])
 		sha := s.headOf(ref)
 		if sha == "" {
+			sha = ref
+		}
+		c, ok := s.commit(sha)
+		if !ok {
 			fail(w, http.StatusUnprocessableEntity, "No commit found for SHA: "+ref)
 			return true
 		}
-		reply(w, 200, map[string]string{"sha": sha})
+		reply(w, 200, c)
 	default:
 		s.dispatchKey(w, r, body)
 	}

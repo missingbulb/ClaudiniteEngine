@@ -22,6 +22,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/shared/version"
 	"github.com/missingbulb/ClaudiniteEngine/shared/workitem"
 	"github.com/missingbulb/ClaudiniteEngine/tasks/execute"
+	"github.com/missingbulb/ClaudiniteEngine/tasks/ghport"
 	"github.com/missingbulb/ClaudiniteEngine/tasks/land"
 	"github.com/missingbulb/ClaudiniteEngine/tasks/queue"
 	"github.com/missingbulb/ClaudiniteEngine/tasks/recover"
@@ -134,7 +135,7 @@ func cmdExecuteLoop(args []string, stdout io.Writer, env world.Env) (err error) 
 	if err != nil {
 		return err
 	}
-	gw := ghWorld{client}
+	gw := ghport.New(client)
 	if err := gw.EnsureLabels(workitem.QueueLabels); err != nil {
 		return report.New(report.IO, err.Error())
 	}
@@ -248,7 +249,7 @@ func cmdExecuteContinue(args []string, stdout io.Writer, env world.Env) error {
 	}
 	branch := env.DefaultBranch()
 	err = recover.Continue(recover.In{
-		Issues: ghWorld{client}, Branch: branch, RunURL: env.RunURL(),
+		Issues: ghport.New(client), Branch: branch, RunURL: env.RunURL(),
 		Depth: recover.NextDepth(env("CLAUDINITE_CONTINUATION_DEPTH")),
 		Dispatch: func(inputs map[string]string) error {
 			return client.Dispatch(workitem.ExecutorWorkflowFile, branch, inputs)

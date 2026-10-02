@@ -1,4 +1,4 @@
-package main
+package ghport
 
 import (
 	"encoding/base64"
@@ -13,12 +13,10 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/tasks/world"
 )
 
-// The executor's half of the port: the pull requests a run works on, the
-// landing lane's reads and writes, and what the SDK's actions reach.
 var (
-	_ world.Pulls       = ghWorld{}
-	_ land.API          = ghWorld{}
-	_ execute.SDKGitHub = ghWorld{}
+	_ world.Pulls       = World{}
+	_ land.API          = World{}
+	_ execute.SDKGitHub = World{}
 )
 
 // statusErr carries an API answer's status to the lane, which reads it.
@@ -39,7 +37,7 @@ func refPath(ref string) string {
 	return strings.Join(parts, "/")
 }
 
-func (g ghWorld) Pull(n int) (world.Pull, error) {
+func (g World) Pull(n int) (world.Pull, error) {
 	var w wirePull
 	if err := g.c.Call("GET", g.path("/pulls/%d", n), nil, &w); err != nil {
 		return world.Pull{}, gone(err)
@@ -47,7 +45,7 @@ func (g ghWorld) Pull(n int) (world.Pull, error) {
 	return w.pull(), nil
 }
 
-func (g ghWorld) Mergeable(n int) (*bool, error) {
+func (g World) Mergeable(n int) (*bool, error) {
 	var w struct {
 		Mergeable *bool `json:"mergeable"`
 	}
@@ -57,11 +55,11 @@ func (g ghWorld) Mergeable(n int) (*bool, error) {
 	return w.Mergeable, nil
 }
 
-func (g ghWorld) ClosePull(n int) error {
+func (g World) ClosePull(n int) error {
 	return g.c.Call("PATCH", g.path("/pulls/%d", n), map[string]string{"state": "closed"}, nil)
 }
 
-func (g ghWorld) CreatePull(title, body, head, base string) (world.Pull, error) {
+func (g World) CreatePull(title, body, head, base string) (world.Pull, error) {
 	var w wirePull
 	err := g.c.Call("POST", g.path("/pulls"), map[string]string{"title": title, "body": body, "head": head, "base": base}, &w)
 	return w.pull(), err
@@ -77,7 +75,7 @@ func decodeContent(c wireContent) (string, error) {
 	return string(raw), err
 }
 
-func (g ghWorld) FileAt(path, ref string) (string, error) {
+func (g World) FileAt(path, ref string) (string, error) {
 	var c wireContent
 	if err := g.c.Call("GET", g.path("/contents/%s?ref=%s", refPath(path), url.QueryEscape(ref)), nil, &c); err != nil {
 		return "", gone(err)
@@ -85,7 +83,7 @@ func (g ghWorld) FileAt(path, ref string) (string, error) {
 	return decodeContent(c)
 }
 
-func (g ghWorld) WorkflowFiles(ref string) ([]land.WorkflowFile, error) {
+func (g World) WorkflowFiles(ref string) ([]land.WorkflowFile, error) {
 	var dir []wireContent
 	if err := g.c.Call("GET", g.path("/contents/.github/workflows?ref=%s", url.QueryEscape(ref)), nil, &dir); err != nil {
 		if githubapi.StatusOf(err) == 404 {
@@ -107,11 +105,11 @@ func (g ghWorld) WorkflowFiles(ref string) ([]land.WorkflowFile, error) {
 	return out, nil
 }
 
-func (g ghWorld) DispatchWorkflow(name, ref string) error {
+func (g World) DispatchWorkflow(name, ref string) error {
 	return statusErr(g.c.Call("POST", g.path("/actions/workflows/%s/dispatches", url.PathEscape(name)), map[string]string{"ref": ref}, nil))
 }
 
-func (g ghWorld) BranchProtected(base string) (*bool, error) {
+func (g World) BranchProtected(base string) (*bool, error) {
 	var b struct {
 		Protected *bool `json:"protected"`
 	}
@@ -124,7 +122,7 @@ func (g ghWorld) BranchProtected(base string) (*bool, error) {
 	return b.Protected, nil
 }
 
-func (g ghWorld) BranchRules(base string) ([]string, error) {
+func (g World) BranchRules(base string) ([]string, error) {
 	var rules []struct {
 		Type string `json:"type"`
 	}
@@ -138,7 +136,7 @@ func (g ghWorld) BranchRules(base string) ([]string, error) {
 	return out, nil
 }
 
-func (g ghWorld) RunsForSHA(sha string) ([]land.Run, error) {
+func (g World) RunsForSHA(sha string) ([]land.Run, error) {
 	var w struct {
 		Runs []land.Run `json:"workflow_runs"`
 	}
@@ -150,7 +148,7 @@ func (g ghWorld) RunsForSHA(sha string) ([]land.Run, error) {
 
 // EnableAutoMerge arms native auto-merge, which waits for the checks;
 // the REST merge would merge now, past them.
-func (g ghWorld) EnableAutoMerge(nodeID string) error {
+func (g World) EnableAutoMerge(nodeID string) error {
 	var answer struct {
 		Errors []struct {
 			Message string `json:"message"`
@@ -169,7 +167,7 @@ func (g ghWorld) EnableAutoMerge(nodeID string) error {
 	return nil
 }
 
-func (g ghWorld) MergePull(m land.Merge) error {
+func (g World) MergePull(m land.Merge) error {
 	in := map[string]string{"merge_method": "squash"}
 	if m.SHA != "" {
 		in["sha"] = m.SHA
@@ -183,6 +181,6 @@ func (g ghWorld) MergePull(m land.Merge) error {
 	return statusErr(g.c.Call("PUT", g.path("/pulls/%d/merge", m.Number), in, nil))
 }
 
-func (g ghWorld) DeleteBranch(ref string) error {
+func (g World) DeleteBranch(ref string) error {
 	return g.c.Call("DELETE", g.path("/git/refs/heads/%s", refPath(ref)), nil, nil)
 }

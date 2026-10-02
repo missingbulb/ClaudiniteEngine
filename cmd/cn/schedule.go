@@ -15,6 +15,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/shared/taskspec"
 	"github.com/missingbulb/ClaudiniteEngine/shared/version"
 	"github.com/missingbulb/ClaudiniteEngine/shared/workitem"
+	"github.com/missingbulb/ClaudiniteEngine/tasks/ghport"
 	"github.com/missingbulb/ClaudiniteEngine/tasks/queue"
 	"github.com/missingbulb/ClaudiniteEngine/tasks/schedule"
 	"github.com/missingbulb/ClaudiniteEngine/tasks/signals"
@@ -150,7 +151,7 @@ func cmdScheduleRun(args []string, stdout io.Writer, env world.Env) (err error) 
 	if err != nil {
 		return err
 	}
-	gw := ghWorld{client}
+	gw := ghport.New(client)
 	var issues world.Issues = gw
 	if *dry {
 		issues = &dryIssues{Issues: gw, log: func(s string) { fmt.Fprintln(stdout, s) }}
@@ -265,7 +266,7 @@ func cmdReportFailure(args []string, stdout io.Writer, env world.Env) error {
 	if err != nil {
 		return err
 	}
-	n, created, err := schedule.ReportFailure(ghWorld{client}, schedule.FailureLabels, *title,
+	n, created, err := schedule.ReportFailure(ghport.New(client), schedule.FailureLabels, *title,
 		"The Claudinite scheduler run/drain run failed: "+env.RunURL())
 	if err != nil {
 		return report.New(report.IO, err.Error())

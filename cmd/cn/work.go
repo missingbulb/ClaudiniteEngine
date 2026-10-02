@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/missingbulb/ClaudiniteEngine/shared/report"
+	"github.com/missingbulb/ClaudiniteEngine/tasks/ghport"
 	"github.com/missingbulb/ClaudiniteEngine/tasks/items"
 	"github.com/missingbulb/ClaudiniteEngine/tasks/world"
 )
@@ -100,7 +101,7 @@ func cmdWorkCreate(args []string, stdout io.Writer, env world.Env) error {
 		if err != nil {
 			return err
 		}
-		n, err := items.Create(ghWorld{client}, t.Pack, t.ID, t.TaskPath(), t.Decl.IsScheduled(), o, clock.Now(),
+		n, err := items.Create(ghport.New(client), t.Pack, t.ID, t.TaskPath(), t.Decl.IsScheduled(), o, clock.Now(),
 			func(s string) { fmt.Fprintln(stdout, s) })
 		if err != nil {
 			return report.New(report.IO, err.Error())
@@ -137,7 +138,7 @@ func cmdWorkWake(args []string, stdout io.Writer, env world.Env) error {
 	if err != nil {
 		return err
 	}
-	if err := items.Wake(ghWorld{client}, n, *urgent, clock.Now()); err != nil {
+	if err := items.Wake(ghport.New(client), n, *urgent, clock.Now()); err != nil {
 		return report.New(report.IO, err.Error())
 	}
 	suffix := ""
