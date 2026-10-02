@@ -70,20 +70,27 @@ func MissingSecrets(names []string, env map[string]string) []string {
 }
 
 // TaskEnv is the environment a task's work step runs under: the job's,
-// minus every secret in the bag and both bags themselves, plus every
-// repository variable the job does not already set, plus the secrets the
-// task declared. Secrets are selected; variables are not.
-func TaskEnv(names []string, env map[string]string) map[string]string {
+// minus every secret in the bag, both bags themselves and every name in
+// withheld — the secrets the job carries for other tasks and for the
+// routine endpoints — plus every repository variable the job does not
+// already set, plus the secrets the task declared. Secrets are selected;
+// variables are not. GITHUB_TOKEN is not withheld: the job token is the
+// surface every work step writes through.
+func TaskEnv(names, withheld []string, env map[string]string) map[string]string {
 	secrets := parseBag(env[SecretsBagEnv])
+	hold := map[string]bool{}
+	for _, n := range withheld {
+		hold[n] = true
+	}
 	out := map[string]string{}
 	for k, v := range env {
-		if _, inBag := secrets[k]; inBag || k == SecretsBagEnv || k == VarsBagEnv {
+		if _, inBag := secrets[k]; inBag || hold[k] || k == SecretsBagEnv || k == VarsBagEnv {
 			continue
 		}
 		out[k] = v
 	}
 	for k, v := range parseBag(env[VarsBagEnv]) {
-		if k == VarsBagEnv {
+		if k == VarsBagEnv || hold[k] {
 			continue
 		}
 		if _, set := env[k]; !set {
@@ -95,6 +102,38 @@ func TaskEnv(names []string, env map[string]string) map[string]string {
 			out[n] = v
 		}
 	}
+	return out
+}
+
+// WithheldSecrets are the names a job carries that no work step inherits
+// unless its task declares them: every discovered task's
+// code_work_required_secrets, and every invocation endpoint's
+// tokenSecret, the default endpoint's default included.
+func WithheldSecrets(tasks []taskspec.Task, endpoints map[string]any) []string {
+	decls := make([]taskspec.Decl, 0, len(tasks))
+	for _, t := range tasks {
+		decls = append(decls, t.Decl)
+	}
+	seen := map[string]bool{}
+	var out []string
+	add := func(n string) {
+		if n != "" && !seen[n] {
+			seen[n] = true
+			out = append(out, n)
+		}
+	}
+	for _, n := range taskspec.SecretNames(decls) {
+		add(n)
+	}
+	add(DefaultTokenSecret)
+	for _, v := range endpoints {
+		if entry, ok := v.(map[string]any); ok {
+			if s, _ := entry["tokenSecret"].(string); s != "" {
+				add(s)
+			}
+		}
+	}
+	sort.Strings(out)
 	return out
 }
 
@@ -211,12 +250,15 @@ func readAgentRequest(path string) *agentRequest {
 // through the shell, or a code_worker_mjs module through the embedded
 // runner, which answers the SDK the task's pack was granted.
 type CodeWorker struct {
-	Runner  runner.Runner
-	Place   CodeWorkPlace
-	Env     map[string]string
-	TempDir string
-	Echo    func(stream, line string)
-	Log     func(string)
+	Runner runner.Runner
+	Place  CodeWorkPlace
+	Env    map[string]string
+	// Withheld are the job's secrets no work step inherits undeclared
+	// (WithheldSecrets).
+	Withheld []string
+	TempDir  string
+	Echo     func(stream, line string)
+	Log      func(string)
 	// SDK is the server a module worker's calls reach; nil serves none.
 	SDK func(t taskspec.Task, item workitem.Issue) *SDK
 }
@@ -258,7 +300,7 @@ func (c CodeWorker) Run(t taskspec.Task, w Work) CodeWorkResult {
 	_ = os.Remove(request)
 	defer func() { _ = os.Remove(request) }()
 
-	env := TaskEnv(secrets, c.Env)
+	env := TaskEnv(secrets, c.Withheld, c.Env)
 	for k, v := range CodeWorkEnv(c.Place, t, w.Item, w.Context, request, w.Target) {
 		env[k] = v
 	}

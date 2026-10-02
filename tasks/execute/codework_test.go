@@ -34,18 +34,40 @@ func TestTheTaskEnvironmentSelectsSecretsAndCarriesEveryVariable(t *testing.T) {
 		"PATH":               "/bin",
 		"GITHUB_TOKEN":       "ghs",
 	}
-	got := TaskEnv([]string{"WANTED"}, env)
+	got := TaskEnv([]string{"WANTED"}, nil, env)
 	want := map[string]string{"WANTED": "w", "SITE": "x", "PATH": "/bin", "GITHUB_TOKEN": "ghs"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("%v", got)
 	}
 	// With no bag the stamped names stay inherited.
-	if got := TaskEnv(nil, map[string]string{"STAMPED": "s"}); got["STAMPED"] != "s" {
+	if got := TaskEnv(nil, nil, map[string]string{"STAMPED": "s"}); got["STAMPED"] != "s" {
 		t.Error(got)
 	}
 	// A malformed bag is no bag.
-	if got := TaskEnv(nil, map[string]string{"CLAUDINITE_SECRETS": "[1]", "X": "y"}); !reflect.DeepEqual(got, map[string]string{"X": "y"}) {
+	if got := TaskEnv(nil, nil, map[string]string{"CLAUDINITE_SECRETS": "[1]", "X": "y"}); !reflect.DeepEqual(got, map[string]string{"X": "y"}) {
 		t.Error(got)
+	}
+}
+
+// Under the stamped-secrets executor there is no bag: every secret of
+// every task and the routine token sit in the job's environment, and a
+// work step inherits only the ones its own task declared.
+func TestAStampedSecretOfAnotherTaskAndTheRoutineTokenAreWithheld(t *testing.T) {
+	env := map[string]string{
+		"MINE": "m", "THEIRS": "t", "CCR_ROUTINE_TOKEN": "r", "CUSTOM_ROUTINE": "c",
+		"GITHUB_TOKEN": "ghs", "PATH": "/bin",
+		"CLAUDINITE_VARS": `{"THEIRS":"from-vars","SITE":"x"}`,
+	}
+	withheld := WithheldSecrets([]taskspec.Task{agentless("a"), {Decl: taskspec.Decl{"code_work_required_secrets": []any{"THEIRS"}}},
+		{Decl: taskspec.Decl{"code_work_required_secrets": []any{"MINE"}}}},
+		map[string]any{"other": map[string]any{"url": "https://x", "tokenSecret": "CUSTOM_ROUTINE"}})
+	if !reflect.DeepEqual(withheld, []string{"CCR_ROUTINE_TOKEN", "CUSTOM_ROUTINE", "MINE", "THEIRS"}) {
+		t.Fatal(withheld)
+	}
+	got := TaskEnv([]string{"MINE"}, withheld, env)
+	want := map[string]string{"MINE": "m", "GITHUB_TOKEN": "ghs", "PATH": "/bin", "SITE": "x"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("%v", got)
 	}
 }
 
@@ -212,14 +234,16 @@ func TestAnUnsetDeclaredSecretIsNamedAndNothingRuns(t *testing.T) {
 }
 
 func TestADeclaredSecretReachesTheWorkerAndNoOtherDoes(t *testing.T) {
-	tk := shellTask(t, `echo "$STORE_TOKEN/${OTHER:-none}" > seen`, map[string]any{"code_work_required_secrets": []any{"STORE_TOKEN"}})
+	tk := shellTask(t, `echo "$STORE_TOKEN/${OTHER:-none}/${CCR_ROUTINE_TOKEN:-none}" > seen`, map[string]any{"code_work_required_secrets": []any{"STORE_TOKEN"}})
 	w := worker(t)
 	w.Env["CLAUDINITE_SECRETS"] = `{"STORE_TOKEN":"s3","OTHER":"o"}`
 	w.Env["OTHER"] = "o"
+	w.Env["CCR_ROUTINE_TOKEN"] = "routine"
+	w.Withheld = WithheldSecrets([]taskspec.Task{tk}, nil)
 	if res := w.Run(tk, Work{Item: workitem.Issue{Number: 4}}); !res.OK {
 		t.Fatal(res)
 	}
-	if raw, _ := os.ReadFile(filepath.Join(tk.Dir, "seen")); string(raw) != "s3/none\n" {
+	if raw, _ := os.ReadFile(filepath.Join(tk.Dir, "seen")); string(raw) != "s3/none/none\n" {
 		t.Errorf("%q", raw)
 	}
 }

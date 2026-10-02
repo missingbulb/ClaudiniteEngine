@@ -8,6 +8,7 @@ import (
 	"io"
 	"math/rand/v2"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
@@ -80,6 +81,15 @@ func newNonce(item int) string {
 	b := make([]byte, 6)
 	_, _ = cryptorand.Read(b)
 	return fmt.Sprintf("%d-%s", item, hex.EncodeToString(b))
+}
+
+func envList(env map[string]string) []string {
+	out := make([]string, 0, len(env))
+	for k, v := range env {
+		out = append(out, k+"="+v)
+	}
+	sort.Strings(out)
+	return out
 }
 
 func envMap() map[string]string {
@@ -156,6 +166,8 @@ func cmdExecuteLoop(args []string, stdout io.Writer, env world.Env) (err error) 
 	tasksConfig := r.packConfig(workitem.TasksPackID)
 	delivery := land.DeliveryFor(tasksConfig)
 	endpoints, _ := tasksConfig[execute.EndpointsKey].(map[string]any)
+	withheld := execute.WithheldSecrets(r.tasks, endpoints)
+	termsEnv := envList(execute.TaskEnv(nil, withheld, jobEnv))
 	lane := land.Lane{API: gw, Now: time.Now, Sleep: time.Sleep, Log: log}
 	git := gitcmd.Repo{Dir: r.root, Token: token}
 	var packs []execute.PackInfo
@@ -169,7 +181,7 @@ func cmdExecuteLoop(args []string, stdout io.Writer, env world.Env) (err error) 
 	}
 	worker := execute.CodeWorker{
 		Runner: run, Place: execute.CodeWorkPlace{Root: r.root, Repo: env.Repo(), DefaultBranch: branch},
-		Env: jobEnv, TempDir: env("RUNNER_TEMP"), Echo: echo, Log: log,
+		Env: jobEnv, Withheld: withheld, TempDir: env("RUNNER_TEMP"), Echo: echo, Log: log,
 		SDK: func(t taskspec.Task, _ workitem.Issue) *execute.SDK {
 			declared := []string{}
 			for _, p := range r.set.Packs {
@@ -191,7 +203,7 @@ func cmdExecuteLoop(args []string, stdout io.Writer, env world.Env) (err error) 
 		Exists:  func(dir string) bool { _, err := os.Stat(dir); return err == nil },
 		License: func(t taskspec.Task) string { return taskLicense(key, t) },
 		Evaluate: execute.Picker{Collector: collector(nil), PackConfig: r.packConfig, Runner: run,
-			Env: os.Environ(), Echo: echo}.Evaluate,
+			Env: termsEnv, Echo: echo}.Evaluate,
 		ResolveTarget: func(t taskspec.Task, at time.Time) execute.Target {
 			return execute.ResolveTarget(execute.TargetIn{Issues: gw, Repo: gw, Pulls: gw, Lane: gw, TaskID: t.Path(),
 				Outcome: t.Decl.Outcome(), Delivery: delivery, Now: at, Seed: newNonce(0), Sleep: time.Sleep, Log: log})

@@ -9,7 +9,8 @@ const run = async (...args) => {
 };
 
 export async function worker(params) {
-  log(`sdk ${engine().version}, HELLO_FOLD_SECRET ${params.secrets.HELLO_FOLD_SECRET ? 'handed over' : 'missing'}`);
+  log(`sdk ${engine().version}, HELLO_FOLD_SECRET ${params.secrets.HELLO_FOLD_SECRET ? 'handed over' : 'missing'}, `
+    + `CCR_ROUTINE_TOKEN ${process.env.CCR_ROUTINE_TOKEN === undefined ? 'withheld' : 'visible'}`);
   const { branch, pr } = params.target;
   if (!branch) {
     log('no target branch: nothing to fold');

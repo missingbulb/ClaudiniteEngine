@@ -482,7 +482,10 @@ func (r *run) codeWork(item workitem.Issue, task taskspec.Task, id string, claim
 		return OutcomeNeedsHuman, r.park(item, id, running, workitem.StatusNeedsHumanFailure, &claim, body, "failed")
 	}
 
-	if result.DeliveredPR != 0 && !result.Merged && r.Land != nil && !result.AgentRequested {
+	// A pull request a task may not open is never landed: the ceiling
+	// check below parks it with the pull request still open.
+	if result.DeliveredPR != 0 && !result.Merged && r.Land != nil && !result.AgentRequested &&
+		taskspec.OpensPullRequest(taskspec.CanonicalOutcome(task.Decl.Outcome())) {
 		landed := r.Land(task, result.DeliveredPR)
 		result.Merged = landed.Merged
 		if landed.Note != "" {

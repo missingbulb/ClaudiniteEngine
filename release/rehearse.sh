@@ -1031,6 +1031,7 @@ GO
       export HELLO_FOLD_SECRET
       execute || fail "tasks 3: execute loop: $(cat "$work/exec.out")"
       grep -q "HELLO_FOLD_SECRET handed over" "$work/exec.out" || fail "tasks 3: the worker's sdk line is missing: $(cat "$work/exec.out")"
+      grep -q "CCR_ROUTINE_TOKEN withheld" "$work/exec.out" || fail "tasks 3: the routine token reached the worker: $(cat "$work/exec.out")"
       grep -q "sdk hello/hello-fold: github.openPr #" "$work/exec.out" || fail "tasks 3: no openPr breadcrumb: $(cat "$work/exec.out")"
       pr=$(gh_count 'st.pulls.length ? st.pulls[st.pulls.length-1].number : 0')
       head_ref=$(gh_count 'st.pulls.find(p=>p.number==='"$pr"').head')
