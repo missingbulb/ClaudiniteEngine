@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/missingbulb/ClaudiniteEngine/lifecycle/packs"
+	"github.com/missingbulb/ClaudiniteEngine/lifecycle/rulesindex"
 	"github.com/missingbulb/ClaudiniteEngine/shared/githubapi"
 	"github.com/missingbulb/ClaudiniteEngine/shared/packindex"
 	"github.com/missingbulb/ClaudiniteEngine/shared/settings"
@@ -239,8 +240,59 @@ func TestPacksRefusesWhatFailsThisRepo(t *testing.T) {
 	}
 }
 
+// converge commits the rules index and the CLAUDE.md import the member's
+// packs call for, as a member already converged holds them.
+func (w *packWorld) converge(t *testing.T) {
+	t.Helper()
+	if _, err := rulesindex.Write(w.repo, pinVersion(w.repo)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := rulesindex.EnsureImport(w.repo); err != nil {
+		t.Fatal(err)
+	}
+	gitRun(t, w.repo, "add", "-A")
+	gitRun(t, w.repo, "commit", "-q", "-m", "converge")
+	gitRun(t, w.repo, "push", "-q", "origin", "main")
+	w.mainRun(t, "success")
+}
+
+// With no pack to move, a member whose rules index is stale or whose
+// CLAUDE.md lacks the import still gets a pack PR, carrying those two
+// alone, which lands like any other; a converged member is up to date.
+func TestPacksConvergeTheIndexWhenNoPackMoves(t *testing.T) {
+	w := newPackWorld(t)
+	w.packs.entries["hello"] = w.packs.entries["hello"][:1]
+	pr := w.openPackPR(t, "failure")
+	if pr.Title != "claudinite: rules index" {
+		t.Errorf("title %q", pr.Title)
+	}
+	files := gitRun(t, w.bare, "diff", "--name-only", "main", pr.HeadRef)
+	if files != ".claudinite/flat/claudinite-rules.GENERATED.md\nCLAUDE.md" {
+		t.Errorf("changed %q", files)
+	}
+	if c := w.hub.pulls[len(w.hub.pulls)-1]; !strings.Contains(c.Title, "rules index") {
+		t.Errorf("%+v", c)
+	}
+	v, err := Packs(w.deps(t), Options{})
+	if err != nil || v != fmt.Sprintf("skipped: #%d for the rules index is open and its CI concluded failure", pr.Number) {
+		t.Errorf("pending: %q %v", v, err)
+	}
+	w.hub.runs[pr.HeadSHA] = []githubapi.Run{{HeadSHA: pr.HeadSHA, Event: "workflow_dispatch", Status: "completed", Conclusion: "success", CreatedAt: "2026-10-01T00:00:01Z"}}
+	if v, err := Packs(w.deps(t), Options{}); err != nil || v != "landed the rules index" {
+		t.Errorf("land: %q %v", v, err)
+	}
+
+	w = newPackWorld(t)
+	w.packs.entries["hello"] = w.packs.entries["hello"][:1]
+	w.converge(t)
+	if v, err := Packs(w.deps(t), Options{}); err != nil || v != "up to date" {
+		t.Errorf("converged: %q %v", v, err)
+	}
+}
+
 func TestPacksUpToDateNamesTheSkips(t *testing.T) {
 	w := newPackWorld(t)
+	w.converge(t)
 	w.packs.entries["hello"][1].Revoked = true
 	w.packs.publish("hello", "1.2", "canary", helloFiles("1.2"))
 	w.packs.entries["hello"][2].MinEngineVersion = "99999.0.0"
@@ -252,6 +304,7 @@ func TestPacksUpToDateNamesTheSkips(t *testing.T) {
 
 func TestPacksSkipAPackWhoseRequiresIsNotDeclared(t *testing.T) {
 	w := newPackWorld(t)
+	w.converge(t)
 	w.packs.entries["hello"][1].Requires = []string{"basics"}
 	v, err := Packs(w.deps(t), Options{})
 	if err != nil || v != "up to date" || !strings.Contains(w.out.String(), "hello 1.1 skipped: requires basics, which is not declared") {
