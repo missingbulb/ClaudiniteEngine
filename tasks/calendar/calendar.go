@@ -66,3 +66,15 @@ func NextAnchor(cadence string, now time.Time) (time.Time, bool) {
 
 // ISO is JavaScript's Date#toISOString: UTC, milliseconds, a Z.
 func ISO(t time.Time) string { return t.UTC().Format("2006-01-02T15:04:05.000Z") }
+
+// ParseInstant reads an instant as JavaScript's Date does for the forms
+// the queue writes (an ISO date-time, a bare ISO date as UTC midnight); a
+// date-time without an offset reads as UTC, the runner's zone.
+func ParseInstant(s string) (time.Time, bool) {
+	for _, layout := range []string{time.RFC3339Nano, "2006-01-02T15:04:05.999999999", "2006-01-02T15:04Z07:00", "2006-01-02"} {
+		if t, err := time.Parse(layout, s); err == nil {
+			return t.UTC(), true
+		}
+	}
+	return time.Time{}, false
+}

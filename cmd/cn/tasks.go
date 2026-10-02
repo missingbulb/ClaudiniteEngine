@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -18,8 +19,11 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/shared/taskspec"
 	"github.com/missingbulb/ClaudiniteEngine/shared/version"
 	"github.com/missingbulb/ClaudiniteEngine/shared/workitem"
+	"github.com/missingbulb/ClaudiniteEngine/tasks/calendar"
 	"github.com/missingbulb/ClaudiniteEngine/tasks/land"
 	"github.com/missingbulb/ClaudiniteEngine/tasks/precondition"
+	"github.com/missingbulb/ClaudiniteEngine/tasks/queue"
+	"github.com/missingbulb/ClaudiniteEngine/tasks/world"
 )
 
 // cmdTasksList prints every task the repo's active packs and the engine
@@ -115,6 +119,7 @@ var tasksAnswers = map[string]func(raw []byte) (any, error){
 	"policy":       answerPolicy,
 	"grammar":      answerGrammar,
 	"outcome":      answerOutcome,
+	"queue":        answerQueue,
 }
 
 func cmdTasks(args []string, stdout io.Writer) error {
@@ -419,4 +424,137 @@ func answerOutcome(raw []byte) (any, error) {
 		out = append(out, land.VerifyOutcome(c.Outcome, c.Automerge, c.OpenedPR, c.MergedPR))
 	}
 	return out, nil
+}
+
+func answerQueue(raw []byte) (any, error) {
+	var in struct {
+		Picks []struct {
+			Open      []workitem.Issue    `json:"open"`
+			Draws     []float64           `json:"draws"`
+			TaskAfter map[string][]string `json:"taskAfter"`
+			Scheduled map[string]bool     `json:"scheduled"`
+		} `json:"picks"`
+		Releasable []struct {
+			Item   workitem.Issue    `json:"item"`
+			States map[string]string `json:"states"`
+			Now    string            `json:"now"`
+		} `json:"releasable"`
+		Liveness [][]world.Comment `json:"liveness"`
+		Progress []struct {
+			Body, Line string
+		} `json:"progress"`
+		Beats []struct {
+			Executor string  `json:"executor"`
+			At       string  `json:"at"`
+			Minutes  int     `json:"minutes"`
+			Session  *string `json:"session"`
+			Note     string  `json:"note"`
+		} `json:"beats"`
+		Records    []string         `json:"records"`
+		RenderExec []queue.TaskExec `json:"renderExec"`
+		RenderCost []queue.RunCost  `json:"renderCost"`
+		Anchors    []struct {
+			Frequency, Now string
+		} `json:"anchors"`
+	}
+	if err := json.Unmarshal(raw, &in); err != nil {
+		return nil, err
+	}
+	iso := func(t time.Time) any {
+		if t.IsZero() {
+			return nil
+		}
+		return calendar.ISO(t)
+	}
+	picks := []any{}
+	for _, k := range in.Picks {
+		draws := append([]float64{}, k.Draws...)
+		order := queue.PickOrder(k.Open, queue.PickOpts{
+			TaskAfter: func(id string) []string { return k.TaskAfter[id] },
+			ScheduledOf: func(id string) workitem.Scheduled {
+				v, ok := k.Scheduled[id]
+				switch {
+				case !ok:
+					return workitem.Unknown
+				case v:
+					return workitem.Yes
+				}
+				return workitem.No
+			},
+			Draw: func() float64 {
+				if len(draws) == 0 {
+					return 0
+				}
+				d := draws[0]
+				draws = draws[1:]
+				return d
+			},
+		})
+		nums := []int{}
+		for _, i := range order {
+			nums = append(nums, i.Number)
+		}
+		picks = append(picks, nums)
+	}
+	releasable := []bool{}
+	for _, k := range in.Releasable {
+		now, _ := calendar.ParseInstant(k.Now)
+		releasable = append(releasable, queue.IsReleasable(k.Item, func(n int) string { return k.States[strconv.Itoa(n)] }, now))
+	}
+	liveness := []any{}
+	for _, cs := range in.Liveness {
+		liveness = append(liveness, map[string]any{"live": iso(queue.LastLivenessAt(cs)), "progress": iso(queue.LastProgressAt(cs))})
+	}
+	progress := []string{}
+	for _, k := range in.Progress {
+		progress = append(progress, queue.WithProgress(k.Body, k.Line))
+	}
+	beats := []string{}
+	for _, k := range in.Beats {
+		if k.Session == nil {
+			beats = append(beats, queue.HeartbeatComment(k.Executor, k.At, k.Minutes))
+		} else {
+			beats = append(beats, queue.AgentBeatComment(*k.Session, k.At, k.Note))
+		}
+	}
+	records := []any{}
+	orNil := func(v any, ok bool) any {
+		if !ok {
+			return nil
+		}
+		return v
+	}
+	for _, l := range in.Records {
+		exec, eok := queue.ParseTaskExec(l)
+		run, rok := queue.ParseTaskRun(l)
+		cost, cok := queue.ParseRunCost(l)
+		var runOut any
+		if rok {
+			runOut = map[string]string{"pack": run.Pack, "task": run.Task, "slotId": run.Slot, "outcome": run.Status}
+		}
+		records = append(records, map[string]any{"exec": orNil(exec, eok), "run": runOut, "cost": orNil(cost, cok)})
+	}
+	rendered := map[string][]string{"exec": {}, "cost": {}}
+	for _, r := range in.RenderExec {
+		rendered["exec"] = append(rendered["exec"], queue.RenderTaskExec(r))
+	}
+	for _, r := range in.RenderCost {
+		rendered["cost"] = append(rendered["cost"], queue.RenderRunCost(r))
+	}
+	anchors := []any{}
+	for _, k := range in.Anchors {
+		now, _ := calendar.ParseInstant(k.Now)
+		var next, period any
+		if t, ok := calendar.NextAnchor(k.Frequency, now); ok {
+			next = calendar.ISO(t)
+		}
+		if d, ok := calendar.Period(k.Frequency); ok {
+			period = d.Milliseconds()
+		}
+		anchors = append(anchors, map[string]any{"next": next, "period": period})
+	}
+	return map[string]any{
+		"picks": picks, "releasable": releasable, "liveness": liveness, "progress": progress,
+		"beats": beats, "records": records, "rendered": rendered, "anchors": anchors,
+	}, nil
 }

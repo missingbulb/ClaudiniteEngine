@@ -121,6 +121,48 @@ const kinds = {
       taskPaths: (fixture.taskPaths ?? []).map((p) => g.taskIdFromPath(p) ?? null),
     };
   },
+  async queue() {
+    const pick = await mod('src/items/pick-order.mjs');
+    const ready = await mod('src/schedule/readiness.mjs');
+    const hb = await mod('src/items/heartbeat.mjs');
+    const rec = await mod('src/items/run-record.mjs');
+    const anchors = await mod('src/items/anchors.mjs');
+    const scheduled = (map) => (id) => (id in (map ?? {}) ? map[id] : null);
+    return {
+      picks: (fixture.picks ?? []).map((k) => {
+        const draws = [...(k.draws ?? [])];
+        return pick.pickOrder(k.open, {
+          taskAfter: (id) => k.taskAfter?.[id] ?? [],
+          scheduledOf: scheduled(k.scheduled),
+          random: () => draws.shift() ?? 0,
+        }).map((i) => i.number);
+      }),
+      releasable: (fixture.releasable ?? []).map((k) => ready.isReleasable(k.item, {
+        stateOf: (n) => k.states?.[n] ?? null,
+        nowMs: Date.parse(k.now),
+      })),
+      liveness: (fixture.liveness ?? []).map((comments) => ({
+        live: hb.lastLivenessAt(comments),
+        progress: hb.lastProgressAt(comments),
+      })),
+      progress: (fixture.progress ?? []).map((k) => hb.withProgress(k.body, k.line)),
+      beats: (fixture.beats ?? []).map((k) => (k.session === undefined
+        ? hb.heartbeatComment(k) : hb.agentBeatComment(k))),
+      records: (fixture.records ?? []).map((line) => ({
+        exec: rec.parseTaskExec(line),
+        run: rec.parseTaskRun(line),
+        cost: rec.parseRunCost(line),
+      })),
+      rendered: {
+        exec: (fixture.renderExec ?? []).map((r) => rec.renderTaskExec(r)),
+        cost: (fixture.renderCost ?? []).map((r) => rec.renderRunCost(r)),
+      },
+      anchors: (fixture.anchors ?? []).map((k) => ({
+        next: anchors.nextAnchor(k.frequency, new Date(k.now))?.toISOString() ?? null,
+        period: anchors.periodMs(k.frequency),
+      })),
+    };
+  },
   async outcome() {
     const v = await mod('src/session/verify-outcome.mjs');
     return fixture.cases.map((k) => v.verifyOutcome(k));

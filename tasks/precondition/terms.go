@@ -11,16 +11,9 @@ import (
 
 type holdsFunc func(Signals, Opts) Outcome
 
-// ParseInstant reads an instant as JavaScript's Date does for the forms
-// the queue writes (an ISO date-time, a bare ISO date as UTC midnight).
-func ParseInstant(s string) (time.Time, bool) {
-	for _, layout := range []string{time.RFC3339Nano, "2006-01-02T15:04:05.999999999", "2006-01-02T15:04Z07:00", "2006-01-02"} {
-		if t, err := time.Parse(layout, s); err == nil {
-			return t.UTC(), true
-		}
-	}
-	return time.Time{}, false
-}
+// ParseInstant is calendar.ParseInstant, where the term vocabulary
+// reads it.
+func ParseInstant(s string) (time.Time, bool) { return calendar.ParseInstant(s) }
 
 func onOrAfter(p *string, at time.Time) bool {
 	if p == nil {
