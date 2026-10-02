@@ -83,6 +83,8 @@ func newShape(t *testing.T) string {
 	write(t, dir, ".claudinite/launch", string(launcherBytes(t)))
 	write(t, dir, ".github/workflows/claudinite-update.yml", "name: claudinite-update\n")
 	write(t, dir, ".github/workflows/claudinite-ci.yml", "name: claudinite-ci\n")
+	write(t, dir, ".github/workflows/claudinite-scheduler.yml", "name: claudinite-scheduler\n")
+	write(t, dir, ".github/workflows/claudinite-executor.yml", "name: claudinite-executor\n")
 	return dir
 }
 
@@ -147,7 +149,13 @@ func TestRules(t *testing.T) {
 			raw, _ := os.ReadFile(filepath.Join(d, ".claude/settings.json"))
 			write(t, d, ".claude/settings.json", strings.Replace(string(raw), "cn hook pre-tool-use", "cn hook something-else", 1))
 		}, nil, []string{"hooks"}},
-		{"no workflows", func(t *testing.T, d string) { _ = os.RemoveAll(filepath.Join(d, ".github")) }, nil, []string{"member-workflows", "member-workflows"}},
+		{"no workflows", func(t *testing.T, d string) { _ = os.RemoveAll(filepath.Join(d, ".github")) }, nil, []string{"member-workflows", "member-workflows", "member-workflows", "member-workflows"}},
+		{"no executor", func(t *testing.T, d string) {
+			_ = os.Remove(filepath.Join(d, ".github/workflows/claudinite-executor.yml"))
+		}, []string{"member-workflows"}, nil},
+		{"no scheduler", func(t *testing.T, d string) {
+			_ = os.Remove(filepath.Join(d, ".github/workflows/claudinite-scheduler.yml"))
+		}, nil, []string{"member-workflows"}},
 		{"old ignore shape", func(t *testing.T, d string) {
 			_ = os.Remove(filepath.Join(d, ".claudinite/.gitignore"))
 			write(t, d, ".gitignore", "node_modules/\n.claudinite/bin/\n")

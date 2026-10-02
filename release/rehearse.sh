@@ -479,7 +479,8 @@ for mode in $modes; do
       adopt packs-member
       grep -q "hello: index serial 1 from cdn" "$work/init.out" || fail "packs 1: the log names no CDN: $(cat "$work/init.out")"
       for f in .claudinite/launch .claudinite/settings.yaml .claudinite/.gitignore .claude/settings.json .claude/skills/.gitignore \
-        .github/workflows/claudinite-update.yml .github/workflows/claudinite-ci.yml .claudinite/shared/packs/hello/pack.json; do
+        .github/workflows/claudinite-update.yml .github/workflows/claudinite-ci.yml .github/workflows/claudinite-scheduler.yml \
+        .github/workflows/claudinite-executor.yml .claudinite/shared/packs/hello/pack.json; do
         [ -f "$member/$f" ] || fail "packs 1: init wrote no $f"
       done
       verify_out=$(cd "$member" && sh .claudinite/launch verify) || fail "packs 1: verify: $verify_out"

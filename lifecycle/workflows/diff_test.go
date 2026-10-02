@@ -80,3 +80,22 @@ func TestDiffHandlesAFileWithoutATrailingNewline(t *testing.T) {
 	}
 	applies(t, dir, d)
 }
+
+func TestDiffKeepsTheMembersCronAndStampedSecrets(t *testing.T) {
+	mine := ForRepo("o/r")
+	exe := strings.Replace(string(mine["claudinite-executor.yml"]), SecretsMarker+"\n",
+		SecretsMarker+"\n          ACME_TOKEN: ${{ secrets.ACME_TOKEN }}\n", 1)
+	files := map[string]string{"claudinite-executor.yml": exe}
+	for _, n := range Names {
+		if _, set := files[n]; !set {
+			files[n] = string(mine[n])
+		}
+	}
+	if d, err := Diff(writeMember(t, files)); err != nil || d != "" {
+		t.Errorf("a member's own cron and stamped secrets are not drift: %q %v", d, err)
+	}
+	files["claudinite-scheduler.yml"] = strings.Replace(files["claudinite-scheduler.yml"], "20 5,17 * * *", "0 * * * *", 1)
+	if d, _ := Diff(writeMember(t, files)); !strings.Contains(d, "+    - cron: \""+CronPlaceholder+"\"") {
+		t.Errorf("a cron this repo's hash did not write is drift: %q", d)
+	}
+}

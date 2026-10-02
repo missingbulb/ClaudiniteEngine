@@ -2,7 +2,7 @@
 # Writes a member repo's Claudinite wiring into DIR: the launcher, verbatim,
 # as .claudinite/launch; .claudinite/settings.yaml pinning PACKAGE at
 # VERSION and INTEGRITY; .claude/settings.json wiring the six hooks;
-# .claudinite/.gitignore for bin/; and the two member workflows the engine
+# .claudinite/.gitignore for bin/; and the four member workflows the engine
 # embeds as templates, in .github/workflows/. The smoke legs, the
 # rehearsal and the sandbox pin all write a member through this one script.
 # usage: release/member-fixture.sh DIR VERSION INTEGRITY PACKAGE
@@ -12,7 +12,7 @@ here=$(cd "$(dirname "$0")/.." && pwd)
 dir=$1
 mkdir -p "$dir/.claudinite" "$dir/.claude" "$dir/.github/workflows"
 cp "$here/launcher/launch" "$dir/.claudinite/launch"
-cp "$here/lifecycle/workflows/templates/claudinite-update.yml" "$here/lifecycle/workflows/templates/claudinite-ci.yml" "$dir/.github/workflows/"
+cp "$here"/lifecycle/workflows/templates/claudinite-*.yml "$dir/.github/workflows/"
 printf 'bin/\n' > "$dir/.claudinite/.gitignore"
 cat > "$dir/.claudinite/settings.yaml" <<YAML
 engine:

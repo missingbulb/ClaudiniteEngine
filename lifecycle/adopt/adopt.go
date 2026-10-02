@@ -32,10 +32,13 @@ const DefaultPackage = "@claudinite/cli"
 
 // Input is one cn init.
 type Input struct {
-	Repo    string
-	Packs   []string
-	Channel string
-	Package string
+	Repo string
+	// FullName is the repo's "owner/name", which the scheduler's cron is
+	// hashed from; "" hashes the directory's name.
+	FullName string
+	Packs    []string
+	Channel  string
+	Package  string
 	// Fetch is the engine fetch's registry, roots, cache and platform;
 	// Package, Version and Packument are filled in here.
 	Fetch   update.FetchInput
@@ -204,7 +207,11 @@ func Init(in Input) error {
 		{SkillsIgnore, []byte(skillsIgnoreBody), 0o644},
 		{".claude/settings.json", claudeSettings, 0o644},
 	}
-	tmpl := workflows.Templates()
+	name := in.FullName
+	if name == "" {
+		name = filepath.Base(in.Repo)
+	}
+	tmpl := workflows.ForRepo(name)
 	for _, n := range workflows.Names {
 		files = append(files, struct {
 			rel  string

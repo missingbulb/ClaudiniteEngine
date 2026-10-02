@@ -18,7 +18,6 @@ const maxLines = 4000
 // differs, that turns repo's .github/workflows/ copies into this binary's
 // templates; `patch -p1` or `git apply` at the repo root applies it.
 func Diff(repo string) (string, error) {
-	tpl := Templates()
 	var b strings.Builder
 	for _, name := range Names {
 		rel := ".github/workflows/" + name
@@ -29,7 +28,7 @@ func Diff(repo string) (string, error) {
 		} else if err != nil {
 			return "", err
 		}
-		d, err := unified(splitLines(have), splitLines(tpl[name]))
+		d, err := unified(splitLines(have), splitLines(Expected(name, have)))
 		if err != nil {
 			return "", fmt.Errorf("%s: %w", rel, err)
 		}
