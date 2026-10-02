@@ -1,0 +1,40 @@
+{
+  "input": {
+    "packs": [
+      {
+        "id": "acme-pack",
+        "version": "61003.1",
+        "minEngineVersion": "61003.1"
+      }
+    ],
+    "declared": [
+      "acme-pack"
+    ],
+    "installed": {
+      "packVersions": {
+        "acme-pack": "61002.1"
+      }
+    },
+    "today": "2026-10-02",
+    "engineVersion": "61002.4"
+  },
+  "expect": [
+    {
+      "blocked": "pack \"acme-pack\" version 61003.1 needs engine 61003.1; this repo runs engine 61002.4",
+      "from": "61002.1",
+      "id": "acme-pack",
+      "records": [],
+      "to": "61003.1"
+    }
+  ],
+  "divergence": "record-12",
+  "cn": [
+    {
+      "id": "acme-pack",
+      "from": "61002.1",
+      "to": "61003.1",
+      "blocked": null,
+      "records": []
+    }
+  ]
+}

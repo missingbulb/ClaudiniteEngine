@@ -1,0 +1,16 @@
+{
+  "input": {
+    "outcome": {
+      "status": "ok",
+      "decision": {
+        "action": "merge",
+        "why": "the converged tree passed its self-test"
+      }
+    }
+  },
+  "expect": {
+    "action": "merge",
+    "forced": false,
+    "why": "the converged tree passed its self-test"
+  }
+}

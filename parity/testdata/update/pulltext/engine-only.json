@@ -1,0 +1,36 @@
+{
+  "input": {
+    "terminal": {
+      "action": "keep",
+      "why": "delivery is review"
+    },
+    "engine": {
+      "from": "61001.1",
+      "to": "61002.1"
+    },
+    "packs": {
+      "plan": [
+        {
+          "id": "basics",
+          "from": "61002.1",
+          "to": "61002.1"
+        }
+      ]
+    }
+  },
+  "expect": {
+    "amends": [],
+    "marker": "claudinite-rehearsal: converged",
+    "text": {
+      "body": "**keep** — delivery is review\n\nVersions moved by this run:\n- engine 61001.1 → 61002.1\n\n",
+      "title": "Claudinite update: engine v61001.1 → v61002.1"
+    }
+  },
+  "divergence": "record-63",
+  "cn": {
+    "titles": [
+      "Claudinite engine 61002.1"
+    ],
+    "amends": []
+  }
+}

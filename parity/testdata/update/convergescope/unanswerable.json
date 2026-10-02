@@ -1,0 +1,22 @@
+{
+  "input": {
+    "edits": [
+      {
+        "before": null,
+        "after": "{}"
+      },
+      {
+        "before": "not json",
+        "after": "{}"
+      }
+    ]
+  },
+  "expect": {
+    "bookkeeping": [],
+    "stampOnly": [
+      false,
+      false
+    ],
+    "testVisible": null
+  }
+}

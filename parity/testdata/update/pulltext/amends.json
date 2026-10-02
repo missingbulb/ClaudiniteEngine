@@ -1,0 +1,60 @@
+{
+  "input": {
+    "amends": [
+      {
+        "targetPr": 7,
+        "pull": {
+          "state": "open",
+          "number": 7
+        }
+      },
+      {
+        "targetPr": "7",
+        "pull": {
+          "state": "open",
+          "number": 7
+        }
+      },
+      {
+        "targetPr": 7,
+        "pull": {
+          "state": "closed",
+          "number": 7
+        }
+      },
+      {
+        "targetPr": null,
+        "pull": {
+          "state": "open",
+          "number": 7
+        }
+      },
+      {
+        "targetPr": 7,
+        "pull": null
+      }
+    ]
+  },
+  "expect": {
+    "amends": [
+      true,
+      true,
+      false,
+      false,
+      false
+    ],
+    "marker": "claudinite-rehearsal: converged",
+    "text": null
+  },
+  "divergence": "record-63",
+  "cn": {
+    "titles": [],
+    "amends": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  }
+}

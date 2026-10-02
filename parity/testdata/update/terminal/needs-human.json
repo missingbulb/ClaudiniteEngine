@@ -1,0 +1,20 @@
+{
+  "input": {
+    "outcome": {
+      "status": "needs-human",
+      "detail": "the engine is too old",
+      "applyStage": {
+        "needed": true
+      },
+      "decision": {
+        "action": "merge",
+        "why": "green"
+      }
+    }
+  },
+  "expect": {
+    "action": "needs-human",
+    "label": "needs-human",
+    "why": "the engine is too old"
+  }
+}

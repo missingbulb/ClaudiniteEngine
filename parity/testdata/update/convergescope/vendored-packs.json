@@ -1,0 +1,18 @@
+{
+  "input": {
+    "files": [
+      ".claudinite/shared/packs/basics/RULES.md",
+      ".claudinite/shared/engine/checks/run.mjs",
+      ".claudinite/flat/claudinite-rules.GENERATED.md"
+    ]
+  },
+  "expect": {
+    "bookkeeping": [
+      true,
+      false,
+      true
+    ],
+    "stampOnly": [],
+    "testVisible": null
+  }
+}

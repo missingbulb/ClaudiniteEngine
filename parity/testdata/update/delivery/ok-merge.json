@@ -1,0 +1,9 @@
+{
+  "input": {
+    "selftestOk": true
+  },
+  "expect": {
+    "action": "merge",
+    "why": "the converged tree passed its self-test"
+  }
+}

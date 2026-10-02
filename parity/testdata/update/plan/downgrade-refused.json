@@ -1,0 +1,45 @@
+{
+  "input": {
+    "packs": [
+      {
+        "id": "acme-pack",
+        "version": "61002.3",
+        "minEngineVersion": "61001.1.0"
+      },
+      {
+        "id": "basics",
+        "version": "61002.2",
+        "minEngineVersion": "61001.1.0"
+      }
+    ],
+    "declared": [
+      "acme-pack"
+    ],
+    "installed": {
+      "packVersions": {
+        "acme-pack": "61002.9"
+      }
+    },
+    "today": "2026-10-02",
+    "engineVersion": "61002.4.0"
+  },
+  "expect": [
+    {
+      "blocked": null,
+      "from": "61002.9",
+      "id": "acme-pack",
+      "records": [],
+      "to": "61002.3"
+    }
+  ],
+  "divergence": "record-8",
+  "cn": [
+    {
+      "id": "acme-pack",
+      "from": "61002.9",
+      "to": "61002.9",
+      "blocked": null,
+      "records": []
+    }
+  ]
+}

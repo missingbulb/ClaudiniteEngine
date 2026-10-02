@@ -1,0 +1,26 @@
+{
+  "input": {
+    "specs": [],
+    "withheld": [],
+    "testVisible": [
+      "a.go",
+      "b.go",
+      "c.go",
+      "d.go",
+      "e.go",
+      "f.go",
+      "g.go"
+    ]
+  },
+  "expect": {
+    "needed": true,
+    "packs": [],
+    "records": [],
+    "why": "this converge wrote 7 file(s) the repo's own tests can see (a.go, b.go, c.go, d.go, e.go, +2 more)",
+    "withheld": []
+  },
+  "divergence": "record-32",
+  "cn": {
+    "needed": false
+  }
+}

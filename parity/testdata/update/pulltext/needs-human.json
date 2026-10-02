@@ -1,0 +1,27 @@
+{
+  "input": {
+    "terminal": {
+      "action": "needs-human",
+      "label": "needs-human",
+      "why": "the converged tree FAILED its self-test"
+    },
+    "engine": {
+      "from": null,
+      "to": "61002.1"
+    },
+    "packs": null
+  },
+  "expect": {
+    "amends": [],
+    "marker": "claudinite-rehearsal: converged",
+    "text": {
+      "body": "**needs-human** — the converged tree FAILED its self-test\n\nVersions moved by this run:\n- engine unstamped → 61002.1\n\nThis PR stays open. Nothing merges on a non-green terminal — see the label.\n",
+      "title": "Claudinite update: engine unstamped → v61002.1"
+    }
+  },
+  "divergence": "record-63",
+  "cn": {
+    "titles": [],
+    "amends": []
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "input": {
+    "selftestOk": true,
+    "delivery": "review"
+  },
+  "expect": {
+    "action": "keep",
+    "why": "the converged tree passed its self-test; delivery is \"review\", so the PR is the owner's to merge"
+  }
+}

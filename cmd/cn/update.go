@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/ed25519"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -131,7 +132,38 @@ func (r *keyedReader) VerifiedIndex(id string) (packs.Verified, error) {
 	return r.Reader.VerifiedIndex(id)
 }
 
+// cmdUpdateDecide answers one of the update's decision cores over a
+// fixture, printing JSON: the parity harness's update face and a person's
+// reproduction tool, never a CI path.
+func cmdUpdateDecide(args []string, stdout io.Writer) error {
+	if len(args) == 0 {
+		return report.New(report.Usage, "update decide needs a core: plan, gap, delivery, applystage, terminal, convergescope or pulltext")
+	}
+	fs := flag.NewFlagSet("update decide", flag.ContinueOnError)
+	world := fs.String("world", "", "")
+	if err := flags(fs, args[1:]); err != nil {
+		return err
+	}
+	if *world == "" {
+		return report.New(report.Usage, "update decide needs --world FILE")
+	}
+	raw, err := os.ReadFile(*world)
+	if err != nil {
+		return report.Wrap(report.IO, "update decide", err)
+	}
+	answer, err := update.Decide(args[0], raw)
+	if err != nil {
+		return report.New(report.Usage, err.Error())
+	}
+	enc := json.NewEncoder(stdout)
+	enc.SetEscapeHTML(false)
+	return enc.Encode(answer)
+}
+
 func cmdUpdate(args []string, stdout io.Writer) error {
+	if len(args) > 0 && args[0] == "decide" {
+		return cmdUpdateDecide(args[1:], stdout)
+	}
 	if len(args) == 0 || (args[0] != "engine" && args[0] != "packs" && args[0] != "land") {
 		return report.New(report.Usage, "update takes engine, packs or land")
 	}

@@ -1,0 +1,33 @@
+{
+  "input": {
+    "outcome": {
+      "status": "ok",
+      "applyStage": {
+        "needed": true,
+        "packs": [
+          "acme-pack"
+        ],
+        "withheld": [],
+        "why": "a record asks"
+      },
+      "decision": {
+        "action": "merge",
+        "why": "green"
+      }
+    }
+  },
+  "expect": {
+    "action": "apply-stage",
+    "packs": [
+      "acme-pack"
+    ],
+    "why": "a record asks",
+    "withheld": []
+  },
+  "divergence": "record-32",
+  "cn": {
+    "action": "needs-human",
+    "label": "needs-human",
+    "why": "the update asks for an agent stage, and the engine runs none: verify names the break and a person fixes it"
+  }
+}

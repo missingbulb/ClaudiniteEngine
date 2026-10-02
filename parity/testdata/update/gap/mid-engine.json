@@ -1,0 +1,15 @@
+{
+  "input": {
+    "installed": {
+      "engineVersion": "60901.1",
+      "packVersions": {}
+    },
+    "today": "2026-10-02"
+  },
+  "expect": [
+    "engine/migrations/2026-09-25-on-fail-rename",
+    "engine/migrations/2026-09-28-pack-json-manifests"
+  ],
+  "divergence": "record-32",
+  "cn": []
+}

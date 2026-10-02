@@ -1,0 +1,15 @@
+{
+  "input": {
+    "outcome": {
+      "status": "ok",
+      "decision": {
+        "action": "keep",
+        "why": "delivery is review"
+      }
+    }
+  },
+  "expect": {
+    "action": "keep",
+    "why": "delivery is review"
+  }
+}

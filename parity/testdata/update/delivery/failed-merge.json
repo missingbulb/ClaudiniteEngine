@@ -1,0 +1,10 @@
+{
+  "input": {
+    "selftestOk": false
+  },
+  "expect": {
+    "action": "needs-human",
+    "label": "needs-human",
+    "why": "the converged tree FAILED its self-test — the machinery that runs the rules is not intact, so the PR stays open"
+  }
+}

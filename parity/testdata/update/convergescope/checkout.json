@@ -1,0 +1,34 @@
+{
+  "input": {
+    "checkout": {
+      "head": {
+        "src/a.go": "package a\n",
+        ".claudinite-settings.json": "{\"packs\":[{\"id\":\"basics\",\"version\":\"61001.1\"}]}\n"
+      },
+      "working": {
+        "src/a.go": "package a // moved\n",
+        ".claudinite/shared/packs/basics/RULES.md": "rules\n",
+        ".claudinite-settings.json": "{\"packs\":[{\"id\":\"basics\",\"version\":\"61002.1\"}]}\n",
+        "docs/new file.md": "x\n"
+      }
+    }
+  },
+  "expect": {
+    "bookkeeping": [],
+    "stampOnly": [],
+    "testVisible": [
+      "docs/new file.md",
+      "src/a.go"
+    ]
+  },
+  "divergence": "record-41",
+  "cn": {
+    "bookkeeping": [],
+    "stampOnly": [],
+    "testVisible": [
+      ".claudinite-settings.json",
+      "docs/new file.md",
+      "src/a.go"
+    ]
+  }
+}

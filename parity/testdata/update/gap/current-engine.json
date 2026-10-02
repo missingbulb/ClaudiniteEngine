@@ -1,0 +1,10 @@
+{
+  "input": {
+    "installed": {
+      "engineVersion": "61002.4",
+      "packVersions": {}
+    },
+    "today": "2026-10-02"
+  },
+  "expect": []
+}

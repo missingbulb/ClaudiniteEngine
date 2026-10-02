@@ -39,20 +39,14 @@ type move struct {
 	archive []byte
 }
 
-func describe(moves []move, arrow bool) string {
-	var parts []string
-	for _, m := range moves {
-		if arrow {
-			old := m.old
-			if old == "" {
-				old = "none"
-			}
-			parts = append(parts, m.id+" "+old+"→"+m.entry.Version)
-		} else {
-			parts = append(parts, m.id+" "+m.entry.Version)
-		}
+func describe(moves []move, arrow bool) string { return describeMoves(packMoves(moves), arrow) }
+
+func packMoves(moves []move) []PackMove {
+	out := make([]PackMove, len(moves))
+	for i, m := range moves {
+		out[i] = PackMove{ID: m.id, From: m.old, To: m.entry.Version}
 	}
-	return strings.Join(parts, ", ")
+	return out
 }
 
 // botPRs are the open PRs on branches starting with prefix that carry the
@@ -326,10 +320,6 @@ func pinVersion(repo string) string {
 	return e.Version
 }
 
-func packsTitle(day int, moves []move) string {
-	return fmt.Sprintf("Claudinite packs %d: %s", day, describe(moves, true))
-}
-
 // openPackPR writes the moves on a fresh branch, runs this repo's check
 // world over it and, when it passes, pushes it, opens and labels the PR
 // and dispatches its CI. With no moves the branch carries the rules index
@@ -343,7 +333,7 @@ func openPackPR(d Deps, o Options, moves []move, prev *githubapi.PR) (string, er
 	}
 	day := version.Today(d.Now())
 	branch := fmt.Sprintf("%s%d", PackBranchPrefix, day)
-	title := packsTitle(day, moves)
+	title := PacksTitle(day, packMoves(moves))
 	if len(moves) == 0 {
 		set, what, title = "the rules index", "the rules index", IndexTitle
 	}
@@ -491,6 +481,9 @@ func landPacks(d Deps, pr githubapi.PR, sha string) (string, error) {
 	touched := map[string]bool{}
 	var ids []string
 	for _, f := range files {
+		if !IsConvergeBookkeeping(f) {
+			return "", fmt.Errorf("#%d changes %s, which no pack update writes", pr.Number, f)
+		}
 		if f == rulesindex.File {
 			idx, ok, err := d.Git.Show(sha, f)
 			if err != nil {

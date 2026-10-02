@@ -1,0 +1,34 @@
+{
+  "input": {
+    "files": [
+      "CLAUDE.md",
+      ".claude/settings.json",
+      ".gitattributes",
+      ".claudinite/claudinite-rules.GENERATED.md",
+      "src/main.go"
+    ]
+  },
+  "expect": {
+    "bookkeeping": [
+      true,
+      true,
+      false,
+      true,
+      false
+    ],
+    "stampOnly": [],
+    "testVisible": null
+  },
+  "divergence": "record-39",
+  "cn": {
+    "bookkeeping": [
+      true,
+      false,
+      false,
+      false,
+      false
+    ],
+    "stampOnly": [],
+    "testVisible": null
+  }
+}

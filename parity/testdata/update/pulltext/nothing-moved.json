@@ -1,0 +1,28 @@
+{
+  "input": {
+    "terminal": {
+      "action": "merge",
+      "why": "green"
+    },
+    "engine": {
+      "from": "61002.1",
+      "to": "61002.1"
+    },
+    "packs": {
+      "plan": []
+    }
+  },
+  "expect": {
+    "amends": [],
+    "marker": "claudinite-rehearsal: converged",
+    "text": {
+      "body": "**merge** — green\n\nNo version moved; this run converged the mount and changed nothing else.\n\n",
+      "title": "Claudinite update"
+    }
+  },
+  "divergence": "record-63",
+  "cn": {
+    "titles": [],
+    "amends": []
+  }
+}
