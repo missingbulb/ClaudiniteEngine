@@ -1,0 +1,6 @@
+[project]
+name = "pkg"
+dependencies = []
+
+[project.optional-dependencies]
+yamnet = ["numpy>=1.21", "tensorflow>=2.11"]

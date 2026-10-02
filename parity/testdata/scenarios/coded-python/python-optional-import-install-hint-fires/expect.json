@@ -1,0 +1,13 @@
+{
+  "rules": "@../shared/packs/python/RULES.md\n",
+  "mounts": [
+    "python-optional-deps"
+  ],
+  "world": [
+    "python-optional-import-install-hint pkg/b.py:5 advise"
+  ],
+  "work": [],
+  "only": [
+    "python-optional-import-install-hint"
+  ]
+}

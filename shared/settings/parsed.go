@@ -67,13 +67,21 @@ type Checks struct {
 }
 
 // Parsed is the settings file's packs and checks blocks.
+// LegacySharedConstants is a top-level sharedConstants, the Node engine's
+// spelling, which parses so verify can name its home: the basics entry's
+// config. Phase 9's member move (#23) writes it there, which retires the
+// tolerance.
+//
+// @legacy-tolerance advisory:settings-checks retire:#23
 type Parsed struct {
-	Packs  Packs
-	Checks Checks
+	Packs                 Packs
+	Checks                Checks
+	LegacySharedConstants bool
 }
 
 var topSchema = descriptor.Schema{Name: "settings", Keys: map[string]descriptor.Kind{
 	"engine": descriptor.Object, "license": descriptor.Object, "packs": descriptor.Object, "checks": descriptor.Object,
+	"sharedConstants": descriptor.Any,
 }}
 
 var packsSchema = descriptor.Schema{Name: "packs", Keys: map[string]descriptor.Kind{
@@ -116,7 +124,8 @@ func ParseFile(raw []byte, f Format) (Parsed, error) {
 	if errs := topSchema.Validate(obj); len(errs) > 0 {
 		return Parsed{}, joinErrs(errs)
 	}
-	p := Parsed{}
+	_, legacy := obj["sharedConstants"]
+	p := Parsed{LegacySharedConstants: legacy}
 	if p.Packs, err = parsePacks(obj); err != nil {
 		return Parsed{}, err
 	}

@@ -42,6 +42,9 @@ var builtinBarrier = Builtin{ID: "barrier", Pack: "basics", OnFail: "block", Tag
 // apply, the configuration, and the faults that kept a declaration from
 // loading.
 type Set struct {
+	// ctx is the run's one walk of the tree, shared by the declared,
+	// built-in and coded checks.
+	ctx      *Ctx
 	Repo     string
 	Checks   []*Check
 	Builtins []Builtin
@@ -113,6 +116,17 @@ func LoadSet(repo, engine string) (*Set, error) {
 	return s, nil
 }
 
+// Context is the run's walk of the tree and its change, made once: the
+// declared and built-in checks read it, and the coded checks' SDK calls
+// are answered from it.
+func (s *Set) Context(now time.Time) *Ctx {
+	if s.ctx == nil {
+		s.ctx = NewCtx(s.Repo, s.Config)
+		s.ctx.Now = now
+	}
+	return s.ctx
+}
+
 func hasAll(tags, want []string) bool {
 	for _, t := range want {
 		if !contains(tags, t) {
@@ -166,7 +180,7 @@ func (s *Set) Run(sel Selection, now time.Time, stderr io.Writer) ([]findings.Fi
 	unread := 0
 	ran := 0
 	for _, c := range s.Checks {
-		if !sel.takes(c.Tags, c.Pack) || s.Config.Rules[c.ID] == "off" {
+		if !sel.takes(c.Tags, c.Pack) || s.Config.Rule(c.Pack, c.ID) == "off" {
 			continue
 		}
 		if readsSession(c) && !sel.Session.Present() {
@@ -203,7 +217,7 @@ func (s *Set) Run(sel Selection, now time.Time, stderr io.Writer) ([]findings.Fi
 	}
 	var builtins []Builtin
 	for _, b := range s.Builtins {
-		if !sel.takes(b.Tags, b.Pack) || s.Config.Rules[b.ID] == "off" || contains(b.Tags, "action") {
+		if !sel.takes(b.Tags, b.Pack) || s.Config.Rule(b.Pack, b.ID) == "off" || contains(b.Tags, "action") {
 			continue
 		}
 		if b.ID == BuiltinSkillLoaded && sel.SkipForcedLoading {
@@ -214,8 +228,7 @@ func (s *Set) Run(sel Selection, now time.Time, stderr io.Writer) ([]findings.Fi
 	if len(world)+len(work)+len(builtins) == 0 {
 		return out, ran
 	}
-	ctx := NewCtx(s.Repo, s.Config)
-	ctx.Now = now
+	ctx := s.Context(now)
 	all := append(append([]*Check{}, world...), work...)
 	defer func() {
 		for _, c := range all {
@@ -260,14 +273,22 @@ func toFinding(c *Check, h hit, now time.Time) findings.Finding {
 	if why == "" {
 		why = c.Why
 	}
-	f := findings.Finding{ID: c.ID, Pack: c.Pack, Path: h.File, Line: h.Line, Sentence: h.What, Why: why, Fix: h.Fix}
-	if onFail == "block" && c.Since != "" {
-		if until, ok := graceUntil(c.Since, now); ok {
-			onFail = "advise"
-			f.Fix = strings.TrimSpace(f.Fix + fmt.Sprintf(" (grace: added %s, advisory until %s, blocking after)", c.Since, until))
-		}
+	f := findings.Finding{ID: c.ID, Pack: c.Pack, Path: h.File, Line: h.Line, Sentence: h.What, Why: why, Fix: h.Fix, Class: classOf(onFail)}
+	return Grace(f, c.Since, now)
+}
+
+// Grace demotes a blocking finding of a check added on since to an
+// advisory while now falls inside the check's grace window, naming in its
+// fix the day it starts biting. It runs before the member's overrides, so
+// a rule set to block bites from its first day.
+func Grace(f findings.Finding, since string, now time.Time) findings.Finding {
+	if f.Class != findings.Coded || since == "" {
+		return f
 	}
-	f.Class = classOf(onFail)
+	if until, ok := graceUntil(since, now); ok {
+		f.Class = findings.Advisory
+		f.Fix = strings.TrimSpace(f.Fix + fmt.Sprintf(" (grace: added %s, advisory until %s, blocking after)", since, until))
+	}
 	return f
 }
 
@@ -320,6 +341,26 @@ func RuleID(f findings.Finding) string {
 	return f.ID
 }
 
+// Names are the two spellings an override or an acceptance may name a
+// check by: <pack>/<id> first, then the bare id.
+func Names(pack, id string) []string {
+	if pack == "" {
+		return []string{id}
+	}
+	return []string{pack + "/" + id, id}
+}
+
+// Rule is the override the member set for a check, by either spelling,
+// the pack-qualified one first; "" when none.
+func (c Config) Rule(pack, id string) string {
+	for _, n := range Names(pack, id) {
+		if v, ok := c.Rules[n]; ok {
+			return v
+		}
+	}
+	return ""
+}
+
 // ApplyConfig applies the member's overrides, then its acceptances, to a
 // run's findings, as the Node engine's applyConfig does: an override
 // changes how a finding fails or, set to off, drops it; an acceptance with
@@ -331,7 +372,13 @@ func ApplyConfig(fs []findings.Finding, cfg Config) []findings.Finding {
 	for _, f := range fs {
 		if f.Class == findings.Coded || f.Class == findings.Advisory {
 			rule := RuleID(f)
-			switch cfg.Rules[rule] {
+			pack := f.Pack
+			if pack == "" {
+				if i := strings.LastIndex(f.ID, "/"); i >= 0 {
+					pack = f.ID[:i]
+				}
+			}
+			switch cfg.Rule(pack, rule) {
 			case "off":
 				continue
 			case "block":
@@ -339,7 +386,7 @@ func ApplyConfig(fs []findings.Finding, cfg Config) []findings.Finding {
 			case "advise":
 				f.Class = findings.Advisory
 			}
-			if a, ok := acceptance(cfg.Accept, rule, f.Path); ok {
+			if a, ok := acceptance(cfg.Accept, Names(pack, rule), f.Path); ok {
 				if strings.TrimSpace(a.Reason) != "" {
 					continue
 				}
@@ -369,9 +416,9 @@ func ApplyConfig(fs []findings.Finding, cfg Config) []findings.Finding {
 
 func blocks(f findings.Finding) bool { return f.Class == findings.Coded || f.Class == findings.Break }
 
-func acceptance(accept []Acceptance, rule, path string) (Acceptance, bool) {
+func acceptance(accept []Acceptance, names []string, path string) (Acceptance, bool) {
 	for _, a := range accept {
-		if a.Rule != rule {
+		if !contains(names, a.Rule) {
 			continue
 		}
 		if a.Path == "" || a.Path == path || (strings.HasSuffix(a.Path, "/") && strings.HasPrefix(path, a.Path)) {
@@ -402,13 +449,14 @@ type Listed struct {
 	Kind   string
 	Tags   []string
 	OnFail string
+	Since  string
 }
 
 // List names every declared and built-in check of the set.
 func (s *Set) List() []Listed {
 	var out []Listed
 	for _, c := range s.Checks {
-		out = append(out, Listed{ID: c.ID, Pack: c.Pack, Kind: "declared", Tags: c.Tags, OnFail: c.OnFail})
+		out = append(out, Listed{ID: c.ID, Pack: c.Pack, Kind: "declared", Tags: c.Tags, OnFail: c.OnFail, Since: c.Since})
 	}
 	if s.Member {
 		for _, b := range s.Builtins {

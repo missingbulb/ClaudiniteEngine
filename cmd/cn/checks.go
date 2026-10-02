@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -27,7 +29,7 @@ const buildWait = 10 * time.Minute
 func checksService() checks.Service {
 	exe, _ := os.Executable()
 	return checks.Service{
-		Build: build.Config{CacheRoot: paths.CacheRoot(), Engine: version.Version(), SDK: map[string][]byte{"checksdk.go": checksdk.Source}},
+		Build: build.Config{CacheRoot: paths.CacheRoot(), Engine: version.Version(), SDK: checksdk.Sources()},
 		Exe:   exe,
 	}
 }
@@ -41,7 +43,7 @@ func (hookChecks) Run(repo, event string, scope hooks.RunScope, wait time.Durati
 	var notes bytes.Buffer
 	sel := declared.Selection{Tags: scope.Tags, Session: transcript.NewSession(scope.Transcript), SkipForcedLoading: scope.SkipForcedLoading}
 	o := checksService().RunAll(repo, event, sel, wait, false, &notes)
-	crumb := strings.TrimRight(notes.String()+o.DeclaredCrumb+"\n"+o.Crumb, "\n")
+	crumb := strings.TrimRight(notes.String()+o.DeclaredCrumb+"\n"+o.Crumb+"\n"+o.SDKCrumb, "\n")
 	return hooks.CheckResult{Findings: o.Findings, Errors: o.Errors, Err: o.Err, Crumb: crumb}
 }
 
@@ -59,12 +61,25 @@ func (hookGuards) Judge(repo string, call hooks.Call, deadline time.Time) hooks.
 
 // allFindings runs the declared and coded checks in the foreground and
 // turns a run that could not happen, or a check that failed, into a
-// break.
-func allFindings(repo, event string, sel declared.Selection, stderr io.Writer) []findings.Finding {
+// break. verbose adds the coded checks' SDK calls, by method.
+func allFindings(repo, event string, sel declared.Selection, verbose bool, stderr io.Writer) []findings.Finding {
 	o := checksService().RunAll(repo, event, sel, buildWait, true, stderr)
 	fmt.Fprintln(stderr, o.DeclaredCrumb)
 	if !strings.Contains(o.Crumb, " ok ") {
 		fmt.Fprintln(stderr, o.Crumb)
+	}
+	if o.SDKCrumb != "" {
+		fmt.Fprintln(stderr, o.SDKCrumb)
+	}
+	if verbose {
+		methods := make([]string, 0, len(o.Calls))
+		for m := range o.Calls {
+			methods = append(methods, m)
+		}
+		sort.Strings(methods)
+		for _, m := range methods {
+			fmt.Fprintf(stderr, "[cn] sdk %s %d\n", m, o.Calls[m])
+		}
 	}
 	out := o.Findings
 	if o.Err != nil {
@@ -94,6 +109,8 @@ func cmdCheck(args []string, stdout, stderr io.Writer) error {
 			return cmdCheckBuild(args[1:])
 		case "list":
 			return cmdCheckList(args[1:], stdout)
+		case "sdk":
+			return cmdCheckSDK(args[1:], stdout)
 		}
 	}
 	fs := flag.NewFlagSet("check", flag.ContinueOnError)
@@ -101,11 +118,12 @@ func cmdCheck(args []string, stdout, stderr io.Writer) error {
 	pack := fs.String("pack", "", "")
 	repo := fs.String("repo", ".", "")
 	session := fs.String("transcript", "", "")
+	verbose := fs.Bool("v", false, "")
 	if err := flags(fs, args); err != nil {
 		return err
 	}
 	if *tag == "" && *pack == "" {
-		return report.New(report.Usage, "check takes world, list, build, --tag TAG or --pack ID")
+		return report.New(report.Usage, "check takes world, list, build, sdk, --tag TAG or --pack ID")
 	}
 	var tags []string
 	if *tag != "" {
@@ -128,7 +146,7 @@ func cmdCheck(args []string, stdout, stderr io.Writer) error {
 			fmt.Fprintf(stdout, "check %s (%s)\n", l.Name(), strings.Join(l.Tags, ", "))
 		}
 	}
-	fs2 := allFindings(*repo, "check", declared.Selection{Tags: tags, Pack: *pack, Session: transcript.NewSession(*session)}, stderr)
+	fs2 := allFindings(*repo, "check", declared.Selection{Tags: tags, Pack: *pack, Session: transcript.NewSession(*session)}, *verbose, stderr)
 	printFindings(stdout, fs2, scope)
 	if findings.AnyBreak(fs2) {
 		return report.New(report.Verify, "check found a finding in "+*repo)
@@ -153,7 +171,8 @@ func selected(l checks.Listed, tags []string, pack string) bool {
 }
 
 // cmdCheckList prints every check the repo declares, declared, built in
-// coded and judge, sorted by id: name, kind, tags, on_fail.
+// coded and judge, sorted by id: name, kind, tags, on_fail and, where the
+// check has one, since.
 func cmdCheckList(args []string, stdout io.Writer) error {
 	fs := flag.NewFlagSet("check list", flag.ContinueOnError)
 	repo := fs.String("repo", ".", "")
@@ -166,7 +185,11 @@ func cmdCheckList(args []string, stdout io.Writer) error {
 	}
 	counts := map[string]int{}
 	for _, l := range listed {
-		fmt.Fprintf(stdout, "%s %s (%s) %s\n", l.Name(), l.Kind, strings.Join(l.Tags, ", "), l.OnFail)
+		line := fmt.Sprintf("%s %s (%s) %s", l.Name(), l.Kind, strings.Join(l.Tags, ", "), l.OnFail)
+		if l.Since != "" {
+			line += " since " + l.Since
+		}
+		fmt.Fprintln(stdout, line)
 		counts[l.Kind]++
 	}
 	fmt.Fprintf(stdout, "%d checks: %d declared, %d builtin, %d coded, %d judges\n", len(listed), counts["declared"], counts["builtin"], counts["coded"], counts["judge"])
@@ -184,5 +207,28 @@ func cmdCheckBuild(args []string) error {
 	if _, err := checksService().BuildNow(*repo, *key, *wait, buildWait); err != nil {
 		return report.Wrap(report.IO, "check build", err)
 	}
+	return nil
+}
+
+// cmdCheckSDK writes the Go check SDK this cn builds pack checks against,
+// with the go.mod stanza a pack repo's tests replace to, so those tests
+// resolve the SDK offline.
+func cmdCheckSDK(args []string, stdout io.Writer) error {
+	fs := flag.NewFlagSet("check sdk", flag.ContinueOnError)
+	out := fs.String("out", "", "")
+	if err := flags(fs, args); err != nil {
+		return err
+	}
+	if *out == "" {
+		return report.New(report.Usage, "check sdk takes --out DIR")
+	}
+	dir, err := filepath.Abs(*out)
+	if err != nil {
+		return report.Wrap(report.IO, "check sdk", err)
+	}
+	if err := build.WriteSDK(dir, checksdk.Sources()); err != nil {
+		return report.Wrap(report.IO, "check sdk", err)
+	}
+	fmt.Fprintf(stdout, "wrote the check SDK to %s; its go.mod.stanza is the lines a test module adds\n", dir)
 	return nil
 }

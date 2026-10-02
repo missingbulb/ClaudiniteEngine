@@ -1,0 +1,3 @@
+[
+  {"id": "acme-guard", "scope": "action", "on_fail": "block"}
+]

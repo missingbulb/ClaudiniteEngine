@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -27,8 +28,10 @@ import (
 //	               payload read, with subagents/agent-*.jsonl beside it
 //	expect.json    what every engine must answer (Expect)
 //
-// A declared pack that is not local/ is copied from the frozen engine's
-// packs/ into .claudinite/shared/packs/, as a member vendors it.
+// A declared pack that is not local/ is copied into
+// .claudinite/shared/packs/, as a member vendors it: from the frozen
+// engine's packs/, or, for cn and a pack ported.txt lists, from the
+// ClaudinitePacks checkout CLAUDINITE_PACKS_TREE names (PackSource).
 type Scenario struct {
 	Group, Name, Dir string
 	Node             map[string]any
@@ -70,10 +73,10 @@ type HookCase struct {
 	// Payload keeps its key order: a pattern over the serialized input
 	// reads it.
 	Payload      json.RawMessage `json:"payload"`
-	NoTranscript bool           `json:"noTranscript,omitempty"`
-	Exit         int            `json:"exit"`
-	Block        string         `json:"block,omitempty"`
-	Context      string         `json:"context,omitempty"`
+	NoTranscript bool            `json:"noTranscript,omitempty"`
+	Exit         int             `json:"exit"`
+	Block        string          `json:"block,omitempty"`
+	Context      string          `json:"context,omitempty"`
 }
 
 // hookEvents are the per-call events, as expect.json and cn hook name them,
@@ -223,7 +226,11 @@ func (s Scenario) Materialize(parent, canonPacks string, e Engine) (string, erro
 		if _, err := os.Stat(dst); err == nil {
 			continue
 		}
-		if err := copyTree(filepath.Join(canonPacks, id), dst); err != nil {
+		src, err := PackSource(id, canonPacks, e.Name())
+		if err != nil {
+			return "", err
+		}
+		if err := copyTree(src, dst); err != nil {
 			return "", fmt.Errorf("canon pack %s: %w", id, err)
 		}
 	}
@@ -282,6 +289,49 @@ func (s Scenario) Materialize(parent, canonPacks string, e Engine) (string, erro
 		}
 	}
 	return dir, nil
+}
+
+// PacksTreeEnv names a ClaudinitePacks checkout at the commit
+// claudinitepacks.ref pins; cn reads every pack ported.txt lists from its
+// packs/, the Node engine never does.
+const PacksTreeEnv = "CLAUDINITE_PACKS_TREE"
+
+// Ported are the pack ids parity/ported.txt lists: ported to Go, so cn
+// takes them from ClaudinitePacks.
+func Ported() map[string]bool {
+	out := map[string]bool{}
+	raw, err := os.ReadFile(portedFile())
+	if err != nil {
+		return out
+	}
+	for _, l := range strings.Split(string(raw), "\n") {
+		if l = strings.TrimSpace(l); l != "" && !strings.HasPrefix(l, "#") {
+			out[l] = true
+		}
+	}
+	return out
+}
+
+func portedFile() string {
+	_, self, _, _ := runtime.Caller(0)
+	return filepath.Join(filepath.Dir(self), "ported.txt")
+}
+
+// PackSource is where engine reads canon pack id from: the ClaudinitePacks
+// checkout for cn and a ported pack, the frozen shelf otherwise.
+func PackSource(id, canonPacks, engine string) (string, error) {
+	if engine != "cn" || !Ported()[id] {
+		return filepath.Join(canonPacks, id), nil
+	}
+	tree := os.Getenv(PacksTreeEnv)
+	if tree == "" {
+		return "", fmt.Errorf("pack %s is ported (parity/ported.txt), and cn reads it from a ClaudinitePacks checkout; set %s", id, PacksTreeEnv)
+	}
+	src := filepath.Join(tree, "packs", id)
+	if !exists(src) {
+		return "", fmt.Errorf("pack %s is ported, but %s holds no packs/%s", id, PacksTreeEnv, id)
+	}
+	return src, nil
 }
 
 // Comparable is the set of rules whose findings the engines must agree
@@ -401,8 +451,9 @@ const DevManifest = "sha512-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 // Translate turns a Node declaration (.claudinite-settings.json) into
 // cn's settings: each pack entry keeps id, config, rules and accept (a
 // bare id when nothing else is left), the top-level rules and accept
-// become the checks block, and the engine block pins the development
-// engine. version, answers and via are the adoption and update slices'
+// become the checks block, a top-level sharedConstants moves to the basics
+// entry's config (dropped when basics is not declared, since nothing else
+// reads it), and the engine block pins the development engine. version, answers and via are the adoption and update slices'
 // and are dropped. The result is YAML, which cn reads as
 // .claudinite/settings.yaml.
 func Translate(node map[string]any) ([]byte, error) {
@@ -429,6 +480,26 @@ func Translate(node map[string]any) ([]byte, error) {
 			}
 		default:
 			return nil, fmt.Errorf("a pack entry %v is neither an id nor an object", p)
+		}
+	}
+	if sc, ok := node["sharedConstants"]; ok {
+		for i, d := range declared {
+			e, isMap := d.(map[string]any)
+			if d != "basics" && (!isMap || e["id"] != "basics") {
+				continue
+			}
+			if !isMap {
+				e = map[string]any{"id": "basics"}
+			}
+			cfg := map[string]any{}
+			if old, ok := e["config"].(map[string]any); ok {
+				for k, v := range old {
+					cfg[k] = v
+				}
+			}
+			cfg["sharedConstants"] = sc
+			e["config"] = cfg
+			declared[i] = e
 		}
 	}
 	if declared == nil {

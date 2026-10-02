@@ -280,3 +280,71 @@ func (r Repo) ShowText(ref, path string) (string, bool) {
 	out, ok := r.try("show", ref+":"+path)
 	return out, ok
 }
+
+// Commit is one commit of a change, with the files it changed.
+type Commit struct {
+	Sha, Date, Subject string
+	Files              []string
+}
+
+// CommitsWithFiles are the commits since base, oldest first, merges
+// excluded (their content arrives through their parents), each with its
+// committer date and the files it changed.
+func (r Repo) CommitsWithFiles(base string) []Commit {
+	out, _ := r.try("log", "--reverse", "--no-merges", "--name-only", "--format=%x00%H%x1f%cI%x1f%s", base+"..HEAD")
+	var cs []Commit
+	for _, block := range strings.Split(out, "\x00") {
+		block = strings.TrimSpace(block)
+		if block == "" {
+			continue
+		}
+		lines := strings.Split(block, "\n")
+		head := strings.SplitN(lines[0], "\x1f", 3)
+		for len(head) < 3 {
+			head = append(head, "")
+		}
+		c := Commit{Sha: head[0], Date: head[1], Subject: head[2]}
+		for _, f := range lines[1:] {
+			if f = strings.TrimSpace(f); f != "" {
+				c.Files = append(c.Files, f)
+			}
+		}
+		cs = append(cs, c)
+	}
+	return cs
+}
+
+// LsTree is every path in ref's tree.
+func (r Repo) LsTree(ref string) []string {
+	out, _ := r.try("ls-tree", "-r", "--name-only", ref)
+	return nonEmpty(out, "\n")
+}
+
+// Hit is one line a search found.
+type Hit struct {
+	Path string
+	Line int
+	Text string
+}
+
+var grepLine = regexp.MustCompile(`^([^:]+):(\d+):(.*)$`)
+
+// GrepTracked is every tracked line containing needle, a fixed string,
+// with the tree under exclude (a folder prefix, "" for none) left out.
+func (r Repo) GrepTracked(needle, exclude string) []Hit {
+	args := []string{"grep", "-n", "-F", "-e", needle, "--", "."}
+	if exclude != "" {
+		args = append(args, ":(exclude)"+exclude)
+	}
+	out, _ := r.try(args...)
+	var hits []Hit
+	for _, l := range nonEmpty(out, "\n") {
+		m := grepLine.FindStringSubmatch(l)
+		if m == nil {
+			continue
+		}
+		n, _ := strconv.Atoi(m[2])
+		hits = append(hits, Hit{Path: m[1], Line: n, Text: m[3]})
+	}
+	return hits
+}

@@ -1,0 +1,16 @@
+{
+  "packs": [
+    "node",
+    "basics"
+  ],
+  "sharedConstants": [
+    {
+      "what": "the release label the workflow and the module share",
+      "value": "ship-it",
+      "counts": {
+        "a.yml": 1,
+        "b.json": 1
+      }
+    }
+  ]
+}

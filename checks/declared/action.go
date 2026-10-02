@@ -230,7 +230,7 @@ func (s *Set) Guard(call Call, prior func() []Call, now time.Time) GuardVerdict 
 		return fmt.Sprintf("%s. %sFix: %s", h.What, w, h.Fix)
 	}
 	for _, c := range s.Checks {
-		if c.Scope != "action" || s.Config.Rules[c.ID] == "off" {
+		if c.Scope != "action" || s.Config.Rule(c.Pack, c.ID) == "off" {
 			continue
 		}
 		var p []Call
@@ -246,7 +246,7 @@ func (s *Set) Guard(call Call, prior func() []Call, now time.Time) GuardVerdict 
 			continue
 		}
 		level := c.OnFail
-		if o := s.Config.Rules[c.ID]; o == "block" || o == "advise" {
+		if o := s.Config.Rule(c.Pack, c.ID); o == "block" || o == "advise" {
 			level = o
 		}
 		if level == "block" && c.Since != "" {
@@ -262,7 +262,7 @@ func (s *Set) Guard(call Call, prior func() []Call, now time.Time) GuardVerdict 
 			}
 		}
 	}
-	if o := s.Config.Rules[BuiltinRemoteBranchDelete]; o != "off" && deletesRemoteBranch(call) {
+	if o := s.Config.Rule("", BuiltinRemoteBranchDelete); o != "off" && deletesRemoteBranch(call) {
 		if o == "advise" {
 			v.Advice = append(v.Advice, fmt.Sprintf("[claudinite %s] %s", BuiltinRemoteBranchDelete, remoteBlock))
 		} else {

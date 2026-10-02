@@ -1,0 +1,11 @@
+{
+  "rules": "@../shared/packs/public-website/RULES.md\n",
+  "mounts": [],
+  "world": [
+    "version-stamp-matches-package site/index.html:2 block"
+  ],
+  "work": [],
+  "only": [
+    "version-stamp-matches-package"
+  ]
+}

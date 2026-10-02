@@ -74,6 +74,11 @@ linters:
             - $gostd
             - github.com/missingbulb/ClaudiniteEngine/shared
             - github.com/missingbulb/ClaudiniteEngine/checks/
+            # The engine side of the coded checks' pipe: the run hands each
+            # built checks binary a server answering its SDK calls.
+            - github.com/missingbulb/ClaudiniteEngine/sdkserver
+            # The SDK sources a pack's checks build compiles against.
+            - github.com/missingbulb/ClaudiniteEngine/checksdk
         checks-declared:
           # The declarative check engine also takes the ECMAScript regex
           # engine the shelf's patterns are written for (lookaround,
@@ -86,6 +91,10 @@ linters:
             - github.com/missingbulb/ClaudiniteEngine/shared
             - github.com/missingbulb/ClaudiniteEngine/checks/declared
             - github.com/dlclark/regexp2
+            # The scanning helpers the declared views share with coded
+            # checks (comment stripping, fence blanking) live in the SDK,
+            # so the two engines read a file the same way.
+            - github.com/missingbulb/ClaudiniteEngine/checksdk
         parity:
           # The two-engine harness drives both engines as black boxes: it
           # imports nothing of the engine, so a scenario cannot pass by

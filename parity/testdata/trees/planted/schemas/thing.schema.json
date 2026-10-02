@@ -1,0 +1,1 @@
+{"type": "object", "required": ["name"], "properties": {"$schema": {"type": "string"}, "name": {"type": "string"}}, "additionalProperties": false}

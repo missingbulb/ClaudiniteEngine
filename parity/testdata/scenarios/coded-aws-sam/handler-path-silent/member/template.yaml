@@ -1,0 +1,10 @@
+Resources:
+  Fn:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints:
+          - src/handler.mjs
+    Properties:
+      Handler: handler.handler

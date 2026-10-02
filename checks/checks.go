@@ -1,6 +1,7 @@
 package checks
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -13,10 +14,12 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/checks/build"
 	"github.com/missingbulb/ClaudiniteEngine/checks/declared"
 	"github.com/missingbulb/ClaudiniteEngine/checks/run"
+	"github.com/missingbulb/ClaudiniteEngine/sdkserver"
 	"github.com/missingbulb/ClaudiniteEngine/shared/breadcrumb"
 	"github.com/missingbulb/ClaudiniteEngine/shared/findings"
 	"github.com/missingbulb/ClaudiniteEngine/shared/packset"
 	"github.com/missingbulb/ClaudiniteEngine/shared/settings"
+	"github.com/missingbulb/ClaudiniteEngine/shared/transcript"
 )
 
 // Service runs the declared packs' coded checks for one engine.
@@ -26,17 +29,19 @@ type Service struct {
 	Exe string
 }
 
-// Key is the repo's checks binary key and its sources; "" when no declared
-// pack has Go checks, or the repo has no settings file at all.
+// Key is the repo's checks binary key and its sources; "" when no active
+// canon or local pack has Go checks, or the repo has no settings file at
+// all. A temp pack's checks are never built: they are a per-session copy
+// no review has seen.
 func (s Service) Key(repo string) (string, []build.Source, error) {
 	if !hasSettings(repo) {
 		return "", nil, nil
 	}
-	p, err := packset.Declared(repo)
+	set, err := packset.Load(repo, s.Build.Engine, false)
 	if err != nil {
 		return "", nil, err
 	}
-	srcs, err := build.Sources(repo, p.Declared)
+	srcs, err := build.Sources(set.Packs)
 	if err != nil {
 		return "", nil, err
 	}
@@ -75,11 +80,12 @@ func (s Service) BuildNow(repo, wantKey string, wait bool, timeout time.Duration
 }
 
 // Run runs the checks whose tags include every one of tags (from pack when
-// set) over repo. Foreground builds the binary here, as CI does; otherwise
-// a build is started if none is under way and Run waits for it up to wait.
-// The breadcrumb records the outcome: a binary not ready in time is a
-// timeout, never silence. A repo with no Go checks runs nothing, ok.
-func (s Service) Run(repo, event string, tags []string, pack string, wait time.Duration, foreground bool) (run.Result, string) {
+// set) over repo, srv answering their SDK calls. Foreground builds the
+// binary here, as CI does; otherwise a build is started if none is under
+// way and Run waits for it up to wait. The breadcrumb records the outcome:
+// a binary not ready in time is a timeout, never silence. A repo with no
+// Go checks runs nothing, ok.
+func (s Service) Run(repo, event string, tags []string, pack string, wait time.Duration, foreground bool, srv run.Server) (run.Result, string) {
 	start := time.Now()
 	key, srcs, err := s.Key(repo)
 	if err == nil && key == "" {
@@ -106,7 +112,7 @@ func (s Service) Run(repo, event string, tags []string, pack string, wait time.D
 		}
 		return run.Result{Err: err}, breadcrumb.Line("checks", event, outcome, time.Since(start))
 	}
-	res, _ := run.Runner{Binary: binary, Engine: s.Build.Engine}.Run(event, tags, pack, repo)
+	res, _ := run.Runner{Binary: binary, Engine: s.Build.Engine, Server: srv}.Run(event, tags, pack, repo)
 	outcome := breadcrumb.OK
 	switch {
 	case res.Err != nil && errors.Is(res.Err, run.ErrSilent):
@@ -145,16 +151,20 @@ type Outcome struct {
 	Errors []string
 	// Err is a coded run that could not happen.
 	Err error
-	// Crumb is the checks breadcrumb; DeclaredCrumb the declared run's.
-	Crumb, DeclaredCrumb string
+	// Crumb is the checks breadcrumb; DeclaredCrumb the declared run's;
+	// SDKCrumb the coded child's SDK calls', "" when no child ran.
+	Crumb, DeclaredCrumb, SDKCrumb string
+	// Calls counts the coded child's SDK calls by method.
+	Calls map[string]int
 }
 
 // Blocking reports whether any finding blocks.
 func (o Outcome) Blocking() bool { return findings.AnyBreak(o.Findings) }
 
 // RunAll runs the declared checks sel takes in this process, then the
-// coded ones with the same tags and pack as Run does, and applies the
-// member's checks configuration over both.
+// coded ones with the same tags and pack as Run does, their SDK calls
+// answered from the declared run's own walk and session; applies grace to
+// the coded findings, then the member's checks configuration over both.
 func (s Service) RunAll(repo, event string, sel declared.Selection, wait time.Duration, foreground bool, stderr io.Writer) Outcome {
 	tags, pack := sel.Tags, sel.Pack
 	start := time.Now()
@@ -164,18 +174,53 @@ func (s Service) RunAll(repo, event string, sel declared.Selection, wait time.Du
 	n := 0
 	if err != nil {
 		out.Findings = append(out.Findings, findings.Finding{Class: findings.Break, ID: "checks-run", Path: ".claudinite", Sentence: "the declared checks could not load: " + err.Error()})
+		set = &declared.Set{Repo: repo}
 	} else {
 		var fs []findings.Finding
-		fs, n = set.Run(sel, time.Now(), stderr)
+		fs, n = set.Run(sel, start, stderr)
 		out.Findings = append(out.Findings, fs...)
 		cfg = set.Config
 	}
 	out.DeclaredCrumb = fmt.Sprintf("[cn] declared %d checks %dms", n, time.Since(start).Milliseconds())
-	res, crumb := s.Run(repo, event, tags, pack, wait, foreground)
-	out.Crumb, out.Errors, out.Err = crumb, res.Errors, res.Err
-	out.Findings = append(out.Findings, res.Shared()...)
+	srv := newServer(repo, set, sel.Session, start)
+	res, crumb := s.Run(repo, event, tags, pack, wait, foreground, srv)
+	out.Crumb, out.Errors, out.Err, out.SDKCrumb, out.Calls = crumb, res.Errors, res.Err, res.SDKCrumb, res.Calls
+	for i, f := range res.Shared() {
+		out.Findings = append(out.Findings, declared.Grace(f, res.Findings[i].Since, start))
+	}
 	out.Findings = declared.ApplyConfig(out.Findings, cfg)
 	return out
+}
+
+// lazyServer answers the coded checks' SDK calls, walking the tree only
+// on the first call that needs it.
+type lazyServer struct {
+	repo    string
+	set     *declared.Set
+	session *transcript.Session
+	now     time.Time
+	srv     *sdkserver.Server
+}
+
+func newServer(repo string, set *declared.Set, session *transcript.Session, now time.Time) *lazyServer {
+	return &lazyServer{repo: repo, set: set, session: session, now: now}
+}
+
+func (l *lazyServer) server() *sdkserver.Server {
+	if l.srv == nil {
+		cfg := sdkserver.Config{PackConfig: l.set.Config.PackConfig, Rules: l.set.Config.Rules}
+		for _, a := range l.set.Config.Accept {
+			cfg.Accept = append(cfg.Accept, sdkserver.Acceptance{Rule: a.Rule, Path: a.Path, Reason: a.Reason, Pack: a.Pack})
+		}
+		l.srv = sdkserver.Serve(l.repo, l.set.Context(l.now), l.session, cfg)
+	}
+	return l.srv
+}
+
+func (l *lazyServer) Methods() []string { return sdkserver.Methods() }
+
+func (l *lazyServer) Handle(method string, args json.RawMessage) (json.RawMessage, error) {
+	return l.server().Handle(method, args)
 }
 
 // ListAll names the declared, built-in and coded checks, sorted by id.
@@ -186,22 +231,23 @@ func (s Service) ListAll(repo string, timeout time.Duration) ([]Listed, error) {
 		return nil, err
 	}
 	for _, l := range set.List() {
-		out = append(out, Listed{ID: l.ID, Pack: l.Pack, Kind: l.Kind, Tags: l.Tags, OnFail: l.OnFail})
+		out = append(out, Listed{ID: l.ID, Pack: l.Pack, Kind: l.Kind, Tags: l.Tags, OnFail: l.OnFail, Since: l.Since})
 	}
 	coded, err := s.List(repo, timeout)
 	if err != nil {
 		return nil, err
 	}
 	for _, c := range coded {
-		pack, id, ok := strings.Cut(c.Check, "/")
-		if !ok {
-			pack, id = "", c.Check
-		}
+		pack, id := splitName(c.Check)
 		kind := "coded"
 		if c.Judge {
 			kind = "judge"
 		}
-		out = append(out, Listed{ID: id, Pack: pack, Kind: kind, Tags: c.Tags, OnFail: "block"})
+		onFail := c.OnFail
+		if onFail == "" {
+			onFail = "block"
+		}
+		out = append(out, Listed{ID: id, Pack: pack, Kind: kind, Tags: c.Tags, OnFail: onFail, Since: c.Since})
 	}
 	sort.SliceStable(out, func(i, k int) bool {
 		if out[i].ID != out[k].ID {
@@ -216,7 +262,17 @@ func (s Service) ListAll(repo string, timeout time.Duration) ([]Listed, error) {
 type Listed struct {
 	ID, Pack, Kind string
 	Tags           []string
-	OnFail         string
+	OnFail, Since  string
+}
+
+// splitName splits a coded check's name, <pack>/<id> or
+// local/<name>/<id>, at its last slash.
+func splitName(name string) (pack, id string) {
+	i := strings.LastIndex(name, "/")
+	if i < 0 {
+		return "", name
+	}
+	return name[:i], name[i+1:]
 }
 
 // Name is the check as a finding names it.

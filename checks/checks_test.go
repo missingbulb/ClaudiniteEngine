@@ -1,23 +1,24 @@
 package checks
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/missingbulb/ClaudiniteEngine/checks/build"
+	"github.com/missingbulb/ClaudiniteEngine/checks/declared"
+	"github.com/missingbulb/ClaudiniteEngine/checksdk"
+	"github.com/missingbulb/ClaudiniteEngine/shared/findings"
 )
 
 func service(t *testing.T) Service {
 	t.Helper()
-	raw, err := os.ReadFile("../checksdk/checksdk.go")
-	if err != nil {
-		t.Fatal(err)
-	}
-	return Service{Build: build.Config{CacheRoot: filepath.Join(t.TempDir(), "claudinite"), Engine: "61001.1.0", SDK: map[string][]byte{"checksdk.go": raw}}, Exe: "/nonexistent/cn"}
+	return Service{Build: build.Config{CacheRoot: filepath.Join(t.TempDir(), "claudinite"), Engine: "61001.1.0", SDK: checksdk.Sources()}, Exe: "/nonexistent/cn"}
 }
 
 func helloRepo(t *testing.T) string {
@@ -45,22 +46,43 @@ func TestRunTheHelloCheckByTag(t *testing.T) {
 	if _, err := exec.LookPath("go"); err != nil {
 		t.Skip("no go")
 	}
+	t.Setenv("CLAUDINITE_CHECKS_NO_FETCH", "1")
 	s := service(t)
 	repo := helloRepo(t)
-	res, crumb := s.Run(repo, "world", []string{"world"}, "", time.Minute, true)
-	if res.Err != nil || len(res.Findings) != 0 || !strings.HasPrefix(crumb, "[cn] checks world ok ") {
-		t.Fatalf("%+v %q", res, crumb)
+	coded := func(o Outcome) []string {
+		var out []string
+		for _, f := range o.Findings {
+			if strings.HasPrefix(f.Name(), "hello/hello-") && f.Name() != "hello/hello-declared" && f.Name() != "hello/hello-declared-work" {
+				out = append(out, f.Name())
+			}
+		}
+		return out
+	}
+	o := s.RunAll(repo, "world", declared.Selection{Tags: []string{"world"}}, time.Minute, true, nil)
+	if o.Err != nil || len(o.Errors) != 0 || len(coded(o)) != 0 || !strings.HasPrefix(o.Crumb, "[cn] checks world ok ") {
+		t.Fatalf("%+v", o)
 	}
 	_ = os.WriteFile(filepath.Join(repo, "HELLO_FINDING"), nil, 0o644)
-	res, _ = s.Run(repo, "stop", []string{"work"}, "", time.Minute, false)
-	if res.Err != nil || len(res.Findings) != 1 || res.Findings[0].Check != "hello/hello-check" || !res.Blocking() {
-		t.Fatalf("%+v", res)
+	o = s.RunAll(repo, "stop", declared.Selection{Tags: []string{"work"}}, time.Minute, false, nil)
+	if got := coded(o); o.Err != nil || len(o.Errors) != 0 || len(got) != 1 || got[0] != "hello/hello-check" {
+		t.Fatalf("%v %+v", got, o)
 	}
-	if res, _ := s.Run(repo, "tag", []string{"work"}, "other", time.Minute, false); len(res.Findings) != 0 {
-		t.Errorf("--pack other ran hello's check: %+v", res)
+	if o := s.RunAll(repo, "tag", declared.Selection{Tags: []string{"work"}, Pack: "other"}, time.Minute, false, nil); len(coded(o)) != 0 {
+		t.Errorf("--pack other ran hello's check: %+v", o)
+	}
+	_ = os.Remove(filepath.Join(repo, "HELLO_FINDING"))
+	_ = os.WriteFile(filepath.Join(repo, ".claudinite/settings.yaml"), []byte("engine:\n  version: \"1.1.0\"\npacks:\n  declared:\n    - id: hello\n      config:\n        probe: true\n"), 0o644)
+	o = s.RunAll(repo, "world", declared.Selection{Tags: []string{"world"}}, time.Minute, true, nil)
+	if got := coded(o); len(got) != 1 || got[0] != "hello/hello-config" || o.SDKCrumb == "" {
+		t.Errorf("hello-config through the SDK: %v %+v", got, o)
 	}
 	listed, err := s.List(repo, time.Minute)
-	if err != nil || len(listed) != 2 || listed[0].Check != "hello/hello-check" || listed[1].Check != "hello/hello-judge" || !listed[1].Judge {
+	var names []string
+	for _, l := range listed {
+		names = append(names, fmt.Sprintf("%s:%v", l.Check, l.Judge))
+	}
+	sort.Strings(names)
+	if err != nil || strings.Join(names, " ") != "hello/hello-change:false hello/hello-check:false hello/hello-config:false hello/hello-judge:true" {
 		t.Errorf("%+v %v", listed, err)
 	}
 }
@@ -69,7 +91,7 @@ func TestRunWithNoGoChecksIsOK(t *testing.T) {
 	repo := t.TempDir()
 	_ = os.MkdirAll(filepath.Join(repo, ".claudinite"), 0o755)
 	_ = os.WriteFile(filepath.Join(repo, ".claudinite/settings.yaml"), []byte("engine:\n  version: \"1.1.0\"\n"), 0o644)
-	res, crumb := service(t).Run(repo, "stop", []string{"work"}, "", time.Second, false)
+	res, crumb := service(t).Run(repo, "stop", []string{"work"}, "", time.Second, false, nil)
 	if res.Err != nil || len(res.Findings) != 0 || !strings.HasPrefix(crumb, "[cn] checks stop ok ") {
 		t.Errorf("%+v %q", res, crumb)
 	}
@@ -79,14 +101,14 @@ func TestRunTimesOutWhenTheBuildNeverComes(t *testing.T) {
 	s := service(t)
 	repo := helloRepo(t)
 	s.Exe = "/bin/true"
-	res, crumb := s.Run(repo, "stop", []string{"work"}, "", 200*time.Millisecond, false)
+	res, crumb := s.Run(repo, "stop", []string{"work"}, "", 200*time.Millisecond, false, nil)
 	if res.Err == nil || !strings.HasPrefix(crumb, "[cn] checks stop timeout ") {
 		t.Errorf("%+v %q", res, crumb)
 	}
 }
 
 func TestARepoWithoutSettingsRunsNothing(t *testing.T) {
-	res, crumb := service(t).Run(t.TempDir(), "check", []string{"world"}, "", time.Second, true)
+	res, crumb := service(t).Run(t.TempDir(), "check", []string{"world"}, "", time.Second, true, nil)
 	if res.Err != nil || len(res.Findings) != 0 || !strings.HasPrefix(crumb, "[cn] checks check ok ") {
 		t.Errorf("%+v %q", res, crumb)
 	}
@@ -138,5 +160,163 @@ func TestJudgeRunsGuardsAndCodedJudges(t *testing.T) {
 	_ = os.WriteFile(settings, append(raw, []byte("checks:\n  rules:\n    hello-judge: \"off\"\n")...), 0o644)
 	if v := s.Judge(repo, "pre-tool-use", bash("echo HELLO_JUDGE"), nil, soon()); len(v.Blocks)+len(v.Advice) != 0 {
 		t.Errorf("off: %+v", v)
+	}
+}
+
+const acmeChecks = `package checks
+
+import (
+	"encoding/json"
+	"strings"
+
+	"claudinite.com/checksdk"
+)
+
+func init() {
+	checksdk.Register(checksdk.Check{
+		ID: "acme-grace", Tags: []string{"world"}, Since: "@@TODAY@@", Why: "a new check",
+		Run: func(repo checksdk.Repo) []checksdk.Finding {
+			return []checksdk.Finding{{Path: "README.md", Line: 1, Sentence: "graced", Fix: "fix it"}}
+		},
+	})
+	checksdk.Register(checksdk.Check{
+		ID: "acme-sdk", Tags: []string{"world"}, OnFail: "advise",
+		Run: func(repo checksdk.Repo) []checksdk.Finding {
+			var cfg struct{ Probe bool }
+			_ = json.Unmarshal(repo.PackConfig("acme-pack"), &cfg)
+			var out []checksdk.Finding
+			for _, f := range repo.Files() {
+				if strings.HasPrefix(f, "ACME_") && cfg.Probe {
+					out = append(out, checksdk.Finding{Path: f, Line: 2, Sentence: "an acme file", Fix: "remove it"})
+				}
+			}
+			return out
+		},
+	})
+}
+`
+
+const localChecks = `package checks
+
+import "claudinite.com/checksdk"
+
+func init() {
+	checksdk.Register(checksdk.Check{
+		ID: "local-check", Tags: []string{"world"},
+		Run: func(repo checksdk.Repo) []checksdk.Finding {
+			if !repo.Exists("HELLO_LOCAL") {
+				return nil
+			}
+			return []checksdk.Finding{{Path: "HELLO_LOCAL", Sentence: "the local probe"}}
+		},
+	})
+}
+`
+
+func acmeRepo(t *testing.T, rules string) string {
+	t.Helper()
+	repo := t.TempDir()
+	files := map[string]string{
+		".claudinite/shared/packs/acme-pack/pack.json":      `{"version":"1.0","minEngineVersion":"61001.1.0"}`,
+		".claudinite/shared/packs/acme-pack/checks/acme.go": strings.ReplaceAll(acmeChecks, "@@TODAY@@", time.Now().UTC().Format("2006-01-02")),
+		".claudinite/local/packs/probe/pack.json":           `{}`,
+		".claudinite/local/packs/probe/checks/local.go":     localChecks,
+		".claudinite/temp/packs/copied/pack.json":           `{}`,
+		".claudinite/temp/packs/copied/checks/broken.go":    "package checks\n\nthis does not compile\n",
+		".claudinite/settings.yaml":                         "engine:\n  version: \"61001.1.0\"\npacks:\n  declared:\n    - id: acme-pack\n      config:\n        probe: true\n    - local/probe\n" + rules,
+		"README.md":                                         "hi\n",
+		"ACME_ONE":                                          "x\n",
+		"HELLO_LOCAL":                                       "x\n",
+	}
+	for rel, text := range files {
+		p := filepath.Join(repo, filepath.FromSlash(rel))
+		_ = os.MkdirAll(filepath.Dir(p), 0o755)
+		if err := os.WriteFile(p, []byte(text), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, args := range [][]string{{"init", "-q", "-b", "main"}, {"add", "-A"}, {"-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "base"}} {
+		if out, err := exec.Command("git", append([]string{"-C", repo}, args...)...).CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v %s", args, err, out)
+		}
+	}
+	return repo
+}
+
+func byName(fs []findings.Finding) map[string]findings.Finding {
+	out := map[string]findings.Finding{}
+	for _, f := range fs {
+		out[f.Name()] = f
+	}
+	return out
+}
+
+// Coded findings carry their line, why and fix; a new blocking check only
+// advises inside its grace window; the member's overrides name a check by
+// <pack>/<id> or its bare id; a local pack's checks build and are named
+// local/<name>/<id>; a temp pack's are never built; the coded checks' SDK
+// calls are answered from the run's own walk and config.
+func TestRunAllOverCodedFindings(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("no go")
+	}
+	t.Setenv("CLAUDINITE_CHECKS_NO_FETCH", "1")
+	s := service(t)
+	repo := acmeRepo(t, "checks:\n  rules:\n    acme-pack/acme-sdk: block\n")
+	o := s.RunAll(repo, "world", declared.Selection{Tags: []string{"world"}}, time.Minute, true, nil)
+	if o.Err != nil || len(o.Errors) != 0 {
+		t.Fatalf("%v %v", o.Err, o.Errors)
+	}
+	got := byName(o.Findings)
+	grace := got["acme-pack/acme-grace"]
+	if grace.Class != findings.Advisory || grace.Line != 1 || grace.Why != "a new check" || !strings.Contains(grace.Fix, "fix it (grace: added ") {
+		t.Errorf("grace %+v", grace)
+	}
+	if sdk := got["acme-pack/acme-sdk"]; sdk.Class != findings.Coded || sdk.Path != "ACME_ONE" || sdk.Line != 2 || sdk.Fix != "remove it" {
+		t.Errorf("sdk (advise, set to block by its pack-qualified name) %+v", sdk)
+	}
+	if local := got["local/probe/local-check"]; local.Class != findings.Coded || local.Path != "HELLO_LOCAL" {
+		t.Errorf("local %+v", local)
+	}
+	if !strings.HasPrefix(o.SDKCrumb, "[cn] sdk world ok ") || o.Calls["config.pack"] != 1 || o.Calls["tree.files"] != 1 {
+		t.Errorf("sdk crumb %q calls %v", o.SDKCrumb, o.Calls)
+	}
+	listed, err := s.ListAll(repo, time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var rows []string
+	for _, l := range listed {
+		rows = append(rows, l.Name()+" "+l.Kind+" "+l.OnFail+" "+l.Since)
+	}
+	today := time.Now().UTC().Format("2006-01-02")
+	joined := "|" + strings.Join(rows, "|") + "|"
+	for _, want := range []string{"acme-pack/acme-grace coded block " + today, "acme-pack/acme-sdk coded advise ", "local/probe/local-check coded block "} {
+		if !strings.Contains(joined, "|"+want+"|") {
+			t.Errorf("list lacks %q: %v", want, rows)
+		}
+	}
+	if strings.Contains(joined, "copied") {
+		t.Errorf("a temp pack's checks were built: %v", rows)
+	}
+
+	bare := acmeRepo(t, "checks:\n  rules:\n    acme-sdk: \"off\"\n    local-check: advise\n")
+	o = s.RunAll(bare, "world", declared.Selection{Tags: []string{"world"}}, time.Minute, true, nil)
+	got = byName(o.Findings)
+	if _, ok := got["acme-pack/acme-sdk"]; ok {
+		t.Errorf("a bare-id off left the finding: %v", o.Findings)
+	}
+	if got["local/probe/local-check"].Class != findings.Advisory {
+		t.Errorf("a bare-id advise: %+v", got["local/probe/local-check"])
+	}
+	if o := s.RunAll(bare, "pack", declared.Selection{Pack: "local/probe"}, time.Minute, true, nil); len(o.Findings) != 1 || o.Findings[0].Name() != "local/probe/local-check" {
+		t.Errorf("--pack local/probe: %v", o.Findings)
+	}
+	for _, key := range []string{"local/probe/local-check", "local-check"} {
+		off := acmeRepo(t, "checks:\n  rules:\n    "+key+": \"off\"\n")
+		o := s.RunAll(off, "world", declared.Selection{Tags: []string{"world"}}, time.Minute, true, nil)
+		if _, ok := byName(o.Findings)["local/probe/local-check"]; ok {
+			t.Errorf("%s: off left the local finding: %v", key, o.Findings)
+		}
 	}
 }

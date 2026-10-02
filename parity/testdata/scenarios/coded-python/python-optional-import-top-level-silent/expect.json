@@ -1,0 +1,11 @@
+{
+  "rules": "@../shared/packs/python/RULES.md\n",
+  "mounts": [
+    "python-optional-deps"
+  ],
+  "world": [],
+  "work": [],
+  "only": [
+    "python-optional-import-top-level"
+  ]
+}

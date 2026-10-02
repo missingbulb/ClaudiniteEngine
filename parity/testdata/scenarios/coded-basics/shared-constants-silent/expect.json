@@ -1,0 +1,27 @@
+{
+  "rules": "@../shared/packs/basics/RULES.md\n",
+  "mounts": [
+    "authoring-agent-docs",
+    "bug-investigation",
+    "ci-performance-evaluation",
+    "committing",
+    "do-later",
+    "fetching-from-the-web",
+    "file-placement",
+    "improve-comments",
+    "production-retrospective",
+    "repo-text-sweeps",
+    "searching-for-a-tool",
+    "verify-in-production",
+    "working-with-generated-files",
+    "writing-handover-issues",
+    "writing-migration-plans",
+    "writing-repo-scanning-checks",
+    "writing-tests"
+  ],
+  "world": [],
+  "work": [],
+  "only": [
+    "shared-constants"
+  ]
+}

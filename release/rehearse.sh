@@ -26,7 +26,9 @@
 #            plan its key names, and the update key's pack index serial and
 #            key ids reach the pack reader; hello's declared checks fail the
 #            world and block Stop, and the member's checks block turns them
-#            off and accepts them.
+#            off and accepts them; a local pack's Go check builds and
+#            finds, and hello 1.3's checks read the change and the pack's
+#            config through the SDK.
 #   license  a member's session keys against release/ghstub and
 #            release/licstub: the web key, the cut and the late key, no App,
 #            no push access, refusals and bindings, resume and renewal, the
@@ -556,7 +558,7 @@ for mode in $modes; do
       fixture --publish v2
       main_run success
       update_packs
-      expect_verdict "opened #1 for packs hello 1.2"
+      expect_verdict "opened #1 for packs hello 1.3"
       if git --git-dir "$origin" diff --name-only main "$branch" | grep -v '^CLAUDE\.md$' | grep -qv '^\.claudinite/shared/packs/hello/'; then fail "packs 5: the branch changes more than the hello pack and CLAUDE.md"; fi
       [ "$(git --git-dir "$origin" show "$branch:CLAUDE.md")" = "$(printf '# Member\n@.claudinite/flat/claudinite-rules.GENERATED.md')" ] || fail "packs 5: the branch's CLAUDE.md: $(git --git-dir "$origin" show "$branch:CLAUDE.md")"
       [ "$(gh_count 'st.dispatches.filter(d=>d.ref==="'"$branch"'"&&d.inputs.pr==="1").length')" = 1 ] || fail "packs 5: dispatches $(gh_state)"
@@ -565,23 +567,23 @@ for mode in $modes; do
       cn_member check world --pr-author 'github-actions[bot]' --base-ref origin/main > "$work/world.out" 2>&1 || fail "packs 5: check world on the branch: $(cat "$work/world.out")"
       (cd "$member" && git checkout -q main) || fail "packs 5: back to main"
       land 1
-      expect_verdict "landed packs hello 1.2"
+      expect_verdict "landed packs hello 1.3"
       pull
-      grep -q '"version": "1.2"' "$member/.claudinite/shared/packs/hello/pack.json" || fail "packs 5: main does not hold hello 1.2"
+      grep -q '"version": "1.3"' "$member/.claudinite/shared/packs/hello/pack.json" || fail "packs 5: main does not hold hello 1.3"
       out=$(session_start) || fail "packs 5: SessionStart"
-      case $out in *"[cn] packs 1/1 loaded (hello 1.2: rules 3 skills 2)"*) ;; *) fail "packs 5: SessionStart on 1.2: $out" ;; esac
+      case $out in *"[cn] packs 1/1 loaded (hello 1.3: rules 4 skills 2)"*) ;; *) fail "packs 5: SessionStart on 1.3: $out" ;; esac
       case $out in *"rules not loaded"*) fail "packs 5: the import is still missing after the pack PR: $out" ;; esac
-      grep -q '^# hello 1.2$' "$member/.claudinite/shared/packs/hello/RULES.md" || fail "packs 5: hello's rules are not 1.2's"
+      grep -q '^# hello 1.3$' "$member/.claudinite/shared/packs/hello/RULES.md" || fail "packs 5: hello's rules are not 1.3's"
       cn_member check build --wait > "$work/build.out" 2>&1 || fail "packs 5: check build: $(cat "$work/build.out")"
-      # The key covers the engine, the SDK and the check sources; 1.2 adds
-      # a coded judge, so its checks binary is a second one beside 1.0's.
-      [ "$(find "$checks" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')" = 2 ] || fail "packs 5: hello 1.2's judge did not build a second checks binary"
-      step "packs 5: opened, checked and landed hello 1.2 with the CLAUDE.md import restored; its judge builds a second checks binary"
+      # The key covers the engine, the SDK and the check sources; 1.3 adds
+      # Go checks, so its checks binary is a second one beside 1.0's.
+      [ "$(find "$checks" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')" = 2 ] || fail "packs 5: hello 1.3's checks did not build a second checks binary"
+      step "packs 5: opened, checked and landed hello 1.3 with the CLAUDE.md import restored; its Go checks build a second checks binary"
 
       fixture --publish v3
       main_run success
       update_packs
-      expect_verdict "no PR: hello 1.3 fails this repo's checks"
+      expect_verdict "no PR: hello 1.4 fails this repo's checks"
       grep -q 'hello/always' "$work/update.out" || fail "packs 6: the finding was not printed: $(cat "$work/update.out")"
       [ -z "$(git --git-dir "$origin" branch --list 'claudinite/*')" ] || fail "packs 6: a branch was pushed"
       [ "$(gh_count 'st.pulls.length')" = 1 ] || fail "packs 6: a PR was opened"
@@ -589,19 +591,19 @@ for mode in $modes; do
 
       fixture --revoke v3 --publish v4
       update_packs
-      expect_verdict "opened #2 for packs hello 1.4"
-      grep -q '^hello 1.3 skipped: revoked$' "$work/update.out" || fail "packs 7: no revoked skip: $(cat "$work/update.out")"
+      expect_verdict "opened #2 for packs hello 1.5"
+      grep -q '^hello 1.4 skipped: revoked$' "$work/update.out" || fail "packs 7: no revoked skip: $(cat "$work/update.out")"
       land 2
-      expect_verdict "landed packs hello 1.4"
+      expect_verdict "landed packs hello 1.5"
       pull
       main_run success
-      step "packs 7: revoked 1.3 skipped; hello 1.4 landed"
+      step "packs 7: revoked 1.4 skipped; hello 1.5 landed"
 
       fixture --publish v5
       update_packs
       expect_verdict "up to date"
-      grep -q '^hello 1.5 skipped: not for this engine$' "$work/update.out" || fail "packs 8: no engine skip: $(cat "$work/update.out")"
-      step "packs 8: hello 1.5 skipped: not for this engine"
+      grep -q '^hello 1.6 skipped: not for this engine$' "$work/update.out" || fail "packs 8: no engine skip: $(cat "$work/update.out")"
+      step "packs 8: hello 1.6 skipped: not for this engine"
 
       # set_channel C: the member's packs channel, committed and pushed, main green.
       set_channel() {
@@ -787,6 +789,66 @@ for mode in $modes; do
       grep -q '^judge hello/hello-judge (pre-tool-use) runs only in its hook' "$work/check.out" || fail "packs 18: check --tag pre-tool-use: $(cat "$work/check.out")"
       [ -z "$(cd "$member" && git status --porcelain)" ] || fail "packs 18: the checkout changed: $(cd "$member" && git status --porcelain)"
       step "packs 18: rules off silence hello-guard and remote-branch-delete; check list names the guard's three tags and the judge"
+
+      probe=$member/.claudinite/local/packs/probe
+      mkdir -p "$probe/checks"
+      printf '{}\n' > "$probe/pack.json"
+      cat > "$probe/checks/local.go" <<'GO'
+package checks
+
+import "claudinite.com/checksdk"
+
+func init() {
+	checksdk.Register(checksdk.Check{
+		ID:   "local-check",
+		Tags: []string{"work", "world"},
+		Run: func(repo checksdk.Repo) []checksdk.Finding {
+			if !repo.Exists("HELLO_LOCAL") {
+				return nil
+			}
+			return []checksdk.Finding{{Path: "HELLO_LOCAL", Sentence: "the local probe file is present; delete HELLO_LOCAL"}}
+		},
+	})
+}
+GO
+      awk '{ print } /^    - hello$/ { print "    - local/probe" }' "$work/settings.orig" > "$settings"
+      touch "$member/HELLO_LOCAL"
+      if cn_member check --pack local/probe > "$work/check.out" 2>&1; then fail "packs 19: check --pack local/probe passed with HELLO_LOCAL"; fi
+      grep -q '^finding local/probe/local-check HELLO_LOCAL: ' "$work/check.out" || fail "packs 19: no local finding: $(cat "$work/check.out")"
+      cn_member check list > "$work/list.out" 2>&1 || fail "packs 19: check list: $(cat "$work/list.out")"
+      grep -q '^local/probe/local-check coded (' "$work/list.out" || fail "packs 19: check list has no local check: $(cat "$work/list.out")"
+      rm -r "$member/HELLO_LOCAL" "$member/.claudinite/local"
+      cp "$work/settings.orig" "$settings"
+      step "packs 19: a local pack's Go check builds as local/probe, finds through check --pack and is listed"
+
+      (cd "$member" && git checkout -q -b probe-change && mkdir HELLO_CHANGED && echo changed > HELLO_CHANGED/x && git add HELLO_CHANGED \
+        && git -c user.name=rehearse -c user.email=r@x -c commit.gpgsign=false commit -q -m "probe change") || fail "packs 20: the change"
+      out=$(cd "$member" && printf '{"session_id":"rehearse","hook_event_name":"Stop","stop_hook_active":false}' \
+        | CLAUDE_PROJECT_DIR=$member sh -c "$(hook_command Stop)" 2> "$work/stop.err")
+      [ "$out" = "{}" ] || fail "packs 20: an advisory alone blocked Stop: $out"
+      grep -q '^advisory hello/hello-change HELLO_CHANGED/x:1: ' "$work/stop.err" || fail "packs 20: Stop printed no hello-change advisory: $(cat "$work/stop.err")"
+      touch "$member/HELLO_FINDING"
+      out=$(stop_hook)
+      case $out in *'"decision":"block"'*hello/hello-check*hello/hello-change*|*'"decision":"block"'*hello/hello-change*hello/hello-check*) ;;
+        *) fail "packs 20: the block form does not list hello-change beside hello-check: $out" ;; esac
+      rm "$member/HELLO_FINDING"
+      (cd "$member" && git checkout -q main && git branch -q -D probe-change) || fail "packs 20: back to main"
+      [ "$(stop_hook)" = "{}" ] || fail "packs 20: Stop on main still reports"
+      # with_probe [CHECKS]: the settings with the hello entry's config probe set, and CHECKS as their checks block.
+      with_probe() {
+        awk '/^    - hello$/ { print "    - id: hello"; print "      config:"; print "        probe: true"; next } { print }' "$work/settings.orig" > "$settings"
+        [ -z "${1:-}" ] || printf 'checks:\n%s\n' "$1" >> "$settings"
+      }
+      with_probe
+      if cn_member check world > "$work/world.out" 2> "$work/world.err"; then fail "packs 20: check world passed with probe: true"; fi
+      grep -q 'hello/hello-config' "$work/world.out" || fail "packs 20: check world names no hello-config finding: $(cat "$work/world.out" "$work/world.err")"
+      [ "$(grep -c '^\[cn\] sdk ' "$work/world.err")" = 1 ] || fail "packs 20: want one sdk breadcrumb: $(cat "$work/world.err")"
+      with_probe '  rules:
+    hello-config: "off"'
+      cn_member check world > "$work/world.out" 2>&1 || fail "packs 20: hello-config off still failed: $(cat "$work/world.out")"
+      cp "$work/settings.orig" "$settings"
+      [ -z "$(cd "$member" && git status --porcelain)" ] || fail "packs 20: the checkout changed: $(cd "$member" && git status --porcelain)"
+      step "packs 20: hello-change advises at Stop on a change under HELLO_CHANGED/, alone and in the block form; hello-config reads the entry's config; one sdk breadcrumb"
       ;;
     license)
       step "license: a public member on $version with a GitHub origin, ghstub and licstub"

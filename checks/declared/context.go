@@ -273,3 +273,36 @@ func (t refsTree) Files() []string                 { return t.c.Files() }
 func (t refsTree) Tracked() []string               { return t.c.Tracked }
 func (t refsTree) AllFiles() []string              { return t.c.AllFiles() }
 func (t refsTree) Read(path string) (string, bool) { return t.c.Read(path) }
+
+// Deleted are the paths the change deletes; none without a merge base.
+func (c *Ctx) Deleted() []string {
+	c.diff()
+	return c.deleted
+}
+
+// UntrackedList are the files git does not track and does not ignore.
+func (c *Ctx) UntrackedList() []string { return c.Untracked }
+
+// BaseRefName is the ref the change is measured against, "" for none.
+func (c *Ctx) BaseRefName() string { return c.BaseRef }
+
+// ListBase is every path at the merge base.
+func (c *Ctx) ListBase() []string {
+	if c.MergeBase() == "" {
+		return nil
+	}
+	return c.git.LsTree(c.MergeBase())
+}
+
+// CommitsWithFiles are the change's commits, oldest first, merges
+// excluded, each with the files it changed.
+func (c *Ctx) CommitsWithFiles() []gitcmd.Commit {
+	if c.MergeBase() == "" {
+		return nil
+	}
+	return c.git.CommitsWithFiles(c.MergeBase())
+}
+
+// GrepTracked is every tracked line containing needle, the shared mount
+// excluded.
+func (c *Ctx) GrepTracked(needle string) []gitcmd.Hit { return c.git.GrepTracked(needle, SharedPrefix) }

@@ -1,0 +1,3 @@
+[
+  {"id": "acme-check", "matchLines": [{"match": "/a/", "fix": "do it"}, {"match": "/b/", "fix": "do it"}]}
+]

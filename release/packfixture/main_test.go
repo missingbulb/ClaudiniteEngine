@@ -91,7 +91,7 @@ func TestTheFixtureIndexVerifiesAndNamesItsArchives(t *testing.T) {
 			t.Errorf("%s: RULES.md %q", e.Version, files["RULES.md"].Data)
 		}
 		_, always := files["checks/always.go"]
-		if always != (e.Version == "1.3") {
+		if always != (e.Version == "1.4") {
 			t.Errorf("%s: always.go present %v", e.Version, always)
 		}
 		_, declared := files["declared-checks.json"]
@@ -104,16 +104,21 @@ func TestTheFixtureIndexVerifiesAndNamesItsArchives(t *testing.T) {
 		if guard := strings.Count(string(files["RULES.md"].Data), "The hello guard arrived"); guard != map[bool]int{true: 0, false: 1}[e.Version == "1.0"] {
 			t.Errorf("%s: the guard bullet appears %d times", e.Version, guard)
 		}
+		if sdk := strings.Count(string(files["RULES.md"].Data), "The hello SDK probes arrived"); sdk != map[bool]int{true: 0, false: 1}[e.Version == "1.0"] {
+			t.Errorf("%s: the SDK probes bullet appears %d times", e.Version, sdk)
+		}
 		_, guide := files["skills/hello-guide/SKILL.md"]
 		_, judge := files["checks/judge.go"]
-		if guide != (e.Version != "1.0") || judge != (e.Version != "1.0") {
-			t.Errorf("%s: hello-guide %v, judge.go %v", e.Version, guide, judge)
+		_, change := files["checks/change.go"]
+		_, config := files["checks/config.go"]
+		if guide != (e.Version != "1.0") || judge != (e.Version != "1.0") || change != (e.Version != "1.0") || config != (e.Version != "1.0") {
+			t.Errorf("%s: hello-guide %v, judge.go %v, change.go %v, config.go %v", e.Version, guide, judge, change, config)
 		}
 	}
-	if readme := string(mustVariant(t, "v1")["README.md"].Data); strings.Contains(readme, "Declared checks") || strings.Contains(readme, "Forced skill") || strings.Contains(readme, "**Judge**") || !strings.Contains(readme, "**Skill**") {
+	if readme := string(mustVariant(t, "v1")["README.md"].Data); strings.Contains(readme, "Declared checks") || strings.Contains(readme, "Forced skill") || strings.Contains(readme, "**Judge**") || strings.Contains(readme, "SDK probes") || !strings.Contains(readme, "**Skill**") {
 		t.Errorf("v1 README:\n%s", readme)
 	}
-	// v2 is the source itself: hello 1.2 as ClaudinitePacks publishes it.
+	// v2 is the source itself: hello 1.3 as ClaudinitePacks publishes it.
 	source, _ := ReadPack(src)
 	for name, f := range mustVariant(t, "v2") {
 		if name != "pack.json" && string(source[name].Data) != string(f.Data) {
@@ -189,5 +194,27 @@ func TestTheSourceIsThePublishedHelloPack(t *testing.T) {
 	diff, err := packs.FilesEqual(conv, archive)
 	if err != nil || diff != "" {
 		t.Errorf("release/testdata/hello (%v) is not the published hello %s: %v\n%s", names, pj.Version, err, diff)
+	}
+}
+
+// ReadPack follows tools/vendor's rule: test/, docs/ and provenance/ at the
+// root and the Go tests beside the checks stay out; everything else ships.
+func TestReadPackDropsWhatVendoringDrops(t *testing.T) {
+	dir := t.TempDir()
+	for _, rel := range []string{"pack.json", "checks/a.go", "checks/a_test.go", "test/x_test.go", "docs/d.md", "provenance/p.md", "skills/s/s_test.go"} {
+		_ = os.MkdirAll(filepath.Join(dir, filepath.Dir(rel)), 0o755)
+		_ = os.WriteFile(filepath.Join(dir, rel), []byte("x\n"), 0o644)
+	}
+	files, err := ReadPack(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for n := range files {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	if got := strings.Join(names, " "); got != "checks/a.go pack.json skills/s/s_test.go" {
+		t.Errorf("vendored set %q", got)
 	}
 }

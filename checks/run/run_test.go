@@ -2,6 +2,7 @@ package run
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -31,6 +32,9 @@ func fake(mode string) {
 		return
 	case "silent":
 		time.Sleep(time.Hour)
+	case "sdk":
+		sdkChild(in)
+		return
 	}
 	fmt.Println(`{"proto":"claudinite-checks-v1"}`)
 	for in.Scan() {
@@ -155,5 +159,67 @@ func TestRunWithoutBinary(t *testing.T) {
 	res, crumb := Runner{Binary: "/nonexistent/checks", Engine: "1"}.Run("stop", []string{"work"}, "", "/repo")
 	if res.Err == nil || !strings.Contains(crumb, " error ") {
 		t.Errorf("%v %q", res.Err, crumb)
+	}
+}
+
+// sdkChild checks the handshake announced methods, then answers a run by
+// calling back twice, a method the engine answers and one it does not,
+// and reports what came back as findings.
+func sdkChild(in *bufio.Scanner) {
+	hs := in.Text()
+	fmt.Println(`{"proto":"claudinite-checks-v1"}`)
+	if !in.Scan() {
+		os.Exit(3)
+	}
+	var got []string
+	for i, m := range []string{"tree.files", "nope"} {
+		fmt.Printf("{\"sdk\":%q,\"id\":%d,\"args\":{\"x\":1}}\n", m, i+1)
+		if !in.Scan() {
+			os.Exit(4)
+		}
+		got = append(got, in.Text())
+	}
+	b, _ := json.Marshal(map[string]any{"findings": []map[string]string{
+		{"check": "t/hs", "class": "advisory", "path": ".", "sentence": hs},
+		{"check": "t/one", "class": "advisory", "path": ".", "sentence": got[0]},
+		{"check": "t/two", "class": "advisory", "path": ".", "sentence": got[1]},
+	}})
+	fmt.Println(string(b))
+}
+
+type fakeServer struct{ args []string }
+
+func (f *fakeServer) Methods() []string { return []string{"tree.files"} }
+
+func (f *fakeServer) Handle(method string, args json.RawMessage) (json.RawMessage, error) {
+	f.args = append(f.args, method+" "+string(args))
+	return json.RawMessage(`["a.md"]`), nil
+}
+
+func TestRunServesSDKCalls(t *testing.T) {
+	r := runner(t, "sdk")
+	srv := &fakeServer{}
+	r.Server = srv
+	res, crumb := r.Run("world", []string{"world"}, "", "/repo")
+	if res.Err != nil || len(res.Findings) != 3 {
+		t.Fatalf("%+v", res)
+	}
+	if hs := res.Findings[0].Sentence; !strings.Contains(hs, `"methods":["tree.files"]`) || !strings.Contains(hs, `"proto":"claudinite-checks-v1"`) {
+		t.Errorf("handshake %s", hs)
+	}
+	if one := res.Findings[1].Sentence; one != `{"id":1,"result":["a.md"]}` {
+		t.Errorf("answer %s", one)
+	}
+	if two := res.Findings[2].Sentence; two != `{"id":2,"error":"unknown method nope"}` {
+		t.Errorf("answer %s", two)
+	}
+	if strings.Join(srv.args, "|") != `tree.files {"x":1}` {
+		t.Errorf("server saw %v", srv.args)
+	}
+	if res.Calls["tree.files"] != 1 || res.Calls["nope"] != 1 {
+		t.Errorf("calls %v", res.Calls)
+	}
+	if !strings.HasPrefix(res.SDKCrumb, "[cn] sdk world error ") || !strings.HasPrefix(crumb, "[cn] checks world ok ") {
+		t.Errorf("crumbs %q %q", res.SDKCrumb, crumb)
 	}
 }

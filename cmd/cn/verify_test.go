@@ -79,6 +79,15 @@ func TestVerifyReadsTheDeclaredChecks(t *testing.T) {
 	if !strings.Contains(out, `deprecation settings-checks .claudinite/settings.yaml: names rule "ghost-check"`) || strings.Contains(out, `"acme-check"`) {
 		t.Errorf("a rule no declared check carries:\n%s", out)
 	}
+	// A coded check is known by either name, as a declared one is.
+	_ = os.MkdirAll(filepath.Join(dir, ".claudinite/shared/packs/acme-pack/checks"), 0o755)
+	_ = os.WriteFile(filepath.Join(dir, ".claudinite/shared/packs/acme-pack/checks/coded.go"), []byte("package checks\n\nimport \"claudinite.com/checksdk\"\n\nfunc init() {\n\tchecksdk.Register(checksdk.Check{ID: \"acme-coded\", Tags: []string{\"world\"}, Run: func(checksdk.Repo) []checksdk.Finding { return nil }})\n}\n"), 0o644)
+	raw, _ = os.ReadFile(path)
+	_ = os.WriteFile(path, []byte(strings.Replace(string(raw), "    ghost-check: \"advise\"\n", "    acme-pack/acme-coded: \"off\"\n    acme-pack/acme-check: advise\n", 1)), 0o644)
+	out, _, _ = runCN(t, bin, nil, "", "verify", "--repo", dir)
+	if strings.Contains(out, "settings-checks") {
+		t.Errorf("a coded check or a pack-qualified name is reported:\n%s", out)
+	}
 	_ = os.WriteFile(filepath.Join(dir, ".claudinite/shared/packs/acme-pack/declared-checks.yaml"), []byte("[]\n"), 0o644)
 	out, _, _ = runCN(t, bin, nil, "", "verify", "--repo", dir)
 	if !strings.Contains(out, "break descriptor-duplicate") {

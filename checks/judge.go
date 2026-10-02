@@ -2,7 +2,6 @@ package checks
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/missingbulb/ClaudiniteEngine/checks/build"
@@ -108,15 +107,12 @@ func (s Service) coded(repo, event string, call Call, config func() declared.Con
 	}
 	cfg := config()
 	for _, f := range res.Findings {
-		_, id, ok := strings.Cut(f.Check, "/")
-		if !ok {
-			id = f.Check
-		}
+		pack, id := splitName(f.Check)
 		level := "advise"
 		if f.Class != "advisory" && event == "pre-tool-use" {
 			level = "block"
 		}
-		switch cfg.Rules[id] {
+		switch cfg.Rule(pack, id) {
 		case "off":
 			continue
 		case "advise":

@@ -204,6 +204,13 @@ func TestRules(t *testing.T) {
 		{"good overrides", func(t *testing.T, d string) {
 			appendSettings(t, d, "checks:\n  rules:\n    acme-check: \"off\"\n  accept:\n    - rule: acme-other\n      reason: \"the fixture is meant to\"\n")
 		}, nil, nil},
+		{"a top-level sharedConstants", func(t *testing.T, d string) {
+			appendSettings(t, d, "sharedConstants:\n  - name: port\n    files: [a.js, b.js]\n")
+		}, nil, []string{"settings-checks"}},
+		{"sharedConstants on the basics entry", func(t *testing.T, d string) {
+			appendSettings(t, d, "packs:\n  declared:\n    - id: basics\n      config:\n        sharedConstants:\n          - name: port\n")
+			write(t, d, ".claudinite/shared/packs/basics/pack.json", `{"version": "1.0", "minEngineVersion": "60930.1.0"}`)
+		}, nil, nil},
 		{"prose without the index", func(t *testing.T, d string) {
 			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "60930.1.0"}`)
 			write(t, d, ".claudinite/shared/packs/acme-pack/RULES.md", "- r\n")
@@ -279,6 +286,23 @@ func TestSettingsChecksAgainstTheDeclaredChecks(t *testing.T) {
 	}
 	if got := strings.Join(ids(fs, findings.Break), " "); got != "descriptor-duplicate descriptor-format" {
 		t.Errorf("breaks %s: %v", got, fs)
+	}
+}
+
+// A rule or acceptance may name a check by bare id or <pack>/<id>; the
+// loader lists both spellings. A loader that could not list every check
+// (the coded checks did not build) raises no unknown-rule deprecation.
+func TestSettingsChecksTakeEitherName(t *testing.T) {
+	dir := newShape(t)
+	appendSettings(t, dir, "checks:\n  rules:\n    acme-pack/acme-check: advise\n    acme-check: advise\n  accept:\n    - rule: node/earn-each-dependency\n      reason: \"kept from the Node engine\"\n")
+	known := []string{"acme-check", "acme-pack/acme-check", "earn-each-dependency", "node/earn-each-dependency"}
+	fs := Verify(Input{Repo: dir, Launcher: launcherBytes(t), Shipped: shippedHashes(t), Declared: func(string) DeclaredChecks { return DeclaredChecks{IDs: known} }})
+	if len(fs) != 0 {
+		t.Errorf("either spelling: %v", fs)
+	}
+	fs = Verify(Input{Repo: dir, Launcher: launcherBytes(t), Shipped: shippedHashes(t), Declared: func(string) DeclaredChecks { return DeclaredChecks{IDs: known[:1], Partial: true} }})
+	if len(fs) != 0 {
+		t.Errorf("a partial listing: %v", fs)
 	}
 }
 
