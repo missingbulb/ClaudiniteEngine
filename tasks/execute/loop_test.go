@@ -1,6 +1,7 @@
 package execute
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"slices"
@@ -74,6 +75,10 @@ func loopTask(id string, decl map[string]any) taskspec.Task {
 	for k, v := range decl {
 		d[k] = v
 	}
+	// As a declaration file reads: numbers are float64.
+	raw, _ := json.Marshal(d)
+	d = map[string]any{}
+	_ = json.Unmarshal(raw, &d)
 	return taskspec.Task{Pack: "acme-pack", ID: id, Dir: "/tasks/" + id, Rel: "packs/acme-pack/tasks/" + id,
 		Decl: taskspec.Normalize(d).(taskspec.Decl)}
 }
@@ -108,9 +113,11 @@ func (h *loopHarness) in(tasks []taskspec.Task) In {
 			return Target{Mode: ModeFresh, Branch: MintBranch(t.Path(), at, "abc"), Supersedes: []int{}, Reason: "r"}
 		},
 		CodeWork: func(taskspec.Task, Work) CodeWorkResult { return CodeWorkResult{OK: true} },
-		Invoke:   func(taskspec.Task, workitem.Issue, string) Invocation { return Invocation{OK: true, Answered: true, SessionID: "s-1"} },
-		Nonce:    func(n int) string { return fmt.Sprintf("%d-nonce", n) },
-		Log:      func(s string) { h.logs = append(h.logs, s) },
+		Invoke: func(taskspec.Task, workitem.Issue, string) Invocation {
+			return Invocation{OK: true, Answered: true, SessionID: "s-1"}
+		},
+		Nonce: func(n int) string { return fmt.Sprintf("%d-nonce", n) },
+		Log:   func(s string) { h.logs = append(h.logs, s) },
 	}
 }
 
@@ -153,7 +160,10 @@ func TestCodeWorkIsHandedTheResolvedTarget(t *testing.T) {
 	h.item(1, "a")
 	var seen []Target
 	h.drive([]taskspec.Task{agentless("a")}, func(in *In) {
-		in.CodeWork = func(_ taskspec.Task, w Work) CodeWorkResult { seen = append(seen, w.Target); return CodeWorkResult{OK: true} }
+		in.CodeWork = func(_ taskspec.Task, w Work) CodeWorkResult {
+			seen = append(seen, w.Target)
+			return CodeWorkResult{OK: true}
+		}
 	})
 	if len(seen) != 1 || seen[0].Mode != ModeFresh || !strings.HasPrefix(seen[0].Branch, "claudinite/acme-pack/a/2026-08-14-") {
 		t.Errorf("%+v", seen)
@@ -261,7 +271,9 @@ func TestAnUnresolvableTargetParksAndNothingRuns(t *testing.T) {
 	h.item(1, "a")
 	ran := 0
 	done := h.drive([]taskspec.Task{agentless("a")}, func(in *In) {
-		in.ResolveTarget = func(taskspec.Task, time.Time) Target { return Target{Error: "could not list the open pull requests (500)"} }
+		in.ResolveTarget = func(taskspec.Task, time.Time) Target {
+			return Target{Error: "could not list the open pull requests (500)"}
+		}
 		in.CodeWork = func(taskspec.Task, Work) CodeWorkResult { ran++; return CodeWorkResult{OK: true} }
 	})
 	if ran != 0 || !reflect.DeepEqual(done, settled(1, OutcomeNeedsHuman)) {
@@ -340,7 +352,9 @@ func TestAMergeBeyondTheCeilingParksForADecision(t *testing.T) {
 	h := newLoop(t)
 	h.item(1, "a")
 	h.drive([]taskspec.Task{agentless("a")}, func(in *In) {
-		in.CodeWork = func(taskspec.Task, Work) CodeWorkResult { return CodeWorkResult{OK: true, DeliveredPR: 7, Merged: true} }
+		in.CodeWork = func(taskspec.Task, Work) CodeWorkResult {
+			return CodeWorkResult{OK: true, DeliveredPR: 7, Merged: true}
+		}
 	})
 	h.wants(1, "open", workitem.StatusNeedsHumanDecide)
 	if !strings.Contains(h.last(1), "ceiling") {
@@ -443,7 +457,9 @@ func TestARequeueWithAnUnreadableInstantParksAtFailure(t *testing.T) {
 	h := newLoop(t)
 	h.item(1, "a")
 	h.drive([]taskspec.Task{agentless("a")}, func(in *In) {
-		in.CodeWork = func(taskspec.Task, Work) CodeWorkResult { return CodeWorkResult{OK: true, Requeue: &Requeue{Reason: "huh"}} }
+		in.CodeWork = func(taskspec.Task, Work) CodeWorkResult {
+			return CodeWorkResult{OK: true, Requeue: &Requeue{Reason: "huh"}}
+		}
 	})
 	h.wants(1, "open", workitem.StatusNeedsHumanFailure)
 	if !strings.Contains(strings.ToLower(h.last(1)), "requeue") {
@@ -455,7 +471,9 @@ func TestAnUnconfiguredDeclaredSecretParksAtActionNamingIt(t *testing.T) {
 	h := newLoop(t)
 	h.item(1, "a")
 	h.drive([]taskspec.Task{agentless("a")}, func(in *In) {
-		in.CodeWork = func(taskspec.Task, Work) CodeWorkResult { return CodeWorkResult{MissingSecrets: []string{"STORE_TOKEN"}} }
+		in.CodeWork = func(taskspec.Task, Work) CodeWorkResult {
+			return CodeWorkResult{MissingSecrets: []string{"STORE_TOKEN"}}
+		}
 	})
 	h.wants(1, "open", workitem.StatusNeedsHumanAction)
 	if !strings.Contains(h.last(1), "STORE_TOKEN") {
@@ -527,7 +545,10 @@ func TestTheGrantIsPostedBeforeTheFire(t *testing.T) {
 	h.item(1, "a")
 	var order []string
 	h.drive([]taskspec.Task{loopTask("a", nil)}, func(in *In) {
-		in.Grant = func(taskspec.Task, workitem.Issue) (string, error) { order = append(order, "grant"); return "<!-- claudinite-grant -->\ng", nil }
+		in.Grant = func(taskspec.Task, workitem.Issue) (string, error) {
+			order = append(order, "grant")
+			return "<!-- claudinite-grant -->\ng", nil
+		}
 		in.Invoke = func(taskspec.Task, workitem.Issue, string) Invocation {
 			c := h.get(1).Comments
 			order = append(order, "fire after "+strings.SplitN(c[len(c)-1].Body, "\n", 2)[0])
@@ -790,7 +811,9 @@ func TestASecondExecutorWinsAParkedItemAHumanReQueued(t *testing.T) {
 	h := newLoop(t)
 	h.item(1, "a")
 	h.drive([]taskspec.Task{loopTask("a", nil)}, func(in *In) {
-		in.Invoke = func(taskspec.Task, workitem.Issue, string) Invocation { return Invocation{Answered: true, Error: "no endpoint"} }
+		in.Invoke = func(taskspec.Task, workitem.Issue, string) Invocation {
+			return Invocation{Answered: true, Error: "no endpoint"}
+		}
 	})
 	h.wants(1, "open", workitem.StatusNeedsHumanAction)
 	if err := queue.SwapStatus(h.gh, 1, workitem.StatusNeedsHumanAction, workitem.StatusReady); err != nil {
@@ -839,7 +862,10 @@ func TestACloseLeavesItsDependentBlocked(t *testing.T) {
 // manualTicker fires a beat each time the work step asks for one.
 type manualTicker struct{ fn func() }
 
-func (m *manualTicker) Every(_ time.Duration, fn func()) func() { m.fn = fn; return func() { m.fn = nil } }
+func (m *manualTicker) Every(_ time.Duration, fn func()) func() {
+	m.fn = fn
+	return func() { m.fn = nil }
+}
 
 func TestALongWorkStepLeavesHeartbeatsOnItsOwnItem(t *testing.T) {
 	h := newLoop(t)

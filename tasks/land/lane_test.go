@@ -33,11 +33,11 @@ func TestDeliveryForOnlyAnExplicitTrueWithholdsThePR(t *testing.T) {
 func TestWorkflowTriggersReadsEveryShape(t *testing.T) {
 	cases := map[string][]string{
 		"name: Tests\non:\n  workflow_dispatch:\n  pull_request:\n    branches: [main]\n  push:\n    branches: [main, \"claude/**\"]\njobs:\n  test:\n    runs-on: ubuntu-latest": {"workflow_dispatch", "pull_request", "push"},
-		"name: CI\non:\n  pull_request:\n  push:\n    branches: [main]\njobs: {}\n":                                                                                          {"pull_request", "push"},
-		"on: workflow_dispatch\njobs: {}\n":     {"workflow_dispatch"},
-		"on: [pull_request, push]\njobs: {}\n":  {"pull_request", "push"},
-		"'on':\n  push:\njobs: {}\n":            {"push"},
-		"name: fragment\njobs: {}\n":            nil,
+		"name: CI\non:\n  pull_request:\n  push:\n    branches: [main]\njobs: {}\n":                                                                                               {"pull_request", "push"},
+		"on: workflow_dispatch\njobs: {}\n":    {"workflow_dispatch"},
+		"on: [pull_request, push]\njobs: {}\n": {"pull_request", "push"},
+		"'on':\n  push:\njobs: {}\n":           {"push"},
+		"name: fragment\njobs: {}\n":           nil,
 		"on:\n  schedule:\n    - cron: \"24 * * * *\"\n  workflow_dispatch:\n    inputs:\n      overrides:\n        required: false\njobs: {}": {"schedule", "workflow_dispatch"},
 	}
 	for yaml, want := range cases {

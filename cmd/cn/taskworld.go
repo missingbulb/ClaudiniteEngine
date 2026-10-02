@@ -253,11 +253,12 @@ type wirePull struct {
 		Ref string `json:"ref"`
 	} `json:"base"`
 	Labels workitem.LabelList `json:"labels"`
+	NodeID string             `json:"node_id"`
 }
 
 func (w wirePull) pull() world.Pull {
 	return world.Pull{Number: w.Number, Title: w.Title, Body: w.Body, State: w.State, Author: w.User.Login,
-		HeadRef: w.Head.Ref, HeadSHA: w.Head.SHA, BaseRef: w.Base.Ref, UpdatedAt: w.UpdatedAt, MergedAt: w.MergedAt, Labels: w.Labels}
+		HeadRef: w.Head.Ref, HeadSHA: w.Head.SHA, BaseRef: w.Base.Ref, UpdatedAt: w.UpdatedAt, MergedAt: w.MergedAt, Labels: w.Labels, NodeID: w.NodeID}
 }
 
 func (g ghWorld) PullsPage(state, sortBy, direction string, page int) ([]world.Pull, error) {

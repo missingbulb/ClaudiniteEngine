@@ -336,3 +336,12 @@ var engineHolds = map[string]holdsFunc{
 		return Outcome{Reason: n + ": neither opened nor approved with `/claude go` by anyone with push access on this repository"}
 	},
 }
+
+// EngineJudged reports whether the engine answers the term itself: a
+// built-in, or the engine's own task's term. Anything else a task names
+// is its preconditions.mjs's, asked through the runner.
+func EngineJudged(name string) bool {
+	_, builtin := holds[name]
+	_, engine := engineHolds[name]
+	return builtin || engine
+}

@@ -60,31 +60,51 @@ func updateDeps(repo string, stdout io.Writer) (update.Deps, error) {
 
 // actionsKey requests the run's Actions key at most once per process and
 // hands the updater what it reads of it.
+// runKey is the process's one Actions key request, shared by every caller
+// that needs the run's key.
+var runKey struct {
+	once sync.Once
+	key  *license.ActionsOnce
+}
+
+func sharedActionsKey(roots []ed25519.PublicKey, log io.Writer) *license.ActionsOnce {
+	runKey.once.Do(func() {
+		runKey.key = &license.ActionsOnce{Request: func() license.ActionsResult {
+			start := time.Now()
+			w, err := licenseapi.FromEnv()
+			var r license.ActionsResult
+			if err != nil {
+				r = license.ActionsResult{Cause: license.CauseServerUnreachable, Detail: err.Error()}
+			} else {
+				r = license.RequestActions(w, &http.Client{Timeout: 10 * time.Second}, os.Getenv, roots, time.Now, version.Version())
+			}
+			outcome := breadcrumb.OK
+			if r.Key == nil {
+				outcome = breadcrumb.Error
+			}
+			fmt.Fprintln(log, breadcrumb.Line("license", "request-actions", outcome, time.Since(start)))
+			if r.Key != nil {
+				fmt.Fprintf(log, "license key: %s plan, %s\n", r.Key.Plan, r.Key.State)
+			}
+			return r
+		}}
+	})
+	return runKey.key
+}
+
 func actionsKey(roots []ed25519.PublicKey, log io.Writer) func() update.KeyResult {
-	return sync.OnceValue(func() update.KeyResult {
-		start := time.Now()
-		w, err := licenseapi.FromEnv()
-		var r license.ActionsResult
-		if err != nil {
-			r = license.ActionsResult{Cause: license.CauseServerUnreachable, Detail: err.Error()}
-		} else {
-			r = license.RequestActions(w, &http.Client{Timeout: 10 * time.Second}, os.Getenv, roots, time.Now, version.Version())
-		}
-		outcome := breadcrumb.OK
-		if r.Key == nil {
-			outcome = breadcrumb.Error
-		}
-		fmt.Fprintln(log, breadcrumb.Line("license", "request-actions", outcome, time.Since(start)))
+	shared := sharedActionsKey(roots, log)
+	return func() update.KeyResult {
+		r := shared.Key()
 		if r.Key == nil {
 			return update.KeyResult{Cause: string(r.Cause), Detail: r.Detail, Link: r.Link}
 		}
 		k := r.Key
-		fmt.Fprintf(log, "license key: %s plan, %s\n", k.Plan, k.State)
 		notice := strings.TrimPrefix(license.NoticeFor(k, "", "", ""), "[cn] license degraded: ")
 		return update.KeyResult{Key: &update.LicenseKey{Plan: string(k.Plan), State: k.State, Notice: notice,
 			IssuedAt: time.Unix(k.Iat, 0), Held: k.Release.Held, Revoked: k.Release.Revoked, SecurityFixes: k.Release.SecurityFixes,
 			SerialFloor: k.Release.PackIndexSerial, PackKeys: k.Release.PackKeys}}
-	})
+	}
 }
 
 // packReader reads the pack indexes from the CDN and the vendored branch,

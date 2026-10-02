@@ -7,7 +7,7 @@
 //	POST /v1/session-key          SessionKey        (Bearer App user token)
 //	POST /v1/public/session-key   PublicSessionKey  (Bearer App user token)
 //	POST /v1/actions-key          ActionsKey        (Bearer OIDC token)
-//	POST /v1/item-grant           ItemGrant         (Bearer OIDC token; no caller until phase 6)
+//	POST /v1/item-grant           ItemGrant         (Bearer Actions key)
 //
 // CLAUDINITE_LICENSE_API overrides the base for the rehearsal's stub. The
 // base is HTTPS, or plain HTTP on loopback only; every answer is capped at
@@ -224,7 +224,17 @@ func (c *Client) ActionsKey(oidcToken, engine string) (KeyAnswer, error) {
 	return c.key("/v1/actions-key", oidcToken, map[string]string{"engine_version": engine})
 }
 
-// ItemGrant asks for the grant of a work item's issue.
-func (c *Client) ItemGrant(oidcToken string, issue int, engine string) (KeyAnswer, error) {
-	return c.key("/v1/item-grant", oidcToken, map[string]any{"issue": issue, "engine_version": engine})
+// ItemGrant asks for the grant of a work item's issue with the run's
+// Actions key, in its wire form, and answers the grant's wire form.
+func (c *Client) ItemGrant(actionsKey string, issue int) (string, error) {
+	var out struct {
+		Grant string `json:"grant"`
+	}
+	if err := c.call(http.MethodPost, "/v1/item-grant", actionsKey, map[string]int{"issue": issue}, &out); err != nil {
+		return "", err
+	}
+	if out.Grant == "" {
+		return "", fmt.Errorf("POST /v1/item-grant: %w: no grant", errShape)
+	}
+	return out.Grant, nil
 }

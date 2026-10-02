@@ -44,6 +44,9 @@ type Manifest struct {
 	// convention (every skills/*/ directory) applies.
 	Skills    []string
 	SkillsSet bool
+	// GitHubActions are the named GitHub actions the pack's task scripts
+	// take through the SDK.
+	GitHubActions []string
 }
 
 // ManifestName is the manifest's descriptor name.
@@ -74,6 +77,7 @@ var ManifestSchema = descriptor.Schema{Name: "pack manifest", Keys: map[string]d
 	"badge":               descriptor.String,
 	"seededByDefault":     descriptor.Bool,
 	"hidden":              descriptor.Bool,
+	"githubActions":       descriptor.StringList,
 }}
 
 // ManifestFiles are the manifest's three spellings.
@@ -162,6 +166,7 @@ func parseManifest(name string, raw []byte) (Manifest, error) {
 	m.Version, _ = obj["version"].(string)
 	m.MinEngineVersion, _ = obj["minEngineVersion"].(string)
 	m.Requires = stringList(obj["requires"])
+	m.GitHubActions = stringList(obj["githubActions"])
 	if p, ok := obj["prose"]; ok {
 		m.ProseSet = true
 		m.Prose, _ = p.(string)

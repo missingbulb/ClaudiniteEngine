@@ -31,17 +31,17 @@ func decl(id string) string { return strings.Replace(agentless, "%s", id, 1) }
 func TestDiscover(t *testing.T) {
 	repo := t.TempDir()
 	put(t, repo, map[string]string{
-		".claudinite/local/packs/acme-pack/tasks/nightly/task.json":         decl("nightly"),
-		".claudinite/local/packs/acme-pack/tasks/weekly/task.yaml":          "id: weekly\ntrigger: request\nexpected_outcome: no_code_changes\ncode_worker_mjs: worker.mjs\ncode_work_timeout: 5\n",
-		".claudinite/local/packs/acme-pack/tasks/renamed/task.json":         decl("other"),
-		".claudinite/local/packs/acme-pack/tasks/broken/task.json":          "{",
-		".claudinite/local/packs/acme-pack/tasks/invalid/task.json":         `{"id": "invalid"}`,
-		".claudinite/local/packs/acme-pack/tasks/twice/task.json":           decl("twice"),
-		".claudinite/local/packs/acme-pack/tasks/twice/task.toml":           "id = \"twice\"\n",
-		".claudinite/local/packs/acme-pack/tasks/notes/README.md":           "no declaration\n",
-		".claudinite/temp/packs/current_user/tasks/mine/task.json":          decl("mine"),
-		".claudinite/local/packs/acme-pack/tasks/gated/task.json":           strings.Replace(decl("gated"), `["due:daily"]`, `["due:daily", "my-gate"]`, 1),
-		".claudinite/local/packs/acme-pack/tasks/gated/preconditions.mjs":   "export const terms = {\n  'my-gate': { signals: ['commits'], holds: () => true },\n};\n",
+		".claudinite/local/packs/acme-pack/tasks/nightly/task.json":       decl("nightly"),
+		".claudinite/local/packs/acme-pack/tasks/weekly/task.yaml":        "id: weekly\ntrigger: request\nexpected_outcome: no_code_changes\ncode_worker_mjs: worker.mjs\ncode_work_timeout: 5\n",
+		".claudinite/local/packs/acme-pack/tasks/renamed/task.json":       decl("other"),
+		".claudinite/local/packs/acme-pack/tasks/broken/task.json":        "{",
+		".claudinite/local/packs/acme-pack/tasks/invalid/task.json":       `{"id": "invalid"}`,
+		".claudinite/local/packs/acme-pack/tasks/twice/task.json":         decl("twice"),
+		".claudinite/local/packs/acme-pack/tasks/twice/task.toml":         "id = \"twice\"\n",
+		".claudinite/local/packs/acme-pack/tasks/notes/README.md":         "no declaration\n",
+		".claudinite/temp/packs/current_user/tasks/mine/task.json":        decl("mine"),
+		".claudinite/local/packs/acme-pack/tasks/gated/task.json":         strings.Replace(decl("gated"), `["due:daily"]`, `["due:daily", "my-gate"]`, 1),
+		".claudinite/local/packs/acme-pack/tasks/gated/preconditions.mjs": "export const terms = {\n  'my-gate': { signals: ['commits'], holds: () => true },\n};\n",
 	})
 	packs := []packset.Pack{
 		{ID: "acme-pack", Kind: packset.Local, Dir: filepath.Join(repo, ".claudinite/local/packs/acme-pack"), Rel: ".claudinite/local/packs/acme-pack"},

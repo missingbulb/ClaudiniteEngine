@@ -255,13 +255,6 @@ func cmdScheduleDrain(args []string, stdout io.Writer, env world.Env) error {
 	return nil
 }
 
-// FailureLabels are the labels the one workflow-failure issue wears.
-var failureLabels = []workitem.Label{
-	{Name: schedule.WorkflowFailureLabel, Color: "b60205", Description: "Claudinite scheduler: a scheduler run or task failed"},
-	{Name: workitem.OriginGitHub, Color: "d4c5f9", Description: "Claudinite queue: filed by the platform itself — a workflow reporting its own failure"},
-	{Name: workitem.StatusNeedsHumanFailure, Color: "b60205", Description: "Claudinite queue: parked — the run broke, diagnose and fix"},
-}
-
 func cmdReportFailure(args []string, stdout io.Writer, env world.Env) error {
 	fs := flag.NewFlagSet("schedule report-failure", flag.ContinueOnError)
 	title := fs.String("title", schedule.SchedulerFailureTitle, "")
@@ -272,7 +265,7 @@ func cmdReportFailure(args []string, stdout io.Writer, env world.Env) error {
 	if err != nil {
 		return err
 	}
-	n, created, err := schedule.ReportFailure(ghWorld{client}, failureLabels, *title,
+	n, created, err := schedule.ReportFailure(ghWorld{client}, schedule.FailureLabels, *title,
 		"The Claudinite scheduler run/drain run failed: "+env.RunURL())
 	if err != nil {
 		return report.New(report.IO, err.Error())

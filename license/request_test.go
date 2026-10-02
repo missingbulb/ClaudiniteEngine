@@ -811,6 +811,9 @@ func TestActionsKey(t *testing.T) {
 	if res.Key == nil || res.Cause != "" || w.calls[0] != "actions-key h.eyJyZXBvc2l0b3J5X3Zpc2liaWxpdHkiOiJwdWJsaWMifQ.s" {
 		t.Fatalf("%+v %v", res, w.calls)
 	}
+	if _, err := VerifyKey([]byte(res.Wire), testRoots(), testNow); err != nil {
+		t.Errorf("the result carries the key's wire form, the grant's bearer: %v", err)
+	}
 	if res := RequestActions(w, srv.Client(), func(string) string { return "" }, testRoots(), now, "1"); res.Cause != CauseNoOIDC {
 		t.Errorf("no OIDC: %+v", res)
 	}

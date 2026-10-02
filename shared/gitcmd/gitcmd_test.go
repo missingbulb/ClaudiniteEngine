@@ -272,3 +272,35 @@ func TestAfterOneTimeoutLaterGitFailsAtOnce(t *testing.T) {
 		t.Errorf("faults %q: a skip is not a second fault", got)
 	}
 }
+
+// A caller's own command: a non-zero exit is an answer with its streams,
+// the token rides only a command that talks to the remote, and commits
+// are the bot's.
+func TestRunAnswersExitCodesAndCarriesTheTokenOnlyToTheRemote(t *testing.T) {
+	r, _ := clone(t)
+	r.Token = "ghs_secret"
+	ran, err := r.Run("rev-parse", "--verify", "no-such-ref")
+	if err != nil || ran.Code == 0 || ran.Stderr == "" {
+		t.Errorf("%+v %v", ran, err)
+	}
+	ran, err = r.Run("config", "--get", extraheader)
+	if err != nil || ran.Code == 0 || strings.Contains(ran.Stdout, "basic") {
+		t.Errorf("a local command saw the token: %+v %v", ran, err)
+	}
+	_ = os.WriteFile(filepath.Join(r.Dir, "b.txt"), []byte("two\n"), 0o644)
+	if ran, err := r.Run("add", "b.txt"); err != nil || ran.Code != 0 {
+		t.Fatal(ran, err)
+	}
+	if ran, err := r.Run("commit", "-q", "-m", "second"); err != nil || ran.Code != 0 {
+		t.Fatal(ran, err)
+	}
+	if got := git(t, r.Dir, "log", "-1", "--format=%an"); got != BotName {
+		t.Error(got)
+	}
+	if ran, err := r.Run("push", "-q", "origin", "main"); err != nil || ran.Code != 0 {
+		t.Error(ran, err)
+	}
+	if _, err := r.Run(); err == nil {
+		t.Error("an empty command ran")
+	}
+}

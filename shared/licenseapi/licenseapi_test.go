@@ -53,7 +53,6 @@ func TestTheSixRoutes(t *testing.T) {
 		"/v1/session-key":        func() (KeyAnswer, error) { return c.SessionKey("ghu", "acme/member", "nonce", "1.1.0") },
 		"/v1/public/session-key": func() (KeyAnswer, error) { return c.PublicSessionKey("ghu", "acme/member", "nonce", "1.1.0") },
 		"/v1/actions-key":        func() (KeyAnswer, error) { return c.ActionsKey("jwt", "1.1.0") },
-		"/v1/item-grant":         func() (KeyAnswer, error) { return c.ItemGrant("jwt", 12, "1.1.0") },
 	} {
 		k, err := call()
 		if err != nil || k.Key != `{"k":1}` || k.Plan != "public" || k.State != "ok" {
@@ -73,8 +72,25 @@ func TestTheSixRoutes(t *testing.T) {
 	if s := byPath["/v1/login/refresh"]; s.body["refresh_token"] != "ghr_1" || s.auth != "" {
 		t.Errorf("refresh %+v", s)
 	}
-	if s := byPath["/v1/item-grant"]; s.body["issue"] != float64(12) {
-		t.Errorf("item-grant %+v", s)
+}
+
+// The grant route takes the run's Actions key, in its wire form, as the
+// bearer and answers {grant} (ClaudiniteLicenses workers/key/README.md).
+func TestTheItemGrantIsAskedWithTheActionsKey(t *testing.T) {
+	var log []seen
+	c := server(t, &log, func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.WriteString(w, `{"grant": "{\"g\":1}"}`)
+	})
+	g, err := c.ItemGrant(`{"actions":1}`, 12)
+	if err != nil || g != `{"g":1}` {
+		t.Fatalf("%q %v", g, err)
+	}
+	if len(log) != 1 || log[0].path != "/v1/item-grant" || log[0].auth != `Bearer {"actions":1}` || log[0].body["issue"] != float64(12) || len(log[0].body) != 1 {
+		t.Errorf("%+v", log)
+	}
+	c = server(t, &log, func(w http.ResponseWriter, r *http.Request) { _, _ = io.WriteString(w, `{"key": "x"}`) })
+	if _, err := c.ItemGrant("k", 12); err == nil {
+		t.Error("an answer with no grant")
 	}
 }
 

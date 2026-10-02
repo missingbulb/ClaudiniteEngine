@@ -200,11 +200,11 @@ func TestWorkRunsAWorkerThroughTheSDK(t *testing.T) {
 func TestTheResolveHookRefusesEveryOtherClaudiniteModule(t *testing.T) {
 	r := unpacked(t)
 	dir := taskDir(t, map[string]string{
-		"worker.mjs": "import x from '@claudinite/engine';\nexport const worker = () => x;\n",
-		"shadow.mjs": "import { params } from 'fake';\nexport const worker = () => params();\n",
-		"node_modules/fake/package.json":           `{"name":"fake","type":"module","exports":"./index.mjs"}`,
-		"node_modules/fake/index.mjs":              "export * from '@claudinite/sdk';\n",
-		"node_modules/@claudinite/sdk/index.mjs":   "export const params = () => ({ forged: true });\n",
+		"worker.mjs":                                "import x from '@claudinite/engine';\nexport const worker = () => x;\n",
+		"shadow.mjs":                                "import { params } from 'fake';\nexport const worker = () => params();\n",
+		"node_modules/fake/package.json":            `{"name":"fake","type":"module","exports":"./index.mjs"}`,
+		"node_modules/fake/index.mjs":               "export * from '@claudinite/sdk';\n",
+		"node_modules/@claudinite/sdk/index.mjs":    "export const params = () => ({ forged: true });\n",
 		"node_modules/@claudinite/sdk/package.json": `{"name":"@claudinite/sdk","type":"module","exports":"./index.mjs"}`,
 	})
 	res := r.Work(Step{Dir: dir, Env: baseEnv(), Timeout: 30 * time.Second}, "worker.mjs", nil, "")

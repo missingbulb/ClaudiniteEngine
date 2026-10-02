@@ -139,6 +139,9 @@ const (
 	HandoffMarker   = "<!-- claudinite-handoff -->"
 	EpisodeMarker   = "<!-- claudinite-episode -->"
 	HeartbeatMarker = "<!-- claudinite-heartbeat -->"
+	// GrantMarker opens the comment carrying an item's grant, which a
+	// routine session verifies; this engine's addition to the markers.
+	GrantMarker = "<!-- claudinite-grant -->"
 )
 
 // The body fields.

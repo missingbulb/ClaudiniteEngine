@@ -85,6 +85,21 @@ commands:
                  scheduled task is refused
   work wake #N [--urgent]
                  clear an item's wait and return it to the queue
+  work converge --issue N --outcome O --summary T [--pr N] --repo R
+                 --item-file PATH
+                 print the transition a routine session performs to
+                 converge its item; refuses an item it does not hold
+  work record-exec <pack>/<task> <slot> <success|failed>
+                 print one execution record
+  work validate --issue N --nonce X --item-file PATH --comments-file PATH
+                 [--request-file PATH] [--repo DIR]
+                 a routine session's entry gate: the nonce and the grant
+  execute loop [--repo DIR]
+                 the executor: claim, re-evaluate, run and converge every
+                 ready item; needs GITHUB_TOKEN
+  execute continue
+                 dispatch the next executor run after one died, or past
+                 the chain's depth report it
   workflows diff [--repo DIR]
                  the patch that brings a member's workflows to this
                  version's templates; empty when they match
@@ -214,6 +229,8 @@ func dispatch(args []string, stdin io.Reader, stdout, stderr io.Writer, start ti
 		return cmdSchedule(args[1:], stdout)
 	case "work":
 		return cmdWork(args[1:], stdout)
+	case "execute":
+		return cmdExecute(args[1:], stdout)
 	}
 	return report.New(report.Usage, fmt.Sprintf("unknown command %q", args[0]))
 }

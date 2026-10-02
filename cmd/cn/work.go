@@ -15,7 +15,7 @@ import (
 
 func cmdWork(args []string, stdout io.Writer) error {
 	if len(args) == 0 {
-		return report.New(report.Usage, "work takes create or wake")
+		return report.New(report.Usage, "work takes create, wake, converge, record-exec or validate")
 	}
 	env := world.Env(os.Getenv)
 	switch args[0] {
@@ -23,6 +23,12 @@ func cmdWork(args []string, stdout io.Writer) error {
 		return cmdWorkCreate(args[1:], stdout, env)
 	case "wake":
 		return cmdWorkWake(args[1:], stdout, env)
+	case "converge":
+		return cmdWorkConverge(args[1:], stdout)
+	case "record-exec":
+		return cmdWorkRecordExec(args[1:], stdout)
+	case "validate":
+		return cmdWorkValidate(args[1:], stdout)
 	}
 	return report.New(report.Usage, fmt.Sprintf("unknown work command %q", args[0]))
 }

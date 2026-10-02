@@ -34,9 +34,9 @@ func TestReadManifest(t *testing.T) {
 
 func TestReadManifestThreeFormats(t *testing.T) {
 	for name, body := range map[string]string{
-		"pack.json": `{"version": "1.1", "minEngineVersion": "1.1.0", "requires": ["a"], "prose": null, "skills": ["s"], "seededByDefault": true, "hidden": false}`,
-		"pack.yaml": "version: \"1.1\"\nminEngineVersion: \"1.1.0\"\nrequires: [a]\nprose: null\nskills:\n  - s\nseededByDefault: true\nhidden: false\n",
-		"pack.toml": "version = \"1.1\"\nminEngineVersion = \"1.1.0\"\nrequires = [\"a\"]\nprose = \"\"\nskills = [\"s\"]\nseededByDefault = true\nhidden = false\n",
+		"pack.json": `{"version": "1.1", "minEngineVersion": "1.1.0", "requires": ["a"], "prose": null, "skills": ["s"], "seededByDefault": true, "hidden": false, "githubActions": ["openPr"]}`,
+		"pack.yaml": "version: \"1.1\"\nminEngineVersion: \"1.1.0\"\nrequires: [a]\nprose: null\nskills:\n  - s\nseededByDefault: true\nhidden: false\ngithubActions: [openPr]\n",
+		"pack.toml": "version = \"1.1\"\nminEngineVersion = \"1.1.0\"\nrequires = [\"a\"]\nprose = \"\"\nskills = [\"s\"]\nseededByDefault = true\nhidden = false\ngithubActions = [\"openPr\"]\n",
 	} {
 		dir := t.TempDir()
 		write(t, filepath.Join(dir, name), body)
@@ -44,7 +44,7 @@ func TestReadManifestThreeFormats(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
-		if m.File != name || m.Version != "1.1" || m.MinEngineVersion != "1.1.0" || strings.Join(m.Requires, ",") != "a" || !m.ProseSet || m.Prose != "" || !m.SkillsSet || strings.Join(m.Skills, ",") != "s" {
+		if m.File != name || m.Version != "1.1" || m.MinEngineVersion != "1.1.0" || strings.Join(m.Requires, ",") != "a" || !m.ProseSet || m.Prose != "" || !m.SkillsSet || strings.Join(m.Skills, ",") != "s" || strings.Join(m.GitHubActions, ",") != "openPr" {
 			t.Errorf("%s: %+v", name, m)
 		}
 	}
@@ -52,9 +52,10 @@ func TestReadManifestThreeFormats(t *testing.T) {
 
 func TestReadManifestRefuses(t *testing.T) {
 	cases := map[string]string{
-		`"extra" is not a pack manifest key`:   `{"version": "1.0", "extra": 1}`,
-		`"requires" must be a list of strings`: `{"version": "1.0", "requires": "a"}`,
-		`has no version`:                       `{"minEngineVersion": "1.1.0"}`,
+		`"extra" is not a pack manifest key`:        `{"version": "1.0", "extra": 1}`,
+		`"requires" must be a list of strings`:      `{"version": "1.0", "requires": "a"}`,
+		`has no version`:                            `{"minEngineVersion": "1.1.0"}`,
+		`"githubActions" must be a list of strings`: `{"version": "1.0", "githubActions": "openPr"}`,
 	}
 	for want, body := range cases {
 		dir := t.TempDir()

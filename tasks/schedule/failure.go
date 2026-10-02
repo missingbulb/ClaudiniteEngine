@@ -10,6 +10,13 @@ import (
 // WorkflowFailureLabel marks the one issue a failing workflow reports on.
 const WorkflowFailureLabel = "workflow-failure"
 
+// FailureLabels are the labels the one workflow-failure issue wears.
+var FailureLabels = []workitem.Label{
+	{Name: WorkflowFailureLabel, Color: "b60205", Description: "Claudinite scheduler: a scheduler run or task failed"},
+	{Name: workitem.OriginGitHub, Color: "d4c5f9", Description: "Claudinite queue: filed by the platform itself — a workflow reporting its own failure"},
+	{Name: workitem.StatusNeedsHumanFailure, Color: "b60205", Description: "Claudinite queue: parked — the run broke, diagnose and fix"},
+}
+
 // SchedulerFailureTitle is the scheduler's failure issue.
 const SchedulerFailureTitle = "Claudinite scheduler run failed"
 

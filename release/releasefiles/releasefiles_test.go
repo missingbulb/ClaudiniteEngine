@@ -79,7 +79,9 @@ func TestUpdaterDigestFollowsTheUpdaterSource(t *testing.T) {
 		func() { write("lifecycle/update/sub/b.go", "package sub // changed\n") },
 		func() { write("lifecycle/update/c.go", "package update\n") },
 		func() { write("launcher/launch", "#!/bin/sh\n# changed\n") },
-		func() { _ = os.Rename(filepath.Join(root, "lifecycle/update/c.go"), filepath.Join(root, "lifecycle/update/d.go")) },
+		func() {
+			_ = os.Rename(filepath.Join(root, "lifecycle/update/c.go"), filepath.Join(root, "lifecycle/update/d.go"))
+		},
 		func() { write("lifecycle/workflows/templates/w.yml", "on: pull_request\n") },
 		func() { write("shared/npmreg/n.go", "package npmreg // changed\n") },
 		func() { write("shared/githubapi/g.go", "package githubapi // changed\n") },

@@ -158,6 +158,24 @@ func (r Repo) exec(remote bool, args ...string) ([]byte, error) {
 	if err := r.Faults.spent(args); err != nil {
 		return nil, err
 	}
+	cmd, done := r.child(remote, args)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	out, err := cmd.Output()
+	if err = done(err); err != nil {
+		var te *TimeoutError
+		if errors.As(err, &te) {
+			r.Faults.add(te.msg)
+			return out, te
+		}
+		return out, fmt.Errorf("git %s: %v: %s", strings.Join(args, " "), err, strings.TrimSpace(stderr.String()))
+	}
+	return out, nil
+}
+
+// child is git with args in the tree, as the bot, under the bound its
+// kind takes, with the token when it talks to the remote.
+func (r Repo) child(remote bool, args []string) (*exec.Cmd, func(error) error) {
 	timeout := CommandTimeout
 	if remote {
 		timeout = RemoteTimeout
@@ -173,18 +191,7 @@ func (r Repo) exec(remote bool, args ...string) ([]byte, error) {
 			"GIT_CONFIG_KEY_0="+extraheader, "GIT_CONFIG_VALUE_0=",
 			"GIT_CONFIG_KEY_1="+extraheader, "GIT_CONFIG_VALUE_1=AUTHORIZATION: basic "+cred)
 	}
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	out, err := cmd.Output()
-	if err = done(err); err != nil {
-		var te *TimeoutError
-		if errors.As(err, &te) {
-			r.Faults.add(te.msg)
-			return out, te
-		}
-		return out, fmt.Errorf("git %s: %v: %s", strings.Join(args, " "), err, strings.TrimSpace(stderr.String()))
-	}
-	return out, nil
+	return cmd, done
 }
 
 func (r Repo) line(args ...string) (string, error) {
@@ -346,4 +353,43 @@ func (r Repo) Tree(ref, prefix string) (map[string]File, error) {
 func (r Repo) DeleteBranch(name string) error {
 	_, err := r.run("branch", "-q", "-D", name)
 	return err
+}
+
+// Ran is one command a caller composed: its exit code and both streams.
+type Ran struct {
+	Code           int    `json:"code"`
+	Stdout, Stderr string `json:"-"`
+}
+
+// remoteCommands talk to the remote, so they carry the token and the
+// remote bound.
+var remoteCommands = map[string]bool{"fetch": true, "push": true, "pull": true, "ls-remote": true, "clone": true}
+
+// Run is git with a caller's own arguments, as the updater runs git:
+// bounded, the bot's identity, the token only on a command that talks to
+// the remote. A non-zero exit is an answer, not an error; a command that
+// could not run or timed out is the error.
+func (r Repo) Run(args ...string) (Ran, error) {
+	if len(args) == 0 {
+		return Ran{}, errors.New("git: no command")
+	}
+	if err := r.Faults.spent(args); err != nil {
+		return Ran{}, err
+	}
+	cmd, done := r.child(remoteCommands[args[0]], args)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	err := done(cmd.Run())
+	var te *TimeoutError
+	var exit *exec.ExitError
+	switch {
+	case errors.As(err, &te):
+		r.Faults.add(te.msg)
+		return Ran{}, te
+	case errors.As(err, &exit):
+		return Ran{Code: exit.ExitCode(), Stdout: stdout.String(), Stderr: stderr.String()}, nil
+	case err != nil:
+		return Ran{}, fmt.Errorf("git %s: %w", strings.Join(args, " "), err)
+	}
+	return Ran{Stdout: stdout.String(), Stderr: stderr.String()}, nil
 }
