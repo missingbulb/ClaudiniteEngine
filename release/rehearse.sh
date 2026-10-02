@@ -948,7 +948,10 @@ GO
       GITHUB_REPOSITORY=acme/member CLAUDINITE_GITHUB_API=$gh GH_TOKEN=rehearsal-token
       CLAUDINITE_PACKS_CDN=$(cat "$work/tasks-cdn-ready") CLAUDINITE_PACKS_REPO=$src/mirror.git
       CCR_ROUTINE_TOKEN=routine-token
-      export SSL_CERT_FILE CURL_CA_BUNDLE GITHUB_REPOSITORY CLAUDINITE_GITHUB_API GH_TOKEN CLAUDINITE_PACKS_CDN CLAUDINITE_PACKS_REPO CCR_ROUTINE_TOKEN
+      # The member's queue workflows run on its main; in CI the job's own
+      # ref (a pull request's merge ref) would otherwise be the queue's branch.
+      GITHUB_REF_NAME=main
+      export SSL_CERT_FILE CURL_CA_BUNDLE GITHUB_REPOSITORY CLAUDINITE_GITHUB_API GH_TOKEN CLAUDINITE_PACKS_CDN CLAUDINITE_PACKS_REPO CCR_ROUTINE_TOKEN GITHUB_REF_NAME
       actions_env
       name=${package#@claudinite/}
       npx=$work/tasks-npx/node_modules
@@ -1112,7 +1115,7 @@ GO
         -d "{\"body\":\"<!-- claudinite-claim -->\\nClaimed by executor \`exec-a\` at $at.\"}" "$gh/repos/acme/member/issues/$n/comments" > /dev/null \
         || fail "tasks 7: exec-a's claim"
       CLAUDINITE_EXECUTOR_ID=exec-b execute || fail "tasks 7: execute loop as exec-b: $(cat "$work/exec.out")"
-      comments_of "$n" | grep -A3 "executor .exec-b." | grep -q "claudinite-episode" || fail "tasks 7: exec-b did not strike its claim: $(comments_of "$n")"
+      [ "$(gh_count 'st.issues.find(i=>i.number==='"$n"').comments.filter(c=>c.includes("executor \u0060exec-b\u0060")&&c.includes("claudinite-episode")).length')" = 1 ] || fail "tasks 7: exec-b did not strike its claim: $(comments_of "$n")"
       [ "$(state_of "$n")" = open ] || fail "tasks 7: exec-b ran #$n past exec-a's earlier claim"
       # exec-b left the item running, which is exec-a's to finish; exec-a never heartbeats.
       case " $(labels_of "$n") " in *" task:status:running-executor "*) ;; *) fail "tasks 7: #$n is $(labels_of "$n") after the lost claim" ;; esac
