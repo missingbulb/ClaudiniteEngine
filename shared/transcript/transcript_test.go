@@ -191,15 +191,30 @@ func TestSkillLoadsAcrossSubagents(t *testing.T) {
 	}
 }
 
+// A session reads its files at most twice: the loads-only read, then the
+// full one when a verdict needs the calls; after the full read the loads
+// come from it.
 func TestSessionReadsOnce(t *testing.T) {
 	p := write(t, []map[string]any{assistant(toolUse("a", "Skill", map[string]any{"skill": "s"}))}, nil)
 	s := NewSession(p)
 	if !s.Loaded()["s"] {
 		t.Fatal("not loaded")
 	}
+	if s.all != nil || s.calls != nil {
+		t.Error("the loads read parsed the whole session")
+	}
+	if len(s.Calls()) != 1 {
+		t.Fatal("no calls")
+	}
 	_ = os.Remove(p)
 	if !s.Loaded()["s"] || len(s.Calls()) != 1 {
-		t.Error("read twice")
+		t.Error("read again")
+	}
+	s = NewSession(write(t, []map[string]any{assistant(toolUse("a", "Skill", map[string]any{"skill": "s"}))}, nil))
+	_ = s.Calls()
+	_ = os.Remove(s.Path)
+	if !s.Loaded()["s"] {
+		t.Error("the loads after a full read read the files again")
 	}
 	var none *Session
 	if len(none.Loaded()) != 0 || none.Calls() != nil || len(none.ReplyClasses()) != 0 {
@@ -292,5 +307,52 @@ process.stdout.write(JSON.stringify({
 	}
 	if !reflect.DeepEqual(SkillLoads(all), node.Loads) {
 		t.Errorf("loads differ")
+	}
+}
+
+// The loads-only read skips the lines that cannot name a load without
+// parsing them; over every shape a load can take, written plainly and
+// with its letters escaped, it answers what the full parse answers.
+func TestLoadsOnlyReadMatchesTheFullParse(t *testing.T) {
+	shapes := []string{
+		line(t, assistant(toolUse("a", "Skill", map[string]any{"skill": "plain"}))),
+		`{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Skill","input":{"skill":"escaped-name"}}]}}`,
+		line(t, assistant(toolUse("b", "Read", map[string]any{"file_path": "/r/skills/read/SKILL.md"}))),
+		`{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{"file_path":"\/r\/skills\/slashes\/SKILL.md"}}]}}`,
+		`{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{"file_path":"/r/skills/esc/SKILL.md"}}]}}`,
+		line(t, user("<command-name>/cmd</command-name>")),
+		`{"type":"user","message":{"content":"<command-name>/lt</command-name>"}}`,
+		`{"type":"user","message":{"content":"<command-name>/esc</command-name>"}}`,
+		line(t, user([]any{text("<command-name>/blocks</command-name>")})),
+		line(t, assistant(toolUse("c", "Bash", map[string]any{"command": "cat skills/x/SKILL.md # Skill command-name"}))),
+		line(t, user("nothing here")),
+		line(t, toolResult("c", false, "Skill output")),
+		`{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Skill","input":{"skill":"partial"`,
+		`not json Skill`,
+		``,
+	}
+	var b strings.Builder
+	seed := uint32(7)
+	for i := 0; i < 4000; i++ {
+		seed = seed*1664525 + 1013904223
+		b.WriteString(shapes[int(seed>>16)%len(shapes)])
+		b.WriteString("\n")
+	}
+	data := []byte(b.String())
+	full, fast := SkillLoads(Parse(data)), loadsIn(data)
+	if !reflect.DeepEqual(full, fast) {
+		t.Fatalf("full %d loads, loads-only %d", len(full), len(fast))
+	}
+	if len(full) < 1000 {
+		t.Errorf("only %d loads; the fixture is not exercising the shapes", len(full))
+	}
+	for _, want := range []string{"plain", "escaped-name", "read", "slashes", "esc", "cmd", "lt", "blocks"} {
+		found := false
+		for _, l := range full {
+			found = found || l == want
+		}
+		if !found {
+			t.Errorf("no %s load among %v...", want, full[:8])
+		}
 	}
 }

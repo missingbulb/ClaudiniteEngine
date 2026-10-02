@@ -12,6 +12,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/license"
 	"github.com/missingbulb/ClaudiniteEngine/lifecycle"
 	"github.com/missingbulb/ClaudiniteEngine/shared/breadcrumb"
+	"github.com/missingbulb/ClaudiniteEngine/shared/packset"
 	"github.com/missingbulb/ClaudiniteEngine/shared/paths"
 	"github.com/missingbulb/ClaudiniteEngine/shared/report"
 	"github.com/missingbulb/ClaudiniteEngine/shared/sign"
@@ -76,8 +77,16 @@ var secretScanPlant string
 var runHook = hooks.Handler{Checks: hookChecks{}, Guards: hookGuards{}, License: hookLicense{}, Index: hookIndex{}}.Run
 
 func main() {
+	if len(os.Args) == 3 && os.Args[1] == "hook" && perCallEvents[os.Args[2]] {
+		packset.Memoize()
+	}
 	os.Exit(run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr))
 }
+
+// perCallEvents are the hooks a session runs on every call: each is one
+// short process over a tree it does not write, which derives the packs
+// and their triggers once for every capability that asks.
+var perCallEvents = map[string]bool{"pre-tool-use": true, "post-tool-use": true, "user-prompt-submit": true}
 
 // run dispatches one command. It holds the binary's one recover(): a panic
 // anywhere below becomes a crash file, one stderr line and a crash

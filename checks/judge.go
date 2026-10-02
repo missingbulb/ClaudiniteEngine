@@ -29,15 +29,21 @@ type Verdict struct {
 // decide is an error line, never a block.
 func (s Service) Judge(repo, event string, call Call, session *transcript.Session, deadline time.Time) Verdict {
 	var v Verdict
-	set, err := declared.LoadSet(repo, s.Build.Engine)
-	if err != nil {
-		set = &declared.Set{Repo: repo, Config: declared.Config{Rules: map[string]string{}}}
-		v.Errors = append(v.Errors, fmt.Sprintf("the declared checks could not load: %v", err))
+	var set *declared.Set
+	load := func() *declared.Set {
+		if set == nil {
+			var err error
+			if set, err = declared.LoadSet(repo, s.Build.Engine); err != nil {
+				set = &declared.Set{Repo: repo, Config: declared.Config{Rules: map[string]string{}}}
+				v.Errors = append(v.Errors, fmt.Sprintf("the declared checks could not load: %v", err))
+			}
+		}
+		return set
 	}
 	if event == "pre-tool-use" {
-		s.guard(set, call, session, &v)
+		s.guard(load(), call, session, &v)
 	}
-	s.coded(repo, event, call, set.Config, deadline, &v)
+	s.coded(repo, event, call, func() declared.Config { return load().Config }, deadline, &v)
 	return v
 }
 
@@ -62,8 +68,9 @@ func (s Service) guard(set *declared.Set, call Call, session *transcript.Session
 
 // coded runs the coded judges for event when the built binary's manifest
 // names one: a finding blocks on PreToolUse and advises elsewhere, an
-// advisory always advises, the member's rules override either.
-func (s Service) coded(repo, event string, call Call, cfg declared.Config, deadline time.Time, v *Verdict) {
+// advisory always advises, the member's rules (read only then) override
+// either.
+func (s Service) coded(repo, event string, call Call, config func() declared.Config, deadline time.Time, v *Verdict) {
 	key, _, err := s.Key(repo)
 	if err != nil {
 		v.Errors = append(v.Errors, "the coded judges could not run: "+err.Error())
@@ -96,6 +103,10 @@ func (s Service) coded(repo, event string, call Call, cfg declared.Config, deadl
 		return
 	}
 	v.Errors = append(v.Errors, res.Errors...)
+	if len(res.Findings) == 0 {
+		return
+	}
+	cfg := config()
 	for _, f := range res.Findings {
 		_, id, ok := strings.Cut(f.Check, "/")
 		if !ok {

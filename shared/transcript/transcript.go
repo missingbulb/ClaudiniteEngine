@@ -57,10 +57,10 @@ type Block struct {
 }
 
 type rawEntry struct {
-	Type        any  `json:"type"`
-	IsMeta      any  `json:"isMeta"`
-	IsSidechain any  `json:"isSidechain"`
-	Timestamp   any  `json:"timestamp"`
+	Type        any `json:"type"`
+	IsMeta      any `json:"isMeta"`
+	IsSidechain any `json:"isSidechain"`
+	Timestamp   any `json:"timestamp"`
 	Message     *struct {
 		Content json.RawMessage `json:"content"`
 	} `json:"message"`
@@ -99,12 +99,17 @@ func str(v any) (string, bool) {
 // Parse reads JSONL text into entries; a line that is not a JSON object is
 // skipped.
 func Parse(data []byte) []Entry {
+	return parseLines(data, nil)
+}
+
+// parseLines is Parse over the lines keep accepts (every line when nil).
+func parseLines(data []byte, keep func([]byte) bool) []Entry {
 	var out []Entry
 	sc := bufio.NewScanner(bytes.NewReader(data))
 	sc.Buffer(make([]byte, 64<<10), maxLine)
 	for sc.Scan() {
 		l := sc.Bytes()
-		if len(bytes.TrimSpace(l)) == 0 {
+		if len(bytes.TrimSpace(l)) == 0 || keep != nil && !keep(l) {
 			continue
 		}
 		var r rawEntry
@@ -451,16 +456,29 @@ func SkillLoads(es []Entry) []string {
 	return out
 }
 
+// mayLoad reports whether a raw line can name a skill load: every route
+// needs one of these words in the decoded text, and a raw line holds the
+// word itself unless a \u escape spells one of its letters.
+func mayLoad(l []byte) bool {
+	return bytes.Contains(l, []byte("Skill")) || bytes.Contains(l, []byte("SKILL.md")) ||
+		bytes.Contains(l, []byte("command-name")) || bytes.Contains(l, []byte(`\u`))
+}
+
+// loadsIn is SkillLoads(Parse(data)), parsing only the lines that can
+// name a load.
+func loadsIn(data []byte) []string { return SkillLoads(parseLines(data, mayLoad)) }
+
 // Session is one session's transcript, read at most once and only when a
 // verdict asks for it. A nil Session, or one with no path, has nothing.
 type Session struct {
 	Path string
 
-	once   sync.Once
-	all    []Entry
-	own    []Entry
-	loaded map[string]bool
-	calls  []Call
+	loadOnce sync.Once
+	loaded   map[string]bool
+	once     sync.Once
+	all      []Entry
+	own      []Entry
+	calls    []Call
 }
 
 // NewSession is the session whose transcript is at path; "" is none.
@@ -471,16 +489,41 @@ func NewSession(path string) *Session {
 	return &Session{Path: path}
 }
 
+// read parses every file of the session, the session file once.
 func (s *Session) read() {
 	s.once.Do(func() {
-		paths := Paths(s.Path)
-		s.all = SessionEntries(paths)
-		s.own = Entries(s.Path)
-		s.loaded = map[string]bool{}
-		for _, n := range SkillLoads(s.all) {
-			s.loaded[n] = true
+		for _, p := range Paths(s.Path) {
+			es := Entries(p)
+			if p == s.Path {
+				s.own = es
+			}
+			s.all = append(s.all, es...)
 		}
 		s.calls = ToolCalls(s.all)
+	})
+}
+
+// readLoads finds the session's loads from the full read when there was
+// one, else parsing only the lines that can name one: a hold or a nudge
+// asks for nothing more.
+func (s *Session) readLoads() {
+	s.loadOnce.Do(func() {
+		s.loaded = map[string]bool{}
+		if s.all != nil {
+			for _, n := range SkillLoads(s.all) {
+				s.loaded[n] = true
+			}
+			return
+		}
+		for _, p := range Paths(s.Path) {
+			data, err := os.ReadFile(p)
+			if err != nil {
+				continue
+			}
+			for _, n := range loadsIn(data) {
+				s.loaded[n] = true
+			}
+		}
 	})
 }
 
@@ -492,7 +535,7 @@ func (s *Session) Loaded() map[string]bool {
 	if !s.Present() {
 		return map[string]bool{}
 	}
-	s.read()
+	s.readLoads()
 	return s.loaded
 }
 
@@ -521,5 +564,5 @@ func (s *Session) Read() bool {
 	if !s.Present() {
 		return false
 	}
-	return s.loaded != nil
+	return s.loaded != nil || s.all != nil || s.own != nil
 }

@@ -1,11 +1,14 @@
 // Command timeit is the timing probe's stopwatch and report writer.
 //
-//	timeit run --name NAME --runs N --log FILE [--setup SH] [--stdin TEXT] -- CMD ARGS...
-//	timeit report --log FILE --out DIR --runs N
+//	timeit run --name NAME --runs N --log FILE [--setup SH] [--stdin TEXT] [--exit CODE] -- CMD ARGS...
+//	timeit samples --name NAME --log FILE < MILLISECONDS
+//	timeit report --log FILE --out DIR --runs N [--title T] [--command C]
 //
 // run times N executions of CMD (the --setup shell command runs untimed
-// before each) and appends one JSON line to FILE; report turns the lines
-// into <platform>-<date>.md and .json in DIR, with the host's details.
+// before each), each of which must exit CODE (0 by default), and appends
+// one JSON line to FILE; samples appends one for times measured elsewhere,
+// one per input line; report turns the lines into <platform>-<date>.md and
+// .json in DIR, with the host's details.
 package main
 
 import (
@@ -14,12 +17,14 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -43,6 +48,8 @@ func main() {
 	switch os.Args[1] {
 	case "run":
 		err = runCmd(os.Args[2:])
+	case "samples":
+		err = samplesCmd(os.Args[2:], os.Stdin)
 	case "report":
 		err = reportCmd(os.Args[2:])
 	default:
@@ -65,6 +72,7 @@ func runCmd(args []string) error {
 	logPath := fs.String("log", "", "")
 	setup := fs.String("setup", "", "")
 	stdin := fs.String("stdin", "", "")
+	want := fs.Int("exit", 0, "")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -83,13 +91,53 @@ func runCmd(args []string) error {
 		start := time.Now()
 		out, err := cmd.CombinedOutput()
 		elapsed := time.Since(start)
-		if err != nil {
-			return fmt.Errorf("%s: %v\n%s", *name, err, out)
+		var exit *exec.ExitError
+		code := 0
+		if errors.As(err, &exit) {
+			code, err = exit.ExitCode(), nil
+		}
+		if err != nil || code != *want {
+			return fmt.Errorf("%s: exit %d, want %d %v\n%s", *name, code, *want, err, out)
 		}
 		samples = append(samples, float64(elapsed.Microseconds())/1000)
 	}
-	it := summarize(*name, samples)
-	f, err := os.OpenFile(*logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	return appendItem(*logPath, summarize(*name, samples))
+}
+
+func samplesCmd(args []string, in io.Reader) error {
+	fs := flag.NewFlagSet("samples", flag.ContinueOnError)
+	name := fs.String("name", "", "")
+	logPath := fs.String("log", "", "")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if *name == "" || *logPath == "" {
+		return errors.New("samples needs --name and --log")
+	}
+	var samples []float64
+	s := bufio.NewScanner(in)
+	for s.Scan() {
+		line := strings.TrimSpace(s.Text())
+		if line == "" {
+			continue
+		}
+		v, err := strconv.ParseFloat(line, 64)
+		if err != nil {
+			return fmt.Errorf("%s: %q is not a number of milliseconds", *name, line)
+		}
+		samples = append(samples, v)
+	}
+	if err := s.Err(); err != nil {
+		return err
+	}
+	if len(samples) == 0 {
+		return fmt.Errorf("%s: no samples", *name)
+	}
+	return appendItem(*logPath, summarize(*name, samples))
+}
+
+func appendItem(logPath string, it item) error {
+	f, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
 		return err
 	}
@@ -149,8 +197,13 @@ func reportCmd(args []string) error {
 	logPath := fs.String("log", "", "")
 	outDir := fs.String("out", "", "")
 	runs := fs.Int("runs", 0, "")
+	title := fs.String("title", "Desktop timings", "")
+	command := fs.String("command", "", "")
 	if err := fs.Parse(args); err != nil {
 		return err
+	}
+	if *command == "" {
+		*command = fmt.Sprintf("sh probe/desktop-timings/run.sh --runs %d", *runs)
 	}
 	raw, err := os.ReadFile(*logPath)
 	if err != nil {
@@ -187,7 +240,7 @@ func reportCmd(args []string) error {
 		return err
 	}
 	var b strings.Builder
-	fmt.Fprintf(&b, "# Desktop timings: %s, %s\n\nProduced by `sh probe/desktop-timings/run.sh --runs %d`. Times are wall-clock milliseconds.\n\n", platform, date, *runs)
+	fmt.Fprintf(&b, "# %s: %s, %s\n\nProduced by `%s`. Times are wall-clock milliseconds.\n\n", *title, platform, date, *command)
 	b.WriteString("| Item | Runs | Median | p95 | Max |\n| --- | ---: | ---: | ---: | ---: |\n")
 	for _, it := range items {
 		fmt.Fprintf(&b, "| %s | %d | %.1f ms | %.1f ms | %.1f ms |\n", it.Name, it.Runs, it.MedianMs, it.P95Ms, it.MaxMs)

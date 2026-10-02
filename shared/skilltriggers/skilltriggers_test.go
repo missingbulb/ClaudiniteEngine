@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/missingbulb/ClaudiniteEngine/shared/jsjson"
+	"github.com/missingbulb/ClaudiniteEngine/shared/packset"
 	"github.com/missingbulb/ClaudiniteEngine/shared/skillfm"
 )
 
@@ -171,5 +172,39 @@ process.stdout.write(JSON.stringify(gs.map((g) => ps.map((p) => m.globToRegExp(g
 	}
 	if !reflect.DeepEqual(mine, node) {
 		t.Errorf("go %v\nnode %v", mine, node)
+	}
+}
+
+// FromPacks reads each pack's skills; under packset.Memoize the first
+// reading stands for the process.
+func TestFromPacksMemoized(t *testing.T) {
+	defer packset.Forget()
+	dir := t.TempDir()
+	skill := filepath.Join(dir, "skills", "guide", "SKILL.md")
+	_ = os.MkdirAll(filepath.Dir(skill), 0o755)
+	write := func(glob string) {
+		_ = os.WriteFile(skill, []byte("---\nname: guide\nmetadata:\n  force-load-on-file-edits-paths:\n    - \""+glob+"\"\n---\n"), 0o644)
+	}
+	packs := []packset.Pack{{ID: "p", Dir: dir, Skills: []string{"guide"}}}
+	source := func() string {
+		ts, _ := FromPacks(packs)
+		if len(ts) != 1 {
+			t.Fatalf("%+v", ts)
+		}
+		return ts[0].Source
+	}
+	write("a/**")
+	if source() != "a/**" {
+		t.Fatal(source())
+	}
+	write("b/**")
+	if source() != "b/**" {
+		t.Error("an unmemoized read kept the old trigger")
+	}
+	packset.Memoize()
+	_ = source()
+	write("c/**")
+	if source() != "b/**" {
+		t.Error("a memoized read read the skill again")
 	}
 }

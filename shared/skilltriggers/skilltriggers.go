@@ -407,8 +407,27 @@ func Sources(missing []Trigger) string {
 
 // FromPacks are the triggers of every skill the packs offer, in pack
 // order, read from each skill's SKILL.md, and the entries that bind
-// nothing. A skill whose SKILL.md cannot be read has none.
+// nothing. A skill whose SKILL.md cannot be read has none. Under
+// packset.Memoize the first reading stands for the process.
 func FromPacks(packs []packset.Pack) ([]Trigger, []Malformed) {
+	var key strings.Builder
+	key.WriteString("skilltriggers.FromPacks")
+	for _, p := range packs {
+		key.WriteString("\x00" + p.ID + "\x00" + p.Dir + "\x00" + strings.Join(p.Skills, "\x01"))
+	}
+	r := packset.Remember(key.String(), func() any {
+		ts, bad := fromPacks(packs)
+		return read{ts, bad}
+	}).(read)
+	return r.triggers, r.bad
+}
+
+type read struct {
+	triggers []Trigger
+	bad      []Malformed
+}
+
+func fromPacks(packs []packset.Pack) ([]Trigger, []Malformed) {
 	var out []Trigger
 	var bad []Malformed
 	for _, p := range packs {
