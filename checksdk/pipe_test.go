@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -182,11 +183,41 @@ func TestTheCheckClock(t *testing.T) {
 	r.add("p", Check{ID: "quick", Tags: []string{"world"}, Run: func(Repo) []Finding { return []Finding{{Path: ".", Sentence: "ran"}} }})
 	got, _ := engineSide(t, r, []string{}, nil, `{"op":"run","tags":["world"],"repo":"/r"}`)
 	errs, _ := json.Marshal(got[1]["errors"])
-	if !strings.Contains(string(errs), "p/slow: deadline (100ms) passed in run") {
+	if !strings.Contains(string(errs), "p/slow: deadline (100ms) passed in run (0 ms waiting on the engine)") {
 		t.Errorf("errors %s", errs)
 	}
 	if f, _ := json.Marshal(got[1]["findings"]); !strings.Contains(string(f), `"sentence":"ran"`) {
 		t.Errorf("findings %s", f)
+	}
+}
+
+// The clock measures the check's own work: a slow engine answer does not
+// spend it, and a check that runs out says how long it waited on the
+// engine.
+func TestTheCheckClockPausesForEngineAnswers(t *testing.T) {
+	old := CheckDeadline
+	CheckDeadline = 100 * time.Millisecond
+	defer func() { CheckDeadline = old }()
+	r := &registry{}
+	r.add("p", Check{ID: "patient", Tags: []string{"world"}, Run: func(repo Repo) []Finding {
+		return []Finding{{Path: ".", Sentence: strings.Join(repo.Files(), ",")}}
+	}})
+	r.add("p", Check{ID: "busy", Tags: []string{"world"}, Run: func(repo Repo) []Finding {
+		_ = repo.Tracked()
+		time.Sleep(time.Hour)
+		return nil
+	}})
+	slow := func(string, json.RawMessage) (any, error) {
+		time.Sleep(300 * time.Millisecond)
+		return []string{"a.md"}, nil
+	}
+	got, _ := engineSide(t, r, []string{"tree.files", "tree.tracked"}, slow, `{"op":"run","tags":["world"],"repo":"/r"}`)
+	errs, _ := json.Marshal(got[1]["errors"])
+	if f, _ := json.Marshal(got[1]["findings"]); !strings.Contains(string(f), `"sentence":"a.md"`) {
+		t.Errorf("a 300 ms engine answer spent a 100 ms clock: findings %s errors %s", f, errs)
+	}
+	if !regexp.MustCompile(`p/busy: deadline \(100ms\) passed in run \([3-9]\d\d ms waiting on the engine\)`).Match(errs) {
+		t.Errorf("errors %s", errs)
 	}
 }
 

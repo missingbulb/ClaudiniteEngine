@@ -17,6 +17,51 @@ import (
 type Repo struct {
 	Root string
 	st   *state
+	// clk is the clock of the check holding this copy, paused while it
+	// waits on the engine; nil outside a run.
+	clk *clock
+}
+
+// clock is one check's budget: the time it ran less the time it spent
+// waiting on engine answers.
+type clock struct {
+	mu       sync.Mutex
+	start    time.Time
+	waited   time.Duration
+	pausedAt time.Time
+}
+
+func newClock() *clock { return &clock{start: time.Now()} }
+
+func (c *clock) pause() {
+	if c == nil {
+		return
+	}
+	c.mu.Lock()
+	c.pausedAt = time.Now()
+	c.mu.Unlock()
+}
+
+func (c *clock) resume() {
+	if c == nil {
+		return
+	}
+	c.mu.Lock()
+	c.waited += time.Since(c.pausedAt)
+	c.pausedAt = time.Time{}
+	c.mu.Unlock()
+}
+
+// read is the check's own time so far and its time waiting on the engine,
+// a call still in flight counted as waiting.
+func (c *clock) read() (own, waited time.Duration) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	waited = c.waited
+	if !c.pausedAt.IsZero() {
+		waited += time.Since(c.pausedAt)
+	}
+	return time.Since(c.start) - waited, waited
 }
 
 // Handler answers one engine call: the method and its arguments, as JSON
@@ -89,7 +134,9 @@ func (r Repo) call(method string, args any, out any) error {
 	e, ok := r.st.memo[key]
 	r.st.mu.Unlock()
 	if !ok {
+		r.clk.pause()
 		e.raw, e.err = r.st.eng.handle(method, args)
+		r.clk.resume()
 		r.st.mu.Lock()
 		r.st.memo[key] = e
 		r.st.mu.Unlock()

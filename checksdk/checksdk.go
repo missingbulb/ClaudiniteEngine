@@ -28,8 +28,9 @@
 // a Judge tagged with its event (pre-tool-use, post-tool-use or
 // user-prompt-submit) and hands it the call: the tool's name, its input
 // and, after it ran, its response, as Claude Code sent them, or the
-// prompt. A check that panics, or runs past CheckDeadline, is reported in
-// errors and the others still run. Lines are capped at 16 MiB.
+// prompt. A check that panics, or spends more than CheckDeadline of its
+// own work (time waiting on engine answers does not count), is reported
+// in errors and the others still run. Lines are capped at 16 MiB.
 //
 // The public contract a check reads the repository through is Repo:
 //
@@ -73,7 +74,7 @@ const MaxLine = 16 << 20
 // EngineFloor is the first engine that answers SDK calls.
 const EngineFloor = "61001.1.0"
 
-// CheckDeadline is how long one check may run; Main reads
+// CheckDeadline is how long one check may work, engine answers excluded; Main reads
 // CLAUDINITE_CHECK_DEADLINE_MS over it.
 var CheckDeadline = 10 * time.Second
 
@@ -349,7 +350,7 @@ func (r *registry) run(req request) response {
 		if c.Run == nil || (req.Pack != "" && c.pack != req.Pack) || !hasAll(c.Tags, req.Tags) {
 			continue
 		}
-		resp.collect(c, "run", func() []Finding { return c.Run(repo) })
+		resp.collect(c, "run", repo, func(repo Repo) []Finding { return c.Run(repo) })
 	}
 	return resp
 }
@@ -361,33 +362,47 @@ func (r *registry) judge(req request) response {
 		if c.Judge == nil || !hasAll(c.Tags, []string{req.Event}) {
 			continue
 		}
-		resp.collect(c, "judge", func() []Finding { return c.Judge(repo, req.Call) })
+		resp.collect(c, "judge", repo, func(repo Repo) []Finding { return c.Judge(repo, req.Call) })
 	}
 	return resp
 }
 
 // collect adds what f reports for c, or its panic or its running past
-// CheckDeadline as an error.
-func (resp *response) collect(c registered, op string, f func() []Finding) {
+// CheckDeadline as an error. The deadline is the check's own work: its
+// clock stops while it waits on an engine answer.
+func (resp *response) collect(c registered, op string, repo Repo, f func(Repo) []Finding) {
 	name := c.pack + "/" + c.ID
 	type outcome struct {
 		fs  []Finding
 		err string
 	}
 	done := make(chan outcome, 1)
+	clk := newClock()
+	repo.clk = clk
 	go func() {
 		defer func() {
 			if p := recover(); p != nil {
 				done <- outcome{err: fmt.Sprintf("%s: %v", name, panicText(p))}
 			}
 		}()
-		done <- outcome{fs: f()}
+		done <- outcome{fs: f(repo)}
 	}()
+	timer := time.NewTimer(CheckDeadline)
+	defer timer.Stop()
 	var o outcome
-	select {
-	case o = <-done:
-	case <-time.After(CheckDeadline):
-		o.err = fmt.Sprintf("%s: deadline (%v) passed in %s", name, CheckDeadline, op)
+wait:
+	for {
+		select {
+		case o = <-done:
+			break wait
+		case <-timer.C:
+			own, waited := clk.read()
+			if own >= CheckDeadline {
+				o.err = fmt.Sprintf("%s: deadline (%v) passed in %s (%d ms waiting on the engine)", name, CheckDeadline, op, waited.Milliseconds())
+				break wait
+			}
+			timer.Reset(max(CheckDeadline-own, 10*time.Millisecond))
+		}
 	}
 	if o.err != "" {
 		resp.Errors = append(resp.Errors, o.err)
