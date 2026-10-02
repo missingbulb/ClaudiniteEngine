@@ -7,6 +7,7 @@ import (
 	"io"
 	"regexp"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -218,6 +219,74 @@ func TestTheCheckClockPausesForEngineAnswers(t *testing.T) {
 	}
 	if !regexp.MustCompile(`p/busy: deadline \(100ms\) passed in run \([3-9]\d\d ms waiting on the engine\)`).Match(errs) {
 		t.Errorf("errors %s", errs)
+	}
+}
+
+// Two engine calls in flight at once, from two goroutines of one check,
+// still leave the clock running once both are answered.
+func TestTheCheckClockSurvivesOverlappingEngineCalls(t *testing.T) {
+	old := CheckDeadline
+	CheckDeadline = 100 * time.Millisecond
+	defer func() { CheckDeadline = old }()
+	r := &registry{}
+	r.add("p", Check{ID: "fanout", Tags: []string{"world"}, Run: func(repo Repo) []Finding {
+		var wg sync.WaitGroup
+		wg.Add(2)
+		go func() { defer wg.Done(); _ = repo.Files() }()
+		go func() { defer wg.Done(); _ = repo.Tracked() }()
+		wg.Wait()
+		time.Sleep(time.Hour)
+		return nil
+	}})
+	slow := func(string, json.RawMessage) (any, error) {
+		time.Sleep(50 * time.Millisecond)
+		return []string{"a.md"}, nil
+	}
+	type result struct{ got []map[string]any }
+	ch := make(chan result, 1)
+	go func() {
+		got, _ := engineSide(t, r, []string{"tree.files", "tree.tracked"}, slow, `{"op":"run","tags":["world"],"repo":"/r"}`)
+		ch <- result{got}
+	}()
+	select {
+	case res := <-ch:
+		errs, _ := json.Marshal(res.got[1]["errors"])
+		if !regexp.MustCompile(`p/fanout: deadline \(100ms\) passed in run`).Match(errs) {
+			t.Errorf("errors %s", errs)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("after two overlapping engine calls the check's deadline never fired")
+	}
+}
+
+// A check that keeps the engine busy cannot run past ten deadlines.
+func TestTheCheckClockCapsTimeWaitingOnTheEngine(t *testing.T) {
+	old := CheckDeadline
+	CheckDeadline = 20 * time.Millisecond
+	defer func() { CheckDeadline = old }()
+	r := &registry{}
+	r.add("p", Check{ID: "chatty", Tags: []string{"world"}, Run: func(repo Repo) []Finding {
+		for i := 0; ; i++ {
+			_ = repo.GrepTracked(fmt.Sprint(i))
+		}
+	}})
+	slow := func(string, json.RawMessage) (any, error) {
+		time.Sleep(10 * time.Millisecond)
+		return []any{}, nil
+	}
+	ch := make(chan []byte, 1)
+	go func() {
+		got, _ := engineSide(t, r, []string{"change.grep"}, slow, `{"op":"run","tags":["world"],"repo":"/r"}`)
+		errs, _ := json.Marshal(got[1]["errors"])
+		ch <- errs
+	}()
+	select {
+	case errs := <-ch:
+		if !regexp.MustCompile(`p/chatty: deadline \(20ms\) passed in run \(\d+ ms waiting on the engine\)`).Match(errs) {
+			t.Errorf("errors %s", errs)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("a check calling the engine without end was never stopped")
 	}
 }
 

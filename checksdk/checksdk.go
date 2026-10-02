@@ -29,7 +29,8 @@
 // user-prompt-submit) and hands it the call: the tool's name, its input
 // and, after it ran, its response, as Claude Code sent them, or the
 // prompt. A check that panics, or spends more than CheckDeadline of its
-// own work (time waiting on engine answers does not count), is reported
+// own work (time waiting on engine answers does not count, up to
+// MaxEngineWaits deadlines of it), is reported
 // in errors and the others still run. Lines are capped at 16 MiB.
 //
 // The public contract a check reads the repository through is Repo:
@@ -80,6 +81,10 @@ const EngineFloor = "61001.1.0"
 // CheckDeadline is how long one check may work, engine answers excluded; Main reads
 // CLAUDINITE_CHECK_DEADLINE_MS over it.
 var CheckDeadline = 10 * time.Second
+
+// MaxEngineWaits is how many deadlines' worth of engine answers one check
+// may wait on before it is stopped as if its own work had run out.
+const MaxEngineWaits = 10
 
 // Class is how much a finding matters.
 type Class string
@@ -372,7 +377,8 @@ func (r *registry) judge(req request) response {
 
 // collect adds what f reports for c, or its panic or its running past
 // CheckDeadline as an error. The deadline is the check's own work: its
-// clock stops while it waits on an engine answer.
+// clock stops while it waits on an engine answer, up to MaxEngineWaits
+// deadlines' worth of waiting, so a stream of calls cannot run it forever.
 func (resp *response) collect(c registered, op string, repo Repo, f func(Repo) []Finding) {
 	name := c.pack + "/" + c.ID
 	type outcome struct {
@@ -400,11 +406,12 @@ wait:
 			break wait
 		case <-timer.C:
 			own, waited := clk.read()
-			if own >= CheckDeadline {
+			waitCap := MaxEngineWaits * CheckDeadline
+			if own >= CheckDeadline || waited >= waitCap {
 				o.err = fmt.Sprintf("%s: deadline (%v) passed in %s (%d ms waiting on the engine)", name, CheckDeadline, op, waited.Milliseconds())
 				break wait
 			}
-			timer.Reset(max(CheckDeadline-own, 10*time.Millisecond))
+			timer.Reset(max(min(CheckDeadline-own, waitCap-waited), 10*time.Millisecond))
 		}
 	}
 	if o.err != "" {

@@ -23,11 +23,14 @@ type Repo struct {
 }
 
 // clock is one check's budget: the time it ran less the time it spent
-// waiting on engine answers.
+// waiting on engine answers. A check's goroutines may have several calls
+// in flight; the clock is paused from the first one's start to the last
+// one's answer.
 type clock struct {
 	mu       sync.Mutex
 	start    time.Time
 	waited   time.Duration
+	depth    int
 	pausedAt time.Time
 }
 
@@ -38,7 +41,10 @@ func (c *clock) pause() {
 		return
 	}
 	c.mu.Lock()
-	c.pausedAt = time.Now()
+	if c.depth == 0 {
+		c.pausedAt = time.Now()
+	}
+	c.depth++
 	c.mu.Unlock()
 }
 
@@ -47,8 +53,11 @@ func (c *clock) resume() {
 		return
 	}
 	c.mu.Lock()
-	c.waited += time.Since(c.pausedAt)
-	c.pausedAt = time.Time{}
+	c.depth--
+	if c.depth == 0 {
+		c.waited += time.Since(c.pausedAt)
+		c.pausedAt = time.Time{}
+	}
 	c.mu.Unlock()
 }
 
