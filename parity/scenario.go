@@ -365,6 +365,18 @@ func (s Scenario) CanonPacks() []string {
 	return out
 }
 
+// UnvendoredPacks are the declared canon packs the member does not hold
+// itself, which come from the frozen engine's shelf.
+func (s Scenario) UnvendoredPacks() []string {
+	var out []string
+	for _, id := range s.CanonPacks() {
+		if !exists(filepath.Join(s.Dir, "member/.claudinite/shared/packs", id)) {
+			out = append(out, id)
+		}
+	}
+	return out
+}
+
 // PackIDs are the declaration's pack ids, entry objects included.
 func PackIDs(node map[string]any) []string {
 	var ids []string

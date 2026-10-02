@@ -269,8 +269,8 @@ func TestParity(t *testing.T) {
 	for _, s := range scenarios {
 		s := s
 		t.Run(s.Group+"/"+s.Name, func(t *testing.T) {
-			if canon == "" && len(s.CanonPacks()) > 0 {
-				t.Skipf("declares canon packs %v, which come from the frozen engine %s names", s.CanonPacks(), nodeEnv)
+			if missing := s.UnvendoredPacks(); canon == "" && len(missing) > 0 {
+				t.Skipf("declares canon packs %v, which come from the frozen engine %s names", missing, nodeEnv)
 			}
 			var answers []Answer
 			for _, e := range es {
