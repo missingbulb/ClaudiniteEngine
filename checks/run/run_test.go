@@ -46,7 +46,15 @@ func fake(mode string) {
 			fmt.Printf("{\"findings\":[{\"check\":\"t/env\",\"class\":\"advisory\",\"path\":\".\",\"sentence\":%q}]}\n", os.Getenv("SECRET_TOKEN")+"|"+os.Getenv("NODE_OPTIONS"))
 		default:
 			if strings.Contains(req, `"op":"list"`) {
-				fmt.Println(`{"checks":[{"check":"hello/hello-check","tags":["work","world"]}]}`)
+				fmt.Println(`{"checks":[{"check":"hello/hello-check","tags":["work","world"]},{"check":"hello/hello-judge","tags":["pre-tool-use"],"judge":true}]}`)
+				continue
+			}
+			if strings.Contains(req, `"op":"judge"`) {
+				if !strings.Contains(req, `"event":"pre-tool-use"`) || !strings.Contains(req, `"call":{"tool":"Bash","input":{"command":"x"}}`) || !strings.Contains(req, `"repo":"/repo"`) {
+					fmt.Printf("{\"error\":%q}\n", "unexpected request "+req)
+					continue
+				}
+				fmt.Println(`{"findings":[{"check":"hello/hello-judge","class":"finding","path":"(tool call)","sentence":"no"}]}`)
 				continue
 			}
 			if !strings.Contains(req, `"repo":"/repo"`) || !strings.Contains(req, `"tags":["work"]`) || !strings.Contains(req, `"pack":"hello"`) {
@@ -89,8 +97,18 @@ func TestRunReturnsFindingsAndErrors(t *testing.T) {
 
 func TestList(t *testing.T) {
 	checks, err := runner(t, "good").List()
-	if err != nil || len(checks) != 1 || checks[0].Check != "hello/hello-check" || strings.Join(checks[0].Tags, ",") != "work,world" {
+	if err != nil || len(checks) != 2 || checks[0].Check != "hello/hello-check" || strings.Join(checks[0].Tags, ",") != "work,world" || checks[0].Judge || !checks[1].Judge {
 		t.Errorf("%+v %v", checks, err)
+	}
+}
+
+func TestJudgeSendsTheCall(t *testing.T) {
+	res := runner(t, "good").Judge("pre-tool-use", Call{Tool: "Bash", Input: []byte(`{"command":"x"}`)}, "/repo")
+	if res.Err != nil || len(res.Findings) != 1 || res.Findings[0].Check != "hello/hello-judge" || res.Findings[0].Class != "finding" {
+		t.Errorf("%+v", res)
+	}
+	if res := runner(t, "silent-run").Judge("pre-tool-use", Call{Tool: "Bash"}, "/repo"); res.Err == nil {
+		t.Error("a silent judge answered")
 	}
 }
 

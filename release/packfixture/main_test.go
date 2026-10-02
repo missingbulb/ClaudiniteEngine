@@ -91,7 +91,7 @@ func TestTheFixtureIndexVerifiesAndNamesItsArchives(t *testing.T) {
 			t.Errorf("%s: RULES.md %q", e.Version, files["RULES.md"].Data)
 		}
 		_, always := files["checks/always.go"]
-		if always != (e.Version == "1.2") {
+		if always != (e.Version == "1.3") {
 			t.Errorf("%s: always.go present %v", e.Version, always)
 		}
 		_, declared := files["declared-checks.json"]
@@ -101,11 +101,19 @@ func TestTheFixtureIndexVerifiesAndNamesItsArchives(t *testing.T) {
 		if changed := strings.Count(string(files["RULES.md"].Data), "The hello rule changed"); changed != map[bool]int{true: 0, false: 1}[e.Version == "1.0"] {
 			t.Errorf("%s: the changed bullet appears %d times", e.Version, changed)
 		}
+		if guard := strings.Count(string(files["RULES.md"].Data), "The hello guard arrived"); guard != map[bool]int{true: 0, false: 1}[e.Version == "1.0"] {
+			t.Errorf("%s: the guard bullet appears %d times", e.Version, guard)
+		}
+		_, guide := files["skills/hello-guide/SKILL.md"]
+		_, judge := files["checks/judge.go"]
+		if guide != (e.Version != "1.0") || judge != (e.Version != "1.0") {
+			t.Errorf("%s: hello-guide %v, judge.go %v", e.Version, guide, judge)
+		}
 	}
-	if readme := string(mustVariant(t, "v1")["README.md"].Data); strings.Contains(readme, "Declared checks") || !strings.Contains(readme, "**Skill**") {
+	if readme := string(mustVariant(t, "v1")["README.md"].Data); strings.Contains(readme, "Declared checks") || strings.Contains(readme, "Forced skill") || strings.Contains(readme, "**Judge**") || !strings.Contains(readme, "**Skill**") {
 		t.Errorf("v1 README:\n%s", readme)
 	}
-	// v2 is the source itself: hello 1.1 as ClaudinitePacks publishes it.
+	// v2 is the source itself: hello 1.2 as ClaudinitePacks publishes it.
 	source, _ := ReadPack(src)
 	for name, f := range mustVariant(t, "v2") {
 		if name != "pack.json" && string(source[name].Data) != string(f.Data) {

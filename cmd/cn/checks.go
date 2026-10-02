@@ -120,7 +120,11 @@ func cmdCheck(args []string, stdout, stderr io.Writer) error {
 		return report.Wrap(report.Verify, "check", err)
 	}
 	for _, l := range listed {
-		if selected(l, tags, *pack) {
+		switch {
+		case !selected(l, tags, *pack):
+		case l.Kind == "judge":
+			fmt.Fprintf(stdout, "judge %s (%s) runs only in its hook; check does not run it\n", l.Name(), strings.Join(l.Tags, ", "))
+		default:
 			fmt.Fprintf(stdout, "check %s (%s)\n", l.Name(), strings.Join(l.Tags, ", "))
 		}
 	}
@@ -149,7 +153,7 @@ func selected(l checks.Listed, tags []string, pack string) bool {
 }
 
 // cmdCheckList prints every check the repo declares, declared, built in
-// and coded, sorted by id: name, kind, tags, on_fail.
+// coded and judge, sorted by id: name, kind, tags, on_fail.
 func cmdCheckList(args []string, stdout io.Writer) error {
 	fs := flag.NewFlagSet("check list", flag.ContinueOnError)
 	repo := fs.String("repo", ".", "")
@@ -165,7 +169,7 @@ func cmdCheckList(args []string, stdout io.Writer) error {
 		fmt.Fprintf(stdout, "%s %s (%s) %s\n", l.Name(), l.Kind, strings.Join(l.Tags, ", "), l.OnFail)
 		counts[l.Kind]++
 	}
-	fmt.Fprintf(stdout, "%d checks: %d declared, %d builtin, %d coded\n", len(listed), counts["declared"], counts["builtin"], counts["coded"])
+	fmt.Fprintf(stdout, "%d checks: %d declared, %d builtin, %d coded, %d judges\n", len(listed), counts["declared"], counts["builtin"], counts["coded"], counts["judge"])
 	return nil
 }
 

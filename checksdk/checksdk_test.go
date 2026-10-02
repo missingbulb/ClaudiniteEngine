@@ -105,10 +105,12 @@ func TestRegisterRefusesDuplicatesAndBadIDs(t *testing.T) {
 	r := &registry{}
 	r.add("p", Check{ID: "a", Tags: []string{"work"}, Run: func(Repo) []Finding { return nil }})
 	for name, c := range map[string]Check{
-		"duplicate": {ID: "a", Tags: []string{"work"}, Run: func(Repo) []Finding { return nil }},
-		"bad id":    {ID: "A b", Tags: []string{"work"}, Run: func(Repo) []Finding { return nil }},
-		"no run":    {ID: "c", Tags: []string{"work"}},
-		"no tags":   {ID: "d", Run: func(Repo) []Finding { return nil }},
+		"duplicate":                  {ID: "a", Tags: []string{"work"}, Run: func(Repo) []Finding { return nil }},
+		"bad id":                     {ID: "A b", Tags: []string{"work"}, Run: func(Repo) []Finding { return nil }},
+		"no run":                     {ID: "c", Tags: []string{"work"}},
+		"no tags":                    {ID: "d", Run: func(Repo) []Finding { return nil }},
+		"a judge with no hook event": {ID: "e", Tags: []string{"work"}, Judge: func(Repo, Call) []Finding { return nil }},
+		"a hook event with no judge": {ID: "f", Tags: []string{"pre-tool-use"}, Run: func(Repo) []Finding { return nil }},
 	} {
 		func() {
 			defer func() {
@@ -118,6 +120,48 @@ func TestRegisterRefusesDuplicatesAndBadIDs(t *testing.T) {
 			}()
 			r.add("p", c)
 		}()
+	}
+}
+
+// A judge reads the call; the judge op selects the judges tagged with the
+// event, and a check with both a Run and a Judge serves both ops; list
+// marks the judges.
+func TestJudge(t *testing.T) {
+	r := testRegistry()
+	r.add("hello", Check{ID: "hello-judge", Tags: []string{"pre-tool-use"}, Judge: func(_ Repo, c Call) []Finding {
+		var in struct{ Command string }
+		_ = json.Unmarshal(c.Input, &in)
+		if c.Tool == "Bash" && strings.Contains(in.Command, "HELLO_JUDGE") {
+			return []Finding{{Class: ClassFinding, Path: "(tool call)", Sentence: "no HELLO_JUDGE"}}
+		}
+		return nil
+	}})
+	r.add("hello", Check{ID: "both", Tags: []string{"work", "post-tool-use"}, Run: func(Repo) []Finding { return nil },
+		Judge: func(_ Repo, c Call) []Finding {
+			return []Finding{{Class: ClassAdvisory, Sentence: "result " + string(c.Response)}}
+		}})
+	r.add("other", Check{ID: "judge-boom", Tags: []string{"pre-tool-use"}, Judge: func(Repo, Call) []Finding { panic("kaput") }})
+	got, code := converse(t, r, hello, `{"op":"list"}`,
+		`{"op":"judge","event":"pre-tool-use","call":{"tool":"Bash","input":{"command":"echo HELLO_JUDGE"}},"repo":"/r"}`,
+		`{"op":"judge","event":"post-tool-use","call":{"tool":"Bash","input":{},"response":"out"},"repo":"/r"}`,
+		`{"op":"run","tags":["pre-tool-use"],"repo":"/r"}`)
+	if code != 0 || len(got) != 5 {
+		t.Fatalf("code %d: %v", code, got)
+	}
+	list, _ := json.Marshal(got[1]["checks"])
+	if !strings.Contains(string(list), `{"check":"hello/hello-judge","judge":true,"tags":["pre-tool-use"]}`) || !strings.Contains(string(list), `{"check":"hello/hello-check","tags":["work","world"]}`) {
+		t.Errorf("list %s", list)
+	}
+	pre, _ := json.Marshal(got[2])
+	if !strings.Contains(string(pre), `"check":"hello/hello-judge","class":"finding","path":"(tool call)","sentence":"no HELLO_JUDGE"`) || !strings.Contains(string(pre), "other/judge-boom: panic: kaput") || strings.Contains(string(pre), "both") {
+		t.Errorf("pre-tool-use %s", pre)
+	}
+	post, _ := json.Marshal(got[3])
+	if !strings.Contains(string(post), `"check":"hello/both","class":"advisory","path":"","sentence":"result \"out\""`) || strings.Contains(string(post), "hello-judge") {
+		t.Errorf("post-tool-use %s", post)
+	}
+	if run, _ := json.Marshal(got[4]); strings.Contains(string(run), "judge") {
+		t.Errorf("a run ran a judge: %s", run)
 	}
 }
 

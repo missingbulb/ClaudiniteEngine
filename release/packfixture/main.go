@@ -9,11 +9,11 @@
 //	packfixture --tree DIR --key K --cert C --serial N
 //	packfixture --tree DIR --flip-sig
 //
-// The labels name the hello pack's rehearsal versions: v2 (1.1) is the
+// The labels name the hello pack's rehearsal versions: v2 (1.2) is the
 // source as it is, which ClaudinitePacks publishes; v1 is 1.0, the source
-// without its 1.1 rule bullet and its declared checks; v3 (1.2) adds a check that
-// finds on every repo; v4 (1.3) drops it again; v5 (1.4) needs an engine
-// no rehearsal builds. Every publish and revoke bumps the serial; --serial
+// without its 1.1 and 1.2 rule bullets, its declared checks, its forced
+// skill and its judge; v3 (1.3) adds a check that finds on every repo; v4
+// (1.4) drops it again; v5 (1.5) needs an engine no rehearsal builds. Every publish and revoke bumps the serial; --serial
 // rewrites it, as an index that regressed would read.
 package main
 
@@ -41,7 +41,7 @@ import (
 const Pack = "hello"
 
 // Labels maps a rehearsal label to its pack version.
-var Labels = map[string]string{"v1": "1.0", "v2": "1.1", "v3": "1.2", "v4": "1.3", "v5": "1.4"}
+var Labels = map[string]string{"v1": "1.0", "v2": "1.2", "v3": "1.3", "v4": "1.4", "v5": "1.5"}
 
 // unreachableEngine is v5's minEngineVersion.
 const unreachableEngine = "99999.0.0"
@@ -134,7 +134,8 @@ var (
 	minField     = regexp.MustCompile(`"minEngineVersion": "[^"]*"`)
 	rulesHeading = regexp.MustCompile(`(?m)^# hello .*$`)
 	changedRule  = "- **The hello rule changed** — this bullet arrived with hello 1.1.\n"
-	declaredLine = regexp.MustCompile("(?m)^- \\*\\*Declared checks\\*\\*(.*\n)(  .*\n)*")
+	guardRule    = regexp.MustCompile("(?m)^- \\*\\*The hello guard arrived\\*\\*.*\n")
+	declaredLine = regexp.MustCompile("(?m)^- \\*\\*(Declared checks|Forced skill|Judge)\\*\\*(.*\n)(  .*\n)*")
 )
 
 // declaredChecks is the descriptor hello 1.1 added.
@@ -160,7 +161,10 @@ func Variant(src map[string]File, label, minEngine string) (map[string]File, err
 	rules := rulesHeading.ReplaceAllString(string(out["RULES.md"].Data), "# hello "+ver)
 	if label == "v1" {
 		rules = strings.Replace(rules, changedRule, "", 1)
+		rules = guardRule.ReplaceAllString(rules, "")
 		delete(out, declaredChecks)
+		delete(out, "skills/hello-guide/SKILL.md")
+		delete(out, "checks/judge.go")
 		out["README.md"] = File{Data: declaredLine.ReplaceAll(out["README.md"].Data, nil)}
 	}
 	out["RULES.md"] = File{Data: []byte(rules)}
@@ -179,7 +183,7 @@ func init() {
 		ID:   "always",
 		Tags: []string{"work", "world"},
 		Run: func(checksdk.Repo) []checksdk.Finding {
-			return []checksdk.Finding{{Class: checksdk.ClassFinding, Path: ".", Sentence: "hello 1.2 finds on every repo"}}
+			return []checksdk.Finding{{Class: checksdk.ClassFinding, Path: ".", Sentence: "hello 1.3 finds on every repo"}}
 		},
 	})
 }

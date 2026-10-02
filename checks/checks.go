@@ -197,7 +197,11 @@ func (s Service) ListAll(repo string, timeout time.Duration) ([]Listed, error) {
 		if !ok {
 			pack, id = "", c.Check
 		}
-		out = append(out, Listed{ID: id, Pack: pack, Kind: "coded", Tags: c.Tags, OnFail: "block"})
+		kind := "coded"
+		if c.Judge {
+			kind = "judge"
+		}
+		out = append(out, Listed{ID: id, Pack: pack, Kind: kind, Tags: c.Tags, OnFail: "block"})
 	}
 	sort.SliceStable(out, func(i, k int) bool {
 		if out[i].ID != out[k].ID {

@@ -6,7 +6,10 @@
     "fix": "delete HELLO_DECLARED",
     "scanFiles": "HELLO_DECLARED",
     "matchLines": [
-      { "match": "/./", "what": "HELLO_DECLARED exists and has a line" }
+      {
+        "match": "/./",
+        "what": "HELLO_DECLARED exists and has a line"
+      }
     ]
   },
   {
@@ -15,7 +18,26 @@
     "scope": "work",
     "failureMessage": "HELLO_UNTRACKED is the hello pack's declared work-check probe: while it is untracked, Stop blocks",
     "flagUntrackedFilesMatching": [
-      { "match": "/^HELLO_UNTRACKED$/", "what": "{path} is untracked", "fix": "git add {path}, or delete it" }
+      {
+        "match": "/^HELLO_UNTRACKED$/",
+        "what": "{path} is untracked",
+        "fix": "git add {path}, or delete it"
+      }
+    ]
+  },
+  {
+    "id": "hello-guard",
+    "on_fail": "block",
+    "scope": "action",
+    "failureMessage": "HELLO_GUARD is the hello pack's action-guard probe: a Bash command naming it is blocked before it runs, and recorded at Stop",
+    "guardToolCalls": [
+      {
+        "tool": "Bash",
+        "inputField": "command",
+        "match": "/\\bHELLO_GUARD\\b/",
+        "what": "the command names HELLO_GUARD",
+        "fix": "drop HELLO_GUARD from the command"
+      }
     ]
   }
 ]

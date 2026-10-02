@@ -1,22 +1,20 @@
 package checks
 
 import (
-	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
+	"github.com/missingbulb/ClaudiniteEngine/checks/build"
 	"github.com/missingbulb/ClaudiniteEngine/checks/declared"
+	"github.com/missingbulb/ClaudiniteEngine/checks/run"
 	"github.com/missingbulb/ClaudiniteEngine/shared/jsjson"
 	"github.com/missingbulb/ClaudiniteEngine/shared/transcript"
 )
 
-// Call is one tool call a hook asks about: the tool, and its input and
-// result as sent (nil when absent).
-type Call struct {
-	Tool            string
-	Input, Response json.RawMessage
-	Prompt          string
-}
+// Call is one call a hook asks about: the tool, its input and result as
+// sent (nil when absent), or the prompt.
+type Call = run.Call
 
 // Verdict is the guards' answer for one call: block lines, advisory
 // context lines, and the guards that could not decide.
@@ -25,18 +23,25 @@ type Verdict struct {
 }
 
 // Judge judges one call at event: on PreToolUse the declared action
-// checks and the built-in guards, in this process. A guard that cannot
+// checks and the built-in guards, in this process; then, at any event the
+// judges manifest names, the packs' coded judges in the checks binary,
+// within what is left before deadline. A guard or judge that cannot
 // decide is an error line, never a block.
 func (s Service) Judge(repo, event string, call Call, session *transcript.Session, deadline time.Time) Verdict {
 	var v Verdict
-	if event != "pre-tool-use" {
-		return v
-	}
 	set, err := declared.LoadSet(repo, s.Build.Engine)
 	if err != nil {
 		set = &declared.Set{Repo: repo, Config: declared.Config{Rules: map[string]string{}}}
 		v.Errors = append(v.Errors, fmt.Sprintf("the declared checks could not load: %v", err))
 	}
+	if event == "pre-tool-use" {
+		s.guard(set, call, session, &v)
+	}
+	s.coded(repo, event, call, set.Config, deadline, &v)
+	return v
+}
+
+func (s Service) guard(set *declared.Set, call Call, session *transcript.Session, v *Verdict) {
 	input := transcript.EmptyObject
 	if call.Input != nil {
 		if d, err := jsjson.Decode(call.Input); err == nil {
@@ -53,5 +58,67 @@ func (s Service) Judge(repo, event string, call Call, session *transcript.Sessio
 	g := set.Guard(declared.Call{Tool: call.Tool, Input: input}, prior, time.Now())
 	v.Blocks, v.Advice = g.Blocks, g.Advice
 	v.Errors = append(v.Errors, g.Errors...)
-	return v
+}
+
+// coded runs the coded judges for event when the built binary's manifest
+// names one: a finding blocks on PreToolUse and advises elsewhere, an
+// advisory always advises, the member's rules override either.
+func (s Service) coded(repo, event string, call Call, cfg declared.Config, deadline time.Time, v *Verdict) {
+	key, _, err := s.Key(repo)
+	if err != nil {
+		v.Errors = append(v.Errors, "the coded judges could not run: "+err.Error())
+		return
+	}
+	if key == "" {
+		return
+	}
+	binary, err := build.Wait(s.Build, key, 0)
+	if err != nil {
+		v.Errors = append(v.Errors, "the coded judges did not run: the checks binary is not built yet")
+		return
+	}
+	judges, err := build.Judges(s.Build, key)
+	if err != nil {
+		v.Errors = append(v.Errors, "the coded judges could not run: "+err.Error())
+		return
+	}
+	if len(judges[event]) == 0 {
+		return
+	}
+	left := time.Until(deadline)
+	if left <= 0 {
+		v.Errors = append(v.Errors, "the coded judges did not run: the hook's deadline has passed")
+		return
+	}
+	res := run.Runner{Binary: binary, Engine: s.Build.Engine, Silence: left}.Judge(event, call, repo)
+	if res.Err != nil {
+		v.Errors = append(v.Errors, "the coded judges could not judge: "+res.Err.Error())
+		return
+	}
+	v.Errors = append(v.Errors, res.Errors...)
+	for _, f := range res.Findings {
+		_, id, ok := strings.Cut(f.Check, "/")
+		if !ok {
+			id = f.Check
+		}
+		level := "advise"
+		if f.Class != "advisory" && event == "pre-tool-use" {
+			level = "block"
+		}
+		switch cfg.Rules[id] {
+		case "off":
+			continue
+		case "advise":
+			level = "advise"
+		case "block":
+			if event == "pre-tool-use" {
+				level = "block"
+			}
+		}
+		if level == "block" {
+			v.Blocks = append(v.Blocks, fmt.Sprintf("Blocked by %s: %s", id, f.Sentence))
+		} else {
+			v.Advice = append(v.Advice, fmt.Sprintf("[claudinite %s] %s", id, f.Sentence))
+		}
+	}
 }

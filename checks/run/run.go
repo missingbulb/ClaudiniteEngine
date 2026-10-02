@@ -49,10 +49,20 @@ type Finding struct {
 	Sentence string `json:"sentence"`
 }
 
-// Listed is one check the binary holds.
+// Listed is one check the binary holds; Judge marks a hook judge.
 type Listed struct {
 	Check string   `json:"check"`
 	Tags  []string `json:"tags"`
+	Judge bool     `json:"judge"`
+}
+
+// Call is the call a judge reads, as the SDK's Call: the tool, its input
+// and response as Claude Code sent them, or the prompt.
+type Call struct {
+	Tool     string          `json:"tool,omitempty"`
+	Input    json.RawMessage `json:"input,omitempty"`
+	Response json.RawMessage `json:"response,omitempty"`
+	Prompt   string          `json:"prompt,omitempty"`
 }
 
 // Result is a run's answer. Err is set when the run itself failed; Errors
@@ -212,6 +222,14 @@ func (r Runner) Run(event string, tags []string, pack, repo string) (Result, str
 		outcome = breadcrumb.Error
 	}
 	return res, breadcrumb.Line("checks", event, outcome, time.Since(start))
+}
+
+// Judge asks the judges tagged with event about call. A child that
+// fails or falls silent past the Runner's Silence is Err, which the caller
+// treats as could not judge.
+func (r Runner) Judge(event string, call Call, repo string) Result {
+	a, err := r.converse(map[string]any{"op": "judge", "event": event, "call": call, "repo": repo})
+	return Result{Findings: a.Findings, Errors: a.Errors, Err: err}
 }
 
 // List returns every check the binary holds.

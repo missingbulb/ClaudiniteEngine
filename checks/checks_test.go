@@ -17,7 +17,7 @@ func service(t *testing.T) Service {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return Service{Build: build.Config{CacheRoot: filepath.Join(t.TempDir(), "claudinite"), Engine: "1.1.0", SDK: map[string][]byte{"checksdk.go": raw}}, Exe: "/nonexistent/cn"}
+	return Service{Build: build.Config{CacheRoot: filepath.Join(t.TempDir(), "claudinite"), Engine: "61001.1.0", SDK: map[string][]byte{"checksdk.go": raw}}, Exe: "/nonexistent/cn"}
 }
 
 func helloRepo(t *testing.T) string {
@@ -60,7 +60,7 @@ func TestRunTheHelloCheckByTag(t *testing.T) {
 		t.Errorf("--pack other ran hello's check: %+v", res)
 	}
 	listed, err := s.List(repo, time.Minute)
-	if err != nil || len(listed) != 1 || listed[0].Check != "hello/hello-check" {
+	if err != nil || len(listed) != 2 || listed[0].Check != "hello/hello-check" || listed[1].Check != "hello/hello-judge" || !listed[1].Judge {
 		t.Errorf("%+v %v", listed, err)
 	}
 }
@@ -89,5 +89,54 @@ func TestARepoWithoutSettingsRunsNothing(t *testing.T) {
 	res, crumb := service(t).Run(t.TempDir(), "check", []string{"world"}, "", time.Second, true)
 	if res.Err != nil || len(res.Findings) != 0 || !strings.HasPrefix(crumb, "[cn] checks check ok ") {
 		t.Errorf("%+v %q", res, crumb)
+	}
+}
+
+// Judge runs the declared guards in this process and the coded judges in
+// the checks binary, the latter only once it is built and only for an
+// event the judges manifest names; a judge that cannot run lets the call
+// through with an error line.
+func TestJudgeRunsGuardsAndCodedJudges(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("no go")
+	}
+	s := service(t)
+	repo := helloRepo(t)
+	bash := func(cmd string) Call { return Call{Tool: "Bash", Input: []byte(`{"command":"` + cmd + `"}`)} }
+	soon := func() time.Time { return time.Now().Add(5 * time.Second) }
+	v := s.Judge(repo, "pre-tool-use", bash("echo HELLO_JUDGE"), nil, soon())
+	if len(v.Blocks) != 0 || len(v.Errors) != 1 || !strings.Contains(v.Errors[0], "not built") {
+		t.Errorf("before the build: %+v", v)
+	}
+	if _, err := s.BuildNow(repo, "", true, time.Minute); err != nil {
+		t.Fatal(err)
+	}
+	v = s.Judge(repo, "pre-tool-use", bash("echo HELLO_JUDGE"), nil, soon())
+	if len(v.Errors) != 0 || len(v.Blocks) != 1 || !strings.HasPrefix(v.Blocks[0], "Blocked by hello-judge: the command names HELLO_JUDGE") {
+		t.Errorf("judge: %+v", v)
+	}
+	v = s.Judge(repo, "pre-tool-use", bash("echo HELLO_GUARD"), nil, soon())
+	if len(v.Blocks) != 1 || !strings.HasPrefix(v.Blocks[0], "Blocked by hello-guard: the command names HELLO_GUARD. ") {
+		t.Errorf("guard: %+v", v)
+	}
+	if v := s.Judge(repo, "pre-tool-use", bash("ls"), nil, soon()); len(v.Blocks)+len(v.Advice)+len(v.Errors) != 0 {
+		t.Errorf("ls: %+v", v)
+	}
+	if v := s.Judge(repo, "post-tool-use", bash("echo HELLO_JUDGE"), nil, soon()); len(v.Blocks)+len(v.Advice)+len(v.Errors) != 0 {
+		t.Errorf("an event with no judge: %+v", v)
+	}
+	if v := s.Judge(repo, "pre-tool-use", bash("echo HELLO_JUDGE"), nil, time.Now().Add(-time.Second)); len(v.Blocks) != 0 || len(v.Errors) != 1 {
+		t.Errorf("past the deadline: %+v", v)
+	}
+	settings := filepath.Join(repo, ".claudinite/settings.yaml")
+	raw, _ := os.ReadFile(settings)
+	_ = os.WriteFile(settings, append(raw, []byte("checks:\n  rules:\n    hello-judge: advise\n")...), 0o644)
+	v = s.Judge(repo, "pre-tool-use", bash("echo HELLO_JUDGE"), nil, soon())
+	if len(v.Blocks) != 0 || len(v.Advice) != 1 || !strings.HasPrefix(v.Advice[0], "[claudinite hello-judge] the command names HELLO_JUDGE") {
+		t.Errorf("advise: %+v", v)
+	}
+	_ = os.WriteFile(settings, append(raw, []byte("checks:\n  rules:\n    hello-judge: \"off\"\n")...), 0o644)
+	if v := s.Judge(repo, "pre-tool-use", bash("echo HELLO_JUDGE"), nil, soon()); len(v.Blocks)+len(v.Advice) != 0 {
+		t.Errorf("off: %+v", v)
 	}
 }
