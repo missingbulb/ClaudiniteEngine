@@ -120,9 +120,9 @@ func (r Result) Shared() []findings.Finding {
 		if f.Class == "advisory" {
 			class = findings.Advisory
 		}
-		pack, id, ok := strings.Cut(f.Check, "/")
-		if !ok {
-			pack, id = "", f.Check
+		pack, id := "", f.Check
+		if i := strings.LastIndex(f.Check, "/"); i >= 0 {
+			pack, id = f.Check[:i], f.Check[i+1:]
 		}
 		out = append(out, findings.Finding{Class: class, ID: id, Pack: pack, Path: f.Path, Line: f.Line, Sentence: f.Sentence, Why: f.Why, Fix: f.Fix})
 	}

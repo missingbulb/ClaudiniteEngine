@@ -312,4 +312,11 @@ func TestRunAllOverCodedFindings(t *testing.T) {
 	if o := s.RunAll(bare, "pack", declared.Selection{Pack: "local/probe"}, time.Minute, true, nil); len(o.Findings) != 1 || o.Findings[0].Name() != "local/probe/local-check" {
 		t.Errorf("--pack local/probe: %v", o.Findings)
 	}
+	for _, key := range []string{"local/probe/local-check", "local-check"} {
+		off := acmeRepo(t, "checks:\n  rules:\n    "+key+": \"off\"\n")
+		o := s.RunAll(off, "world", declared.Selection{Tags: []string{"world"}}, time.Minute, true, nil)
+		if _, ok := byName(o.Findings)["local/probe/local-check"]; ok {
+			t.Errorf("%s: off left the local finding: %v", key, o.Findings)
+		}
+	}
 }
