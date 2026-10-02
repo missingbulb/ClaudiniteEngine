@@ -163,6 +163,8 @@ type Outcome struct {
 	Crumb, DeclaredCrumb, SDKCrumb string
 	// Calls counts the coded child's SDK calls by method.
 	Calls map[string]int
+	// Stderr is the tail of the coded child's stderr.
+	Stderr string
 }
 
 // Blocking reports whether any finding blocks.
@@ -191,7 +193,7 @@ func (s Service) RunAll(repo, event string, sel declared.Selection, wait time.Du
 	out.DeclaredCrumb = fmt.Sprintf("[cn] declared %d checks %dms", n, time.Since(start).Milliseconds())
 	srv := newServer(repo, set, sel.Session, start)
 	res, crumb := s.Run(repo, event, tags, pack, wait, foreground, srv)
-	out.Crumb, out.Errors, out.Err, out.SDKCrumb, out.Calls = crumb, res.Errors, res.Err, res.SDKCrumb, res.Calls
+	out.Crumb, out.Errors, out.Err, out.SDKCrumb, out.Calls, out.Stderr = crumb, res.Errors, res.Err, res.SDKCrumb, res.Calls, res.Stderr
 	for i, f := range res.Shared() {
 		out.Findings = append(out.Findings, declared.Grace(f, res.Findings[i].Since, start))
 	}

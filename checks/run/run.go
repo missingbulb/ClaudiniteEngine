@@ -15,10 +15,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/missingbulb/ClaudiniteEngine/shared/breadcrumb"
@@ -98,6 +98,54 @@ type Result struct {
 	Err      error
 	Calls    map[string]int
 	SDKCrumb string
+	// Stderr is the tail of what the child wrote to stderr, at most
+	// StderrTail bytes.
+	Stderr string
+}
+
+// StderrTail bounds how much of the child's stderr is kept.
+const StderrTail = 4 << 10
+
+// tail keeps the last StderrTail bytes written to it.
+type tail struct {
+	mu  sync.Mutex
+	buf []byte
+}
+
+func (t *tail) Write(p []byte) (int, error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.buf = append(t.buf, p...)
+	if over := len(t.buf) - StderrTail; over > 0 {
+		t.buf = append([]byte{}, t.buf[over:]...)
+	}
+	return len(p), nil
+}
+
+func (t *tail) String() string {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return string(t.buf)
+}
+
+// summary is the tail in one line: its last non-empty line, after the
+// panic line when there is one.
+func summary(text string) string {
+	var last, panicLine string
+	for _, l := range strings.Split(text, "\n") {
+		l = strings.TrimSpace(l)
+		if l == "" {
+			continue
+		}
+		last = l
+		if panicLine == "" && strings.HasPrefix(l, "panic: ") {
+			panicLine = l
+		}
+	}
+	if panicLine != "" && panicLine != last {
+		return panicLine + " … " + last
+	}
+	return last
 }
 
 // Blocking reports whether any finding has class finding.
@@ -210,8 +258,8 @@ func (r Runner) methods() []string {
 	return r.Server.Methods()
 }
 
-func (r Runner) converse(req any) (answer, talk, error) {
-	tk := talk{calls: map[string]int{}}
+func (r Runner) converse(req any) (a answer, tk talk, stderr string, err error) {
+	tk = talk{calls: map[string]int{}}
 	silence := r.Silence
 	if silence == 0 {
 		silence = DefaultSilence
@@ -220,22 +268,27 @@ func (r Runner) converse(req any) (answer, talk, error) {
 	defer cancel()
 	cmd := exec.CommandContext(ctx, r.Binary)
 	cmd.Env = r.childEnv()
-	cmd.Stderr = io.Discard
+	errTail := &tail{}
+	cmd.Stderr = errTail
 	cmd.WaitDelay = time.Second
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
-		return answer{}, tk, err
+		return answer{}, tk, "", err
 	}
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return answer{}, tk, err
+		return answer{}, tk, "", err
 	}
 	if err := cmd.Start(); err != nil {
-		return answer{}, tk, err
+		return answer{}, tk, "", err
 	}
 	defer func() {
 		cancel()
 		_ = cmd.Wait()
+		stderr = errTail.String()
+		if line := summary(stderr); err != nil && line != "" {
+			err = fmt.Errorf("%w: %s", err, line)
+		}
 	}()
 	lines := make(chan []byte)
 	scanErr := make(chan error, 1)
@@ -261,6 +314,11 @@ func (r Runner) converse(req any) (answer, talk, error) {
 	enc.SetEscapeHTML(false)
 	ask := func(v any) (answer, error) {
 		if err := enc.Encode(v); err != nil {
+			select {
+			case e := <-scanErr:
+				return answer{}, e
+			case <-time.After(time.Second):
+			}
 			return answer{}, fmt.Errorf("writing to the checks binary: %w", err)
 		}
 		for {
@@ -290,14 +348,14 @@ func (r Runner) converse(req any) (answer, talk, error) {
 	}
 	hs, err := ask(map[string]any{"proto": Proto, "engine": r.Engine, "methods": r.methods()})
 	if err != nil {
-		return answer{}, tk, err
+		return answer{}, tk, "", err
 	}
 	if hs.Proto != Proto {
-		return answer{}, tk, fmt.Errorf("the checks binary speaks protocol %q, not %s", hs.Proto, Proto)
+		return answer{}, tk, "", fmt.Errorf("the checks binary speaks protocol %q, not %s", hs.Proto, Proto)
 	}
-	a, err := ask(req)
+	a, err = ask(req)
 	_ = stdin.Close()
-	return a, tk, err
+	return a, tk, "", err
 }
 
 // Run runs every check whose tags include each of tags, from pack when it
@@ -308,8 +366,8 @@ func (r Runner) Run(event string, tags []string, pack, repo string) (Result, str
 	if tags == nil {
 		tags = []string{}
 	}
-	a, tk, err := r.converse(map[string]any{"op": "run", "tags": tags, "pack": pack, "repo": repo})
-	res := Result{Findings: a.Findings, Errors: a.Errors, Err: err, Calls: tk.calls}
+	a, tk, stderr, err := r.converse(map[string]any{"op": "run", "tags": tags, "pack": pack, "repo": repo})
+	res := Result{Findings: a.Findings, Errors: a.Errors, Err: err, Calls: tk.calls, Stderr: stderr}
 	outcome := breadcrumb.OK
 	switch {
 	case errors.Is(err, ErrSilent):
@@ -334,12 +392,12 @@ func (r Runner) Run(event string, tags []string, pack, repo string) (Result, str
 // fails or falls silent past the Runner's Silence is Err, which the caller
 // treats as could not judge.
 func (r Runner) Judge(event string, call Call, repo string) Result {
-	a, tk, err := r.converse(map[string]any{"op": "judge", "event": event, "call": call, "repo": repo})
-	return Result{Findings: a.Findings, Errors: a.Errors, Err: err, Calls: tk.calls}
+	a, tk, stderr, err := r.converse(map[string]any{"op": "judge", "event": event, "call": call, "repo": repo})
+	return Result{Findings: a.Findings, Errors: a.Errors, Err: err, Calls: tk.calls, Stderr: stderr}
 }
 
 // List returns every check the binary holds.
 func (r Runner) List() ([]Listed, error) {
-	a, _, err := r.converse(map[string]string{"op": "list"})
+	a, _, _, err := r.converse(map[string]string{"op": "list"})
 	return a.Checks, err
 }
