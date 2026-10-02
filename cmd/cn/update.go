@@ -29,7 +29,8 @@ import (
 const childTimeout = 2 * time.Minute
 
 // updateDeps builds the updater's real dependencies. The job token is read
-// once and removed from the environment, so no child process sees it.
+// once and removed from the environment, so no child process inherits it;
+// only the git children that talk to the remote are handed it.
 func updateDeps(repo string, stdout io.Writer) (update.Deps, error) {
 	token := os.Getenv("GITHUB_TOKEN")
 	_ = os.Unsetenv("GITHUB_TOKEN")
@@ -52,7 +53,7 @@ func updateDeps(repo string, stdout io.Writer) (update.Deps, error) {
 	if err != nil {
 		return update.Deps{}, report.Wrap(report.Internal, "update", err)
 	}
-	return update.Deps{GitHub: gh, Registry: reg, Git: gitcmd.Repo{Dir: repo}, Roots: roots,
+	return update.Deps{GitHub: gh, Registry: reg, Git: gitcmd.Repo{Dir: repo, Token: token}, Roots: roots,
 		CacheRoot: paths.CacheRoot(), Platform: version.Platform(), Now: time.Now,
 		Repo: repo, Out: stdout, Timeout: childTimeout, Exe: exe, Key: actionsKey(roots, stdout)}, nil
 }
