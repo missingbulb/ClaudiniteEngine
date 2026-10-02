@@ -89,8 +89,13 @@ cleanup() {
   [ -n "$gh_pid" ] && kill "$gh_pid" 2>/dev/null
   [ -n "$lic_pid" ] && kill "$lic_pid" 2>/dev/null
   for p in $cdn_pids; do kill "$p" 2>/dev/null; done
-  chmod -R u+w "$work" 2>/dev/null
-  rm -rf "$work"
+  # A background checks build a hook started may still be writing under
+  # $work; under set -e a failed removal here would turn a passing run red.
+  chmod -R u+w "$work" 2>/dev/null || :
+  for _ in 1 2 3 4 5; do
+    rm -rf "$work" 2>/dev/null && break
+    sleep 1
+  done
 }
 trap cleanup EXIT
 trap 'exit 1' HUP INT TERM
