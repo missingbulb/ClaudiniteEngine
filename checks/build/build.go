@@ -7,9 +7,10 @@
 // claudinite.com/checksdk, resolves by a replace directive to the copy cn
 // unpacks into <cache>/<version>/checksdk/, and a pack's checks/ folder is
 // copied in as the package claudinite.checks/build/packs/<id> of one
-// generated module, so no pack carries a go.mod. SessionStart starts it
-// detached; the first hook that needs it waits. Local packs join the build
-// with phase 6.
+// generated module, so no pack carries a go.mod; a local pack <name> is
+// the package claudinite.checks/build/packs/local/<name>. A temp pack's
+// checks are never built. SessionStart starts the build detached; the
+// first hook that needs it waits.
 package build
 
 import (
@@ -49,6 +50,7 @@ type Config struct {
 
 // Source is one Go file of a pack's checks.
 type Source struct {
+	// Pack is the pack's token: its id, or local/<name>.
 	Pack string
 	// Path is relative to the pack's checks/ folder, with forward slashes.
 	Path   string
@@ -94,12 +96,16 @@ func (c Config) goCmd() string {
 	return c.Go
 }
 
-// Sources lists every .go file under each declared pack's checks/ folder,
-// test files excepted, in a stable order.
-func Sources(repo string, declared []string) ([]Source, error) {
+// Sources lists every .go file under each canon and local pack's checks/
+// folder, test files excepted, in a stable order; a temp pack is skipped.
+func Sources(packs []packset.Pack) ([]Source, error) {
 	var out []Source
-	for _, id := range declared {
-		root := filepath.Join(packset.Tree(repo, id), "checks")
+	for _, p := range packs {
+		if p.Kind == packset.Temp {
+			continue
+		}
+		id := p.Token()
+		root := filepath.Join(p.Dir, "checks")
 		if st, err := os.Stat(root); err != nil || !st.IsDir() {
 			continue
 		}
@@ -188,6 +194,37 @@ func locked(c Config, key string) bool {
 	return err == nil && time.Since(st.ModTime()) < staleLock
 }
 
+// sdkFiles are the SDK's files as one module: its sources and a go.mod
+// naming claudinite.com/checksdk.
+func sdkFiles(sdk map[string][]byte) map[string][]byte {
+	files := map[string][]byte{"go.mod": []byte("module " + SDKModule + "\n\ngo 1.24\n")}
+	for n, b := range sdk {
+		files[n] = b
+	}
+	return files
+}
+
+// Stanza is the go.mod lines a module adds to resolve the SDK from dir,
+// offline.
+func Stanza(dir string) string {
+	return fmt.Sprintf("require %s v0.0.0\n\nreplace %s => %s\n", SDKModule, SDKModule, filepath.ToSlash(dir))
+}
+
+// WriteSDK writes the SDK module into dir, as UnpackSDK places it for the
+// build, and beside it go.mod.stanza, the lines a pack repo's test module
+// adds to resolve it.
+func WriteSDK(dir string, sdk map[string][]byte) error {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	for n, b := range sdkFiles(sdk) {
+		if err := os.WriteFile(filepath.Join(dir, n), b, 0o644); err != nil {
+			return err
+		}
+	}
+	return os.WriteFile(filepath.Join(dir, "go.mod.stanza"), []byte(Stanza(dir)), 0o644)
+}
+
 // UnpackSDK writes the SDK, read-only, as the module claudinite.com/checksdk
 // in <cache>/<version>/checksdk/, rewriting it only when it differs.
 func UnpackSDK(c Config) (string, error) {
@@ -199,10 +236,7 @@ func UnpackSDK(c Config) (string, error) {
 		return "", err
 	}
 	dir := filepath.Join(vdir, "checksdk")
-	files := map[string][]byte{"go.mod": []byte("module " + SDKModule + "\n\ngo 1.24\n")}
-	for n, b := range c.SDK {
-		files[n] = b
-	}
+	files := sdkFiles(c.SDK)
 	same := true
 	for n, b := range files {
 		have, err := os.ReadFile(filepath.Join(dir, n))
@@ -315,7 +349,7 @@ func build(c Config, key string, srcs []Source, log *bytes.Buffer) error {
 	}
 	dir := c.Dir(key)
 	_ = os.RemoveAll(filepath.Join(dir, "packs"))
-	goMod := fmt.Sprintf("module %s\n\ngo 1.24\n\nrequire %s v0.0.0\n\nreplace %s => %s\n", module, SDKModule, SDKModule, filepath.ToSlash(sdk))
+	goMod := fmt.Sprintf("module %s\n\ngo 1.24\n\n%s", module, Stanza(sdk))
 	var imports []string
 	seen := map[string]bool{}
 	for _, s := range srcs {

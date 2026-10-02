@@ -83,7 +83,7 @@ func cmdCheckWorld(args []string, stdout, stderr io.Writer) error {
 	if *author != "" && *base == "" {
 		*base = g.BaseRef()
 	}
-	all := append(verifyFindings(*repo), allFindings(*repo, "world", declared.Selection{Tags: []string{"world"}}, stderr)...)
+	all := append(verifyFindings(*repo), allFindings(*repo, "world", declared.Selection{Tags: []string{"world"}}, false, stderr)...)
 	in := world.Input{Repo: *repo, PRAuthor: *author, BaseRef: *base, Git: g, CheckPin: checkPin, Findings: all}
 	var code int
 	if *author == "" || *base == "" {

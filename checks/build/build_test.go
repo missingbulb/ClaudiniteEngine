@@ -1,6 +1,7 @@
 package build
 
 import (
+	"bytes"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -8,16 +9,40 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/missingbulb/ClaudiniteEngine/shared/packset"
 )
 
-// sdkSource is the real SDK, read from the tree as cn embeds it.
+// sdkSource is the real SDK, read from the tree as cn embeds it: every
+// file of the package but its tests and the embedding.
 func sdkSource(t *testing.T) map[string][]byte {
 	t.Helper()
-	raw, err := os.ReadFile("../../checksdk/checksdk.go")
+	entries, err := os.ReadDir("../../checksdk")
 	if err != nil {
 		t.Fatal(err)
 	}
-	return map[string][]byte{"checksdk.go": raw}
+	out := map[string][]byte{}
+	for _, e := range entries {
+		n := e.Name()
+		if !strings.HasSuffix(n, ".go") || strings.HasSuffix(n, "_test.go") || n == "embed.go" {
+			continue
+		}
+		raw, err := os.ReadFile(filepath.Join("../../checksdk", n))
+		if err != nil {
+			t.Fatal(err)
+		}
+		out[n] = raw
+	}
+	return out
+}
+
+// canon is the canon packs ids as the pack set loads them in repo.
+func canon(repo string, ids ...string) []packset.Pack {
+	var out []packset.Pack
+	for _, id := range ids {
+		out = append(out, packset.Pack{ID: id, Kind: packset.Canon, Dir: packset.Tree(repo, id)})
+	}
+	return out
 }
 
 func copyDir(t *testing.T, src, dst string) {
@@ -60,7 +85,7 @@ func cfg(t *testing.T) Config {
 func TestSourcesAndKey(t *testing.T) {
 	repo := helloRepo(t)
 	_ = os.WriteFile(filepath.Join(repo, ".claudinite/shared/packs/hello/checks/hello_test.go"), []byte("package checks\n"), 0o644)
-	srcs, err := Sources(repo, []string{"hello", "absent"})
+	srcs, err := Sources(canon(repo, "hello", "absent"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,11 +108,11 @@ func TestSourcesAndKey(t *testing.T) {
 		t.Error("the SDK does not move the key")
 	}
 	_ = os.WriteFile(filepath.Join(repo, ".claudinite/shared/packs/hello/checks/more.go"), []byte("package checks\n"), 0o644)
-	srcs2, _ := Sources(repo, []string{"hello"})
+	srcs2, _ := Sources(canon(repo, "hello"))
 	if Key(c, srcs2) == k1 {
 		t.Error("a new source does not move the key")
 	}
-	if none, _ := Sources(t.TempDir(), []string{"hello"}); len(none) != 0 {
+	if none, _ := Sources(canon(t.TempDir(), "hello")); len(none) != 0 {
 		t.Errorf("sources in an empty repo: %v", none)
 	}
 }
@@ -98,7 +123,7 @@ func TestBuildRunsOnceAndRebuildsNothing(t *testing.T) {
 	}
 	repo := helloRepo(t)
 	c := cfg(t)
-	srcs, _ := Sources(repo, []string{"hello"})
+	srcs, _ := Sources(canon(repo, "hello"))
 	key := Key(c, srcs)
 	start := time.Now()
 	if err := Build(c, key, srcs); err != nil {
@@ -121,6 +146,9 @@ func TestBuildRunsOnceAndRebuildsNothing(t *testing.T) {
 		t.Errorf("build.log starts %q", log)
 	}
 	sdk, err := os.ReadFile(filepath.Join(c.CacheRoot, "1.1.0", "checksdk", "checksdk.go"))
+	if len(c.SDK) < 5 {
+		t.Errorf("the SDK has %d files", len(c.SDK))
+	}
 	if err != nil || string(sdk) != string(c.SDK["checksdk.go"]) {
 		t.Errorf("unpacked SDK: %v", err)
 	}
@@ -159,7 +187,7 @@ func TestBuildRecordsACompileError(t *testing.T) {
 	repo := helloRepo(t)
 	_ = os.WriteFile(filepath.Join(repo, ".claudinite/shared/packs/hello/checks/broken.go"), []byte("package checks\nfunc broken() { return 1 }\n"), 0o644)
 	c := cfg(t)
-	srcs, _ := Sources(repo, []string{"hello"})
+	srcs, _ := Sources(canon(repo, "hello"))
 	key := Key(c, srcs)
 	if err := Build(c, key, srcs); err == nil {
 		t.Fatal("a broken check built")
@@ -177,7 +205,7 @@ func TestBuildWithoutGoIsARecordedFailure(t *testing.T) {
 	repo := helloRepo(t)
 	c := cfg(t)
 	c.Go = filepath.Join(t.TempDir(), "no-go-here")
-	srcs, _ := Sources(repo, []string{"hello"})
+	srcs, _ := Sources(canon(repo, "hello"))
 	key := Key(c, srcs)
 	err := Build(c, key, srcs)
 	if err == nil {
@@ -253,4 +281,63 @@ func TestStartRunsDetached(t *testing.T) {
 		time.Sleep(20 * time.Millisecond)
 	}
 	t.Error("the detached build never ran")
+}
+
+// A local pack's checks build as local/<name>; a temp pack's never do.
+func TestSourcesTakeLocalPacksAndSkipTemp(t *testing.T) {
+	repo := helloRepo(t)
+	local := filepath.Join(repo, ".claudinite/local/packs/probe")
+	temp := filepath.Join(repo, ".claudinite/temp/packs/copied")
+	for _, d := range []string{local, temp} {
+		_ = os.MkdirAll(filepath.Join(d, "checks"), 0o755)
+		_ = os.WriteFile(filepath.Join(d, "checks", "c.go"), []byte("package checks\n"), 0o644)
+	}
+	packs := append(canon(repo, "hello"), packset.Pack{ID: "probe", Kind: packset.Local, Dir: local}, packset.Pack{ID: "copied", Kind: packset.Temp, Dir: temp})
+	srcs, err := Sources(packs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, s := range srcs {
+		names = append(names, s.Pack+":"+s.Path)
+	}
+	if strings.Join(names, " ") != "hello:hello.go hello:judge.go local/probe:c.go" {
+		t.Errorf("sources %v", names)
+	}
+	k := Key(cfg(t), srcs)
+	_ = os.WriteFile(filepath.Join(local, "checks", "c.go"), []byte("package checks\n\n"), 0o644)
+	srcs2, _ := Sources(packs)
+	if Key(cfg(t), srcs2) == k {
+		t.Error("a local pack's Go file does not move the key")
+	}
+}
+
+// The SDK a pack repo's tests resolve and the one the build compiles
+// against are written by one function: the same files, byte for byte.
+func TestWriteSDKIsTheBuildsSDK(t *testing.T) {
+	c := cfg(t)
+	built, err := UnpackSDK(c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := t.TempDir()
+	if err := WriteSDK(out, c.SDK); err != nil {
+		t.Fatal(err)
+	}
+	for n := range c.SDK {
+		a, _ := os.ReadFile(filepath.Join(built, n))
+		b, _ := os.ReadFile(filepath.Join(out, n))
+		if len(a) == 0 || !bytes.Equal(a, b) {
+			t.Errorf("%s differs", n)
+		}
+	}
+	a, _ := os.ReadFile(filepath.Join(built, "go.mod"))
+	b, _ := os.ReadFile(filepath.Join(out, "go.mod"))
+	if !bytes.Equal(a, b) || !strings.HasPrefix(string(a), "module claudinite.com/checksdk") {
+		t.Errorf("go.mod %q %q", a, b)
+	}
+	stanza, _ := os.ReadFile(filepath.Join(out, "go.mod.stanza"))
+	if want := "require claudinite.com/checksdk v0.0.0\n\nreplace claudinite.com/checksdk => " + filepath.ToSlash(out) + "\n"; string(stanza) != want {
+		t.Errorf("stanza %q, want %q", stanza, want)
+	}
 }

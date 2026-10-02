@@ -1,8 +1,12 @@
 // Package run starts the checks binary as a child process and talks to it
 // over its stdin and stdout, one JSON object per line: a handshake naming
-// the protocol, then one request. The child gets a scrubbed environment
-// with NODE_OPTIONS unset, so no secret reaches pack code; a malformed or
-// oversized line, or a silence longer than the limit, kills it.
+// the protocol and the SDK methods the engine answers, then one request.
+// While the answer is awaited the child may call back: a line carrying
+// "sdk" is a call, which the Runner's Server answers on the child's stdin
+// before it goes on waiting, one call in flight at a time. The child gets
+// a scrubbed environment with NODE_OPTIONS unset, so no secret reaches
+// pack code; a malformed or oversized line, or a silence longer than the
+// limit, kills it.
 package run
 
 import (
@@ -37,23 +41,42 @@ type Runner struct {
 	// Silence is the longest the child may take to answer a line;
 	// DefaultSilence when zero.
 	Silence time.Duration
+	// Server answers the child's SDK calls; nil answers every call with
+	// an error and announces no methods.
+	Server Server
 
 	extraEnv []string
 }
 
-// Finding is one finding a check reported.
+// Server answers the SDK calls a child makes while a request is answered.
+type Server interface {
+	// Methods are the calls it answers, which the handshake announces.
+	Methods() []string
+	// Handle answers one call with JSON, or an error the check reads.
+	Handle(method string, args json.RawMessage) (json.RawMessage, error)
+}
+
+// Finding is one finding a check reported, with the check's on_fail and
+// since.
 type Finding struct {
 	Check    string `json:"check"`
 	Class    string `json:"class"`
 	Path     string `json:"path"`
+	Line     int    `json:"line"`
 	Sentence string `json:"sentence"`
+	Why      string `json:"why"`
+	Fix      string `json:"fix"`
+	OnFail   string `json:"on_fail"`
+	Since    string `json:"since"`
 }
 
 // Listed is one check the binary holds; Judge marks a hook judge.
 type Listed struct {
-	Check string   `json:"check"`
-	Tags  []string `json:"tags"`
-	Judge bool     `json:"judge"`
+	Check  string   `json:"check"`
+	Tags   []string `json:"tags"`
+	Judge  bool     `json:"judge"`
+	OnFail string   `json:"on_fail"`
+	Since  string   `json:"since"`
 }
 
 // Call is the call a judge reads, as the SDK's Call: the tool, its input
@@ -66,11 +89,15 @@ type Call struct {
 }
 
 // Result is a run's answer. Err is set when the run itself failed; Errors
-// are checks that failed inside a run that completed.
+// are checks that failed inside a run that completed. Calls counts the
+// child's SDK calls by method, and SDKCrumb is the run's
+// `[cn] sdk <event> <outcome>` breadcrumb when a Server was attached.
 type Result struct {
 	Findings []Finding
 	Errors   []string
 	Err      error
+	Calls    map[string]int
+	SDKCrumb string
 }
 
 // Blocking reports whether any finding has class finding.
@@ -97,7 +124,7 @@ func (r Result) Shared() []findings.Finding {
 		if !ok {
 			pack, id = "", f.Check
 		}
-		out = append(out, findings.Finding{Class: class, ID: id, Pack: pack, Path: f.Path, Sentence: f.Sentence})
+		out = append(out, findings.Finding{Class: class, ID: id, Pack: pack, Path: f.Path, Line: f.Line, Sentence: f.Sentence, Why: f.Why, Fix: f.Fix})
 	}
 	return out
 }
@@ -114,10 +141,11 @@ type answer struct {
 var ErrSilent = errors.New("the checks binary fell silent")
 
 // childEnv is the child's whole environment: enough to find a temp folder
-// and the home directory, never a token, and no NODE_OPTIONS.
+// and the home directory, and the per-check clock's override, never a
+// token, and no NODE_OPTIONS.
 func (r Runner) childEnv() []string {
 	var env []string
-	for _, k := range []string{"PATH", "HOME", "TMPDIR", "TMP", "TEMP", "SYSTEMROOT", "USERPROFILE"} {
+	for _, k := range []string{"PATH", "HOME", "TMPDIR", "TMP", "TEMP", "SYSTEMROOT", "USERPROFILE", "CLAUDINITE_CHECK_DEADLINE_MS"} {
 		if v, ok := os.LookupEnv(k); ok {
 			env = append(env, k+"="+v)
 		}
@@ -125,7 +153,65 @@ func (r Runner) childEnv() []string {
 	return append(env, r.extraEnv...)
 }
 
-func (r Runner) converse(req any) (answer, error) {
+// talk is one child's conversation: the SDK calls it made and whether
+// any named a method the Server does not answer.
+type talk struct {
+	calls   map[string]int
+	unknown bool
+}
+
+// sdkLine is a line from the child that may be an SDK call.
+type sdkLine struct {
+	SDK  *string         `json:"sdk"`
+	ID   json.RawMessage `json:"id"`
+	Args json.RawMessage `json:"args"`
+}
+
+type sdkAnswer struct {
+	ID     json.RawMessage `json:"id"`
+	Result json.RawMessage `json:"result,omitempty"`
+	Error  *string         `json:"error,omitempty"`
+}
+
+// serve answers one SDK call.
+func (r Runner) serve(c sdkLine, tk *talk) sdkAnswer {
+	method := *c.SDK
+	tk.calls[method]++
+	known := false
+	if r.Server != nil {
+		for _, m := range r.Server.Methods() {
+			known = known || m == method
+		}
+	}
+	if !known {
+		tk.unknown = true
+		e := "unknown method " + method
+		return sdkAnswer{ID: c.ID, Error: &e}
+	}
+	args := c.Args
+	if len(args) == 0 {
+		args = json.RawMessage("{}")
+	}
+	res, err := r.Server.Handle(method, args)
+	if err != nil {
+		e := err.Error()
+		return sdkAnswer{ID: c.ID, Error: &e}
+	}
+	if len(res) == 0 {
+		res = json.RawMessage("null")
+	}
+	return sdkAnswer{ID: c.ID, Result: res}
+}
+
+func (r Runner) methods() []string {
+	if r.Server == nil {
+		return []string{}
+	}
+	return r.Server.Methods()
+}
+
+func (r Runner) converse(req any) (answer, talk, error) {
+	tk := talk{calls: map[string]int{}}
 	silence := r.Silence
 	if silence == 0 {
 		silence = DefaultSilence
@@ -138,14 +224,14 @@ func (r Runner) converse(req any) (answer, error) {
 	cmd.WaitDelay = time.Second
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
-		return answer{}, err
+		return answer{}, tk, err
 	}
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return answer{}, err
+		return answer{}, tk, err
 	}
 	if err := cmd.Start(); err != nil {
-		return answer{}, err
+		return answer{}, tk, err
 	}
 	defer func() {
 		cancel()
@@ -172,36 +258,46 @@ func (r Runner) converse(req any) (answer, error) {
 		scanErr <- err
 	}()
 	enc := json.NewEncoder(stdin)
+	enc.SetEscapeHTML(false)
 	ask := func(v any) (answer, error) {
 		if err := enc.Encode(v); err != nil {
 			return answer{}, fmt.Errorf("writing to the checks binary: %w", err)
 		}
-		select {
-		case line := <-lines:
-			var a answer
-			if err := json.Unmarshal(line, &a); err != nil {
-				return answer{}, fmt.Errorf("malformed line from the checks binary: %v", err)
+		for {
+			select {
+			case line := <-lines:
+				var call sdkLine
+				if json.Unmarshal(line, &call) == nil && call.SDK != nil {
+					if err := enc.Encode(r.serve(call, &tk)); err != nil {
+						return answer{}, fmt.Errorf("writing to the checks binary: %w", err)
+					}
+					continue
+				}
+				var a answer
+				if err := json.Unmarshal(line, &a); err != nil {
+					return answer{}, fmt.Errorf("malformed line from the checks binary: %v", err)
+				}
+				if a.Error != "" {
+					return answer{}, fmt.Errorf("the checks binary refused: %s", a.Error)
+				}
+				return a, nil
+			case err := <-scanErr:
+				return answer{}, err
+			case <-time.After(silence):
+				return answer{}, fmt.Errorf("%w for %v", ErrSilent, silence)
 			}
-			if a.Error != "" {
-				return answer{}, fmt.Errorf("the checks binary refused: %s", a.Error)
-			}
-			return a, nil
-		case err := <-scanErr:
-			return answer{}, err
-		case <-time.After(silence):
-			return answer{}, fmt.Errorf("%w for %v", ErrSilent, silence)
 		}
 	}
-	hs, err := ask(map[string]string{"proto": Proto, "engine": r.Engine})
+	hs, err := ask(map[string]any{"proto": Proto, "engine": r.Engine, "methods": r.methods()})
 	if err != nil {
-		return answer{}, err
+		return answer{}, tk, err
 	}
 	if hs.Proto != Proto {
-		return answer{}, fmt.Errorf("the checks binary speaks protocol %q, not %s", hs.Proto, Proto)
+		return answer{}, tk, fmt.Errorf("the checks binary speaks protocol %q, not %s", hs.Proto, Proto)
 	}
 	a, err := ask(req)
 	_ = stdin.Close()
-	return a, err
+	return a, tk, err
 }
 
 // Run runs every check whose tags include each of tags, from pack when it
@@ -212,14 +308,24 @@ func (r Runner) Run(event string, tags []string, pack, repo string) (Result, str
 	if tags == nil {
 		tags = []string{}
 	}
-	a, err := r.converse(map[string]any{"op": "run", "tags": tags, "pack": pack, "repo": repo})
-	res := Result{Findings: a.Findings, Errors: a.Errors, Err: err}
+	a, tk, err := r.converse(map[string]any{"op": "run", "tags": tags, "pack": pack, "repo": repo})
+	res := Result{Findings: a.Findings, Errors: a.Errors, Err: err, Calls: tk.calls}
 	outcome := breadcrumb.OK
 	switch {
 	case errors.Is(err, ErrSilent):
 		outcome = breadcrumb.Timeout
 	case err != nil || len(a.Errors) > 0:
 		outcome = breadcrumb.Error
+	}
+	if r.Server != nil {
+		sdk := breadcrumb.OK
+		switch {
+		case errors.Is(err, ErrSilent):
+			sdk = breadcrumb.Timeout
+		case tk.unknown:
+			sdk = breadcrumb.Error
+		}
+		res.SDKCrumb = breadcrumb.Line("sdk", event, sdk, time.Since(start))
 	}
 	return res, breadcrumb.Line("checks", event, outcome, time.Since(start))
 }
@@ -228,12 +334,12 @@ func (r Runner) Run(event string, tags []string, pack, repo string) (Result, str
 // fails or falls silent past the Runner's Silence is Err, which the caller
 // treats as could not judge.
 func (r Runner) Judge(event string, call Call, repo string) Result {
-	a, err := r.converse(map[string]any{"op": "judge", "event": event, "call": call, "repo": repo})
-	return Result{Findings: a.Findings, Errors: a.Errors, Err: err}
+	a, tk, err := r.converse(map[string]any{"op": "judge", "event": event, "call": call, "repo": repo})
+	return Result{Findings: a.Findings, Errors: a.Errors, Err: err, Calls: tk.calls}
 }
 
 // List returns every check the binary holds.
 func (r Runner) List() ([]Listed, error) {
-	a, err := r.converse(map[string]string{"op": "list"})
+	a, _, err := r.converse(map[string]string{"op": "list"})
 	return a.Checks, err
 }

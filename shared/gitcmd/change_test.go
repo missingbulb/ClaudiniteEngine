@@ -149,4 +149,23 @@ func TestTheChange(t *testing.T) {
 	if _, ok := r.ShowText(base, "nope.txt"); ok {
 		t.Error("show of a missing path")
 	}
+	cs := r.CommitsWithFiles(base)
+	bySubject := map[string]Commit{}
+	for _, c := range cs {
+		bySubject[c.Subject] = c
+	}
+	if e := bySubject["edit"]; len(cs) != 2 || !reflect.DeepEqual(e.Files, []string{"a.txt", "gone.txt"}) || len(e.Sha) != 40 || e.Date == "" || bySubject["side"].Files[0] != "side.txt" {
+		t.Errorf("commits with files %+v", cs)
+	}
+	if got := r.LsTree(base); !reflect.DeepEqual(got, []string{"a.txt", "gone.txt"}) {
+		t.Errorf("ls-tree %q", got)
+	}
+	write(t, r.Dir, ".claudinite/shared/x.txt", "four\n")
+	git(t, r.Dir, "add", "-A")
+	if got := r.GrepTracked("four", ".claudinite/shared/"); !reflect.DeepEqual(got, []Hit{{Path: "a.txt", Line: 4, Text: "four"}}) {
+		t.Errorf("grep %v", got)
+	}
+	if got := r.GrepTracked("nowhere-at-all", ""); got != nil {
+		t.Errorf("grep of nothing %v", got)
+	}
 }

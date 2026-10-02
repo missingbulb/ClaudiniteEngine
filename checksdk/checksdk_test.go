@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -55,11 +56,11 @@ func TestHandshakeListRun(t *testing.T) {
 	if got[0]["proto"] != Proto {
 		t.Errorf("handshake %v", got[0])
 	}
-	if s, _ := json.Marshal(got[1]["checks"]); string(s) != `[{"check":"hello/hello-check","tags":["work","world"]},{"check":"hello/hello-advice","tags":["work"]},{"check":"other/boom","tags":["world"]}]` {
+	if s, _ := json.Marshal(got[1]["checks"]); string(s) != `[{"check":"hello/hello-check","on_fail":"block","tags":["work","world"]},{"check":"hello/hello-advice","on_fail":"block","tags":["work"]},{"check":"other/boom","on_fail":"block","tags":["world"]}]` {
 		t.Errorf("list %s", s)
 	}
 	world, _ := json.Marshal(got[2])
-	if !strings.Contains(string(world), `"check":"hello/hello-check","class":"finding","path":"HELLO_FINDING"`) || !strings.Contains(string(world), `other/boom: panic: kaput`) {
+	if !strings.Contains(string(world), `"check":"hello/hello-check","class":"finding","on_fail":"block","path":"HELLO_FINDING"`) || !strings.Contains(string(world), `other/boom: panic: kaput`) {
 		t.Errorf("world run %s", world)
 	}
 	work, _ := json.Marshal(got[3])
@@ -91,6 +92,8 @@ func TestPackOfReadsTheGeneratedPackagePath(t *testing.T) {
 	cases := map[string]string{
 		"claudinite.checks/build/packs/hello.init.0":            "hello",
 		"claudinite.checks/build/packs/acme-pack/sub.init.0":    "acme-pack",
+		"claudinite.checks/build/packs/local/probe.init.0":      "local/probe",
+		"claudinite.checks/build/packs/local/probe/sub.init.0":  "local/probe",
 		"claudinite.checks/build/packs/hello.glob..func1":       "hello",
 		"github.com/missingbulb/ClaudiniteEngine/checksdk.Test": "",
 	}
@@ -149,15 +152,15 @@ func TestJudge(t *testing.T) {
 		t.Fatalf("code %d: %v", code, got)
 	}
 	list, _ := json.Marshal(got[1]["checks"])
-	if !strings.Contains(string(list), `{"check":"hello/hello-judge","judge":true,"tags":["pre-tool-use"]}`) || !strings.Contains(string(list), `{"check":"hello/hello-check","tags":["work","world"]}`) {
+	if !strings.Contains(string(list), `{"check":"hello/hello-judge","judge":true,"on_fail":"block","tags":["pre-tool-use"]}`) || !strings.Contains(string(list), `{"check":"hello/hello-check","on_fail":"block","tags":["work","world"]}`) {
 		t.Errorf("list %s", list)
 	}
 	pre, _ := json.Marshal(got[2])
-	if !strings.Contains(string(pre), `"check":"hello/hello-judge","class":"finding","path":"(tool call)","sentence":"no HELLO_JUDGE"`) || !strings.Contains(string(pre), "other/judge-boom: panic: kaput") || strings.Contains(string(pre), "both") {
+	if !strings.Contains(string(pre), `"check":"hello/hello-judge","class":"finding","on_fail":"block","path":"(tool call)","sentence":"no HELLO_JUDGE"`) || !strings.Contains(string(pre), "other/judge-boom: panic: kaput") || strings.Contains(string(pre), "both") {
 		t.Errorf("pre-tool-use %s", pre)
 	}
 	post, _ := json.Marshal(got[3])
-	if !strings.Contains(string(post), `"check":"hello/both","class":"advisory","path":"","sentence":"result \"out\""`) || strings.Contains(string(post), "hello-judge") {
+	if !strings.Contains(string(post), `"check":"hello/both","class":"advisory","on_fail":"block","path":"","sentence":"result \"out\""`) || strings.Contains(string(post), "hello-judge") {
 		t.Errorf("post-tool-use %s", post)
 	}
 	if run, _ := json.Marshal(got[4]); strings.Contains(string(run), "judge") {
@@ -165,14 +168,30 @@ func TestJudge(t *testing.T) {
 	}
 }
 
-func TestSourceIsTheSDK(t *testing.T) {
-	raw, err := os.ReadFile("checksdk.go")
+// Every non-test file of the package but this embedding is the SDK.
+func TestSourcesAreTheSDK(t *testing.T) {
+	entries, err := os.ReadDir(".")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Equal(Source, raw) {
-		t.Error("the embedded Source is not checksdk.go")
+	src := Sources()
+	n := 0
+	for _, e := range entries {
+		name := e.Name()
+		if !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") || name == "embed.go" {
+			continue
+		}
+		n++
+		raw, _ := os.ReadFile(name)
+		if !bytes.Equal(src[name], raw) {
+			t.Errorf("%s is not embedded as it is", name)
+		}
+	}
+	if n != len(src) {
+		t.Errorf("%d files, %d embedded", n, len(src))
 	}
 }
 
 func mustJSON(s string) string { b, _ := json.Marshal(s); return string(b) }
+
+func mustRe(s string) *regexp.Regexp { return regexp.MustCompile(s) }
