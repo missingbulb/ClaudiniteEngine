@@ -1,0 +1,11 @@
+{
+  "nodeFiles": {
+    ".claudinite-settings.json": "{\"packs\":[{\"id\":\"basics\",\"version\":42}],\"engineVersion\":42}\n",
+    ".claudinite/shared/engine/checks/check_the_world.mjs": "// sweep\n",
+    ".claudinite/shared/engine/checks/ci-work-scope.mjs": "// work\n"
+  },
+  "cnShape": "v3-two-part-min-engine",
+  "cnFiles": {},
+  "answeredBy": "min-engine-version-legacy",
+  "nodeFires": true
+}

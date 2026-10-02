@@ -1,0 +1,12 @@
+{
+  "input": {
+    "outcome": {
+      "status": "ok"
+    }
+  },
+  "expect": {
+    "action": "needs-human",
+    "label": "needs-human",
+    "why": "the flow reported success but reached no delivery decision"
+  }
+}

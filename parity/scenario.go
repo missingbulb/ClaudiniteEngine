@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"sort"
 	"strings"
@@ -226,12 +227,8 @@ func (s Scenario) Materialize(parent, canonPacks string, e Engine) (string, erro
 		if _, err := os.Stat(dst); err == nil {
 			continue
 		}
-		src, err := PackSource(id, canonPacks, e.Name())
-		if err != nil {
+		if err := VendorPack(id, canonPacks, e.Name(), dst); err != nil {
 			return "", err
-		}
-		if err := copyTree(src, dst); err != nil {
-			return "", fmt.Errorf("canon pack %s: %w", id, err)
 		}
 	}
 	settings, err := e.Settings(dir, s.Node)
@@ -315,6 +312,69 @@ func Ported() map[string]bool {
 func portedFile() string {
 	_, self, _, _ := runtime.Caller(0)
 	return filepath.Join(filepath.Dir(self), "ported.txt")
+}
+
+// Diverged are the ported pack paths parity/diverged.txt lists, each
+// mapped to the design record row it names.
+func Diverged() (map[string]string, error) {
+	out := map[string]string{}
+	raw, err := os.ReadFile(filepath.Join(filepath.Dir(portedFile()), "diverged.txt"))
+	if err != nil {
+		return nil, err
+	}
+	for _, l := range strings.Split(string(raw), "\n") {
+		if l = strings.TrimSpace(l); l == "" || strings.HasPrefix(l, "#") {
+			continue
+		}
+		f := strings.Fields(l)
+		if len(f) != 2 || !divergenceRow.MatchString(f[1]) || !strings.Contains(f[0], "/") {
+			return nil, fmt.Errorf("diverged.txt: %q is not <pack>/<path> record-<row>", l)
+		}
+		out[f[0]] = f[1]
+	}
+	return out, nil
+}
+
+var divergenceRow = regexp.MustCompile(`^record-\d+$`)
+
+// VendorPack lays canon pack id at dst for engine: PackSource's tree, and
+// for cn a ported pack's diverged paths at the frozen shelf's content.
+func VendorPack(id, canonPacks, engine, dst string) error {
+	src, err := PackSource(id, canonPacks, engine)
+	if err != nil {
+		return err
+	}
+	if err := copyTree(src, dst); err != nil {
+		return fmt.Errorf("canon pack %s: %w", id, err)
+	}
+	if engine != "cn" || !Ported()[id] {
+		return nil
+	}
+	diverged, err := Diverged()
+	if err != nil {
+		return err
+	}
+	for p := range diverged {
+		rel, ok := strings.CutPrefix(p, id+"/")
+		if !ok {
+			continue
+		}
+		at := filepath.Join(dst, filepath.FromSlash(rel))
+		if err := os.RemoveAll(at); err != nil {
+			return err
+		}
+		frozen := filepath.Join(canonPacks, id, filepath.FromSlash(rel))
+		if !exists(frozen) {
+			continue
+		}
+		if err := os.MkdirAll(filepath.Dir(at), 0o755); err != nil {
+			return err
+		}
+		if err := copyTree(frozen, at); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // PackSource is where engine reads canon pack id from: the ClaudinitePacks

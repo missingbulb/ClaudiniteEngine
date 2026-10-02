@@ -167,11 +167,121 @@ func (s *SDK) git(args json.RawMessage) (any, error) {
 	if s.Git == nil {
 		return nil, errors.New("this run has no git to reach")
 	}
+	if why := pushRefusal(a.Args, s.DefaultBranch); why != "" {
+		s.log("refused git push — " + why)
+		return nil, errors.New("git push refused: " + why)
+	}
 	ran, err := s.Git(a.Args...)
 	if err != nil {
 		return nil, err
 	}
 	return map[string]any{"code": ran.Code, "stdout": ran.Stdout, "stderr": ran.Stderr}, nil
+}
+
+// gitGlobalWithValue are git's options before the subcommand that take
+// the next argument as their value.
+var gitGlobalWithValue = map[string]bool{"-c": true, "-C": true, "--git-dir": true, "--work-tree": true, "--namespace": true, "--exec-path": true, "--config-env": true}
+
+// pushWithValue are push's options that take the next argument as their
+// value, so it is no repository or refspec.
+var pushWithValue = map[string]bool{"-o": true, "--push-option": true, "--receive-pack": true, "--exec": true, "--repo": true}
+
+// pushRefusal is why a script's git call may not run, "" when it may: a
+// push may not rewrite or delete the default branch, nor push every ref
+// at once, whatever refs the task otherwise pushes. A forced or deleting
+// refspec must name its destination plainly, since git resolves HEAD,
+// heads/<b> and revision syntax to refs the script never spelled.
+func pushRefusal(args []string, defaultBranch string) string {
+	i := 0
+	for i < len(args) && strings.HasPrefix(args[i], "-") {
+		opt, val, joined := strings.Cut(args[i], "=")
+		if gitGlobalWithValue[opt] && !joined && i+1 < len(args) {
+			val = args[i+1]
+			i++
+		}
+		if (opt == "-c" || opt == "--config-env") && strings.HasPrefix(strings.ToLower(val), "alias.") {
+			return "a git alias set on the command line hides which command runs"
+		}
+		i++
+	}
+	if i >= len(args) {
+		return ""
+	}
+	switch args[i] {
+	case "send-pack", "receive-pack":
+		return args[i] + " updates remote refs past the push checks"
+	case "push":
+	default:
+		return ""
+	}
+	force, deletes := false, false
+	var positional []string
+	rest := args[i+1:]
+	for j := 0; j < len(rest); j++ {
+		a := rest[j]
+		switch {
+		case a == "--mirror" || a == "--all" || a == "--prune":
+			return a + " pushes refs beyond the task's own"
+		case a == "--force" || strings.HasPrefix(a, "--force-with-lease") || a == "--force-if-includes":
+			force = true
+		case a == "--delete":
+			deletes = true
+		case pushWithValue[a]:
+			j++
+		case strings.HasPrefix(a, "--"):
+		case strings.HasPrefix(a, "-"):
+			force = force || strings.Contains(a, "f")
+			deletes = deletes || strings.Contains(a, "d")
+		default:
+			positional = append(positional, a)
+		}
+	}
+	if len(positional) < 2 {
+		if force || deletes {
+			return "a forced or deleting push names its refspec, so it can be seen to spare " + defaultBranch
+		}
+		return ""
+	}
+	for _, spec := range positional[1:] {
+		plus := strings.HasPrefix(spec, "+")
+		spec = strings.TrimPrefix(spec, "+")
+		src, dst, paired := strings.Cut(spec, ":")
+		if !paired {
+			dst = src
+		}
+		deleting := deletes || (paired && src == "")
+		if !force && !plus && !deleting {
+			continue
+		}
+		branch, ok := plainBranch(dst)
+		switch {
+		case !ok:
+			return "a forced or deleting push names its refspec, so it can be seen to spare " + defaultBranch + ": " + dst + " is no plain branch"
+		case branch != defaultBranch:
+		case deleting:
+			return "it deletes the default branch " + defaultBranch
+		default:
+			return "it force-pushes the default branch " + defaultBranch
+		}
+	}
+	return ""
+}
+
+// plainBranch is the branch a refspec destination names when it is
+// refs/heads/<b> or a bare <b> git cannot resolve to anything else.
+func plainBranch(dst string) (string, bool) {
+	b, full := strings.CutPrefix(dst, "refs/heads/")
+	if !full {
+		for _, p := range []string{"refs/", "heads/", "tags/", "remotes/"} {
+			if strings.HasPrefix(dst, p) {
+				return "", false
+			}
+		}
+	}
+	if b == "" || b == "@" || strings.HasSuffix(b, "HEAD") || strings.ContainsAny(b, "^~*:?[\\ ") || strings.Contains(b, "@{") || strings.Contains(b, "..") {
+		return "", false
+	}
+	return b, true
 }
 
 func (s *SDK) github(action string, args json.RawMessage) (any, error) {

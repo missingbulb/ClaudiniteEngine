@@ -14,7 +14,8 @@ import (
 
 // The tasks face: the task runner's pure decision cores (the contract, the
 // precondition engine, the merge policy, the work item's grammar, the
-// outcome ceiling) asked one fixture at a time. A fixture is
+// outcome ceiling, the scheduler run's plan with its repair phase, the pick
+// order, the claim arbiter) asked one fixture at a time. A fixture is
 // testdata/tasks/<kind>/<name>.json holding {"input": …, "expect": …};
 // the Node engine answers it through testdata/shims/tasks.mjs over the
 // frozen shelf, cn through `cn tasks <kind> --world <input>`, and both

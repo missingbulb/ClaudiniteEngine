@@ -1,0 +1,29 @@
+{
+  "input": {
+    "specs": [
+      {
+        "dir": "packs/acme-pack/migrations/2026-09-01-a",
+        "applyStage": {
+          "why": "rename the config key"
+        }
+      }
+    ],
+    "withheld": [],
+    "testVisible": []
+  },
+  "expect": {
+    "needed": true,
+    "packs": [
+      "acme-pack"
+    ],
+    "records": [
+      "packs/acme-pack/migrations/2026-09-01-a"
+    ],
+    "why": "packs/acme-pack/migrations/2026-09-01-a: rename the config key",
+    "withheld": []
+  },
+  "divergence": "record-32",
+  "cn": {
+    "needed": false
+  }
+}

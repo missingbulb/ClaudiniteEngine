@@ -265,7 +265,12 @@ func propose(d Deps, o Options, f settings.Format, raw []byte, pin settings.Engi
 	if err != nil {
 		return "", "", err
 	}
-	self, err := Selftest(got.Binary, c.Version, d.Timeout)
+	self, err := Selftest(got.Binary, c.Version, d.Repo, d.Timeout)
+	var failed *SelftestFailed
+	if errors.As(err, &failed) {
+		fmt.Fprint(d.Out, failed.Report)
+		return c.Version, "skipped: selftest failed (" + strings.Join(failed.Probes, ", ") + ")", nil
+	}
 	if err != nil {
 		return "", "", err
 	}
@@ -293,8 +298,6 @@ func propose(d Deps, o Options, f settings.Format, raw []byte, pin settings.Engi
 	return c.Version, fmt.Sprintf("opened #%d for %s", n, c.Version), nil
 }
 
-func title(ver string) string { return "Claudinite engine " + ver }
-
 // openPR commits the pin on a fresh update branch, pushes it, opens and
 // labels the PR and dispatches its CI, leaving the checkout where it was.
 func openPR(d Deps, f settings.Format, raw []byte, got Fetched, self, verifyOut string, forced bool) (int, error) {
@@ -315,7 +318,7 @@ func openPR(d Deps, f settings.Format, raw []byte, got Fetched, self, verifyOut 
 		if err := os.WriteFile(filepath.Join(d.Repo, filepath.FromSlash(rel)), moved, 0o644); err != nil {
 			return err
 		}
-		if err := d.Git.Commit(title(got.Version), rel); err != nil {
+		if err := d.Git.Commit(EngineTitle(got.Version), rel); err != nil {
 			return err
 		}
 		return d.Git.Push(remote, branch)
@@ -341,7 +344,7 @@ func openPR(d Deps, f settings.Format, raw []byte, got Fetched, self, verifyOut 
 	}
 	b.WriteString("The updater merges this PR once the CI run it dispatched is green.\n")
 
-	pr, err := d.GitHub.CreatePull(title(got.Version), b.String(), branch, mainBranch)
+	pr, err := d.GitHub.CreatePull(EngineTitle(got.Version), b.String(), branch, mainBranch)
 	if err != nil {
 		return 0, err
 	}
@@ -450,7 +453,7 @@ func Land(d Deps, n int, sha string) (string, error) {
 	if err := CheckPin(d, e); err != nil {
 		return "", fmt.Errorf("#%d: %w", n, err)
 	}
-	if err := landPinned(d, pr, sha, title(e.Version)); err != nil {
+	if err := landPinned(d, pr, sha, EngineTitle(e.Version)); err != nil {
 		return "", err
 	}
 	if err := d.GitHub.Dispatch(CIWorkflow, mainBranch, map[string]string{}); err != nil {

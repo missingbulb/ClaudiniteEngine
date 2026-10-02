@@ -6,6 +6,8 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/missingbulb/ClaudiniteEngine/shared/taskspec"
 )
 
 // jobPermissions reads each job's permissions block: job name to the
@@ -42,11 +44,10 @@ func jobPermissions(t *testing.T, yml string) (string, map[string][]string) {
 
 func TestTemplates(t *testing.T) {
 	tpl := Templates()
-	if len(tpl) != 4 {
+	if len(tpl) != 3 {
 		t.Fatalf("%d templates", len(tpl))
 	}
 	want := map[string]map[string]string{
-		"claudinite-update.yml": {"update": "actions: write,contents: write,id-token: write,issues: write,pull-requests: write"},
 		"claudinite-ci.yml": {
 			"check": "contents: read,pull-requests: read",
 			"land":  "actions: write,contents: write,pull-requests: write",
@@ -88,7 +89,13 @@ func TestTemplates(t *testing.T) {
 			}
 		}
 	}
-	upd := string(tpl["claudinite-update.yml"])
+	if _, ok := tpl[Superseded]; ok {
+		t.Errorf("%s is among the templates a member is brought to", Superseded)
+	}
+	upd := string(SupersededTemplate())
+	if disk, err := os.ReadFile("templates/" + Superseded); err != nil || string(disk) != upd {
+		t.Errorf("the embedded %s differs from templates/", Superseded)
+	}
 	for _, w := range []string{"schedule:", "workflow_dispatch:", "sh .claudinite/launch version", ".claudinite/bin/cn update engine", ".claudinite/bin/cn update packs", "GITHUB_STEP_SUMMARY", "persist-credentials: false"} {
 		if !strings.Contains(upd, w) {
 			t.Errorf("claudinite-update.yml lacks %q", w)
@@ -117,5 +124,13 @@ func TestTemplates(t *testing.T) {
 	}
 	if !strings.HasSuffix(strings.TrimRight(exe[:strings.Index(exe, SecretsMarker)+len(SecretsMarker)], " "), SecretsMarker) {
 		t.Error("the marker is a line of its own")
+	}
+}
+
+// The task discovery reads the superseded workflow's path to let the
+// engine/update task stand aside; the two spellings are one file.
+func TestTheUpdateTaskStandsAsideForThisWorkflow(t *testing.T) {
+	if taskspec.UpdateWorkflow != ".github/workflows/"+Superseded {
+		t.Errorf("taskspec.UpdateWorkflow %q is not .github/workflows/%s", taskspec.UpdateWorkflow, Superseded)
 	}
 }

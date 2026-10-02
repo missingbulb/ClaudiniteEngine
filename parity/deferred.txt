@@ -1,15 +1,11 @@
 # The Node coded checks of a ported pack (parity/ported.txt) that cn does
 # not run yet, one per line: <rule id> <slice>. The slice is the one whose
-# arrival of the check's subject ports it, or "verify" for a check whose
-# question cn verify answers instead. The differential refuses a
-# subtraction of a ported pack's rule that this file does not name, and a
-# line naming a rule the frozen shelf does not carry.
+# arrival of the check's subject ports it; a check whose question cn
+# verify answers instead is a case under testdata/answered. The
+# differential refuses a subtraction of a ported pack's rule that neither
+# names, and a line naming a rule the frozen shelf does not carry.
 
 # claudinite-lifecycle
-conformance-workflow verify
-conformance-work-scope verify
-legacy-shape-in-use verify
-rules-index-current verify
 seeded-file-stale adoption
 skills-index-current adoption
 interview-answer-stale adoption

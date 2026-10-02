@@ -235,25 +235,61 @@ func checkHooks(in Input) []findings.Finding {
 
 func checkWorkflows(in Input) []findings.Finding {
 	var out []findings.Finding
-	for _, w := range []string{".github/workflows/claudinite-update.yml", ".github/workflows/claudinite-ci.yml"} {
-		if _, ok := read(in, w); !ok {
-			out = append(out, dep("member-workflows", w, "missing: the repo still works, but the engine never updates on its own until a person adds it from the engine's templates"))
-		}
+	if ci, ok := read(in, ".github/workflows/claudinite-ci.yml"); ok && pullRequestFiltered(ci) {
+		out = append(out, dep("member-workflows", ".github/workflows/claudinite-ci.yml", "filters its pull_request trigger by path, so a pull request touching none of those paths runs no engine check; drop the filter (`cn workflows diff` prints the patch)"))
+	} else if !ok {
+		out = append(out, dep("member-workflows", ".github/workflows/claudinite-ci.yml", "missing: the repo still works, but no pull request runs the engine's checks and no update pull request lands until a person adds it from the engine's templates"))
 	}
-	const scheduler, executor = ".github/workflows/claudinite-scheduler.yml", ".github/workflows/claudinite-executor.yml"
+	const scheduler, executor, update = ".github/workflows/claudinite-scheduler.yml", ".github/workflows/claudinite-executor.yml", ".github/workflows/claudinite-update.yml"
 	_, hasScheduler := read(in, scheduler)
 	_, hasExecutor := read(in, executor)
+	_, hasUpdate := read(in, update)
 	switch {
 	case hasScheduler && !hasExecutor:
 		out = append(out, brk("member-workflows", executor, "missing while the scheduler runs: it files work items no executor ever picks up; add it from the engine's templates (`cn workflows diff` prints the patch)"))
 	case !hasScheduler:
 		for _, w := range []string{scheduler, executor} {
 			if _, ok := read(in, w); !ok {
-				out = append(out, dep("member-workflows", w, "missing: the repo still works, but no task of its packs, the engine's own included, runs until a person adds it from the engine's templates"))
+				out = append(out, dep("member-workflows", w, "missing: the repo still works, but no task of its packs, the engine's own update included, runs until a person adds it from the engine's templates"))
 			}
 		}
 	}
+	if hasUpdate && hasScheduler && hasExecutor {
+		out = append(out, dep("member-workflows", update, "superseded by the engine/update task, which the queue runs; until it is deleted the task stands aside and this workflow runs the update (`cn workflows diff` prints the patch)"))
+	}
 	return out
+}
+
+// pullRequestFiltered is a workflow whose on.pull_request trigger carries
+// paths or paths-ignore.
+func pullRequestFiltered(raw []byte) bool {
+	lines := strings.Split(string(raw), "\n")
+	inOn, prIndent := false, -1
+	for _, l := range lines {
+		trimmed := strings.TrimSpace(l)
+		indent := len(l) - len(strings.TrimLeft(l, " "))
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		if indent == 0 {
+			inOn, prIndent = strings.HasPrefix(trimmed, "on:"), -1
+			continue
+		}
+		if !inOn {
+			continue
+		}
+		if prIndent >= 0 && indent <= prIndent {
+			prIndent = -1
+		}
+		if prIndent < 0 && strings.HasPrefix(trimmed, "pull_request:") {
+			prIndent = indent
+			continue
+		}
+		if prIndent >= 0 && (strings.HasPrefix(trimmed, "paths:") || strings.HasPrefix(trimmed, "paths-ignore:")) {
+			return true
+		}
+	}
+	return false
 }
 
 func hasLine(raw []byte, want ...string) bool {

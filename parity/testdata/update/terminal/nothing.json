@@ -1,0 +1,10 @@
+{
+  "input": {
+    "outcome": null
+  },
+  "expect": {
+    "action": "needs-human",
+    "label": "needs-human",
+    "why": "the update flow returned nothing to act on"
+  }
+}

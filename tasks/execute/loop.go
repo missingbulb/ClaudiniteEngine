@@ -57,6 +57,9 @@ type CodeWorkResult struct {
 	Branch         string
 	Issue          int
 	Reason         string
+	// Said is what in-process code-work (the engine's own) reports, one
+	// line each, carried onto the item's close.
+	Said []string
 }
 
 // Delivered is what the run created, by identity: the agent's only source
@@ -83,6 +86,9 @@ func (r CodeWorkResult) Delivered() []string {
 type Landed struct {
 	Merged bool
 	Note   string
+	// Refused is the policy's reason when the delivered diff is outside
+	// the task's automerge.
+	Refused string
 }
 
 // Invocation is one routine fire: OK started a session; Answered false is
@@ -491,6 +497,10 @@ func (r *run) codeWork(item workitem.Issue, task taskspec.Task, id string, claim
 		if landed.Note != "" {
 			r.Log(fmt.Sprintf("- #%d %s: %s", item.Number, id, landed.Note))
 		}
+		if landed.Refused != "" {
+			return OutcomeNeedsHuman, r.park(item, id, running, workitem.StatusNeedsHumanAction, &claim,
+				fmt.Sprintf("Code-work opened #%d, and its diff is outside this task's automerge: %s.\n\nReview #%d and merge or close it, then close this item. The policy is the task's prediction of its change; it is not widened to fit.", result.DeliveredPR, landed.Refused, result.DeliveredPR), "")
+		}
 	}
 	if result.DeliveredPR != 0 {
 		check := land.VerifyOutcome(task.Decl.Outcome(), task.Decl["automerge"], true, result.Merged)
@@ -539,6 +549,9 @@ func (r *run) codeWork(item workitem.Issue, task taskspec.Task, id string, claim
 	body := "Code-work did this run's work; no agent was needed."
 	if d := result.Delivered(); len(d) > 0 {
 		body = "Code-work did this run's work and left:\n" + bullets(d)
+	}
+	if len(result.Said) > 0 {
+		body += "\n\n" + bullets(result.Said)
 	}
 	return workitem.StatusDone, r.close(item, id, running, workitem.StatusDone, "completed", body, "success")
 }

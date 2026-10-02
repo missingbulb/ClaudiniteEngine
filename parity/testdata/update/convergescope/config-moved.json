@@ -1,0 +1,22 @@
+{
+  "input": {
+    "edits": [
+      {
+        "before": "{\"packs\":[\"basics\"]}",
+        "after": "{\"packs\":[\"basics\",\"node\"]}"
+      },
+      {
+        "before": "{\"engine\":{\"version\":\"61001.1.0\",\"manifest\":\"sha512-a\"},\"packs\":[\"basics\"]}",
+        "after": "{\"engine\":{\"version\":\"61002.1.0\",\"manifest\":\"sha512-b\"},\"packs\":[\"basics\",\"node\"]}"
+      }
+    ]
+  },
+  "expect": {
+    "bookkeeping": [],
+    "stampOnly": [
+      false,
+      false
+    ],
+    "testVisible": null
+  }
+}

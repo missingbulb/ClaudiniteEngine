@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/missingbulb/ClaudiniteEngine/shared/mergepolicy"
 	"github.com/missingbulb/ClaudiniteEngine/shared/workitem"
 )
 
@@ -358,11 +359,52 @@ type Merger interface {
 	DeleteBranch(ref string) error
 }
 
+// Judgement is the policy a landing must pass: a task's automerge over
+// the pull request's own diff, with the declared packs' rules. A nil
+// Judgement judges nothing, for a caller that holds its own gate.
+type Judgement struct {
+	Automerge any
+	Declared  mergepolicy.Declared
+	// Diff reads the pull request's diff.
+	Diff func(PR) ([]mergepolicy.Entry, error)
+}
+
+// RefusedError is a landing the policy does not authorize: the pull
+// request stands for a person, and the policy is never widened to fit.
+type RefusedError struct {
+	PR  int
+	Why string
+}
+
+func (e *RefusedError) Error() string {
+	return fmt.Sprintf("PR #%d's diff is outside this task's automerge: %s", e.PR, e.Why)
+}
+
+// judge is nil when j authorizes pr's diff, a *RefusedError when it does
+// not, and any other error when the diff could not be read.
+func judge(j *Judgement, pr PR) error {
+	if j == nil {
+		return nil
+	}
+	entries, err := j.Diff(pr)
+	if err != nil {
+		return fmt.Errorf("could not read PR #%d's diff: %w", pr.Number, err)
+	}
+	if v := mergepolicy.Judge(j.Automerge, entries, j.Declared); !v.Mergeable {
+		return &RefusedError{PR: pr.Number, Why: v.Why}
+	}
+	return nil
+}
+
 // Pinned squash-merges pr at the head the caller's evidence was read on,
-// the task's trailer as the squash body when task is set, then deletes
-// the branch. A merge refused (the head moved, a gate) is mergeErr; the
-// branch left behind is tidyErr, never a failed merge.
-func Pinned(m Merger, pr PR, title, task string) (mergeErr, tidyErr error) {
+// once j authorizes its diff, the task's trailer as the squash body when
+// task is set, then deletes the branch. A merge refused (the policy, the
+// head moved, a gate) is mergeErr; the branch left behind is tidyErr,
+// never a failed merge.
+func Pinned(m Merger, pr PR, title, task string, j *Judgement) (mergeErr, tidyErr error) {
+	if err := judge(j, pr); err != nil {
+		return err, nil
+	}
 	in := Merge{Number: pr.Number, SHA: pr.HeadSHA, Title: title}
 	if task != "" {
 		in.Message = workitem.TaskTrailer + ": " + task
@@ -398,17 +440,30 @@ type Lane struct {
 
 // Delivered is the lane's answer: whether the PR merged in this run and
 // which shape it took (none: a review member's PR stands, deliberately).
+// Refused is the policy's reason when the PR's diff is outside it, and
+// the lane then started, armed and merged nothing.
 type Delivered struct {
-	Merged bool
-	Action Action
+	Merged  bool
+	Action  Action
+	Refused string
 }
 
 // Deliver lands a delivered PR under the member's delivery: it starts the
 // PR's checks first (a push over the Actions token emits no pull_request
 // run), reads the base's gate, then merges, lands on the dispatched
 // evidence, or arms with the landing poll as fallback. task names the
-// task whose trailer the merge commit carries ("" for none).
-func (l Lane) Deliver(pr PR, base, delivery, task string) Delivered {
+// task whose trailer the merge commit carries ("" for none). j judges the
+// diff before any of it: a refusal is Delivered.Refused.
+func (l Lane) Deliver(pr PR, base, delivery, task string, j *Judgement) Delivered {
+	if err := judge(j, pr); err != nil {
+		var refused *RefusedError
+		if errors.As(err, &refused) {
+			l.Log(err.Error() + " — leaving it for review")
+			return Delivered{Action: ActNone, Refused: refused.Why}
+		}
+		l.Log(err.Error() + " — leaving it for the next run")
+		return Delivered{Action: ActNone}
+	}
 	plan, started, ok := l.dispatchCI(pr.HeadRef)
 	hasCI := !ok || len(plan.Dispatch)+len(plan.Missing) > 0
 	gate := GateUnknown
@@ -449,7 +504,7 @@ func (l Lane) Merge(pr PR, title, task string) error {
 }
 
 func (l Lane) squash(pr PR, title, task string) error {
-	err, tidy := Pinned(l.API, pr, title, task)
+	err, tidy := Pinned(l.API, pr, title, task, nil)
 	if tidy != nil {
 		l.Log(fmt.Sprintf("could not delete branch %s (%v)", pr.HeadRef, tidy))
 	}

@@ -1,0 +1,14 @@
+{
+  "nodeFiles": {
+    ".claudinite-settings.json": "{\"packs\":[\"basics\"]}\n",
+    ".claudinite/shared/engine/checks/check_the_world.mjs": "// sweep\n",
+    ".claudinite/shared/engine/checks/ci-work-scope.mjs": "// work\n",
+    ".github/workflows/conformance.yml": "name: conformance\non:\n  pull_request:\n  workflow_dispatch:\njobs:\n  sweep:\n    runs-on: ubuntu-latest\n    steps:\n      - run: node .claudinite/shared/engine/checks/check_the_world.mjs\n"
+  },
+  "cnShape": "v7-update-as-task",
+  "cnFiles": {
+    ".claude/settings.json": "{\n  \"hooks\": {\n    \"SessionStart\": [{\"hooks\": [{\"type\": \"command\", \"command\": \"sh \\\"$CLAUDE_PROJECT_DIR/.claudinite/launch\\\" hook session-start\"}]}],\n    \"PreToolUse\": [{\"matcher\": \"*\", \"hooks\": [{\"type\": \"command\", \"command\": \".claudinite/bin/cn hook pre-tool-use\"}]}],\n    \"PostToolUse\": [{\"matcher\": \"*\", \"hooks\": [{\"type\": \"command\", \"command\": \".claudinite/bin/cn hook post-tool-use\"}]}],\n    \"UserPromptSubmit\": [{\"hooks\": [{\"type\": \"command\", \"command\": \".claudinite/bin/cn hook user-prompt-submit\"}]}],\n    \"SessionEnd\": [{\"hooks\": [{\"type\": \"command\", \"command\": \".claudinite/bin/cn hook session-end\"}]}]\n  }\n}\n"
+  },
+  "answeredBy": "hooks",
+  "nodeFires": true
+}

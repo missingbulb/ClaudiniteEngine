@@ -312,3 +312,46 @@ func TestATornItemSettledBeforeTheWriteIsLeftAlone(t *testing.T) {
 		t.Fatal("a stateless item read fresh no longer holds")
 	}
 }
+
+// The engine's own update is a scheduled task like any other: at most one
+// occurrence a UTC day, filed at the engine's path, whatever the repo did.
+func TestTheEnginesUpdateIsFiledOnceADay(t *testing.T) {
+	all, errs := taskspec.Discover(t.TempDir(), nil)
+	if len(errs) > 0 {
+		t.Fatal(errs)
+	}
+	var update taskspec.Task
+	for _, tk := range all {
+		if tk.ID == taskspec.UpdateTask {
+			update = tk
+		}
+	}
+	h := newHarness(t, update)
+	h.run("")
+	open := h.open()
+	if len(open) != 1 || open[0].Title != "[claudinite-work] engine/update" || !strings.HasPrefix(open[0].Body, taskspec.UpdateTaskPath+"\n") {
+		t.Fatalf("a quiet repo's first run today: %+v", open)
+	}
+	n := open[0].Number
+	_ = h.gh.RemoveLabel(n, workitem.StatusReady)
+	_ = h.gh.AddLabel(n, workitem.StatusDone)
+	_ = h.gh.CloseIssue(n, "completed")
+	h.gh.Clock.Advance(time.Hour)
+	if out := h.run(""); len(h.open()) != 0 || out.Asked[0].Verdict != schedule.VerdictNo {
+		t.Fatalf("a second occurrence in one day: open %v, asked %+v", h.open(), out.Asked)
+	}
+	// The fleet's force lever sends the bare id; it reaches the engine's
+	// update, minting the standing item the cadence declined.
+	if h.run("update"); len(h.open()) != 1 || h.open()[0].Title != "[claudinite-work] engine/update" {
+		t.Fatalf("a forced update the same day: %+v", h.open())
+	}
+	m := h.open()[0].Number
+	_ = h.gh.RemoveLabel(m, workitem.StatusReady)
+	_ = h.gh.AddLabel(m, workitem.StatusDone)
+	_ = h.gh.CloseIssue(m, "completed")
+	h.gh.Clock.Advance(24 * time.Hour)
+	h.run("")
+	if len(h.open()) != 1 {
+		t.Fatal("the next day's update was not filed")
+	}
+}

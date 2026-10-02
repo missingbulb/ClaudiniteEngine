@@ -3,9 +3,10 @@
 # release-blocker issues and the registered canaries' conclusions; check
 # re-verifies the downloaded bytes and the candidate's stable build check;
 # publish runs in the promote environment, the only trusted publisher of
-# @claudinite/cli. With no canary registered the gate answers no-canaries,
+# @claudinite/cli. With no canary workflow named the gate answers no-canaries,
 # which passes only when the dispatch's confirm input repeats the version.
-# The hourly schedule lands with the first canary (release/canaries.json).
+# The hourly schedule lands with the first canary workflow named in
+# release/canaries.json.
 #
 # action hold or revoke instead marks the version on npm with a "held:" or
 # "revoked:" deprecation, which the updater and cn check world read;

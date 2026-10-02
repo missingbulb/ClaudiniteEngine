@@ -1,18 +1,13 @@
 package execute
 
 import (
-	"slices"
-
 	"github.com/missingbulb/ClaudiniteEngine/shared/taskspec"
 )
 
-// EnginePacks are the packs whose tasks are the engine's own, run under
-// the license's claudinite-tasks row; every other pack's are the member's.
-var EnginePacks = []string{"claudinite-growth", "claudinite-lifecycle", taskspec.BuiltinPack}
-
 // KeyNeed is why an item needs the run's license key: an agentic phase,
-// whose routine session verifies a grant asked for with the key, or a
-// task of the engine's own packs. An item needing neither runs in every
+// whose routine session verifies a grant asked for with the key, or one
+// of the engine's own tasks (taskspec.Task.Engine), run under the
+// license's claudinite-tasks row. An item needing neither runs in every
 // license state.
 type KeyNeed struct {
 	Agentic, EnginePack bool
@@ -21,7 +16,10 @@ type KeyNeed struct {
 // Any reports whether the item needs the key at all.
 func (n KeyNeed) Any() bool { return n.Agentic || n.EnginePack }
 
-// KeyNeedOf is a task's need.
+// KeyNeedOf is a task's need. The engine's update reads the key itself
+// and says in its verdict what a missing or degraded one turns off, so it
+// runs in every license state, as its workflow did.
 func KeyNeedOf(t taskspec.Task) KeyNeed {
-	return KeyNeed{Agentic: t.Decl.AgentModel() != "none", EnginePack: slices.Contains(EnginePacks, t.Pack)}
+	selfGated := t.Pack == taskspec.BuiltinPack && t.ID == taskspec.UpdateTask
+	return KeyNeed{Agentic: t.Decl.AgentModel() != "none", EnginePack: t.Engine && !selfGated}
 }

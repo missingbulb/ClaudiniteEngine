@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/missingbulb/ClaudiniteEngine/shared/mergepolicy"
 )
 
 func TestDeliveryForOnlyAnExplicitTrueWithholdsThePR(t *testing.T) {
@@ -275,7 +277,7 @@ var pr = PR{Number: 7, NodeID: "PR_7", HeadRef: "claudinite/acme-pack/acme-task/
 func TestDeliverMergesAtThePinnedShaWhenNoPRCIExists(t *testing.T) {
 	api := &fakeAPI{files: []WorkflowFile{{"release.yml", "on:\n  workflow_dispatch:\n"}}}
 	l, _ := lane(api)
-	got := l.Deliver(pr, "main", AutoMerge, "acme-pack/acme-task")
+	got := l.Deliver(pr, "main", AutoMerge, "acme-pack/acme-task", nil)
 	if !got.Merged || got.Action != ActMerge {
 		t.Fatalf("%+v", got)
 	}
@@ -291,7 +293,7 @@ func TestDeliverMergesAtThePinnedShaWhenNoPRCIExists(t *testing.T) {
 func TestDeliverLeavesAReviewMembersPRAfterStartingItsChecks(t *testing.T) {
 	api := &fakeAPI{files: []WorkflowFile{{"test.yml", prCI}}, dispatchOK: map[string]bool{"test.yml": true}}
 	l, _ := lane(api)
-	got := l.Deliver(pr, "main", Review, "acme-pack/acme-task")
+	got := l.Deliver(pr, "main", Review, "acme-pack/acme-task", nil)
 	if got.Merged || got.Action != ActNone || len(api.merged) != 0 || len(api.armed) != 0 {
 		t.Fatalf("%+v %+v", got, api)
 	}
@@ -308,7 +310,7 @@ func TestDeliverSkipsTheDoomedArmOnAnUngatedBaseAndLandsOnItsOwnEvidence(t *test
 		runs: [][]Run{nil, {running("test")}, {done("success", "test")}},
 	}
 	l, _ := lane(api)
-	got := l.Deliver(pr, "main", AutoMerge, "acme-pack/acme-task")
+	got := l.Deliver(pr, "main", AutoMerge, "acme-pack/acme-task", nil)
 	if !got.Merged || got.Action != ActLand || len(api.armed) != 0 || api.reads != 3 {
 		t.Fatalf("%+v reads %d armed %v", got, api.reads, api.armed)
 	}
@@ -318,7 +320,7 @@ func TestDeliverArmsBehindAGateAndPollsOnlyWhenTheArmFails(t *testing.T) {
 	yes := true
 	api := &fakeAPI{files: []WorkflowFile{{"test.yml", prCI}}, dispatchOK: map[string]bool{"test.yml": true}, protected: &yes}
 	l, _ := lane(api)
-	got := l.Deliver(pr, "main", AutoMerge, "")
+	got := l.Deliver(pr, "main", AutoMerge, "", nil)
 	if got.Merged || got.Action != ActArm || !reflect.DeepEqual(api.armed, []string{"PR_7"}) || api.reads != 0 {
 		t.Fatalf("%+v %+v", got, api)
 	}
@@ -326,7 +328,7 @@ func TestDeliverArmsBehindAGateAndPollsOnlyWhenTheArmFails(t *testing.T) {
 	api = &fakeAPI{files: []WorkflowFile{{"test.yml", prCI}}, dispatchOK: map[string]bool{"test.yml": true}, protected: &yes,
 		armErr: errors.New("Pull request is in clean status"), runs: [][]Run{{done("success", "test"), done("action_required", "test")}}}
 	l, logs := lane(api)
-	got = l.Deliver(pr, "main", AutoMerge, "")
+	got = l.Deliver(pr, "main", AutoMerge, "", nil)
 	if !got.Merged || api.merged[0].Message != "" {
 		t.Fatalf("%+v %+v", got, api.merged)
 	}
@@ -338,13 +340,13 @@ func TestDeliverArmsBehindAGateAndPollsOnlyWhenTheArmFails(t *testing.T) {
 func TestDeliverTreatsAnUnreadableTreeAsCIAndADeniedDispatchAsNothingToWaitFor(t *testing.T) {
 	api := &fakeAPI{filesErr: errors.New("500"), protected: nil}
 	l, _ := lane(api)
-	if got := l.Deliver(pr, "main", AutoMerge, ""); got.Action != ActArm {
+	if got := l.Deliver(pr, "main", AutoMerge, "", nil); got.Action != ActArm {
 		t.Errorf("unreadable tree merged blind: %+v", got)
 	}
 	no := false
 	api = &fakeAPI{files: []WorkflowFile{{"test.yml", prCI}}, dispatchOK: map[string]bool{}, protected: &no, runs: [][]Run{nil}}
 	l, logs := lane(api)
-	got := l.Deliver(pr, "main", AutoMerge, "")
+	got := l.Deliver(pr, "main", AutoMerge, "", nil)
 	if got.Merged || api.reads != 1 {
 		t.Errorf("%+v reads %d", got, api.reads)
 	}
@@ -358,7 +360,7 @@ func TestLandNowLeavesThePRWhenTheMergeIsRefused(t *testing.T) {
 	api := &fakeAPI{files: []WorkflowFile{{"test.yml", prCI}}, dispatchOK: map[string]bool{"test.yml": true}, protected: &no,
 		runs: [][]Run{{done("success", "test")}}, mergeErr: &StatusError{Status: 405, Message: "Head branch was modified"}}
 	l, logs := lane(api)
-	if got := l.Deliver(pr, "main", AutoMerge, ""); got.Merged {
+	if got := l.Deliver(pr, "main", AutoMerge, "", nil); got.Merged {
 		t.Fatalf("%+v", got)
 	}
 	if len(api.deleted) != 0 || !strings.Contains(strings.Join(*logs, "\n"), "Head branch was modified") {
@@ -374,5 +376,52 @@ func TestMergeIsThePinnedShaSquashAndTidiesTheBranch(t *testing.T) {
 	}
 	if !reflect.DeepEqual(api.merged, []Merge{{Number: 7, SHA: "abc123", Title: "Update the engine to 1.4.0"}}) || len(api.deleted) != 1 {
 		t.Errorf("%+v %v", api.merged, api.deleted)
+	}
+}
+
+func str(s string) *string { return &s }
+
+// judged is a task's policy over a diff the PR carries.
+func judged(policy any, entries ...mergepolicy.Entry) *Judgement {
+	return &Judgement{Automerge: policy, Diff: func(PR) ([]mergepolicy.Entry, error) { return entries, nil }}
+}
+
+func TestPinnedLandsOnlyADiffThePolicyAuthorizes(t *testing.T) {
+	inside := mergepolicy.Entry{File: "docs/guide.md", Before: str("a\n"), After: str("b\n")}
+	outside := mergepolicy.Entry{File: "src/main.go", Before: str("package main\n"), After: str("package main\n\nfunc f() {}\n")}
+
+	api := &fakeAPI{}
+	if err, _ := Pinned(api, pr, "", "acme-pack/acme-task", judged([]any{"doc-changes"}, inside)); err != nil || len(api.merged) != 1 {
+		t.Fatalf("a diff inside the policy: %v %+v", err, api.merged)
+	}
+
+	api = &fakeAPI{}
+	err, _ := Pinned(api, pr, "", "acme-pack/acme-task", judged([]any{"doc-changes"}, inside, outside))
+	var refused *RefusedError
+	if !errors.As(err, &refused) || refused.PR != 7 || !strings.Contains(refused.Why, "src/main.go") {
+		t.Fatalf("a diff outside the policy: %v", err)
+	}
+	if len(api.merged) != 0 || len(api.deleted) != 0 {
+		t.Errorf("a refused landing merged or tidied: %+v %v", api.merged, api.deleted)
+	}
+
+	api = &fakeAPI{}
+	diffErr := &Judgement{Automerge: "anything", Diff: func(PR) ([]mergepolicy.Entry, error) { return nil, errors.New("no such commit") }}
+	if err, _ := Pinned(api, pr, "", "", diffErr); err == nil || errors.As(err, &refused) || len(api.merged) != 0 {
+		t.Errorf("an unreadable diff is an error, never a refusal or a merge: %v", err)
+	}
+}
+
+func TestDeliverJudgesBeforeArmingOrMerging(t *testing.T) {
+	outside := mergepolicy.Entry{File: "src/main.go", Before: nil, After: str("package main\n")}
+	yes := true
+	api := &fakeAPI{files: []WorkflowFile{{"test.yml", prCI}}, dispatchOK: map[string]bool{"test.yml": true}, protected: &yes}
+	l, logs := lane(api)
+	got := l.Deliver(pr, "main", AutoMerge, "acme-pack/acme-task", judged([]any{"doc-changes"}, outside))
+	if got.Merged || got.Refused == "" || len(api.armed) != 0 || len(api.merged) != 0 || len(api.dispatched) != 0 {
+		t.Fatalf("%+v %+v", got, api)
+	}
+	if !strings.Contains(got.Refused, "src/main.go") {
+		t.Errorf("the refusal names no file: %q (%v)", got.Refused, *logs)
 	}
 }

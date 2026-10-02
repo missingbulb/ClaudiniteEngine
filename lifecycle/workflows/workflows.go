@@ -1,7 +1,10 @@
-// Package workflows holds the four member workflows this engine version
+// Package workflows holds the three member workflows this engine version
 // expects, embedded so the updater can tell when a member's copies differ
 // from what a new release needs; the member fixture and cn init write them.
-// No update writes .github/workflows/.
+// The nightly update workflow they superseded (the engine/update task runs
+// the update now) stays embedded for the deprecation window, and a member
+// still holding it is patched to delete it. No update writes
+// .github/workflows/.
 package workflows
 
 import "embed"
@@ -10,7 +13,20 @@ import "embed"
 var files embed.FS
 
 // Names are the templates' file names under .github/workflows/.
-var Names = []string{"claudinite-update.yml", "claudinite-ci.yml", "claudinite-scheduler.yml", "claudinite-executor.yml"}
+var Names = []string{"claudinite-ci.yml", "claudinite-scheduler.yml", "claudinite-executor.yml"}
+
+// Superseded is the nightly update workflow, which the engine/update task
+// replaces wherever the queue runs.
+const Superseded = "claudinite-update.yml"
+
+// SupersededTemplate is the update workflow as the engine last wrote it.
+func SupersededTemplate() []byte {
+	raw, err := files.ReadFile("templates/" + Superseded)
+	if err != nil {
+		panic(err)
+	}
+	return raw
+}
 
 // CronPlaceholder is the scheduler template's cron, which cn init rewrites
 // to the repo's hashed minute.

@@ -11,10 +11,11 @@
 #            still run the verified engine linked before
 #   update   cn update engine, against regstub and release/ghstub, moves a
 #            member with a bare origin from this release to dist2/ by a
-#            merged update PR, then refuses a dist3/ whose verify breaks
-#            the member (built with the rehearsal_break tag), holds back on
-#            a red main, skips held and revoked versions and files the
-#            revoked pin's issue. Every dist is signed with the development
+#            merged update PR, then refuses a dist3/ whose selftest fails a
+#            probe over the member or whose verify breaks it (built with the
+#            rehearsal_break tag), holds back on a red main, skips held and
+#            revoked versions, files the revoked pin's issue, and runs as the
+#            engine/update task the scheduler files and the executor drains. Every dist is signed with the development
 #            keys, as the updater checks signatures.
 #   packs    a fresh repo adopts the hello pack through the npx bootstrap
 #            from a local pack source (release/packs-fixture.sh, served by
@@ -29,7 +30,7 @@
 #            off and accepts them; a local pack's Go check builds and
 #            finds, and hello 1.4's checks read the change and the pack's
 #            config through the SDK.
-#   tasks    a member on hello 1.4 with the four workflows runs the task
+#   tasks    a member on hello 1.4 with the three workflows runs the task
 #            queue against ghstub (its routine route and release/stub-
 #            agent.sh) and licstub: tasks list and the declaration check,
 #            the scheduler filing and gating, the executor running hello's
@@ -50,7 +51,7 @@
 #   release/rehearse.sh [--mode fresh|current|stale|update|packs|tasks|license]   (default: all seven)
 #
 # UPDATE_STEPS=4 stops the update mode after the landing and the session on
-# the landed version (release/hop.sh); the default, 8, runs every step.
+# the landed version (release/hop.sh); the default, 11, runs every step.
 #
 # Needs go, node, curl, git and a release from release/build.sh.
 set -eu
@@ -75,8 +76,8 @@ case $# in
   *) fail "$usage" ;;
 esac
 
-update_steps=${UPDATE_STEPS:-8}
-case $update_steps in 4|8) ;; *) fail "UPDATE_STEPS must be 4 or 8, not $update_steps" ;; esac
+update_steps=${UPDATE_STEPS:-11}
+case $update_steps in 4|11) ;; *) fail "UPDATE_STEPS must be 4 or 11, not $update_steps" ;; esac
 
 [ -f "$DIST/manifest.integrity" ] || fail "no release in $DIST; run release/build.sh first"
 DIST=$DIST sh release/smoke.sh
@@ -388,49 +389,86 @@ for mode in $modes; do
 
       cp "$dist3build"/tarballs/* "$dist3/tarballs/"
       main_run success
+      hooks=$member/.claude/settings.json
+      cp "$hooks" "$work/hooks.json"
+      sed 's/cn hook pre-tool-use/cn hook pre-tool-uses/' "$work/hooks.json" > "$hooks"
       update_engine
-      expect_verdict "no PR: $third would break this repo"
-      grep -q '^break rehearsal ' "$work/update.out" || fail "update 5: the finding was not printed: $(cat "$work/update.out")"
+      expect_verdict "skipped: selftest failed (hooks)"
+      grep -q '^fail hooks: PreToolUse → cn hook pre-tool-uses' "$work/update.out" || fail "update 5: the probe's report was not printed: $(cat "$work/update.out")"
       [ -z "$(git --git-dir "$origin" branch --list 'claudinite/*')" ] || fail "update 5: a branch was pushed"
       [ "$(gh_count 'st.pulls.length')" = 1 ] || fail "update 5: a PR was opened"
-      step "update 5: $verdict"
+      cp "$work/hooks.json" "$hooks"
+      step "update 5: a hook naming an event $third does not answer: $verdict"
+
+      update_engine
+      expect_verdict "no PR: $third would break this repo"
+      grep -q '^break rehearsal ' "$work/update.out" || fail "update 6: the finding was not printed: $(cat "$work/update.out")"
+      [ -z "$(git --git-dir "$origin" branch --list 'claudinite/*')" ] || fail "update 6: a branch was pushed"
+      [ "$(gh_count 'st.pulls.length')" = 1 ] || fail "update 6: a PR was opened"
+      step "update 6: $verdict"
 
       main_run failure
       : > "$work/requests.log"
       update_engine
       expect_verdict "skipped: main is not green (failure)"
-      [ ! -s "$work/requests.log" ] || fail "update 6: npm was read: $(cat "$work/requests.log")"
-      step "update 6: $verdict"
+      [ ! -s "$work/requests.log" ] || fail "update 7: npm was read: $(cat "$work/requests.log")"
+      step "update 7: $verdict"
 
       main_run success
       deprecate "{\"$third\": \"held: rehearsal\"}"
       update_engine
       expect_verdict "up to date"
-      grep -q "^$third skipped: held" "$work/update.out" || fail "update 7: no held skip: $(cat "$work/update.out")"
-      step "update 7: held $third skipped"
+      grep -q "^$third skipped: held" "$work/update.out" || fail "update 8: no held skip: $(cat "$work/update.out")"
+      step "update 8: held $third skipped"
       deprecate "{\"$third\": \"revoked: rehearsal\"}"
       update_engine
       expect_verdict "up to date"
-      grep -q "^$third skipped: revoked" "$work/update.out" || fail "update 7: no revoked skip: $(cat "$work/update.out")"
-      [ "$(gh_count 'st.issues ? st.issues.length : 0')" = 0 ] || fail "update 7: an issue for a version this repo does not pin"
-      step "update 7: revoked $third skipped"
+      grep -q "^$third skipped: revoked" "$work/update.out" || fail "update 8: no revoked skip: $(cat "$work/update.out")"
+      [ "$(gh_count 'st.issues ? st.issues.length : 0')" = 0 ] || fail "update 8: an issue for a version this repo does not pin"
+      step "update 8: revoked $third skipped"
       deprecate "{\"$third\": \"revoked: rehearsal\", \"$next\": \"revoked: rehearsal\"}"
       update_engine
       update_engine
       expect_verdict "up to date"
-      [ "$(gh_count 'st.issues.filter(i=>i.title==="Claudinite engine '"$next"' is revoked").length')" = 1 ] || fail "update 7: issues $(gh_state)"
-      [ "$(gh_count 'st.issues.length')" = 1 ] || fail "update 7: issues $(gh_state)"
-      step "update 7: one issue for the revoked pin $next, kept by two runs"
+      [ "$(gh_count 'st.issues.filter(i=>i.title==="Claudinite engine '"$next"' is revoked").length')" = 1 ] || fail "update 8: issues $(gh_state)"
+      [ "$(gh_count 'st.issues.length')" = 1 ] || fail "update 8: issues $(gh_state)"
+      step "update 8: one issue for the revoked pin $next, kept by two runs"
 
       old=$work/old-shape
       sh release/member-fixture.sh "$old" "$next" "$(cat "$dist2/manifest.integrity")" "$package"
       rm "$old/.claudinite/.gitignore"
       printf '.claudinite/bin/\n' > "$old/.gitignore"
-      cn_member verify --repo "$old" > "$work/verify.out" 2>&1 || fail "update 8: verify: $(cat "$work/verify.out")"
+      cn_member verify --repo "$old" > "$work/verify.out" 2>&1 || fail "update 9: verify: $(cat "$work/verify.out")"
       if [ "$(grep -c '^deprecation bin-ignore ' "$work/verify.out")" != 1 ] || [ "$(wc -l < "$work/verify.out" | tr -d ' ')" != 1 ]; then
-        fail "update 8: want one bin-ignore deprecation: $(cat "$work/verify.out")"
+        fail "update 9: want one bin-ignore deprecation: $(cat "$work/verify.out")"
       fi
-      step "update 8: the old shape is one deprecation"
+      step "update 9: the old shape is one deprecation"
+
+      # The queue runs the same update: the scheduler files engine/update,
+      # the executor runs it and closes the item on its verdicts.
+      sched() { : > "$work/gh-output"; (cd "$member" && GITHUB_OUTPUT=$work/gh-output GITHUB_TOKEN=rehearsal-token .claudinite/bin/cn schedule "$@"); }
+      upd="[claudinite-work] engine/update"
+      main_run success
+      sched run > "$work/sched.out" 2>&1 || fail "update 10: schedule run: $(cat "$work/sched.out")"
+      [ "$(gh_count 'st.issues.filter(i=>i.title==="'"$upd"'").length')" = 1 ] || fail "update 10: no engine/update item: $(cat "$work/sched.out") $(gh_state)"
+      n=$(gh_count 'st.issues.find(i=>i.title==="'"$upd"'").number')
+      [ "$(sed -n 's/^pickable=//p' "$work/gh-output")" = true ] || fail "update 10: the gate after filing is closed: $(cat "$work/sched.out")"
+      GH_TOKEN=rehearsal-token GITHUB_REF_NAME=main cn_member execute loop > "$work/exec.out" 2>&1 || fail "update 10: execute loop: $(cat "$work/exec.out")"
+      [ "$(gh_count 'st.issues.find(i=>i.number==='"$n"').state')" = closed ] || fail "update 10: #$n is still open: $(cat "$work/exec.out")"
+      case " $(gh_count 'st.issues.find(i=>i.number==='"$n"').labels.join(" ")') " in *" task:status:done "*) ;; *) fail "update 10: #$n did not close done: $(gh_state)" ;; esac
+      gh_count 'st.issues.find(i=>i.number==='"$n"').comments.join("\n")' | grep -q -- "- cn update engine: up to date" \
+        || fail "update 10: #$n does not carry the engine verdict: $(gh_count 'st.issues.find(i=>i.number==='"$n"').comments.join("\n")')"
+      step "update 10: the scheduler filed #$n for engine/update; the executor ran it and closed it on its verdicts"
+
+      sched run > "$work/sched.out" 2>&1 || fail "update 11: schedule run: $(cat "$work/sched.out")"
+      [ "$(gh_count 'st.issues.filter(i=>i.title==="'"$upd"'").length')" = 1 ] || fail "update 11: a second run the same day filed another: $(gh_state)"
+      cp "$root/lifecycle/workflows/templates/claudinite-update.yml" "$member/.github/workflows/"
+      cn_member tasks list > "$work/list.out" 2>&1 || fail "update 11: tasks list: $(cat "$work/list.out")"
+      if grep -q "^engine/update " "$work/list.out"; then fail "update 11: engine/update stands beside the update workflow: $(cat "$work/list.out")"; fi
+      cn_member verify > "$work/verify.out" 2>&1 || fail "update 11: verify: $(cat "$work/verify.out")"
+      grep -q "^deprecation member-workflows .github/workflows/claudinite-update.yml" "$work/verify.out" || fail "update 11: no deprecation for the update workflow: $(cat "$work/verify.out")"
+      rm "$member/.github/workflows/claudinite-update.yml"
+      step "update 11: a second run the same day files nothing; beside the update workflow the task stands aside and verify deprecates the workflow"
       ;;
     packs)
       step "packs: a local pack source with hello 1.0, the CDN stub and the GitHub stub"
@@ -490,7 +528,7 @@ for mode in $modes; do
       adopt packs-member
       grep -q "hello: index serial 1 from cdn" "$work/init.out" || fail "packs 1: the log names no CDN: $(cat "$work/init.out")"
       for f in .claudinite/launch .claudinite/settings.yaml .claudinite/.gitignore .claude/settings.json .claude/skills/.gitignore \
-        .github/workflows/claudinite-update.yml .github/workflows/claudinite-ci.yml .github/workflows/claudinite-scheduler.yml \
+        .github/workflows/claudinite-ci.yml .github/workflows/claudinite-scheduler.yml \
         .github/workflows/claudinite-executor.yml .claudinite/shared/packs/hello/pack.json; do
         [ -f "$member/$f" ] || fail "packs 1: init wrote no $f"
       done
@@ -919,7 +957,7 @@ GO
       step "packs 21: a panic in init names itself; a check past its deadline leaves its sibling's finding; verify never builds, and check world builds what it then lists"
       ;;
     tasks)
-      step "tasks: a member on hello 1.4 with the four workflows, against ghstub's routine route and licstub"
+      step "tasks: a member on hello 1.4 with the three workflows, against ghstub's routine route and licstub"
       src=$work/tasksrc
       sh release/packs-fixture.sh "$src" --min-engine "$version" > "$work/fixture.out" 2>&1 || fail "tasks: fixture: $(cat "$work/fixture.out")"
       sh release/packs-fixture.sh "$src" --publish v2 > "$work/fixture.out" 2>&1 || fail "tasks: fixture v2: $(cat "$work/fixture.out")"
@@ -971,6 +1009,7 @@ GO
       done
       awk -v url="$gh/routines/trig_hello" '{ print } /^    - hello$/ {
         print "    - claudinite-lifecycle"; print "    - id: claudinite-tasks"; print "      config:"
+        print "        disabledTasks:"; print "          - engine/update"
         print "        agenticTaskInvocationEndpoints:"; print "          default:"; print "            url: \"" url "\"" }' \
         "$member/.claudinite/settings.yaml" > "$work/settings.yaml"
       mv "$work/settings.yaml" "$member/.claudinite/settings.yaml"
@@ -1155,9 +1194,10 @@ GO
       mkdir -p "$fresh"
       (cd "$fresh" && "$npx/.bin/cn" init --packs hello --channel canary --package "$package" --repo "$fresh") > "$work/init.out" 2>&1 \
         || fail "tasks 10: init: $(cat "$work/init.out")"
-      for f in claudinite-update claudinite-ci claudinite-scheduler claudinite-executor; do
+      for f in claudinite-ci claudinite-scheduler claudinite-executor; do
         [ -f "$fresh/.github/workflows/$f.yml" ] || fail "tasks 10: init wrote no $f.yml"
       done
+      [ ! -e "$fresh/.github/workflows/claudinite-update.yml" ] || fail "tasks 10: init wrote the superseded update workflow"
       for f in tasks.GENERATED.json dashboard.GENERATED.json; do
         [ -f "$fresh/.claudinite/flat/$f" ] || fail "tasks 10: init wrote no $f"
       done
@@ -1166,7 +1206,7 @@ GO
       grep -q "flat-declarations-current" "$work/world.out" || fail "tasks 10: flat-declarations-current did not fail it: $(cat "$work/world.out")"
       cn_member tasks flat --write > "$work/flat.out" 2>&1 || fail "tasks 10: tasks flat --write: $(cat "$work/flat.out")"
       cn_member check world > "$work/world.out" 2>&1 || fail "tasks 10: check world after tasks flat --write: $(cat "$work/world.out")"
-      step "tasks 10: verify breaks without the executor; init writes four workflows and both flat files; flat-declarations-current tracks a task edit"
+      step "tasks 10: verify breaks without the executor; init writes three workflows and both flat files; flat-declarations-current tracks a task edit"
       ;;
     license)
       step "license: a public member on $version with a GitHub origin, ghstub and licstub"

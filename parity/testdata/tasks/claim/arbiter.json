@@ -1,0 +1,390 @@
+{
+  "expect": {
+    "conflicts": [
+      true,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      true
+    ],
+    "winners": [
+      null,
+      11,
+      20,
+      32,
+      null
+    ]
+  },
+  "input": {
+    "winners": [
+      [],
+      [
+        {
+          "id": 10,
+          "body": "a note",
+          "created_at": "2026-09-01T00:00:00Z",
+          "user": {
+            "login": "github-actions[bot]"
+          }
+        },
+        {
+          "id": 11,
+          "body": "<!-- claudinite-claim -->\nClaimed by executor `a` at x.",
+          "created_at": "2026-09-01T00:00:00Z",
+          "user": {
+            "login": "github-actions[bot]"
+          }
+        },
+        {
+          "id": 12,
+          "body": "<!-- claudinite-claim -->\nClaimed by executor `b` at y.",
+          "created_at": "2026-09-01T00:00:00Z",
+          "user": {
+            "login": "github-actions[bot]"
+          }
+        }
+      ],
+      [
+        {
+          "id": 21,
+          "body": "<!-- claudinite-claim -->\nClaimed by executor `b` at 2026-09-01T00:00:05Z.",
+          "created_at": "2026-09-01T00:00:00Z",
+          "user": {
+            "login": "github-actions[bot]"
+          }
+        },
+        {
+          "id": 20,
+          "body": "<!-- claudinite-claim -->\nClaimed by executor `a` at 2026-09-01T00:00:01Z.",
+          "created_at": "2026-09-01T00:00:00Z",
+          "user": {
+            "login": "github-actions[bot]"
+          }
+        }
+      ],
+      [
+        {
+          "id": 30,
+          "body": "<!-- claudinite-claim -->\nClaimed by executor `dead` at x.",
+          "created_at": "2026-09-01T00:00:00Z",
+          "user": {
+            "login": "github-actions[bot]"
+          }
+        },
+        {
+          "id": 31,
+          "body": "<!-- claudinite-episode -->\nReclaimed.",
+          "created_at": "2026-09-01T00:00:00Z",
+          "user": {
+            "login": "github-actions[bot]"
+          }
+        },
+        {
+          "id": 32,
+          "body": "<!-- claudinite-claim -->\nClaimed by executor `live` at y.",
+          "created_at": "2026-09-01T00:00:00Z",
+          "user": {
+            "login": "github-actions[bot]"
+          }
+        }
+      ],
+      [
+        {
+          "id": 40,
+          "body": "<!-- claudinite-claim -->\nClaimed by executor `a`.",
+          "created_at": "2026-09-01T00:00:00Z",
+          "user": {
+            "login": "github-actions[bot]"
+          }
+        },
+        {
+          "id": 41,
+          "body": "<!-- claudinite-episode -->\nReverted.",
+          "created_at": "2026-09-01T00:00:00Z",
+          "user": {
+            "login": "github-actions[bot]"
+          }
+        }
+      ]
+    ],
+    "conflicts": [
+      {
+        "item": {
+          "number": 5,
+          "title": "[claudinite-work] p/a",
+          "labels": [
+            {
+              "name": "task:status:running-executor"
+            }
+          ],
+          "body": "",
+          "state": "open",
+          "created_at": "2026-09-01T00:00:00Z",
+          "updated_at": "2026-09-01T00:00:00Z"
+        },
+        "myClaimId": 50,
+        "others": [
+          {
+            "number": 6,
+            "title": "[claudinite-work] p/a",
+            "labels": [
+              {
+                "name": "task:status:running-executor"
+              }
+            ],
+            "body": "",
+            "state": "open",
+            "created_at": "2026-09-01T00:00:00Z",
+            "updated_at": "2026-09-01T00:00:00Z",
+            "claimId": 40
+          }
+        ]
+      },
+      {
+        "item": {
+          "number": 5,
+          "title": "[claudinite-work] p/a",
+          "labels": [
+            {
+              "name": "task:status:running-executor"
+            }
+          ],
+          "body": "",
+          "state": "open",
+          "created_at": "2026-09-01T00:00:00Z",
+          "updated_at": "2026-09-01T00:00:00Z"
+        },
+        "myClaimId": 50,
+        "others": [
+          {
+            "number": 6,
+            "title": "[claudinite-work] p/a",
+            "labels": [
+              {
+                "name": "task:status:running-executor"
+              }
+            ],
+            "body": "",
+            "state": "open",
+            "created_at": "2026-09-01T00:00:00Z",
+            "updated_at": "2026-09-01T00:00:00Z",
+            "claimId": 60
+          }
+        ]
+      },
+      {
+        "item": {
+          "number": 5,
+          "title": "[claudinite-work] p/a",
+          "labels": [
+            {
+              "name": "task:status:running-executor"
+            }
+          ],
+          "body": "",
+          "state": "open",
+          "created_at": "2026-09-01T00:00:00Z",
+          "updated_at": "2026-09-01T00:00:00Z"
+        },
+        "myClaimId": 50,
+        "others": [
+          {
+            "number": 6,
+            "title": "[claudinite-work] p/a",
+            "labels": [
+              {
+                "name": "task:status:waiting-for-executor"
+              }
+            ],
+            "body": "",
+            "state": "open",
+            "created_at": "2026-09-01T00:00:00Z",
+            "updated_at": "2026-09-01T00:00:00Z",
+            "claimId": 40
+          }
+        ]
+      },
+      {
+        "item": {
+          "number": 5,
+          "title": "[claudinite-work] p/a",
+          "labels": [
+            {
+              "name": "task:status:running-executor"
+            }
+          ],
+          "body": "",
+          "state": "open",
+          "created_at": "2026-09-01T00:00:00Z",
+          "updated_at": "2026-09-01T00:00:00Z"
+        },
+        "myClaimId": 50,
+        "others": [
+          {
+            "number": 6,
+            "title": "[claudinite-work] p/up",
+            "labels": [
+              {
+                "name": "task:status:running-executor"
+              }
+            ],
+            "body": "",
+            "state": "open",
+            "created_at": "2026-09-01T00:00:00Z",
+            "updated_at": "2026-09-01T00:00:00Z",
+            "claimId": 40
+          }
+        ],
+        "taskAfter": {
+          "p/a": [
+            "p/up"
+          ]
+        },
+        "scheduled": {
+          "p/a": true,
+          "p/up": true
+        }
+      },
+      {
+        "item": {
+          "number": 5,
+          "title": "[claudinite-work] p/a",
+          "labels": [
+            {
+              "name": "task:status:running-executor"
+            }
+          ],
+          "body": "",
+          "state": "open",
+          "created_at": "2026-09-01T00:00:00Z",
+          "updated_at": "2026-09-01T00:00:00Z"
+        },
+        "myClaimId": 50,
+        "others": [
+          {
+            "number": 6,
+            "title": "[claudinite-work] p/up",
+            "labels": [
+              {
+                "name": "task:status:running-executor"
+              }
+            ],
+            "body": "",
+            "state": "open",
+            "created_at": "2026-09-01T00:00:00Z",
+            "updated_at": "2026-09-01T00:00:00Z",
+            "claimId": 40
+          }
+        ],
+        "taskAfter": {
+          "p/a": [
+            "p/up"
+          ]
+        },
+        "scheduled": {
+          "p/a": false,
+          "p/up": true
+        }
+      },
+      {
+        "item": {
+          "number": 5,
+          "title": "[claudinite-work] p/a",
+          "labels": [
+            {
+              "name": "task:status:running-executor"
+            }
+          ],
+          "body": "",
+          "state": "open",
+          "created_at": "2026-09-01T00:00:00Z",
+          "updated_at": "2026-09-01T00:00:00Z"
+        },
+        "myClaimId": 50,
+        "others": [
+          {
+            "number": 5,
+            "title": "[claudinite-work] p/a",
+            "labels": [
+              {
+                "name": "task:status:running-executor"
+              }
+            ],
+            "body": "",
+            "state": "open",
+            "created_at": "2026-09-01T00:00:00Z",
+            "updated_at": "2026-09-01T00:00:00Z",
+            "claimId": 40
+          }
+        ]
+      },
+      {
+        "item": {
+          "number": 5,
+          "title": "[claudinite-work] p/a",
+          "labels": [
+            {
+              "name": "task:status:running-executor"
+            }
+          ],
+          "body": "",
+          "state": "open",
+          "created_at": "2026-09-01T00:00:00Z",
+          "updated_at": "2026-09-01T00:00:00Z"
+        },
+        "myClaimId": 50,
+        "others": [
+          {
+            "number": 6,
+            "title": "[claudinite-work] p/a",
+            "labels": [
+              {
+                "name": "task:status:running-executor"
+              }
+            ],
+            "body": "",
+            "state": "open",
+            "created_at": "2026-09-01T00:00:00Z",
+            "updated_at": "2026-09-01T00:00:00Z",
+            "claimId": null
+          }
+        ]
+      },
+      {
+        "item": {
+          "number": 5,
+          "title": "[claudinite-work] p/a",
+          "labels": [
+            {
+              "name": "task:status:running-executor"
+            }
+          ],
+          "body": "",
+          "state": "open",
+          "created_at": "2026-09-01T00:00:00Z",
+          "updated_at": "2026-09-01T00:00:00Z"
+        },
+        "myClaimId": 50,
+        "others": [
+          {
+            "number": 6,
+            "title": "[claudinite-work] p/a",
+            "labels": [
+              {
+                "name": "task:status:running-agent"
+              }
+            ],
+            "body": "",
+            "state": "open",
+            "created_at": "2026-09-01T00:00:00Z",
+            "updated_at": "2026-09-01T00:00:00Z",
+            "claimId": 40
+          }
+        ]
+      }
+    ]
+  }
+}

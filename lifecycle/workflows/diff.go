@@ -16,7 +16,8 @@ const maxLines = 4000
 
 // Diff is the unified diff, one section per file and empty when nothing
 // differs, that turns repo's .github/workflows/ copies into this binary's
-// templates; `patch -p1` or `git apply` at the repo root applies it.
+// templates and deletes the superseded update workflow; `patch -p1` or
+// `git apply` at the repo root applies it.
 func Diff(repo string) (string, error) {
 	var b strings.Builder
 	for _, name := range Names {
@@ -35,6 +36,21 @@ func Diff(repo string) (string, error) {
 		if d != "" {
 			fmt.Fprintf(&b, "--- %s\n+++ b/%s\n%s", from, rel, d)
 		}
+	}
+	rel := ".github/workflows/" + Superseded
+	have, err := os.ReadFile(filepath.Join(repo, filepath.FromSlash(rel)))
+	if errors.Is(err, os.ErrNotExist) {
+		return b.String(), nil
+	}
+	if err != nil {
+		return "", err
+	}
+	d, err := unified(splitLines(have), nil)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", rel, err)
+	}
+	if d != "" {
+		fmt.Fprintf(&b, "--- a/%s\n+++ /dev/null\n%s", rel, d)
 	}
 	return b.String(), nil
 }

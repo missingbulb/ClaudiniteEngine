@@ -30,6 +30,8 @@ const installTitle = "Claudinite needs its GitHub App installed"
 type LicenseKey struct {
 	Plan  string
 	State string
+	// UpdatesOff says the key's features leave out the updates surface.
+	UpdatesOff bool
 	// Notice is the sentence the key's state wants a person to read.
 	Notice   string
 	IssuedAt time.Time
@@ -94,6 +96,8 @@ func licenseGate(d Deps) (*LicenseKey, string, error) {
 	switch {
 	case r.Key != nil && r.Key.State == "degraded":
 		return nil, "skipped: license degraded (" + r.Key.Notice + ")", nil
+	case r.Key != nil && r.Key.UpdatesOff:
+		return nil, "skipped: license degraded (updates)", nil
 	case r.Key != nil:
 		return r.Key, "", nil
 	case r.Cause == "app-not-installed":

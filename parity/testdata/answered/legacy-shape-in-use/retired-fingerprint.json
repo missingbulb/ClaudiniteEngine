@@ -1,0 +1,14 @@
+{
+  "nodeFiles": {
+    ".claudinite-settings.json": "{\"packs\":[\"basics\",\"local/mine\"]}\n",
+    ".claudinite/local/packs/mine/pack.json": "{\n  \"detect\": [\"package.json\"]\n}\n",
+    ".claudinite/shared/engine/checks/check_the_world.mjs": "// sweep\n",
+    ".claudinite/shared/engine/checks/ci-work-scope.mjs": "// work\n"
+  },
+  "cnShape": "v5-local-pack",
+  "cnFiles": {
+    ".claudinite/local/packs/mine/pack.json": "{\n  \"detect\": [\"package.json\"],}\n"
+  },
+  "answeredBy": "descriptor-format",
+  "nodeFires": true
+}

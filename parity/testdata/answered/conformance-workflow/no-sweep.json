@@ -1,0 +1,14 @@
+{
+  "nodeFiles": {
+    ".claudinite-settings.json": "{\"packs\":[\"basics\"]}\n",
+    ".claudinite/shared/engine/checks/check_the_world.mjs": "// sweep\n",
+    ".claudinite/shared/engine/checks/ci-work-scope.mjs": "// work\n",
+    ".github/workflows/tests.yml": "name: tests\non:\n  pull_request:\njobs:\n  t:\n    runs-on: ubuntu-latest\n    steps:\n      - run: npm test\n"
+  },
+  "cnShape": "v7-update-as-task",
+  "cnFiles": {
+    ".github/workflows/claudinite-ci.yml": null
+  },
+  "answeredBy": "member-workflows",
+  "nodeFires": true
+}

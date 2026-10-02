@@ -1,6 +1,7 @@
 package update
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,22 +20,30 @@ func script(t *testing.T, body string) string {
 
 func TestSelftest(t *testing.T) {
 	t.Setenv("GITHUB_TOKEN", "ghs_secret")
-	ok := script(t, `[ "$1" = selftest ] || exit 9
+	repo := t.TempDir()
+	ok := script(t, `[ "$*" = "selftest --repo `+repo+`" ] || [ "$*" = selftest ] || exit 9
 [ -z "$GITHUB_TOKEN" ] || { echo "token leaked"; exit 1; }
-echo "version 60930.2.0"; echo "platform linux-x64"`)
-	if out, err := Selftest(ok, "60930.2.0", 5*time.Second); err != nil || !strings.Contains(out, "platform") {
-		t.Fatalf("%q %v", out, err)
+echo "version 60930.2.0"; echo "ok binary: linux-x64"`)
+	for _, r := range []string{repo, ""} {
+		if out, err := Selftest(ok, "60930.2.0", r, 5*time.Second); err != nil || !strings.Contains(out, "ok binary") {
+			t.Fatalf("repo %q: %q %v", r, out, err)
+		}
 	}
-	if _, err := Selftest(ok, "60930.3.0", 5*time.Second); err == nil || !strings.Contains(err.Error(), "60930.3.0") {
+	if _, err := Selftest(ok, "60930.3.0", repo, 5*time.Second); err == nil || !strings.Contains(err.Error(), "60930.3.0") {
 		t.Errorf("wrong version accepted: %v", err)
 	}
-	fails := script(t, `echo "version 60930.2.0"; echo "cache not writable"; exit 1`)
-	if _, err := Selftest(fails, "60930.2.0", 5*time.Second); err == nil || !strings.Contains(err.Error(), "not writable") {
-		t.Errorf("failing selftest accepted: %v", err)
+	probes := script(t, `echo "version 60930.2.0"; echo "fail hooks: PreToolUse"; echo "ok rules: x"; echo "fail rules: y"; exit 1`)
+	var failed *SelftestFailed
+	if _, err := Selftest(probes, "60930.2.0", repo, 5*time.Second); !errors.As(err, &failed) || strings.Join(failed.Probes, ",") != "hooks,rules" {
+		t.Errorf("failed probes: %v", err)
+	}
+	crashed := script(t, `echo "version 60930.2.0"; echo boom >&2; exit 3`)
+	if _, err := Selftest(crashed, "60930.2.0", repo, 5*time.Second); err == nil || errors.As(err, &failed) || !strings.Contains(err.Error(), "boom") {
+		t.Errorf("a crash read as failed probes: %v", err)
 	}
 	hangs := script(t, `sleep 30`)
 	start := time.Now()
-	if _, err := Selftest(hangs, "60930.2.0", 300*time.Millisecond); err == nil || time.Since(start) > 10*time.Second {
+	if _, err := Selftest(hangs, "60930.2.0", repo, 300*time.Millisecond); err == nil || time.Since(start) > 10*time.Second {
 		t.Errorf("hanging selftest: %v after %v", err, time.Since(start))
 	}
 }

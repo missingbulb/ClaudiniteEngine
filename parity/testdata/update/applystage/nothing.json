@@ -1,0 +1,14 @@
+{
+  "input": {
+    "specs": [
+      {
+        "dir": "packs/acme-pack/migrations/2026-09-01-a"
+      }
+    ],
+    "withheld": [],
+    "testVisible": []
+  },
+  "expect": {
+    "needed": false
+  }
+}

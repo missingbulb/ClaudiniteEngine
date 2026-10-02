@@ -1,0 +1,17 @@
+{
+  "input": {
+    "selftestOk": false,
+    "forceMergeOnRedCi": true
+  },
+  "expect": {
+    "action": "merge",
+    "forced": true,
+    "why": "the converged tree FAILED its self-test, merged on the operator's explicit force-merge-on-red-ci"
+  },
+  "divergence": "record-72",
+  "cn": {
+    "action": "needs-human",
+    "label": "needs-human",
+    "why": "the converged tree FAILED its self-test — the machinery that runs the rules is not intact, so the PR stays open"
+  }
+}

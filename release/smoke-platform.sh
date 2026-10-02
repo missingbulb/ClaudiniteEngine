@@ -124,10 +124,11 @@ step "Stop through the linked binary"
 guarded Stop stop '{"session_id":"smoke","hook_event_name":"Stop"}'
 
 step "cn selftest"
-(cd "$member" && .claudinite/bin/cn selftest) > "$work/selftest.out" || fail "selftest: $(cat "$work/selftest.out")"
+(cd "$member" && .claudinite/bin/cn selftest --repo .) > "$work/selftest.out" || fail "selftest: $(cat "$work/selftest.out")"
 cat "$work/selftest.out"
 grep -qx "version $version" "$work/selftest.out" || fail "selftest version: $(cat "$work/selftest.out")"
-grep -qx "platform $platform" "$work/selftest.out" || fail "selftest platform: $(cat "$work/selftest.out")"
+grep -qx "ok binary: $platform" "$work/selftest.out" || fail "selftest platform: $(cat "$work/selftest.out")"
+grep -qx "ok hooks: .*" "$work/selftest.out" || fail "selftest did not probe the member's hooks: $(cat "$work/selftest.out")"
 
 step "a one-character change to the pin"
 bad=$(printf '%s' "$pin" | awk '{ c = substr($0, 20, 1); r = (c == "A") ? "B" : "A"; print substr($0, 1, 19) r substr($0, 21) }')

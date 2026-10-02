@@ -1,0 +1,31 @@
+{
+  "input": {
+    "edits": [
+      {
+        "before": "{\"packs\":[{\"id\":\"basics\",\"version\":\"61001.1\"}],\"engineVersion\":\"61001.1\"}",
+        "after": "{\"packs\":[{\"id\":\"basics\",\"version\":\"61002.1\"}],\"engineVersion\":\"61002.1\"}"
+      },
+      {
+        "before": "{\"engine\":{\"version\":\"61001.1.0\",\"manifest\":\"sha512-a\"}}",
+        "after": "{\"engine\":{\"version\":\"61002.1.0\",\"manifest\":\"sha512-b\"}}"
+      }
+    ]
+  },
+  "expect": {
+    "bookkeeping": [],
+    "stampOnly": [
+      true,
+      false
+    ],
+    "testVisible": null
+  },
+  "divergence": "record-41",
+  "cn": {
+    "bookkeeping": [],
+    "stampOnly": [
+      false,
+      false
+    ],
+    "testVisible": null
+  }
+}

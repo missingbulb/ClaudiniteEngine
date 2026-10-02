@@ -167,7 +167,7 @@ func Init(in Input) error {
 	if len(got.Launcher) == 0 {
 		return fmt.Errorf("%s %s carries no launcher (package/launch)", in.Package, c.Version)
 	}
-	self, err := update.Selftest(got.Binary, c.Version, in.Timeout)
+	self, err := update.Selftest(got.Binary, c.Version, "", in.Timeout)
 	if err != nil {
 		return err
 	}

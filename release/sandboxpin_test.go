@@ -12,6 +12,13 @@ func TestSandboxPinWritesTheRehearsalFixture(t *testing.T) {
 	const ver = "60930.1.0"
 	pin := "sha512-" + strings.Repeat("A", 86) + "=="
 	sandbox := t.TempDir()
+	old := filepath.Join(sandbox, ".github", "workflows", "claudinite-update.yml")
+	if err := os.MkdirAll(filepath.Dir(old), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(old, []byte("name: old\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	if out, err := runScript(t, nil, "release/sandbox-pin.sh", ver, pin, sandbox); err != nil {
 		t.Fatalf("%v\n%s", err, out)
 	}
@@ -34,7 +41,10 @@ func TestSandboxPinWritesTheRehearsalFixture(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(sandbox, ".gitignore")); err == nil {
 		t.Error("the fixture writes into the repo root's .gitignore, the old shape")
 	}
-	for _, name := range []string{"claudinite-update.yml", "claudinite-ci.yml"} {
+	if _, err := os.Stat(filepath.Join(sandbox, ".github", "workflows", "claudinite-update.yml")); err == nil {
+		t.Error("the pinned sandbox keeps the superseded update workflow")
+	}
+	for _, name := range []string{"claudinite-ci.yml", "claudinite-scheduler.yml", "claudinite-executor.yml"} {
 		got, err := os.ReadFile(filepath.Join(sandbox, ".github", "workflows", name))
 		want, _ := os.ReadFile(filepath.Join("../lifecycle/workflows/templates", name))
 		if err != nil || string(got) != string(want) {

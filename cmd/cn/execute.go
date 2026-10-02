@@ -67,6 +67,44 @@ func taskLicense(key *license.ActionsOnce, t taskspec.Task) string {
 	return ""
 }
 
+// pullDiff reads a pull request's diff from this checkout as merge-policy
+// entries: its head fetched and diffed against its merge base with the
+// default branch.
+func pullDiff(git gitcmd.Repo, base string) func(land.PR) ([]mergepolicy.Entry, error) {
+	return func(pr land.PR) ([]mergepolicy.Entry, error) {
+		if err := git.Fetch("origin", "+refs/heads/"+base+":refs/remotes/origin/"+base, "+refs/heads/"+pr.HeadRef+":refs/remotes/origin/"+pr.HeadRef); err != nil {
+			return nil, err
+		}
+		mb, err := git.MergeBase("refs/remotes/origin/"+base, pr.HeadSHA)
+		if err != nil {
+			return nil, err
+		}
+		files, err := git.ChangedFiles(mb, pr.HeadSHA)
+		if err != nil {
+			return nil, err
+		}
+		entries := make([]mergepolicy.Entry, 0, len(files))
+		for _, f := range files {
+			e := mergepolicy.Entry{File: f}
+			for _, side := range []struct {
+				ref string
+				to  **string
+			}{{mb, &e.Before}, {pr.HeadSHA, &e.After}} {
+				b, ok, err := git.Show(side.ref, f)
+				if err != nil {
+					return nil, err
+				}
+				if ok {
+					s := string(b)
+					*side.to = &s
+				}
+			}
+			entries = append(entries, e)
+		}
+		return entries, nil
+	}
+}
+
 // mayLand reports whether a task's automerge authorizes any landing; a
 // pull request it does not authorize stands for a person.
 func mayLand(automerge any) bool {
@@ -170,6 +208,10 @@ func cmdExecuteLoop(args []string, stdout io.Writer, env world.Env) (err error) 
 	termsEnv := envList(execute.TaskEnv(nil, withheld, jobEnv))
 	lane := land.Lane{API: gw, Now: time.Now, Sleep: time.Sleep, Log: log}
 	git := gitcmd.Repo{Dir: r.root, Token: token}
+	declaredRules := mergepolicy.DeclaredBy(r.set.Packs)
+	judgement := func(t taskspec.Task) *land.Judgement {
+		return &land.Judgement{Automerge: t.Decl["automerge"], Declared: declaredRules, Diff: pullDiff(git, branch)}
+	}
 	var packs []execute.PackInfo
 	for _, p := range r.set.Packs {
 		packs = append(packs, execute.PackInfo{ID: p.ID, Kind: string(p.Kind)})
@@ -206,9 +248,14 @@ func cmdExecuteLoop(args []string, stdout io.Writer, env world.Env) (err error) 
 			Env: termsEnv, Echo: echo}.Evaluate,
 		ResolveTarget: func(t taskspec.Task, at time.Time) execute.Target {
 			return execute.ResolveTarget(execute.TargetIn{Issues: gw, Repo: gw, Pulls: gw, Lane: gw, TaskID: t.Path(),
-				Outcome: t.Decl.Outcome(), Delivery: delivery, Now: at, Seed: newNonce(0), Sleep: time.Sleep, Log: log})
+				Outcome: t.Decl.Outcome(), Delivery: delivery, Now: at, Seed: newNonce(0), Sleep: time.Sleep, Log: log, Judgement: judgement(t)})
 		},
-		CodeWork: worker.Run,
+		CodeWork: func(t taskspec.Task, w execute.Work) execute.CodeWorkResult {
+			if t.Pack == taskspec.BuiltinPack && t.ID == taskspec.UpdateTask {
+				return runUpdateTask(r.root, token, branch, stdout)
+			}
+			return worker.Run(t, w)
+		},
 		Land: func(t taskspec.Task, pr int) execute.Landed {
 			if !mayLand(t.Decl["automerge"]) {
 				return execute.Landed{Note: fmt.Sprintf("PR #%d stands for review — this task's automerge authorizes no landing", pr)}
@@ -217,8 +264,8 @@ func cmdExecuteLoop(args []string, stdout io.Writer, env world.Env) (err error) 
 			if err != nil {
 				return execute.Landed{Note: fmt.Sprintf("could not read PR #%d (%v) — leaving it for the next run", pr, err)}
 			}
-			d := lane.Deliver(land.PR{Number: p.Number, NodeID: p.NodeID, HeadRef: p.HeadRef, HeadSHA: p.HeadSHA}, branch, delivery, t.Path())
-			return execute.Landed{Merged: d.Merged}
+			d := lane.Deliver(land.PR{Number: p.Number, NodeID: p.NodeID, HeadRef: p.HeadRef, HeadSHA: p.HeadSHA}, branch, delivery, t.Path(), judgement(t))
+			return execute.Landed{Merged: d.Merged, Refused: d.Refused}
 		},
 		Grant: func(_ taskspec.Task, item workitem.Issue) (string, error) {
 			w, err := licenseapi.FromEnv()

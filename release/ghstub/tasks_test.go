@@ -236,7 +236,12 @@ func TestTheStubAgentConvergesTheItem(t *testing.T) {
 	if got, _ := os.ReadFile(log); string(got) != "1 1-abc\n" {
 		t.Errorf("agent log %q", got)
 	}
-	if s := state(t, srv); len(s.Agent) != 1 || s.Agent[0].Exit != 0 {
+	s := state(t, srv)
+	for len(s.Agent) == 0 && time.Now().Before(deadline) {
+		time.Sleep(50 * time.Millisecond)
+		s = state(t, srv)
+	}
+	if len(s.Agent) != 1 || s.Agent[0].Exit != 0 {
 		t.Errorf("%+v", s.Agent)
 	}
 }

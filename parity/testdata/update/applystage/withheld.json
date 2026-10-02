@@ -1,0 +1,22 @@
+{
+  "input": {
+    "specs": [],
+    "withheld": [
+      ".claudinite/pending-workflows/claudinite-scheduler.yml"
+    ],
+    "testVisible": []
+  },
+  "expect": {
+    "needed": true,
+    "packs": [],
+    "records": [],
+    "why": "1 withheld workflow file(s) staged under .claudinite/pending-workflows/",
+    "withheld": [
+      ".claudinite/pending-workflows/claudinite-scheduler.yml"
+    ]
+  },
+  "divergence": "record-32",
+  "cn": {
+    "needed": false
+  }
+}

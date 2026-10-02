@@ -44,8 +44,19 @@ func TestSelftestThroughCN(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("exit %d: %s", code, out)
 	}
-	if !regexp.MustCompile(`roots [0-9a-f]{16} [0-9a-f]{16}`).MatchString(out) {
+	if !regexp.MustCompile(`(?m)^ok roots: [0-9a-f]{16} [0-9a-f]{16}$`).MatchString(out) {
 		t.Fatalf("no root ids: %s", out)
+	}
+	repo := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(repo, ".claudinite"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	_ = os.WriteFile(filepath.Join(repo, ".claudinite", "settings.yaml"), []byte("engine:\n  version: \"1.0.0\"\n"), 0o644)
+	_ = os.MkdirAll(filepath.Join(repo, ".claude"), 0o755)
+	_ = os.WriteFile(filepath.Join(repo, ".claude", "settings.json"), []byte(`{"hooks":{"Stop":[{"hooks":[{"type":"command","command":".claudinite/bin/cn hook stopped"}]}]}}`), 0o644)
+	out, _, code = runInProc([]string{"selftest", "--repo", repo}, "")
+	if code != 1 || !strings.Contains(out, "fail hooks: Stop → cn hook stopped, an event this binary does not answer\n") {
+		t.Fatalf("exit %d: %s", code, out)
 	}
 }
 

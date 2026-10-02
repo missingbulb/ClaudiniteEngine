@@ -50,6 +50,24 @@ func TestReadManifestThreeFormats(t *testing.T) {
 	}
 }
 
+// Whether a pack's tasks are the engine's own is the manifest's to say,
+// with no default: absent is not engine.
+func TestManifestEngineProperty(t *testing.T) {
+	for body, want := range map[string]bool{
+		`{"version": "1.0", "engine": true}`:  true,
+		`{"version": "1.0", "engine": false}`: false,
+		`{"version": "1.0"}`:                  false,
+	} {
+		m, err := ParseManifest([]byte(body))
+		if err != nil || m.Engine != want {
+			t.Errorf("%s: engine %v, %v", body, m.Engine, err)
+		}
+	}
+	if _, err := ParseManifest([]byte(`{"version": "1.0", "engine": "yes"}`)); err == nil || !strings.Contains(err.Error(), `"engine"`) {
+		t.Errorf("a non-boolean engine: %v", err)
+	}
+}
+
 func TestReadManifestRefuses(t *testing.T) {
 	cases := map[string]string{
 		`"extra" is not a pack manifest key`:        `{"version": "1.0", "extra": 1}`,

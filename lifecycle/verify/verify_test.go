@@ -81,7 +81,6 @@ func newShape(t *testing.T) string {
 	_ = os.Remove(filepath.Join(dir, ".gitignore"))
 	write(t, dir, ".claudinite/.gitignore", "bin/\n")
 	write(t, dir, ".claudinite/launch", string(launcherBytes(t)))
-	write(t, dir, ".github/workflows/claudinite-update.yml", "name: claudinite-update\n")
 	write(t, dir, ".github/workflows/claudinite-ci.yml", "name: claudinite-ci\n")
 	write(t, dir, ".github/workflows/claudinite-scheduler.yml", "name: claudinite-scheduler\n")
 	write(t, dir, ".github/workflows/claudinite-executor.yml", "name: claudinite-executor\n")
@@ -149,7 +148,21 @@ func TestRules(t *testing.T) {
 			raw, _ := os.ReadFile(filepath.Join(d, ".claude/settings.json"))
 			write(t, d, ".claude/settings.json", strings.Replace(string(raw), "cn hook pre-tool-use", "cn hook something-else", 1))
 		}, nil, []string{"hooks"}},
-		{"no workflows", func(t *testing.T, d string) { _ = os.RemoveAll(filepath.Join(d, ".github")) }, nil, []string{"member-workflows", "member-workflows", "member-workflows", "member-workflows"}},
+		{"no workflows", func(t *testing.T, d string) { _ = os.RemoveAll(filepath.Join(d, ".github")) }, nil, []string{"member-workflows", "member-workflows", "member-workflows"}},
+		{"the superseded update workflow beside the queue", func(t *testing.T, d string) {
+			write(t, d, ".github/workflows/claudinite-update.yml", "name: claudinite-update\n")
+		}, nil, []string{"member-workflows"}},
+		{"the update workflow with no queue", func(t *testing.T, d string) {
+			write(t, d, ".github/workflows/claudinite-update.yml", "name: claudinite-update\n")
+			_ = os.Remove(filepath.Join(d, ".github/workflows/claudinite-scheduler.yml"))
+			_ = os.Remove(filepath.Join(d, ".github/workflows/claudinite-executor.yml"))
+		}, nil, []string{"member-workflows", "member-workflows"}},
+		{"a path-filtered ci workflow", func(t *testing.T, d string) {
+			write(t, d, ".github/workflows/claudinite-ci.yml", "name: claudinite-ci\non:\n  pull_request:\n    paths: [\"src/**\"]\n  workflow_dispatch:\njobs:\n  check:\n    steps:\n      - run: x\n        paths: not-a-trigger\n")
+		}, nil, []string{"member-workflows"}},
+		{"a job-level paths key filters nothing", func(t *testing.T, d string) {
+			write(t, d, ".github/workflows/claudinite-ci.yml", "name: claudinite-ci\non:\n  pull_request:\n  push:\n    paths: [\"src/**\"]\njobs:\n  check:\n    paths: x\n")
+		}, nil, nil},
 		{"no executor", func(t *testing.T, d string) {
 			_ = os.Remove(filepath.Join(d, ".github/workflows/claudinite-executor.yml"))
 		}, []string{"member-workflows"}, nil},

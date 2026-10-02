@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/ed25519"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -23,6 +24,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/shared/paths"
 	"github.com/missingbulb/ClaudiniteEngine/shared/report"
 	"github.com/missingbulb/ClaudiniteEngine/shared/version"
+	"github.com/missingbulb/ClaudiniteEngine/tasks/execute"
 )
 
 // childTimeout bounds each run of a candidate binary.
@@ -34,6 +36,11 @@ const childTimeout = 2 * time.Minute
 func updateDeps(repo string, stdout io.Writer) (update.Deps, error) {
 	token := os.Getenv("GITHUB_TOKEN")
 	_ = os.Unsetenv("GITHUB_TOKEN")
+	return updateDepsWith(repo, token, stdout)
+}
+
+// updateDepsWith builds them over a token the caller already read.
+func updateDepsWith(repo, token string, stdout io.Writer) (update.Deps, error) {
 	if token == "" {
 		return update.Deps{}, report.New(report.IO, "update needs GITHUB_TOKEN, the workflow job's token")
 	}
@@ -102,7 +109,8 @@ func actionsKey(roots []ed25519.PublicKey, log io.Writer) func() update.KeyResul
 		k := r.Key
 		notice := strings.TrimPrefix(license.NoticeFor(k, "", "", ""), "[cn] license degraded: ")
 		return update.KeyResult{Key: &update.LicenseKey{Plan: string(k.Plan), State: k.State, Notice: notice,
-			IssuedAt: time.Unix(k.Iat, 0), Held: k.Release.Held, Revoked: k.Release.Revoked, SecurityFixes: k.Release.SecurityFixes,
+			UpdatesOff: !license.Gate(k, false).On(license.SurfaceUpdates),
+			IssuedAt:   time.Unix(k.Iat, 0), Held: k.Release.Held, Revoked: k.Release.Revoked, SecurityFixes: k.Release.SecurityFixes,
 			SerialFloor: k.Release.PackIndexSerial, PackKeys: k.Release.PackKeys}}
 	}
 }
@@ -131,7 +139,38 @@ func (r *keyedReader) VerifiedIndex(id string) (packs.Verified, error) {
 	return r.Reader.VerifiedIndex(id)
 }
 
+// cmdUpdateDecide answers one of the update's decision cores over a
+// fixture, printing JSON: the parity harness's update face and a person's
+// reproduction tool, never a CI path.
+func cmdUpdateDecide(args []string, stdout io.Writer) error {
+	if len(args) == 0 {
+		return report.New(report.Usage, "update decide needs a core: plan, gap, delivery, applystage, terminal, convergescope or pulltext")
+	}
+	fs := flag.NewFlagSet("update decide", flag.ContinueOnError)
+	world := fs.String("world", "", "")
+	if err := flags(fs, args[1:]); err != nil {
+		return err
+	}
+	if *world == "" {
+		return report.New(report.Usage, "update decide needs --world FILE")
+	}
+	raw, err := os.ReadFile(*world)
+	if err != nil {
+		return report.Wrap(report.IO, "update decide", err)
+	}
+	answer, err := update.Decide(args[0], raw)
+	if err != nil {
+		return report.New(report.Usage, err.Error())
+	}
+	enc := json.NewEncoder(stdout)
+	enc.SetEscapeHTML(false)
+	return enc.Encode(answer)
+}
+
 func cmdUpdate(args []string, stdout io.Writer) error {
+	if len(args) > 0 && args[0] == "decide" {
+		return cmdUpdateDecide(args[1:], stdout)
+	}
 	if len(args) == 0 || (args[0] != "engine" && args[0] != "packs" && args[0] != "land") {
 		return report.New(report.Usage, "update takes engine, packs or land")
 	}
@@ -177,6 +216,38 @@ func cmdUpdate(args []string, stdout io.Writer) error {
 	}
 	fmt.Fprintln(stdout, verdict)
 	return nil
+}
+
+// runUpdateTask is the engine/update task's code-work, run in the
+// executor's process: the engine update, then the packs update, from the
+// default branch, each verdict said on the item's close. The update's pull
+// requests are its own, landed by cn update land, so it delivers none.
+func runUpdateTask(repo, token, branch string, out io.Writer) execute.CodeWorkResult {
+	d, err := updateDepsWith(repo, token, out)
+	if err != nil {
+		return execute.CodeWorkResult{Why: "engine/update: " + err.Error()}
+	}
+	if cur, err := d.Git.CurrentBranch(); err != nil || cur != branch {
+		if err := d.Git.Checkout(branch); err != nil {
+			return execute.CodeWorkResult{Why: "engine/update: could not check out " + branch, Detail: err.Error()}
+		}
+	}
+	reader, closeReader := packReader(d.Roots, out)
+	defer closeReader()
+	d.Packs = &keyedReader{Reader: reader, key: d.Key}
+	var said []string
+	for _, step := range []struct {
+		name string
+		run  func(update.Deps, update.Options) (string, error)
+	}{{"cn update engine", update.Engine}, {"cn update packs", update.Packs}} {
+		verdict, err := step.run(d, update.Options{})
+		if err != nil {
+			return execute.CodeWorkResult{Why: "engine/update: " + step.name + " failed", Detail: err.Error(), Said: said}
+		}
+		fmt.Fprintln(out, step.name+": "+verdict)
+		said = append(said, step.name+": "+verdict)
+	}
+	return execute.CodeWorkResult{OK: true, Said: said}
 }
 
 func cmdWorkflows(args []string, stdout io.Writer) error {

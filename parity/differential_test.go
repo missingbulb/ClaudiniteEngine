@@ -80,12 +80,12 @@ func TestDifferential(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			deferred, err := Deferred()
+			deferred, err := Explained()
 			if err != nil {
 				t.Fatal(err)
 			}
 			for _, id := range StrayDeferrals(deferred, shelf) {
-				t.Errorf("deferred.txt names %s, which the frozen shelf does not carry", id)
+				t.Errorf("deferred.txt or testdata/answered names %s, which the frozen shelf does not carry", id)
 			}
 			for _, moment := range []string{"world", "work"} {
 				// cn runs the declared and built-in checks, and the coded
@@ -187,10 +187,10 @@ func vendorPacks(dir, tree, nodeRoot, engine string, decl map[string]any) error 
 		}
 		src := filepath.Join(tree, "packs", id)
 		if engine == "cn" && Ported()[id] || !exists(src) {
-			var err error
-			if src, err = PackSource(id, filepath.Join(nodeRoot, "packs"), engine); err != nil {
+			if err := VendorPack(id, filepath.Join(nodeRoot, "packs"), engine, dst); err != nil {
 				return err
 			}
+			continue
 		}
 		if err := copyTree(src, dst); err != nil {
 			return err

@@ -1,0 +1,42 @@
+{
+  "input": {
+    "terminal": {
+      "action": "merge",
+      "why": "the converged tree passed its self-test"
+    },
+    "engine": {
+      "from": "61001.1",
+      "to": "61002.1"
+    },
+    "packs": {
+      "plan": [
+        {
+          "id": "basics",
+          "from": "61001.1",
+          "to": "61002.1"
+        },
+        {
+          "id": "node",
+          "from": null,
+          "to": "61002.2"
+        }
+      ]
+    }
+  },
+  "expect": {
+    "amends": [],
+    "marker": "claudinite-rehearsal: converged",
+    "text": {
+      "body": "**merge** — the converged tree passed its self-test\n\nVersions moved by this run:\n- engine 61001.1 → 61002.1\n- basics 61001.1 → 61002.1\n- node unstamped → 61002.2\n\n",
+      "title": "Claudinite update: engine v61001.1 → v61002.1 and 2 packs upgraded"
+    }
+  },
+  "divergence": "record-63",
+  "cn": {
+    "titles": [
+      "Claudinite engine 61002.1",
+      "Claudinite packs 0: basics 61001.1→61002.1, node none→61002.2"
+    ],
+    "amends": []
+  }
+}

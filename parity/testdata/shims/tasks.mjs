@@ -166,6 +166,17 @@ const kinds = {
         new Map(Object.entries(k.known ?? {}).map(([n, s]) => [Number(n), s])))].sort((a, b) => a - b)),
     };
   },
+  async claim() {
+    const loop = await mod('src/execute/loop.mjs');
+    const scheduled = (map) => (id) => (id in (map ?? {}) ? map[id] : null);
+    return {
+      winners: (fixture.winners ?? []).map((cs) => loop.claimWinner(cs)?.id ?? null),
+      conflicts: (fixture.conflicts ?? []).map((k) => loop.conflictsWithEarlierClaim(k.item, k.myClaimId, k.others ?? [], {
+        taskAfter: (id) => k.taskAfter?.[id] ?? [],
+        scheduledOf: scheduled(k.scheduled),
+      })),
+    };
+  },
   async queue() {
     const pick = await mod('src/items/pick-order.mjs');
     const ready = await mod('src/schedule/readiness.mjs');

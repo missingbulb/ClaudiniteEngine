@@ -112,6 +112,12 @@ Today a workflow in this repo checks out the canary with a cross-repo token and 
 
 The canaries do not try to cover every pack; each pack's own tests do that in the pack corpus matrix. The canaries prove the paths only a real repo exercises.
 
+`release/canaries.json` registers three canaries: Lagging (`ClaudiniteCanaryLagging`), Fresh (`ClaudiniteCanaryFresh`) and ClaudiniteSandbox, which stands in for Main. Each names no workflow until the canary App (#21) can read their runs, and the gate counts only canaries that name one, so until then it answers `no-canaries` and promotion needs the dispatch's confirmation. The registration is there so a canary added later cannot be forgotten silently. The first jobs are fixed now:
+
+- **Lagging**: the `v1`–`v3` shapes of `lifecycle/verify/testdata/shapes`. It is the only place old shapes run live; every release must update it to deprecations, never breaks, and `cn selftest --repo` must fail no probe on it.
+- **Fresh**: `cn init` on a scratch branch each release, then `cn verify` and `cn selftest --repo` over the result.
+- **Sandbox**: the scheduler files `engine/update` and the executor drains it, the path `rehearse.sh --mode update` steps 10 and 11 prove against stubs.
+
 The disposable canaries are repos we create for this and nothing else. Each has the Claudinite App installed on a test subscription, so key requests and paid surfaces run for real.
 
 ### What each canary does for a candidate

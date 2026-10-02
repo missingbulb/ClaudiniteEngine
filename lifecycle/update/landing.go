@@ -20,7 +20,7 @@ func (m updateMerger) DeleteBranch(ref string) error {
 // on the CI run its updater dispatched, so the evidence is in hand and
 // only the pinned-sha merge and the branch's removal remain.
 func landPinned(d Deps, pr githubapi.PR, sha, title string) error {
-	err, tidy := land.Pinned(updateMerger{d}, land.PR{Number: pr.Number, HeadRef: pr.HeadRef, HeadSHA: sha}, title, "")
+	err, tidy := land.Pinned(updateMerger{d}, land.PR{Number: pr.Number, HeadRef: pr.HeadRef, HeadSHA: sha}, title, "", nil)
 	if err != nil {
 		return err
 	}

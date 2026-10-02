@@ -1,0 +1,16 @@
+{
+  "input": {
+    "files": [
+      ".claudinite-settings.json",
+      ".claudinite/settings.yaml"
+    ]
+  },
+  "expect": {
+    "bookkeeping": [
+      false,
+      false
+    ],
+    "stampOnly": [],
+    "testVisible": null
+  }
+}

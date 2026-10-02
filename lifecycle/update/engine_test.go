@@ -246,6 +246,28 @@ func TestASelftestFailureOpensNoPR(t *testing.T) {
 	}
 }
 
+// A candidate whose selftest fails a probe over the member opens nothing,
+// forced or not, and the verdict names the probe.
+func TestAFailedProbeSkipsTheUpdateForcedOrNot(t *testing.T) {
+	for _, force := range []bool{false, true} {
+		w := newWorld(t, settings.YAML)
+		bin := []byte("#!/bin/sh\ncase \"$1 $2 $3\" in\n" +
+			"\"selftest --repo " + w.repo + "\") echo \"version " + v2 + "\"; echo \"ok binary: x\"; echo \"fail hooks: PreToolUse → cn hook x\"; exit 1 ;;\n" +
+			"*) exit 9 ;;\nesac\n")
+		w.publish(t, v2, relOpts{binary: bin})
+		v, err := Engine(w.deps(t), Options{Force: force})
+		if err != nil || v != "skipped: selftest failed (hooks)" {
+			t.Fatalf("force %v: %q %v", force, v, err)
+		}
+		if !strings.Contains(w.out.String(), "fail hooks: PreToolUse") {
+			t.Errorf("the report was not printed:\n%s", w.out)
+		}
+		if len(w.hub.called("create-pull")) != 0 {
+			t.Error("opened a PR")
+		}
+	}
+}
+
 func TestUpToDateNamesTheSkip(t *testing.T) {
 	w := newWorld(t, settings.YAML)
 	w.publish(t, v1, relOpts{})

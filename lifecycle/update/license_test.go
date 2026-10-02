@@ -29,6 +29,7 @@ func TestNoKeySkipsBeforeAnyNpmRead(t *testing.T) {
 		"refused":     {KeyResult{Cause: "workflow-not-pinned"}, "skipped: license refused (workflow-not-pinned)"},
 		"pr trigger":  {KeyResult{Cause: "pull-request-trigger"}, "skipped: license refused (pull-request-trigger)"},
 		"degraded":    {*okKey(func(k *LicenseKey) { k.State, k.Notice = "degraded", "acme's license is degraded" }), "skipped: license degraded (acme's license is degraded)"},
+		"updates off": {*okKey(func(k *LicenseKey) { k.UpdatesOff = true }), "skipped: license degraded (updates)"},
 	} {
 		for _, run := range []string{"engine", "packs"} {
 			w := newWorld(t, settings.YAML)
