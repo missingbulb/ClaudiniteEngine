@@ -21,6 +21,12 @@ const (
 	Error   Outcome = "error"
 	Crash   Outcome = "crash"
 	Timeout Outcome = "timeout"
+	// The per-call hooks' verdicts: a call denied, context advised, a
+	// skill nudged, and a hook past its deadline that let the call through.
+	Block    Outcome = "block"
+	Advise   Outcome = "advise"
+	Nudge    Outcome = "nudge"
+	Deadline Outcome = "deadline"
 )
 
 var (
@@ -38,7 +44,7 @@ func Line(capability, event string, outcome Outcome, d time.Duration) string {
 		event = "unknown"
 	}
 	switch outcome {
-	case OK, Error, Crash, Timeout:
+	case OK, Error, Crash, Timeout, Block, Advise, Nudge, Deadline:
 	default:
 		outcome = Error
 	}

@@ -173,10 +173,10 @@ func (s *Set) Run(sel Selection, now time.Time, stderr io.Writer) ([]findings.Fi
 			unread++
 			continue
 		}
-		switch {
-		case c.Scope == "action":
+		switch c.Scope {
+		case "action":
 			action = append(action, c)
-		case c.Scope == "work":
+		case "work":
 			if !replyGateOpen(c, sel.Session) {
 				ran++
 				continue

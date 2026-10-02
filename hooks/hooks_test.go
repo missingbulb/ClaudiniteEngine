@@ -11,7 +11,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/shared/report"
 )
 
-var crumb = regexp.MustCompile(`^\[cn\] hooks ([a-z-]+) (ok|error|crash|timeout) [0-9]+ms$`)
+var crumb = regexp.MustCompile(`^\[cn\] hooks ([a-z-]+) (ok|error|crash|timeout|block|advise|nudge|deadline) [0-9]+ms$`)
 
 type sessionStartOut struct {
 	HookSpecificOutput struct {
@@ -84,7 +84,7 @@ func TestSessionStartSurvivesBadStdin(t *testing.T) {
 
 func TestOtherEventsAnswerWithBreadcrumbOnly(t *testing.T) {
 	for _, ev := range []string{"pre-tool-use", "post-tool-use", "user-prompt-submit", "stop", "session-end"} {
-		out, errOut, err := call(t, ev, `{"hook_event_name":"x"}`)
+		out, errOut, err := call(t, ev, `{"hook_event_name":"x","tool_name":"Read"}`)
 		if err != nil {
 			t.Errorf("%s: %v", ev, err)
 		}

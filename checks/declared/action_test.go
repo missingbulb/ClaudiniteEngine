@@ -135,6 +135,11 @@ func TestGuardVerdict(t *testing.T) {
 	if v := s.Guard(call(t, "Bash", `{"command":"git push origin --delete x"}`), noPrior, now); len(v.Blocks) != 0 {
 		t.Errorf("off: %+v", v)
 	}
+	// A repo that is no member still never deletes a remote branch.
+	none := &Set{Config: Config{Rules: map[string]string{}}}
+	if v := none.Guard(call(t, "Bash", `{"command":"git push origin --delete x"}`), noPrior, now); len(v.Blocks) != 1 {
+		t.Errorf("no member: %+v", v)
+	}
 	s = loadOne(t, checks)
 	keep(s, true)
 	reads := 0

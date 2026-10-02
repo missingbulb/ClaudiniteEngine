@@ -88,6 +88,7 @@ func assemble(repo, engine string) assembled {
 	var mountNotes []string
 	a.skills, mountNotes = mount(repo, offered)
 	a.notes = append(a.notes, mountNotes...)
+	a.notes = append(a.notes, malformedNotes(set.Packs)...)
 	a.selfCheck = fmt.Sprintf("[cn] packs %d/%d loaded", len(set.Packs), len(set.Packs)+len(set.NotLoaded))
 	if len(parts) > 0 {
 		a.selfCheck += " (" + strings.Join(parts, "; ") + ")"

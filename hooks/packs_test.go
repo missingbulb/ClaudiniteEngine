@@ -46,12 +46,14 @@ type fakeChecks struct {
 	started []string
 	result  CheckResult
 	ran     []string
+	scopes  []RunScope
 }
 
 func (f *fakeChecks) Start(repo string) error { f.started = append(f.started, repo); return nil }
 
-func (f *fakeChecks) Run(repo, event string, tags []string, wait time.Duration) CheckResult {
-	f.ran = append(f.ran, event+" "+strings.Join(tags, ",")+" "+wait.String())
+func (f *fakeChecks) Run(repo, event string, scope RunScope, wait time.Duration) CheckResult {
+	f.ran = append(f.ran, event+" "+strings.Join(scope.Tags, ",")+" "+wait.String())
+	f.scopes = append(f.scopes, scope)
 	return f.result
 }
 

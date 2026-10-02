@@ -216,12 +216,10 @@ func deletesRemoteBranch(call Call) bool {
 
 // Guard judges one call about to run against the set's action checks and
 // built-in guards, with the member's overrides and the grace window
-// applied. prior is read only when a guard counts calls.
+// applied; a repo that is no member has the built-in guards alone. prior
+// is read only when a guard counts calls.
 func (s *Set) Guard(call Call, prior func() []Call, now time.Time) GuardVerdict {
 	var v GuardVerdict
-	if !s.Member {
-		return v
-	}
 	var priorCalls []Call
 	read := false
 	render := func(h hit, why string) string {

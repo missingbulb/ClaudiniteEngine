@@ -31,9 +31,21 @@ linters:
             - "**/sdkserver/**"
             - "**/shared/**"
             - "!**/shared/descriptor/**"
+            - "!**/shared/skilltriggers/**"
           allow:
             - $gostd
             - github.com/missingbulb/ClaudiniteEngine/shared
+        skilltriggers:
+          # The skills' force-load patterns are written for the ECMAScript
+          # regex engine, as the declared checks' are, so the trigger
+          # grammar takes regexp2 too.
+          list-mode: strict
+          files:
+            - "**/shared/skilltriggers/**"
+          allow:
+            - $gostd
+            - github.com/missingbulb/ClaudiniteEngine/shared
+            - github.com/dlclark/regexp2
         descriptor:
           # The one place the descriptor formats' parsers are imported
           # (pack, declared-checks and settings in JSON, YAML or TOML);

@@ -17,6 +17,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/shared/findings"
 	"github.com/missingbulb/ClaudiniteEngine/shared/paths"
 	"github.com/missingbulb/ClaudiniteEngine/shared/report"
+	"github.com/missingbulb/ClaudiniteEngine/shared/transcript"
 	"github.com/missingbulb/ClaudiniteEngine/shared/version"
 )
 
@@ -36,18 +37,31 @@ type hookChecks struct{}
 
 func (hookChecks) Start(repo string) error { return checksService().Start(repo) }
 
-func (hookChecks) Run(repo, event string, tags []string, wait time.Duration) hooks.CheckResult {
+func (hookChecks) Run(repo, event string, scope hooks.RunScope, wait time.Duration) hooks.CheckResult {
 	var notes bytes.Buffer
-	o := checksService().RunAll(repo, event, tags, "", wait, false, &notes)
+	sel := declared.Selection{Tags: scope.Tags, Session: transcript.NewSession(scope.Transcript), SkipForcedLoading: scope.SkipForcedLoading}
+	o := checksService().RunAll(repo, event, sel, wait, false, &notes)
 	crumb := strings.TrimRight(notes.String()+o.DeclaredCrumb+"\n"+o.Crumb, "\n")
 	return hooks.CheckResult{Findings: o.Findings, Errors: o.Errors, Err: o.Err, Crumb: crumb}
+}
+
+// hookGuards gives the hooks the checks service's guards.
+type hookGuards struct{}
+
+func (hookGuards) Judge(repo string, call hooks.Call, deadline time.Time) hooks.GuardResult {
+	v := checksService().Judge(repo, call.Event, checks.Call{Tool: call.Tool, Input: call.Input, Response: call.Response, Prompt: call.Prompt}, call.Session, deadline)
+	r := hooks.GuardResult{Blocks: v.Blocks, Advice: v.Advice}
+	for _, e := range v.Errors {
+		r.Notes = append(r.Notes, "[cn] guard could not decide: "+e)
+	}
+	return r
 }
 
 // allFindings runs the declared and coded checks in the foreground and
 // turns a run that could not happen, or a check that failed, into a
 // break.
-func allFindings(repo, event string, tags []string, pack string, stderr io.Writer) []findings.Finding {
-	o := checksService().RunAll(repo, event, tags, pack, buildWait, true, stderr)
+func allFindings(repo, event string, sel declared.Selection, stderr io.Writer) []findings.Finding {
+	o := checksService().RunAll(repo, event, sel, buildWait, true, stderr)
 	fmt.Fprintln(stderr, o.DeclaredCrumb)
 	if !strings.Contains(o.Crumb, " ok ") {
 		fmt.Fprintln(stderr, o.Crumb)
@@ -86,6 +100,7 @@ func cmdCheck(args []string, stdout, stderr io.Writer) error {
 	tag := fs.String("tag", "", "")
 	pack := fs.String("pack", "", "")
 	repo := fs.String("repo", ".", "")
+	session := fs.String("transcript", "", "")
 	if err := flags(fs, args); err != nil {
 		return err
 	}
@@ -109,7 +124,7 @@ func cmdCheck(args []string, stdout, stderr io.Writer) error {
 			fmt.Fprintf(stdout, "check %s (%s)\n", l.Name(), strings.Join(l.Tags, ", "))
 		}
 	}
-	fs2 := allFindings(*repo, "check", tags, *pack, stderr)
+	fs2 := allFindings(*repo, "check", declared.Selection{Tags: tags, Pack: *pack, Session: transcript.NewSession(*session)}, stderr)
 	printFindings(stdout, fs2, scope)
 	if findings.AnyBreak(fs2) {
 		return report.New(report.Verify, "check found a finding in "+*repo)

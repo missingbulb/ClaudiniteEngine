@@ -32,9 +32,9 @@ commands:
   check world --pr-author LOGIN --base-ref REF [--repo DIR]
                  the CI gate: the pin and launcher guard, verify, then the
                  declared packs' world-tagged checks
-  check --tag TAG | --pack ID [--repo DIR]
+  check --tag TAG | --pack ID [--transcript PATH] [--repo DIR]
                  run a slice of the declared packs' checks; exit 1 on a
-                 finding
+                 finding; --transcript is the session the work checks read
   check build [--wait] [--key KEY] [--repo DIR]
                  build the repo's checks binary (session-start starts it)
   update engine [--force] [--repo DIR]
@@ -73,7 +73,7 @@ commands:
 var secretScanPlant string
 
 // runHook is a variable so a test can make a hook panic.
-var runHook = hooks.Handler{Checks: hookChecks{}, License: hookLicense{}, Index: hookIndex{}}.Run
+var runHook = hooks.Handler{Checks: hookChecks{}, Guards: hookGuards{}, License: hookLicense{}, Index: hookIndex{}}.Run
 
 func main() {
 	os.Exit(run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr))

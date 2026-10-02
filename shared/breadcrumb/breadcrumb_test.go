@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-var shape = regexp.MustCompile(`^\[cn\] [a-z]+ [a-z-]+ (ok|error|crash|timeout) [0-9]+ms$`)
+var shape = regexp.MustCompile(`^\[cn\] [a-z]+ [a-z-]+ (ok|error|crash|timeout|block|advise|nudge|deadline) [0-9]+ms$`)
 
 func TestLineShape(t *testing.T) {
 	cases := []struct {
@@ -20,6 +20,10 @@ func TestLineShape(t *testing.T) {
 		{"hooks", "stop", Error, 1500 * time.Microsecond, "[cn] hooks stop error 1ms"},
 		{"lifecycle", "selftest", Crash, 0, "[cn] lifecycle selftest crash 0ms"},
 		{"hooks", "pre-tool-use", Timeout, 10 * time.Second, "[cn] hooks pre-tool-use timeout 10000ms"},
+		{"hooks", "pre-tool-use", Block, 3 * time.Millisecond, "[cn] hooks pre-tool-use block 3ms"},
+		{"hooks", "post-tool-use", Advise, 0, "[cn] hooks post-tool-use advise 0ms"},
+		{"hooks", "user-prompt-submit", Nudge, 0, "[cn] hooks user-prompt-submit nudge 0ms"},
+		{"hooks", "pre-tool-use", Deadline, 5 * time.Second, "[cn] hooks pre-tool-use deadline 5000ms"},
 	}
 	for _, c := range cases {
 		got := Line(c.capability, c.event, c.outcome, c.d)
