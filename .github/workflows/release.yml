@@ -326,6 +326,23 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "22"
+      - name: wait for npm to serve the published tarballs
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          # npm acknowledges a publish before its registry serves the
+          # tarball, by minutes.
+          base=https://registry.npmjs.org/@claudinite
+          tries=0
+          until curl -fsIo /dev/null "$base/cli-rc/-/cli-rc-$VERSION.tgz" &&
+                curl -fsIo /dev/null "$base/cli-rc-$LEG/-/cli-rc-$LEG-$VERSION.tgz"; do
+            tries=$((tries + 1))
+            if [ "$tries" -ge 60 ]; then
+              echo "npm still does not serve @claudinite/cli-rc $VERSION for $LEG after 10 minutes" | tee "$RUNNER_TEMP/smoke.log"
+              exit 1
+            fi
+            sleep 10
+          done
       - name: smoke-platform against registry.npmjs.org
         env:
           VERSION: ${{ needs.version.outputs.version }}
