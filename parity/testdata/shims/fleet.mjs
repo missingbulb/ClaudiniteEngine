@@ -18,6 +18,14 @@ const engine = process.env.CLAUDINITE_NODE_ENGINE;
 if (!engine) throw new Error('CLAUDINITE_NODE_ENGINE is not set');
 const sheepdog = (rel) => import(pathToFileURL(join(engine, 'packs/claudinite-fleet-sheepdog', rel)).href);
 const tasksPack = (rel) => import(pathToFileURL(join(engine, 'packs/claudinite-tasks', rel)).href);
+const addPacks = (rel) => sheepdog(`tasks/fleet-add-missing-packs/${rel}`);
+
+// A fixture's packs as the canon clone loads them: each relevance detector
+// rebuilt from its data, as a catalog entry carries it.
+async function catalogPacks() {
+  const d = await import(pathToFileURL(join(engine, 'engine/pack_loader/relevance-detector.mjs')).href);
+  return (input.packs ?? []).map((p) => ({ ...p, relevanceDetector: d.relevanceDetectorFromData(p.relevanceDetector ?? null) }));
+}
 
 const core = process.argv[2];
 const input = JSON.parse(readFileSync(0, 'utf8'));
@@ -188,6 +196,169 @@ const cores = {
     const s = await tasksPack('src/signals/fleet.mjs');
     const { gh } = fakeGh(input.calls);
     return s.readFleet(gh, { owner: input.owner, canonRepo: input.canonRepo, sinceIso: input.sinceIso });
+  },
+
+  // 15b: the add-packs task's two halves and the pack-seed sweep.
+  async params() {
+    const p = await addPacks('params.mjs');
+    return input.cases.map(({ argv, params }) => {
+      try {
+        return p.parseParams({ argv, params });
+      } catch (e) {
+        return { error: e.message };
+      }
+    });
+  },
+  async force() {
+    const f = await addPacks('force-add-packs.mjs');
+    const packs = await catalogPacks();
+    const byId = new Map(packs.map((p) => [p.id, p]));
+    const { gh, calls } = fakeGh(input.calls);
+    const withCalls = async (fn) => {
+      try {
+        return { result: await fn(), calls };
+      } catch (e) {
+        return { error: e.message, calls };
+      }
+    };
+    switch (input.fn) {
+      case 'qualify':
+        return input.cases.map(([name, owner]) => f.qualify(name, owner));
+      case 'unknownPacks':
+        return f.unknownPacks(input.addPacks, packs);
+      case 'unansweredQuestions':
+        return f.unansweredQuestions(input.addPacks, packs, input.packAnswers);
+      case 'entryFor':
+        return input.cases.map((c) => f.entryFor(c.id, c));
+      case 'requestedBody':
+        return f.requestedBody({ ...input.args, packsById: byId });
+      case 'forceSummary':
+        return f.renderForceSummary(input.args);
+      case 'resolveTargets':
+        return withCalls(() => f.resolveTargets(gh, {
+          repos: input.repos, owner: input.owner, addPacks: input.addPacks,
+          reposByName: new Map(Object.entries(input.reposByName ?? {})),
+        }));
+      case 'convergeRequested':
+        return withCalls(() => f.convergeRequestedIssue(gh, input.fullName, { body: input.body }));
+      case 'closeSatisfied':
+        return withCalls(() => f.closeSatisfiedRequest(gh, input.fullName, { decl: input.decl, open: input.open }));
+      default:
+        throw new Error(`unknown force fn ${input.fn}`);
+    }
+  },
+  async protocol() {
+    const p = await addPacks('protocol.mjs');
+    return {
+      constants: {
+        label: p.LABEL, requestedTitle: p.REQUESTED_TITLE, suspectedTitle: p.SUSPECTED_TITLE,
+        mark: p.MARK, memberTaskId: p.MEMBER_TASK_ID,
+      },
+      entriesIn: (input.bodies ?? []).map((b) => p.entriesIn(b)),
+      withTargeting: (input.targeting ?? []).map((t) => p.withTargeting(t.body, { blockedBy: t.blockedBy ?? null })),
+    };
+  },
+  async mark() {
+    const m = await addPacks('mark-work-list.mjs');
+    const { gh, calls } = fakeGh(input.calls);
+    switch (input.fn) {
+      case 'markedBody':
+        return input.cases.map((c) => m.markedBody(c.body, c.existing ?? null, { blockedBy: c.blockedBy ?? null }));
+      case 'otherOpenWorkList':
+        return input.cases.map((c) => m.otherOpenWorkList(c.open, c.title));
+      case 'remark':
+        try {
+          return { written: await m.remarkWorkList(gh, input.fullName, input.existing, input.body), calls };
+        } catch (e) {
+          return { error: e.message, calls };
+        }
+      default:
+        throw new Error(`unknown mark fn ${input.fn}`);
+    }
+  },
+  async scan() {
+    const s = await addPacks('scan-for-needed-packs.mjs');
+    const packs = await catalogPacks();
+    const byId = new Map(packs.map((p) => [p.id, p]));
+    const { gh, calls } = fakeGh(input.calls);
+    switch (input.fn) {
+      case 'suspectedBody':
+        return s.suspectedBody({ fits: input.fits, undecided: input.undecided, packsById: byId });
+      case 'fitSummary':
+        return s.renderFitSummary(input.args);
+      case 'convergeSuspected':
+        try {
+          return { result: await s.convergeSuspectedIssue(gh, input.fullName, { fits: input.fits, body: input.body }), calls };
+        } catch (e) {
+          return { error: e.message, calls };
+        }
+      case 'runScan':
+        try {
+          const r = await s.runScan({
+            gh, home: input.home, owner: input.owner, canonRepo: input.canonRepo,
+            exclude: new Set(input.exclude ?? []), packs, repos: input.repos ?? null,
+          });
+          return {
+            findings: r.findings, unknown: r.unknown, toFire: r.toFire, actions: r.actions,
+            fitted: r.fitted, dormant: r.dormant, outOfScope: r.outOfScope, calls,
+          };
+        } catch (e) {
+          return { error: e.message, calls };
+        }
+      default:
+        throw new Error(`unknown scan fn ${input.fn}`);
+    }
+  },
+  async fit() {
+    const f = await addPacks('fingerprint-fit.mjs');
+    const r = await addPacks('remote-context.mjs');
+    const packs = await catalogPacks();
+    switch (input.fn) {
+      case 'fitCandidates':
+        return f.fitCandidates(packs, input.declared).map((p) => p.id);
+      case 'undeclaredFits':
+        // An answer "throw:<message>" throws, as a broken predicate would.
+        return f.undeclaredFits({
+          packs, declared: input.declared,
+          evaluate: async (pack) => {
+            const a = input.answers[pack.id];
+            if (typeof a === 'string' && a.startsWith('throw:')) throw new Error(a.slice('throw:'.length));
+            return a;
+          },
+        });
+      case 'remote': {
+        const { gh, calls } = fakeGh(input.calls);
+        const evaluate = r.makeRemoteEvaluator(gh, input.repo, input.ref, { tracked: input.tracked, truncated: input.truncated, budget: input.budget });
+        const verdicts = {};
+        for (const p of packs) verdicts[p.id] = await evaluate(p);
+        return { verdicts, calls };
+      }
+      case 'tree': {
+        const { gh, calls } = fakeGh(input.calls);
+        try {
+          return { result: await r.fetchTree(gh, input.repo, input.ref), calls };
+        } catch (e) {
+          return { error: e.message, calls };
+        }
+      }
+      default:
+        throw new Error(`unknown fit fn ${input.fn}`);
+    }
+  },
+  async seeds() {
+    const s = await sheepdog('tasks/fleet-pack-seeds/check-fleet-pack-seeds.mjs');
+    switch (input.fn) {
+      case 'classify':
+        return input.cases.map((c) => s.classifySeed(c));
+      case 'withSeeds':
+        try {
+          return s.withSeeds(input.text, input.seeds);
+        } catch (e) {
+          return { error: e.message };
+        }
+      default:
+        throw new Error(`unknown seeds fn ${input.fn}`);
+    }
   },
 };
 

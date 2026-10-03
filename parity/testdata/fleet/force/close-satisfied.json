@@ -1,0 +1,53 @@
+{
+  "input": {
+    "fn": "closeSatisfied",
+    "fullName": "acme/a",
+    "decl": {
+      "packs": [
+        "basics",
+        {
+          "id": "node"
+        }
+      ]
+    },
+    "open": [
+      {
+        "number": 6,
+        "title": "Add packs: requested for this repo",
+        "body": "Please add these.\n\n```json\n[\n  {\n    \"id\": \"node\"\n  }\n]\n```",
+        "labels": [],
+        "state": "open"
+      }
+    ],
+    "calls": {
+      "POST /repos/acme/a/issues/6/comments": {
+        "status": 201,
+        "json": {}
+      },
+      "PATCH /repos/acme/a/issues/6": {
+        "status": 200,
+        "json": {}
+      }
+    }
+  },
+  "expect": {
+    "calls": [
+      [
+        "POST",
+        "/repos/acme/a/issues/6/comments",
+        {
+          "body": "Closed by the fleet's add-missing-packs sweep: the declaration now carries every requested pack."
+        }
+      ],
+      [
+        "PATCH",
+        "/repos/acme/a/issues/6",
+        {
+          "state": "closed",
+          "state_reason": "completed"
+        }
+      ]
+    ],
+    "result": "closed #6 (acme/a: request satisfied)"
+  }
+}

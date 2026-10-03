@@ -1,0 +1,25 @@
+{
+  "input": {
+    "fn": "fitSummary",
+    "args": {
+      "owner": "acme",
+      "home": "acme/manager",
+      "canonRepo": "missingbulb/Claudinite",
+      "packCount": 5,
+      "findings": [],
+      "fitted": [
+        "acme/c"
+      ],
+      "dormant": [],
+      "outOfScope": [],
+      "unknown": [],
+      "actions": [],
+      "fired": [],
+      "repoFilter": [
+        "acme/c",
+        "acme/z"
+      ]
+    }
+  },
+  "expect": "# Fleet pack-fit scan — acme\nScoped to **2 named repo(s)**: acme/c, acme/z\nFingerprinted against **5 canon pack(s)** from `missingbulb/Claudinite`.\n| members with fits | fitted (nothing suspected) | schedulers fired | dormant | out of scope | unknown |\n| --- | --- | --- | --- | --- | --- |\n| 0 | 1 | 0 | 0 | 0 | 0 |\n**Undeclared fits:** none — every member declares what its shape suspects 🎉\n**Fitted:** acme/c\n**Not swept:** acme/manager — the enforcer itself\n**Issue actions:** none (converged)"
+}

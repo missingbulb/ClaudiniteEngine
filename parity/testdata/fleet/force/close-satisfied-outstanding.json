@@ -1,0 +1,29 @@
+{
+  "input": {
+    "fn": "closeSatisfied",
+    "fullName": "acme/a",
+    "decl": {
+      "packs": [
+        "basics"
+      ]
+    },
+    "open": [
+      {
+        "number": 6,
+        "title": "Add packs: requested for this repo",
+        "body": "Please add these.\n\n```json\n[\n  {\n    \"id\": \"node\"\n  }\n]\n```",
+        "labels": [],
+        "state": "open"
+      },
+      {
+        "number": 7,
+        "title": "other",
+        "body": ""
+      }
+    ]
+  },
+  "expect": {
+    "calls": [],
+    "result": null
+  }
+}

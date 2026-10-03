@@ -1,0 +1,83 @@
+{
+  "input": {
+    "fn": "remark",
+    "fullName": "acme/a",
+    "existing": {
+      "number": 3,
+      "body": "old",
+      "labels": [
+        "add-packs",
+        "task:origin:ad-hoc",
+        "task:status:needs-human-action"
+      ]
+    },
+    "body": "new",
+    "calls": {
+      "POST /repos/acme/a/labels": {
+        "status": 201,
+        "json": {}
+      },
+      "PATCH /repos/acme/a/issues/3": {
+        "status": 200,
+        "json": {}
+      }
+    }
+  },
+  "expect": {
+    "calls": [
+      [
+        "POST",
+        "/repos/acme/a/labels",
+        {
+          "color": "bfd4f2",
+          "description": "Claudinite queue: asked for by a person — their own issue, adopted as the work item itself",
+          "name": "task:origin:ad-hoc"
+        }
+      ],
+      [
+        "PATCH",
+        "/repos/acme/a/issues/3",
+        {
+          "body": "new"
+        }
+      ],
+      [
+        "DELETE",
+        "/repos/acme/a/issues/3/labels/task%3Astatus%3Aneeds-human-failure"
+      ],
+      [
+        "DELETE",
+        "/repos/acme/a/issues/3/labels/task%3Astatus%3Aneeds-human-action"
+      ],
+      [
+        "DELETE",
+        "/repos/acme/a/issues/3/labels/task%3Astatus%3Aneeds-human-decision"
+      ],
+      [
+        "DELETE",
+        "/repos/acme/a/issues/3/labels/task%3Astatus%3Aneeds-human-approval"
+      ],
+      [
+        "DELETE",
+        "/repos/acme/a/issues/3/labels/task%3Aneeds-human-failure"
+      ],
+      [
+        "DELETE",
+        "/repos/acme/a/issues/3/labels/task%3Aneeds-human-action"
+      ],
+      [
+        "DELETE",
+        "/repos/acme/a/issues/3/labels/task%3Aneeds-human-decision"
+      ],
+      [
+        "DELETE",
+        "/repos/acme/a/issues/3/labels/task%3Aneeds-human-approval"
+      ],
+      [
+        "DELETE",
+        "/repos/acme/a/issues/3/labels/needs-human"
+      ]
+    ],
+    "written": true
+  }
+}

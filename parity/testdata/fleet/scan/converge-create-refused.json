@@ -1,0 +1,63 @@
+{
+  "input": {
+    "fn": "convergeSuspected",
+    "fullName": "acme/a",
+    "fits": [
+      "node"
+    ],
+    "body": "b",
+    "calls": {
+      "GET /repos/acme/a/issues?labels=add-packs&state=all&per_page=100&page=1": {
+        "status": 200,
+        "json": []
+      },
+      "POST /repos/acme/a/labels": {
+        "status": 201,
+        "json": {}
+      },
+      "POST /repos/acme/a/issues": {
+        "status": 422,
+        "json": null
+      }
+    }
+  },
+  "expect": {
+    "calls": [
+      [
+        "GET",
+        "/repos/acme/a/issues?labels=add-packs&state=all&per_page=100&page=1"
+      ],
+      [
+        "POST",
+        "/repos/acme/a/labels",
+        {
+          "color": "0E8A16",
+          "description": "The fleet asks this repo to declare packs — adopted by the adopt-requested-packs task",
+          "name": "add-packs"
+        }
+      ],
+      [
+        "POST",
+        "/repos/acme/a/labels",
+        {
+          "color": "bfd4f2",
+          "description": "Claudinite queue: asked for by a person — their own issue, adopted as the work item itself",
+          "name": "task:origin:ad-hoc"
+        }
+      ],
+      [
+        "POST",
+        "/repos/acme/a/issues",
+        {
+          "body": "Task: claudinite-lifecycle/adopt-requested-packs\n\nb",
+          "labels": [
+            "add-packs",
+            "task:origin:ad-hoc"
+          ],
+          "title": "Add packs: suspected from this repo’s shape"
+        }
+      ]
+    ],
+    "error": "creating the suspected-packs issue in acme/a returned 422"
+  }
+}

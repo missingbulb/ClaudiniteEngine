@@ -1,0 +1,24 @@
+{
+  "input": {
+    "fn": "qualify",
+    "cases": [
+      [
+        "Alpha",
+        "acme"
+      ],
+      [
+        "acme/Beta",
+        "acme"
+      ],
+      [
+        "Other/Gamma",
+        "acme"
+      ]
+    ]
+  },
+  "expect": [
+    "acme/alpha",
+    "acme/beta",
+    "other/gamma"
+  ]
+}

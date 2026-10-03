@@ -1,0 +1,62 @@
+{
+  "input": {
+    "fn": "resolveTargets",
+    "owner": "acme",
+    "repos": [
+      "A",
+      "acme/B"
+    ],
+    "addPacks": [
+      "node",
+      "asks"
+    ],
+    "reposByName": {
+      "acme/a": {
+        "default_branch": "trunk"
+      }
+    },
+    "calls": {
+      "GET /repos/acme/a/contents/.claudinite-settings.json": {
+        "status": 200,
+        "json": {
+          "content": "eyJwYWNrcyI6IFsiYmFzaWNzIiwgeyJpZCI6ICJjbGF1ZGluaXRlLXRhc2tzIiwgImNvbmZpZyI6IHt9fV19",
+          "sha": "s1"
+        }
+      },
+      "GET /repos/acme/b/contents/.claudinite-settings.json": {
+        "status": 200,
+        "json": {
+          "content": "eyJwYWNrcyI6IFt7ImlkIjogIm5vZGUifSwgImFza3MiXX0=",
+          "sha": "s1"
+        }
+      }
+    }
+  },
+  "expect": {
+    "calls": [
+      [
+        "GET",
+        "/repos/acme/a/contents/.claudinite-settings.json"
+      ],
+      [
+        "GET",
+        "/repos/acme/b/contents/.claudinite-settings.json"
+      ]
+    ],
+    "result": {
+      "alreadyDeclared": [
+        "acme/b"
+      ],
+      "targets": [
+        {
+          "defaultBranch": "trunk",
+          "fullName": "acme/a",
+          "missing": [
+            "node",
+            "asks"
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,112 @@
+{
+  "input": {
+    "fn": "convergeRequested",
+    "fullName": "acme/a",
+    "body": "Please add these.\n\n```json\n[\n  {\n    \"id\": \"node\"\n  }\n]\n```",
+    "calls": {
+      "POST /repos/acme/a/labels": {
+        "status": 422,
+        "json": {}
+      },
+      "GET /repos/acme/a/issues?labels=add-packs&state=all&per_page=100&page=1": {
+        "status": 200,
+        "json": [
+          {
+            "number": 5,
+            "title": "Add packs: requested for this repo",
+            "state": "open",
+            "labels": [
+              {
+                "name": "add-packs"
+              },
+              {
+                "name": "task:origin:ad-hoc"
+              },
+              {
+                "name": "task:status:needs-human-action"
+              }
+            ],
+            "body": "Task: claudinite-lifecycle/adopt-requested-packs\n\nold ask\n\n<!-- claudinite-item -->\nPolicy: x\n<!-- /claudinite-item -->\n"
+          }
+        ]
+      },
+      "PATCH /repos/acme/a/issues/5": {
+        "status": 200,
+        "json": {}
+      }
+    }
+  },
+  "expect": {
+    "calls": [
+      [
+        "POST",
+        "/repos/acme/a/labels",
+        {
+          "color": "0E8A16",
+          "description": "The fleet asks this repo to declare packs — adopted by the adopt-requested-packs task",
+          "name": "add-packs"
+        }
+      ],
+      [
+        "GET",
+        "/repos/acme/a/issues?labels=add-packs&state=all&per_page=100&page=1"
+      ],
+      [
+        "POST",
+        "/repos/acme/a/labels",
+        {
+          "color": "bfd4f2",
+          "description": "Claudinite queue: asked for by a person — their own issue, adopted as the work item itself",
+          "name": "task:origin:ad-hoc"
+        }
+      ],
+      [
+        "PATCH",
+        "/repos/acme/a/issues/5",
+        {
+          "body": "Task: claudinite-lifecycle/adopt-requested-packs\n\nPlease add these.\n\n```json\n[\n  {\n    \"id\": \"node\"\n  }\n]\n```\n\n<!-- claudinite-item -->\nPolicy: x\n<!-- /claudinite-item -->\n"
+        }
+      ],
+      [
+        "DELETE",
+        "/repos/acme/a/issues/5/labels/task%3Astatus%3Aneeds-human-failure"
+      ],
+      [
+        "DELETE",
+        "/repos/acme/a/issues/5/labels/task%3Astatus%3Aneeds-human-action"
+      ],
+      [
+        "DELETE",
+        "/repos/acme/a/issues/5/labels/task%3Astatus%3Aneeds-human-decision"
+      ],
+      [
+        "DELETE",
+        "/repos/acme/a/issues/5/labels/task%3Astatus%3Aneeds-human-approval"
+      ],
+      [
+        "DELETE",
+        "/repos/acme/a/issues/5/labels/task%3Aneeds-human-failure"
+      ],
+      [
+        "DELETE",
+        "/repos/acme/a/issues/5/labels/task%3Aneeds-human-action"
+      ],
+      [
+        "DELETE",
+        "/repos/acme/a/issues/5/labels/task%3Aneeds-human-decision"
+      ],
+      [
+        "DELETE",
+        "/repos/acme/a/issues/5/labels/task%3Aneeds-human-approval"
+      ],
+      [
+        "DELETE",
+        "/repos/acme/a/issues/5/labels/needs-human"
+      ]
+    ],
+    "result": {
+      "action": "updated #5",
+      "number": 5
+    }
+  }
+}

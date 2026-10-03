@@ -1,0 +1,14 @@
+{
+  "input": {
+    "fn": "closeSatisfied",
+    "fullName": "acme/a",
+    "decl": {
+      "packs": []
+    },
+    "open": []
+  },
+  "expect": {
+    "calls": [],
+    "result": null
+  }
+}

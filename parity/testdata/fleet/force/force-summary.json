@@ -1,0 +1,37 @@
+{
+  "input": {
+    "fn": "forceSummary",
+    "args": {
+      "owner": "acme",
+      "addPacks": [
+        "node",
+        "asks"
+      ],
+      "targets": [
+        {
+          "fullName": "acme/a",
+          "missing": [
+            "node",
+            "asks"
+          ]
+        },
+        {
+          "fullName": "acme/b",
+          "missing": [
+            "asks"
+          ]
+        }
+      ],
+      "alreadyDeclared": [
+        "acme/c"
+      ],
+      "actions": [
+        "opened #3 (acme/a)"
+      ],
+      "fired": [
+        "acme/a"
+      ]
+    }
+  },
+  "expect": "# Forced pack addition — acme\nPacks: `node`, `asks`\n| requested | work lists placed | schedulers fired | already declaring |\n| --- | --- | --- | --- |\n| 3 | 2 | 1 | 1 |\n**To adopt (issue in each repo, scheduler fired):**\n- `acme/a` → node, asks\n- `acme/b` → asks\n**Already declaring (untouched):** acme/c\n**Issue actions:** opened #3 (acme/a)\n_Nothing was written to any member's tree. Each member's own adopt-requested-packs_\n_task adopts what its issue says — with the repo checked out, one reviewed PR there._"
+}

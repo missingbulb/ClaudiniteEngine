@@ -1,0 +1,96 @@
+{
+  "input": {
+    "fn": "runScan",
+    "home": "acme/manager",
+    "owner": "acme",
+    "canonRepo": "missingbulb/Claudinite",
+    "packs": [
+      {
+        "id": "node",
+        "ruleRoutingGuidance": {
+          "belongs": "Node.js projects"
+        },
+        "relevanceDetector": {
+          "about": "a package.json",
+          "paths": {
+            "source": "(^|/)package\\.json$",
+            "flags": ""
+          }
+        }
+      },
+      {
+        "id": "firebase",
+        "ruleRoutingGuidance": {
+          "belongs": "Firebase projects"
+        },
+        "relevanceDetector": {
+          "about": "a firebase.json",
+          "paths": {
+            "source": "^firebase\\.json$",
+            "flags": ""
+          }
+        }
+      },
+      {
+        "id": "jwt",
+        "relevanceDetector": {
+          "about": "a JWT library",
+          "paths": {
+            "source": "\\.(js|mjs)$",
+            "flags": ""
+          },
+          "text": [
+            {
+              "source": "jsonwebtoken",
+              "flags": ""
+            }
+          ],
+          "search": [
+            "jsonwebtoken"
+          ]
+        }
+      },
+      {
+        "id": "asks",
+        "questions": [
+          {
+            "id": "goals",
+            "prompt": "What should it prove?"
+          },
+          {
+            "id": "store",
+            "prompt": "Where is the store?"
+          }
+        ],
+        "relevanceDetector": null
+      },
+      {
+        "id": "basics",
+        "relevanceDetector": null
+      }
+    ],
+    "calls": {
+      "GET /user/repos?affiliation=owner&per_page=100&page=1": {
+        "status": 200,
+        "json": [
+          {
+            "name": "x",
+            "full_name": "other/x",
+            "owner": {
+              "login": "other"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "expect": {
+    "calls": [
+      [
+        "GET",
+        "/user/repos?affiliation=owner&per_page=100&page=1"
+      ]
+    ],
+    "error": "enumeration returned no repos owned by acme — wrong token user or scope; refusing to run a sweep that would read an empty fleet as a converged one"
+  }
+}

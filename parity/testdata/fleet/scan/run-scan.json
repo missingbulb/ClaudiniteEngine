@@ -1,0 +1,493 @@
+{
+  "input": {
+    "fn": "runScan",
+    "home": "acme/manager",
+    "owner": "acme",
+    "canonRepo": "missingbulb/Claudinite",
+    "exclude": [
+      "acme/ignored"
+    ],
+    "packs": [
+      {
+        "id": "node",
+        "ruleRoutingGuidance": {
+          "belongs": "Node.js projects"
+        },
+        "relevanceDetector": {
+          "about": "a package.json",
+          "paths": {
+            "source": "(^|/)package\\.json$",
+            "flags": ""
+          }
+        }
+      },
+      {
+        "id": "firebase",
+        "ruleRoutingGuidance": {
+          "belongs": "Firebase projects"
+        },
+        "relevanceDetector": {
+          "about": "a firebase.json",
+          "paths": {
+            "source": "^firebase\\.json$",
+            "flags": ""
+          }
+        }
+      },
+      {
+        "id": "jwt",
+        "relevanceDetector": {
+          "about": "a JWT library",
+          "paths": {
+            "source": "\\.(js|mjs)$",
+            "flags": ""
+          },
+          "text": [
+            {
+              "source": "jsonwebtoken",
+              "flags": ""
+            }
+          ],
+          "search": [
+            "jsonwebtoken"
+          ]
+        }
+      },
+      {
+        "id": "asks",
+        "questions": [
+          {
+            "id": "goals",
+            "prompt": "What should it prove?"
+          },
+          {
+            "id": "store",
+            "prompt": "Where is the store?"
+          }
+        ],
+        "relevanceDetector": null
+      },
+      {
+        "id": "basics",
+        "relevanceDetector": null
+      }
+    ],
+    "calls": {
+      "GET /user/repos?affiliation=owner&per_page=100&page=1": {
+        "status": 200,
+        "json": [
+          {
+            "name": "manager",
+            "full_name": "acme/manager",
+            "owner": {
+              "login": "acme"
+            },
+            "archived": false,
+            "fork": false,
+            "default_branch": "main"
+          },
+          {
+            "name": "Ignored",
+            "full_name": "acme/Ignored",
+            "owner": {
+              "login": "acme"
+            },
+            "archived": false,
+            "fork": false,
+            "default_branch": "main"
+          },
+          {
+            "name": "arch",
+            "full_name": "acme/arch",
+            "owner": {
+              "login": "acme"
+            },
+            "archived": true,
+            "fork": false,
+            "default_branch": "main"
+          },
+          {
+            "name": "forked",
+            "full_name": "acme/forked",
+            "owner": {
+              "login": "acme"
+            },
+            "archived": false,
+            "fork": true,
+            "default_branch": "main"
+          },
+          {
+            "name": "uncovered",
+            "full_name": "acme/uncovered",
+            "owner": {
+              "login": "acme"
+            },
+            "archived": false,
+            "fork": false,
+            "default_branch": "main"
+          },
+          {
+            "name": "unreadable",
+            "full_name": "acme/unreadable",
+            "owner": {
+              "login": "acme"
+            },
+            "archived": false,
+            "fork": false,
+            "default_branch": "main"
+          },
+          {
+            "name": "sleepy",
+            "full_name": "acme/sleepy",
+            "owner": {
+              "login": "acme"
+            },
+            "archived": false,
+            "fork": false,
+            "default_branch": "main"
+          },
+          {
+            "name": "Fitted",
+            "full_name": "acme/Fitted",
+            "owner": {
+              "login": "acme"
+            },
+            "archived": false,
+            "fork": false,
+            "default_branch": "trunk"
+          },
+          {
+            "name": "grown",
+            "full_name": "acme/grown",
+            "owner": {
+              "login": "acme"
+            },
+            "archived": false,
+            "fork": false,
+            "default_branch": "main"
+          },
+          {
+            "name": "asked",
+            "full_name": "acme/asked",
+            "owner": {
+              "login": "acme"
+            },
+            "archived": false,
+            "fork": false,
+            "default_branch": "main"
+          },
+          {
+            "name": "broken",
+            "full_name": "acme/broken",
+            "owner": {
+              "login": "acme"
+            },
+            "archived": false,
+            "fork": false,
+            "default_branch": "main"
+          },
+          {
+            "name": "x",
+            "full_name": "other/x",
+            "owner": {
+              "login": "other"
+            }
+          }
+        ]
+      },
+      "GET /repos/acme/unreadable/contents/.claudinite-settings.json": {
+        "status": 500,
+        "json": null
+      },
+      "GET /repos/acme/sleepy/contents/.claudinite-settings.json": {
+        "status": 200,
+        "json": {
+          "content": "eyJwYWNrcyI6IFt7ImlkIjogImNsYXVkaW5pdGUtdGFza3MiLCAiY29uZmlnIjogeyJkb3JtYW50IjogdHJ1ZX19XX0=",
+          "sha": "s1"
+        }
+      },
+      "GET /repos/acme/Fitted/contents/.claudinite-settings.json": {
+        "status": 200,
+        "json": {
+          "content": "eyJwYWNrcyI6IFsibm9kZSJdfQ==",
+          "sha": "s1"
+        }
+      },
+      "GET /repos/acme/grown/contents/.claudinite-settings.json": {
+        "status": 200,
+        "json": {
+          "content": "eyJwYWNrcyI6IFsiYmFzaWNzIl19",
+          "sha": "s1"
+        }
+      },
+      "GET /repos/acme/asked/contents/.claudinite-settings.json": {
+        "status": 200,
+        "json": {
+          "content": "eyJwYWNrcyI6IFsiYmFzaWNzIiwgIm5vZGUiXX0=",
+          "sha": "s1"
+        }
+      },
+      "GET /repos/acme/broken/contents/.claudinite-settings.json": {
+        "status": 200,
+        "json": {
+          "content": "eyJwYWNrcyI6IFtdfQ==",
+          "sha": "s1"
+        }
+      },
+      "GET /repos/acme/broken/git/trees/main?recursive=1": {
+        "status": 404,
+        "json": null
+      },
+      "POST /repos/acme/grown/labels": {
+        "status": 201,
+        "json": {}
+      },
+      "POST /repos/acme/grown/issues": {
+        "status": 201,
+        "json": {
+          "number": 11
+        }
+      },
+      "POST /repos/acme/asked/issues/6/comments": {
+        "status": 201,
+        "json": {}
+      },
+      "PATCH /repos/acme/asked/issues/6": {
+        "status": 200,
+        "json": {}
+      },
+      "GET /repos/acme/Fitted/git/trees/trunk?recursive=1": {
+        "status": 200,
+        "json": {
+          "truncated": false,
+          "tree": [
+            {
+              "path": "package.json",
+              "type": "blob"
+            }
+          ]
+        }
+      },
+      "GET /repos/acme/grown/git/trees/main?recursive=1": {
+        "status": 200,
+        "json": {
+          "truncated": false,
+          "tree": [
+            {
+              "path": "package.json",
+              "type": "blob"
+            },
+            {
+              "path": "firebase.json",
+              "type": "blob"
+            },
+            {
+              "path": "src/a.js",
+              "type": "blob"
+            }
+          ]
+        }
+      },
+      "GET /repos/acme/asked/git/trees/main?recursive=1": {
+        "status": 200,
+        "json": {
+          "truncated": false,
+          "tree": [
+            {
+              "path": "README.md",
+              "type": "blob"
+            }
+          ]
+        }
+      },
+      "GET /repos/acme/Fitted/issues?labels=add-packs&state=all&per_page=100&page=1": {
+        "status": 200,
+        "json": []
+      },
+      "GET /repos/acme/grown/issues?labels=add-packs&state=all&per_page=100&page=1": {
+        "status": 200,
+        "json": []
+      },
+      "GET /repos/acme/asked/issues?labels=add-packs&state=all&per_page=100&page=1": {
+        "status": 200,
+        "json": [
+          {
+            "number": 6,
+            "title": "Add packs: requested for this repo",
+            "body": "Please add these.\n\n```json\n[\n  {\n    \"id\": \"node\"\n  }\n]\n```",
+            "labels": [],
+            "state": "open"
+          }
+        ]
+      },
+      "GET /repos/acme/grown/contents/src/a.js?ref=main": {
+        "status": 200,
+        "json": {
+          "content": "bm90aGluZyBoZXJl"
+        }
+      }
+    }
+  },
+  "expect": {
+    "actions": [
+      "closed #6 (acme/asked: request satisfied)",
+      "opened #11 (acme/grown)"
+    ],
+    "calls": [
+      [
+        "GET",
+        "/user/repos?affiliation=owner&per_page=100&page=1"
+      ],
+      [
+        "GET",
+        "/repos/acme/asked/contents/.claudinite-settings.json"
+      ],
+      [
+        "GET",
+        "/repos/acme/asked/git/trees/main?recursive=1"
+      ],
+      [
+        "GET",
+        "/repos/acme/asked/issues?labels=add-packs&state=all&per_page=100&page=1"
+      ],
+      [
+        "GET",
+        "/repos/acme/asked/issues?labels=add-packs&state=all&per_page=100&page=1"
+      ],
+      [
+        "POST",
+        "/repos/acme/asked/issues/6/comments",
+        {
+          "body": "Closed by the fleet's add-missing-packs sweep: the declaration now carries every requested pack."
+        }
+      ],
+      [
+        "PATCH",
+        "/repos/acme/asked/issues/6",
+        {
+          "state": "closed",
+          "state_reason": "completed"
+        }
+      ],
+      [
+        "GET",
+        "/repos/acme/broken/contents/.claudinite-settings.json"
+      ],
+      [
+        "GET",
+        "/repos/acme/broken/git/trees/main?recursive=1"
+      ],
+      [
+        "GET",
+        "/repos/acme/Fitted/contents/.claudinite-settings.json"
+      ],
+      [
+        "GET",
+        "/repos/acme/Fitted/git/trees/trunk?recursive=1"
+      ],
+      [
+        "GET",
+        "/repos/acme/Fitted/issues?labels=add-packs&state=all&per_page=100&page=1"
+      ],
+      [
+        "GET",
+        "/repos/acme/Fitted/issues?labels=add-packs&state=all&per_page=100&page=1"
+      ],
+      [
+        "GET",
+        "/repos/acme/grown/contents/.claudinite-settings.json"
+      ],
+      [
+        "GET",
+        "/repos/acme/grown/git/trees/main?recursive=1"
+      ],
+      [
+        "GET",
+        "/repos/acme/grown/contents/src/a.js?ref=main"
+      ],
+      [
+        "GET",
+        "/repos/acme/grown/issues?labels=add-packs&state=all&per_page=100&page=1"
+      ],
+      [
+        "POST",
+        "/repos/acme/grown/labels",
+        {
+          "color": "0E8A16",
+          "description": "The fleet asks this repo to declare packs — adopted by the adopt-requested-packs task",
+          "name": "add-packs"
+        }
+      ],
+      [
+        "POST",
+        "/repos/acme/grown/labels",
+        {
+          "color": "bfd4f2",
+          "description": "Claudinite queue: asked for by a person — their own issue, adopted as the work item itself",
+          "name": "task:origin:ad-hoc"
+        }
+      ],
+      [
+        "POST",
+        "/repos/acme/grown/issues",
+        {
+          "body": "Task: claudinite-lifecycle/adopt-requested-packs\n\nThis repo carries file shapes that fingerprint packs its `.claudinite-settings.json`\ndoes not declare. A fingerprint only **suspects** a pack is wanted — declaring one is\nthis project's call, which is why this is an issue and not a failing check.\n\n## Suspected packs\n\n- **`firebase`** — Firebase projects\n- **`node`** — Node.js projects\n\nThis repo's own **adopt-requested-packs** task acts on this list: its agent confirms\neach suspicion against the checkout, adopts what survives through the adopt-pack skill\n(one reviewed PR on this repo), and declines the rest with a reason here. To decline\neverything for good, close this issue `not planned` — that is a standing answer the\nweekly fleet scan honours rather than re-suggesting.\n\nConverged weekly by the fleet's add-missing-packs scan: it closes this `completed` once\nthe declaration carries the packs (or the shape stops suggesting them).",
+          "labels": [
+            "add-packs",
+            "task:origin:ad-hoc"
+          ],
+          "title": "Add packs: suspected from this repo’s shape"
+        }
+      ],
+      [
+        "GET",
+        "/repos/acme/grown/issues?labels=add-packs&state=all&per_page=100&page=1"
+      ],
+      [
+        "GET",
+        "/repos/acme/sleepy/contents/.claudinite-settings.json"
+      ],
+      [
+        "GET",
+        "/repos/acme/uncovered/contents/.claudinite-settings.json"
+      ],
+      [
+        "GET",
+        "/repos/acme/unreadable/contents/.claudinite-settings.json"
+      ]
+    ],
+    "dormant": [
+      "acme/sleepy"
+    ],
+    "findings": [
+      {
+        "fits": [
+          "firebase",
+          "node"
+        ],
+        "repo": "acme/grown",
+        "undecided": []
+      }
+    ],
+    "fitted": [
+      "acme/asked",
+      "acme/fitted"
+    ],
+    "outOfScope": [
+      "acme/arch (archived)",
+      "acme/forked (fork)",
+      "acme/Ignored (ignored — config.exclude)",
+      "acme/uncovered (uncovered — the census's question)"
+    ],
+    "toFire": [
+      {
+        "defaultBranch": "main",
+        "fullName": "acme/grown"
+      }
+    ],
+    "unknown": [
+      "acme/broken — listing the tree of acme/broken@main returned 404",
+      "acme/unreadable — acme/unreadable:.claudinite-settings.json returned 500"
+    ]
+  }
+}

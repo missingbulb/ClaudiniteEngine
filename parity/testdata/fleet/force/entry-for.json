@@ -1,0 +1,50 @@
+{
+  "input": {
+    "fn": "entryFor",
+    "cases": [
+      {
+        "id": "p"
+      },
+      {
+        "id": "p",
+        "packConfig": {
+          "p": {
+            "a": "1"
+          }
+        },
+        "packAnswers": {
+          "p": {
+            "goals": "x"
+          }
+        }
+      },
+      {
+        "id": "p",
+        "packConfig": {
+          "p": {},
+          "q": {
+            "a": "1"
+          }
+        },
+        "packAnswers": {}
+      }
+    ]
+  },
+  "expect": [
+    {
+      "id": "p"
+    },
+    {
+      "answers": {
+        "goals": "x"
+      },
+      "config": {
+        "a": "1"
+      },
+      "id": "p"
+    },
+    {
+      "id": "p"
+    }
+  ]
+}
