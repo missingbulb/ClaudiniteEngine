@@ -1,0 +1,12 @@
+{
+  "rules": "@../shared/packs/macos/RULES.md\n",
+  "mounts": [
+    "macos-app-bundle",
+    "macos-entitlements-and-tcc"
+  ],
+  "world": [],
+  "work": [],
+  "only": [
+    "minimum-system-version-agrees"
+  ]
+}

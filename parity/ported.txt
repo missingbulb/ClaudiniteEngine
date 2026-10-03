@@ -18,3 +18,4 @@ cloudflare-site
 github-pages
 host-page
 leaflet
+macos

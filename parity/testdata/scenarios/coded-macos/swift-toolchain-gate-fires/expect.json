@@ -1,0 +1,17 @@
+{
+  "rules": "@../shared/packs/macos/RULES.md\n",
+  "mounts": [
+    "macos-app-bundle",
+    "macos-entitlements-and-tcc"
+  ],
+  "world": [
+    "swift-toolchain-gate .github/workflows/w.yaml:4 block",
+    "swift-toolchain-gate run.zsh:1 block",
+    "swift-toolchain-gate scripts/d.sh:3 block",
+    "swift-toolchain-gate scripts/d.sh:4 block"
+  ],
+  "work": [],
+  "only": [
+    "swift-toolchain-gate"
+  ]
+}

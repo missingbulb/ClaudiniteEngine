@@ -1,0 +1,4 @@
+jobs:
+  a:
+    steps:
+      - run: type -p swift
