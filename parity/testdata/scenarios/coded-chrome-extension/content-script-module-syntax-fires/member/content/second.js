@@ -1,0 +1,2 @@
+/* x */
+export default function () {}

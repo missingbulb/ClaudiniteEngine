@@ -1,0 +1,4 @@
+name: Read release config
+runs:
+  using: composite
+  steps: []

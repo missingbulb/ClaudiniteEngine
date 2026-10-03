@@ -1,0 +1,1 @@
+{"manifest_version": 3, "name": "x", "version": "1.0", "content_scripts": [{"matches": ["https://e.com/*"], "js": ["content/main.js", "./content/second.js"]}]}

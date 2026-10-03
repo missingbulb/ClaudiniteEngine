@@ -1,0 +1,16 @@
+{
+  "rules": "@../shared/packs/chrome-extension/RULES.md\n",
+  "mounts": [
+    "chrome-store-releases",
+    "extension-host-permissions"
+  ],
+  "world": [
+    "content-script-module-syntax content/dyn.js:3 block",
+    "content-script-module-syntax content/main.js:3 block",
+    "content-script-module-syntax content/second.js:2 block"
+  ],
+  "work": [],
+  "only": [
+    "content-script-module-syntax"
+  ]
+}

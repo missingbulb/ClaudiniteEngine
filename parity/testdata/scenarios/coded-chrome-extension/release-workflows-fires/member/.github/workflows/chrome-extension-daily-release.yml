@@ -1,0 +1,4 @@
+name: "Daily (reusable)"
+on:
+  workflow_call:
+jobs: {}

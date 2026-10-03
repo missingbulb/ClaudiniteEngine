@@ -1,0 +1,4 @@
+name: "Publish (reusable)"
+on:
+  workflow_call:
+jobs: {}
