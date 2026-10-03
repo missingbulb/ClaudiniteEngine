@@ -139,7 +139,7 @@ func hopVerdict(reg Registry, candidate releasefiles.Manifest) (string, error) {
 	}
 	newest := ""
 	for _, v := range versions {
-		if v == "0.0.0" {
+		if _, err := version.Parse(v); err != nil || v == "0.0.0" {
 			continue
 		}
 		if newest == "" {

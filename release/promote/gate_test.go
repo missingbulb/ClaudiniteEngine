@@ -151,6 +151,14 @@ func TestGateHop(t *testing.T) {
 		t.Errorf("hop:needed blocked promotion: %s", v.Result)
 	}
 
+	m.UpdaterDigest = reg.manifests["@claudinite/cli@1.60925.2"].UpdaterDigest
+	reg.manifests["@claudinite/cli-rc@1.60930.1"] = m
+	reg.versions["@claudinite/cli"] = []string{"0.0.0", "60920.1.0", "1.60920.1", "1.60925.2"}
+	v, _ = Gate(reg, gh, clock, "1.60930.1", twoCanaries)
+	if v.Hop != "hop:proven-by 1.60925.2" {
+		t.Errorf("a retired-format version first on the registry: %q", v.Hop)
+	}
+
 	reg.versions["@claudinite/cli"] = []string{"0.0.0"}
 	v, _ = Gate(reg, gh, clock, "1.60930.1", twoCanaries)
 	if v.Hop != "hop:needed" {

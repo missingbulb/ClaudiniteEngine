@@ -59,7 +59,7 @@ func major(t *testing.T) string {
 		t.Fatal(err)
 	}
 	m := strings.TrimSpace(string(raw))
-	if _, err := strconv.Atoi(m); err != nil || m != string(raw[:len(raw)-1]) {
+	if _, err := strconv.Atoi(m); err != nil || m+"\n" != string(raw) {
 		t.Fatalf("release/major holds %q, want one number on one line", raw)
 	}
 	return m
