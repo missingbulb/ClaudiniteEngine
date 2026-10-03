@@ -121,7 +121,15 @@ func TestSettingsAnswer(t *testing.T) {
 	if !strings.Contains(string(raw), "answers:") || !strings.Contains(string(raw), "n/a — none wanted") || !strings.HasPrefix(string(raw), devPin) {
 		t.Errorf("settings:\n%s", raw)
 	}
-	for _, args := range [][]string{{"asks/nope", "x"}, {"other/goals", "x"}, {"asks/goals", ""}, {"asks/goals"}} {
+	// A text starting with a dash follows a --, and the flags may follow it.
+	out, errOut, code = runInProc([]string{"settings", "answer", "asks/goals", "--", "- none", "--repo", dir}, "")
+	if code != 0 || out != "answered asks/goals in .claudinite/settings.yaml\n" {
+		t.Fatalf("after --: code %d out %q err %q", code, out, errOut)
+	}
+	if raw, _ := os.ReadFile(path); !strings.Contains(string(raw), "- none") || strings.Contains(string(raw), "n/a — none wanted") {
+		t.Errorf("after --, settings:\n%s", raw)
+	}
+	for _, args := range [][]string{{"asks/nope", "x"}, {"other/goals", "x"}, {"asks/goals", ""}, {"asks/goals"}, {"asks/goals", "x", "extra"}, {"asks/goals", "--"}} {
 		_, errOut, code := runInProc(append(append([]string{"settings", "answer"}, args...), "--repo", dir), "")
 		if code == 0 {
 			t.Errorf("%v: recorded (%s)", args, errOut)

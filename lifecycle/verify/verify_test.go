@@ -322,8 +322,17 @@ func TestRules(t *testing.T) {
 			write(t, d, ".claudinite/shared/packs/acme-pack/skills/demo/SKILL.md", "---\nname: demo\ndescription: d\n---\n")
 			write(t, d, ".claudinite/flat/claudinite-skills.GENERATED.md", "| `other` | acme-pack | o |\n")
 		}, []string{"skills-index-current"}, nil},
+		{"a skill outside its pack's manifest subset, unnamed", func(t *testing.T, d string) {
+			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "60930.1.0", "skills": ["demo"]}`)
+			write(t, d, ".claudinite/shared/packs/acme-pack/skills/demo/SKILL.md", "---\nname: demo\ndescription: d\n---\n")
+			write(t, d, ".claudinite/shared/packs/acme-pack/skills/draft/SKILL.md", "---\nname: draft\ndescription: d\n---\n")
+			write(t, d, ".claudinite/flat/claudinite-skills.GENERATED.md", "| `demo` | acme-pack | d |\n")
+		}, nil, nil},
 		{"hooks naming the Node engine", func(t *testing.T, d string) {
 			write(t, d, ".claude/settings.json", `{"hooks": {"SessionStart": [{"hooks": [{"type": "command", "command": "node .claudinite/shared/engine/hooks/run-session-start.mjs"}]}]}}`)
+		}, []string{"hooks"}, nil},
+		{"hooks naming the canon's own engine", func(t *testing.T, d string) {
+			write(t, d, ".claude/settings.json", `{"hooks": {"Stop": [{"hooks": [{"type": "command", "command": "node $CLAUDE_PROJECT_DIR/engine/hooks/stop-command.mjs"}]}]}}`)
 		}, []string{"hooks"}, nil},
 		{"malformed packs block", func(t *testing.T, d string) {
 			raw, _ := os.ReadFile(filepath.Join(d, ".claudinite/settings.yaml"))
@@ -522,5 +531,23 @@ func TestCorpusGrowsWithTheRuleSet(t *testing.T) {
 	sort.Strings(last)
 	if strings.Join(got, " ") != strings.Join(last, " ") {
 		t.Errorf("verify registers [%s] but rules.txt's newest line says [%s]: add a line with a new prefix and its fixture", strings.Join(got, " "), strings.Join(last, " "))
+	}
+}
+
+// NodeHook matches the Node engine's hooks under either root, and nothing
+// that merely ends in engine/hooks/.
+func TestNodeHookMatchesBothRoots(t *testing.T) {
+	for cmd, want := range map[string]bool{
+		"node $CLAUDE_PROJECT_DIR/.claudinite/shared/engine/hooks/stop-command.mjs": true,
+		"node $CLAUDE_PROJECT_DIR/engine/hooks/stop-command.mjs":                    true,
+		"node engine/hooks/stop-command.mjs":                                        true,
+		"bash \"$CLAUDE_PROJECT_DIR\"/engine/hooks/session-start-command.sh":        true,
+		"sh tools/myengine/hooks/stop.sh":                                           false,
+		"sh tools/my.engine/hooks/stop.sh":                                          false,
+		".claudinite/bin/cn hook stop":                                              false,
+	} {
+		if got := NodeHook.MatchString(cmd); got != want {
+			t.Errorf("%q: %v, want %v", cmd, got, want)
+		}
 	}
 }

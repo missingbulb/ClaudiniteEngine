@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -208,8 +209,9 @@ var Hooks = []HookWiring{
 	{"SessionEnd", ".claudinite/bin/cn hook session-end"},
 }
 
-// nodeHooks is where the Node engine's hook commands live in a member.
-const nodeHooks = ".claudinite/shared/engine/hooks/"
+// NodeHook matches a command that runs the Node engine's hooks, in a
+// member (under .claudinite/shared/) or in the canon (from its root).
+var NodeHook = regexp.MustCompile(`(^|[^\w.-])(\.claudinite/shared/)?engine/hooks/`)
 
 func checkHooks(in Input) []findings.Finding {
 	var cfg struct {
@@ -232,8 +234,8 @@ func checkHooks(in Input) []findings.Finding {
 	for _, event := range events {
 		for _, group := range cfg.Hooks[event] {
 			for _, c := range group.Hooks {
-				if strings.Contains(c.Command, nodeHooks) {
-					return []findings.Finding{brk("hooks", ".claude/settings.json", event+" runs the Node engine's hooks under "+nodeHooks+", which the move removes; the move skill wires every hook to cn")}
+				if NodeHook.MatchString(c.Command) {
+					return []findings.Finding{brk("hooks", ".claude/settings.json", event+" runs the Node engine's hooks (engine/hooks/), which the move removes; the move skill wires every hook to cn")}
 				}
 			}
 		}
@@ -612,36 +614,20 @@ func pinOf(in Input) string {
 }
 
 // checkSkillsIndex asks the Node rule's question of the repo's own files:
-// is there a skills index, and does it name every skill a declared pack
-// holds here. An index no earlier cn release wrote is a deprecation; one
+// is there a skills index, and does it name every skill the index renders
+// from the active packs (a manifest's skills subset honoured). An index no earlier cn release wrote is a deprecation; one
 // that misses a held skill is stale.
 func checkSkillsIndex(in Input) []findings.Finding {
-	path, f, err := settings.Find(in.Repo)
+	if _, _, err := settings.Find(in.Repo); err != nil {
+		return nil
+	}
+	set, err := packset.Load(in.Repo, pinOf(in), false)
 	if err != nil {
 		return nil
 	}
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		return nil
-	}
-	declared, err := settings.ReadPacks(raw, f)
-	if err != nil {
-		return nil
-	}
-	seen := map[string]bool{}
 	var held []string
-	for _, id := range append(append([]string{}, declared.Declared...), declared.Local...) {
-		for _, root := range []string{packset.Dir, packset.LocalDir} {
-			m, _ := filepath.Glob(filepath.Join(in.Repo, filepath.FromSlash(root), id, "skills", "*", "SKILL.md"))
-			sort.Strings(m)
-			for _, p := range m {
-				name := filepath.Base(filepath.Dir(p))
-				if st, err := os.Stat(p); err == nil && st.Mode().IsRegular() && !seen[name] {
-					seen[name] = true
-					held = append(held, name)
-				}
-			}
-		}
+	for _, r := range rulesindex.SkillRows(set) {
+		held = append(held, r.Skill)
 	}
 	if len(held) == 0 {
 		return nil
