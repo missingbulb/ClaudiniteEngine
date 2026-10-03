@@ -157,3 +157,43 @@ func TestReleaseRunsTheHopBeforeSign(t *testing.T) {
 		t.Error("sign does not wait for the hop")
 	}
 }
+
+// The live-packs rehearsal runs in the release after smoke, holding
+// promotion through a release-blocker issue, and in its own workflow on
+// main and nightly.
+func TestLivePacksRuns(t *testing.T) {
+	const wf = "../.github/workflows/release.yml"
+	job := jobBlock(t, wf, "live-packs")
+	if job == "" {
+		t.Fatal("release.yml has no live-packs job")
+	}
+	invocation := regexp.MustCompile(`(?m)^\s*- run: release/rehearse\.sh --mode live-packs\b`)
+	for _, want := range []*regexp.Regexp{
+		regexp.MustCompile(`(?m)^    needs: \[version, build, smoke\]$`),
+		invocation,
+		regexp.MustCompile(`(?m)^\s*go run \./release/pipeline blocker-issue --gate live-packs\b`),
+		regexp.MustCompile(`(?m)^\s*gh issue create .*--label release-blocker`),
+	} {
+		if !want.MatchString(job) {
+			t.Errorf("the live-packs job lacks %s:\n%s", want, job)
+		}
+	}
+	for _, not := range []string{"secrets.", "environment:"} {
+		if strings.Contains(job, not) {
+			t.Errorf("the live-packs job has %q", not)
+		}
+	}
+	own := jobBlock(t, "../.github/workflows/live-packs.yml", "live-packs")
+	if !invocation.MatchString(own) {
+		t.Errorf("live-packs.yml does not run the mode:\n%s", own)
+	}
+	raw, err := os.ReadFile("../.github/workflows/live-packs.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, trigger := range []string{"\n  push:\n    branches: [main]\n", "\n  schedule:\n"} {
+		if !strings.Contains(string(raw), trigger) {
+			t.Errorf("live-packs.yml lacks the trigger %q", trigger)
+		}
+	}
+}

@@ -11,6 +11,7 @@ import (
 
 	"github.com/missingbulb/ClaudiniteEngine/shared/findings"
 	"github.com/missingbulb/ClaudiniteEngine/shared/packset"
+	"github.com/missingbulb/ClaudiniteEngine/shared/provenance"
 	"github.com/missingbulb/ClaudiniteEngine/shared/settings"
 	"github.com/missingbulb/ClaudiniteEngine/shared/skilltriggers"
 	"github.com/missingbulb/ClaudiniteEngine/shared/transcript"
@@ -74,6 +75,11 @@ var builtinBarrier = Builtin{ID: "barrier", Pack: "basics", OnFail: "block", Tag
 func init() {
 	builtinSpecKeys.Run = func(ctx *Ctx, _ *transcript.Session) []findings.Finding { return specKeyFindings(ctx) }
 	builtinBarrier.Run = func(ctx *Ctx, _ *transcript.Session) []findings.Finding { return barrierFindings(ctx) }
+	// Each names the element its Node rule was in the shelf: the two basics
+	// checks basics', the forced-skill check claudinite-lifecycle's.
+	provenance.RegisterEngineCheck("basics", builtinSpecKeys.ID)
+	provenance.RegisterEngineCheck("basics", builtinBarrier.ID)
+	provenance.RegisterEngineCheck("claudinite-lifecycle", BuiltinSkillLoaded)
 }
 
 // Set is what a repo declares: its declared checks, the built-ins that

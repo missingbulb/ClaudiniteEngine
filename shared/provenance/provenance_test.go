@@ -385,3 +385,84 @@ func TestConvertedOnly(t *testing.T) {
 		t.Errorf("files %+v", files)
 	}
 }
+
+// A folded pack's checks are Go under checks/, some registered through a
+// helper, some engine built-ins; each names its element's file, a check
+// the Node engine named <pack>/<id> keeping <pack>-<id>.md (#71).
+// isolateEngineChecks gives one test an empty engine-check registry and
+// puts the shared one back when it ends.
+func isolateEngineChecks(t *testing.T) {
+	t.Helper()
+	engineMu.Lock()
+	saved := engineChecks
+	engineChecks = map[string][]string{}
+	engineMu.Unlock()
+	t.Cleanup(func() {
+		engineMu.Lock()
+		engineChecks = saved
+		engineMu.Unlock()
+	})
+}
+
+func TestGoAndEngineChecksAreCarriers(t *testing.T) {
+	io := mapIO{
+		"packs/acme/pack.json":                         "{\"version\": \"1\"}\n",
+		"packs/acme/checks/literal.go":                 "package checks\n\nfunc init() {\n\tchecksdk.Register(checksdk.Check{\n\t\tID: \"flat-check\",\n\t})\n}\n",
+		"packs/acme/checks/lib.go":                     "package checks\n\nfunc register(id, why string) {\n\tchecksdk.Register(checksdk.Check{ID: id, Why: why})\n}\n",
+		"packs/acme/checks/calls.go":                   "package checks\n\nfunc init() {\n\tregister(\"helper-check\", \"why\")\n\tregister(\"prefixed-check\", \"why\")\n}\n",
+		"packs/acme/checks/closure.go":                 "package checks\n\nfunc init() {\n\treg := func(id string) { checksdk.Register(checksdk.Check{ID: id}) }\n\treg(\"closure-check\")\n}\n",
+		"packs/acme/checks/calls_test.go":              "package checks\n\nvar _ = checksdk.Check{ID: \"test-check\"}\n",
+		"packs/acme/provenance/_pack.md":               born,
+		"packs/acme/provenance/flat-check.md":          born,
+		"packs/acme/provenance/helper-check.md":        born,
+		"packs/acme/provenance/acme-prefixed-check.md": born,
+		"packs/acme/provenance/closure-check.md":       born,
+		"packs/acme/provenance/engine-check.md":        born,
+	}
+	isolateEngineChecks(t)
+	RegisterEngineCheck("acme", "engine-check")
+	RegisterEngineCheck("other", "not-acmes")
+	a := AuditPack("packs/acme", io)
+	if len(a.Unnamed) != 0 || len(a.Dangling) != 0 {
+		t.Errorf("unnamed %v, dangling %v", a.Unnamed, a.Dangling)
+	}
+	got := map[string]string{}
+	for _, c := range a.Carriers.Checks {
+		got[c.ID] = ElementOf(c) + " " + c.File
+	}
+	want := map[string]string{
+		"flat-check":     "flat-check packs/acme/checks/literal.go",
+		"helper-check":   "helper-check packs/acme/checks/calls.go",
+		"prefixed-check": "acme-prefixed-check packs/acme/checks/calls.go",
+		"closure-check":  "closure-check packs/acme/checks/closure.go",
+		"engine-check":   "engine-check " + EngineCarrierFile,
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("checks %v, want %v", got, want)
+	}
+}
+
+// The shelf wrote ported, gate-changed and hardened while porting onto
+// cn; the vocabulary reads them, so a file carrying one still takes an
+// append (ClaudinitePacks#33).
+func TestVocabularyReadsTheShelfsPortKinds(t *testing.T) {
+	text := born + "\n## 2026-09-30 · ported · onto the SDK (#20)\n- **Reason:** the runtime moved.\n" +
+		"\n## 2026-10-01 · gate-changed · the precondition reads the change\n- **Reason:** it fired on nothing.\n" +
+		"\n## 2026-10-02 · hardened · a missing secret parks the item\n- **Reason:** it degraded silently.\n"
+	entries, problems := Parse(text)
+	if len(problems) != 0 || len(entries) != 4 {
+		t.Fatalf("entries %d, problems %v", len(entries), problems)
+	}
+	if faults := EntryFaults(entries); len(faults) != 0 {
+		t.Errorf("faults %v: none of the three owes a Mechanism", faults)
+	}
+}
+
+// A function that reads a field off its parameter, ID: c.ID, passes no
+// id of its own, so a call to it names no check.
+func TestAFieldOffTheParameterIsNoRegistrar(t *testing.T) {
+	src := "package checks\n\nfunc wrap(c any, why string) checksdk.Check {\n\treturn checksdk.Check{ID: c.(checksdk.Check).ID, Why: why}\n}\n\nfunc register(id string) {\n\tchecksdk.Register(checksdk.Check{\n\t\tID: id,\n\t})\n}\n\nfunc init() {\n\twrap(\"not-a-check\", \"why\")\n\tregister(\"real-check\")\n}\n"
+	if got := GoCheckIDs([]string{src}); !reflect.DeepEqual(got, []string{"real-check"}) {
+		t.Errorf("ids %v, want [real-check]", got)
+	}
+}

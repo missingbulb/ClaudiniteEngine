@@ -73,6 +73,11 @@ type Expect struct {
 	// CnOnly runs the scenario against cn alone, for a surface the Node
 	// engine does not have (pack hook judges).
 	CnOnly bool `json:"cnOnly,omitempty"`
+	// Divergence names the design record row where cn's world findings
+	// differ on purpose, and CnWorld is cn's answer; World stays the Node
+	// engine's.
+	Divergence string    `json:"divergence,omitempty"`
+	CnWorld    *[]string `json:"cnWorld,omitempty"`
 }
 
 // HookCase is one per-call hook payload and the answer it must get: the

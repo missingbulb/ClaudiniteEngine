@@ -165,12 +165,12 @@ func ReadLogin(getenv func(string) string, client *http.Client) Identity {
 	}
 	var misses []string
 	for _, name := range held {
-		login, err := userLogin(client, url, getenv(name))
+		login, isString, err := userLogin(client, url, getenv(name))
 		if err != nil {
 			misses = append(misses, name+": "+err.Error())
 			continue
 		}
-		if !UsableIdentity(strings.ToLower(login)) {
+		if !isString || !UsableIdentity(strings.ToLower(login)) {
 			return Identity{Error: fmt.Sprintf("%s read back %q, which is not a usable GitHub login", name, login)}
 		}
 		return Identity{Login: login, Via: name}
@@ -178,12 +178,13 @@ func ReadLogin(getenv func(string) string, client *http.Client) Identity {
 	return Identity{Error: "GET /user answered no login (" + strings.Join(misses, "; ") + ")"}
 }
 
-func userLogin(client *http.Client, url, token string) (string, error) {
+// userLogin is the answer's login as text, and whether it was a JSON string.
+func userLogin(client *http.Client, url, token string) (string, bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), loginTimeout)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Accept", "application/vnd.github+json")
@@ -191,25 +192,28 @@ func userLogin(client *http.Client, url, token string) (string, error) {
 	res, err := client.Do(req)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
-			return "", errors.New("timed out")
+			return "", false, errors.New("timed out")
 		}
-		return "", errors.New("unreachable")
+		return "", false, errors.New("unreachable")
 	}
 	defer func() { _ = res.Body.Close() }()
 	if res.StatusCode/100 != 2 {
-		return "", fmt.Errorf("HTTP %d", res.StatusCode)
+		return "", false, fmt.Errorf("HTTP %d", res.StatusCode)
 	}
 	var body struct {
-		Login any `json:"login"`
+		Login json.RawMessage `json:"login"`
 	}
 	if err := json.NewDecoder(io.LimitReader(res.Body, 1<<20)).Decode(&body); err != nil {
-		return "", errors.New("the answer is not JSON")
+		return "", false, errors.New("the answer is not JSON")
 	}
-	s, _ := body.Login.(string)
-	if s == "" {
-		return fmt.Sprint(body.Login), nil
+	if len(body.Login) == 0 {
+		return "undefined", false, nil
 	}
-	return s, nil
+	var s string
+	if string(body.Login) != "null" && json.Unmarshal(body.Login, &s) == nil {
+		return s, true, nil
+	}
+	return string(body.Login), false, nil
 }
 
 // Result is what the step did, for its one line.
@@ -321,7 +325,7 @@ func Copy(repo string, store *Store, declined, login string, getenv func(string)
 	}
 	dir := store.Dir(strings.ToLower(login))
 	source := filepath.Join(repo, filepath.FromSlash(dir))
-	if st, serr := os.Stat(source); serr != nil || !st.IsDir() {
+	if _, serr := os.Stat(source); serr != nil {
 		clone, cerr := checkout(store, dir, getenv)
 		if clone != "" {
 			defer func() { _ = os.RemoveAll(clone) }()

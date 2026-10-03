@@ -70,3 +70,20 @@ func TestPackVersionLogOrdered(t *testing.T) {
 	expect(t, r.run(t, "pack-version-log-ordered"),
 		want{path: "packs/acme-pack/provenance/VERSIONS.md", line: 8, what: `^version 61003\.3 sits below 61002\.4 \(line 7\)`})
 }
+
+// On the ported shelf a pack's checks are Go, under checks/: an id given
+// as a literal ID or through a helper registering by its first parameter
+// is the pack's own rule too; a test file's ids never count.
+func TestPackNoEnforcementNarrationGoChecks(t *testing.T) {
+	r := canon(map[string]string{
+		"packs/acme-pack/pack.json":               `{"version": "1.0", "prose": "RULES.md"}` + "\n",
+		"packs/acme-pack/RULES.md":                "# acme\n\n- go-check guards this\n- helper-check too\n- test-only-check is a word\n- acme-go-check-ish is another\n",
+		"packs/acme-pack/checks/go_check.go":      "package checks\n\nfunc init() {\n\tchecksdk.Register(checksdk.Check{\n\t\tID:   \"go-check\",\n\t\tTags: []string{\"world\"},\n\t})\n}\n",
+		"packs/acme-pack/checks/lib.go":           "package checks\n\nfunc register(id, why string) {\n\tchecksdk.Register(checksdk.Check{ID: id, Why: why})\n}\n",
+		"packs/acme-pack/checks/helper.go":        "package checks\n\nfunc init() {\n\tregister(\"helper-check\", \"why\")\n}\n",
+		"packs/acme-pack/checks/go_check_test.go": "package checks\n\nvar c = checksdk.Check{ID: \"test-only-check\"}\n",
+	})
+	expect(t, r.run(t, "pack-no-enforcement-narration"),
+		want{path: "packs/acme-pack/RULES.md", line: 3, what: `"go-check"`},
+		want{path: "packs/acme-pack/RULES.md", line: 4, what: `"helper-check"`})
+}

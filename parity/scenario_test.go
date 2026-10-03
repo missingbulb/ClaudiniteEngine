@@ -51,3 +51,18 @@ func sameTree(t *testing.T, a, b string) bool {
 	}
 	return reflect.DeepEqual(read(a), read(b))
 }
+
+// The parity README counts the scenarios face's divergences.
+func TestScenarioDivergencesAreCounted(t *testing.T) {
+	scenarios, err := LoadScenarios("testdata/scenarios")
+	if err != nil {
+		t.Fatal(err)
+	}
+	n := 0
+	for _, s := range scenarios {
+		if s.Expect.Divergence != "" {
+			n++
+		}
+	}
+	countedIn(t, "Scenarios", n, len(scenarios))
+}

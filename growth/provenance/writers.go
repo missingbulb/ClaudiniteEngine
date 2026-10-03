@@ -221,7 +221,10 @@ func MarkPack(packDir string, io WriteIO) ([]string, error) {
 		}
 	}
 	for _, ch := range c.Checks {
-		if err := ensure(prov.ElementID(ch.ID), "check "+ch.ID); err != nil {
+		if ch.File == prov.EngineCarrierFile {
+			continue
+		}
+		if err := ensure(prov.ElementOf(ch), "check "+ch.ID); err != nil {
 			return nil, err
 		}
 	}

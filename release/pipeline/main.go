@@ -16,6 +16,7 @@ const usage = `usage:
   pipeline names [--channel rc|stable]
   pipeline bootstrap-comment
   pipeline blocker-issue --version V --leg PLATFORM --run-url URL --log FILE
+  pipeline blocker-issue --gate live-packs --version V --run-url URL --log FILE
   pipeline publish-mode --channel rc|stable --signing release|dev --dry-run true|false --npm-versions FILE [--stable-test pass|fail]
   pipeline deprecate-commands --action hold|revoke|release --version V [--reason R] --rc-versions FILE --stable-versions FILE
 `
@@ -91,10 +92,16 @@ func blockerIssue(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("blocker-issue", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	ver := fs.String("version", "", "")
+	gate := fs.String("gate", "smoke-published", "")
 	leg := fs.String("leg", "", "")
 	runURL := fs.String("run-url", "", "")
 	logPath := fs.String("log", "", "")
-	if err := fs.Parse(args); err != nil || fs.NArg() != 0 || *ver == "" || *leg == "" || *runURL == "" || *logPath == "" {
+	err := fs.Parse(args)
+	switch {
+	case err != nil, fs.NArg() != 0, *ver == "", *runURL == "", *logPath == "",
+		*gate == "smoke-published" && *leg == "",
+		*gate == "live-packs" && *leg != "",
+		*gate != "smoke-published" && *gate != "live-packs":
 		fmt.Fprint(stderr, usage)
 		return 2
 	}
@@ -103,6 +110,9 @@ func blockerIssue(args []string, stdout, stderr io.Writer) int {
 		raw = []byte("(no log: " + err.Error() + ")")
 	}
 	title, body := release.BlockerIssue(*ver, *leg, *runURL, string(raw))
+	if *gate == "live-packs" {
+		title, body = release.LivePacksBlockerIssue(*ver, *runURL, string(raw))
+	}
 	fmt.Fprintf(stdout, "%s\n\n%s", title, body)
 	return 0
 }
