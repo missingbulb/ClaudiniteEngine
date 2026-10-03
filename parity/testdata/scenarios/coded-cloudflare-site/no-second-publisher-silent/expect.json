@@ -1,0 +1,11 @@
+{
+  "rules": "@../shared/packs/cloudflare-site/RULES.md\n",
+  "mounts": [
+    "releasing-a-cloudflare-site"
+  ],
+  "world": [],
+  "work": [],
+  "only": [
+    "no-second-publisher"
+  ]
+}

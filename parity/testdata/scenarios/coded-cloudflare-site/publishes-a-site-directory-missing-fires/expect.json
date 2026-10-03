@@ -1,0 +1,13 @@
+{
+  "rules": "@../shared/packs/cloudflare-site/RULES.md\n",
+  "mounts": [
+    "releasing-a-cloudflare-site"
+  ],
+  "world": [
+    "publishes-a-site-directory wrangler.json block"
+  ],
+  "work": [],
+  "only": [
+    "publishes-a-site-directory"
+  ]
+}

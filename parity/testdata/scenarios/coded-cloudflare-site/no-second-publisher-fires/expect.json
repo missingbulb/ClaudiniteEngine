@@ -1,0 +1,16 @@
+{
+  "rules": "@../shared/packs/cloudflare-site/RULES.md\n",
+  "mounts": [
+    "releasing-a-cloudflare-site"
+  ],
+  "world": [
+    "no-second-publisher .github/workflows/ci.yml:7 block",
+    "no-second-publisher .github/workflows/pages.yml:7 block",
+    "no-second-publisher .github/workflows/pages.yml:8 block",
+    "no-second-publisher site/CNAME block"
+  ],
+  "work": [],
+  "only": [
+    "no-second-publisher"
+  ]
+}

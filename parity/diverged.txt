@@ -112,3 +112,4 @@ claudinite-dashboard/tasks/publish-pages/task.json record-112
 # names it so (record row 121):
 chrome-extension/tasks/store-release/task.json record-5
 chrome-extension/skills/chrome-store-releases/SKILL.md record-121
+cloudflare-site/tasks/site-release/task.json record-5
