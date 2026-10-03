@@ -39,7 +39,7 @@ func TestACaptureWritesTheRawLinesWithTheStoreValueRedacted(t *testing.T) {
 	}
 	// Key order, spacing and escapes a JSON round trip would change.
 	lines := []string{
-		`{"z":1,  "timestamp":"2026-10-01T10:00:00.000Z","a":"é said `+secret+`"}`,
+		`{"z":1,  "timestamp":"2026-10-01T10:00:00.000Z","a":"é said ` + secret + `"}`,
 		`{"type":"x","timestamp":"2026-10-01T10:00:01.000Z" ,"m":{"b":2,"a":1}}`,
 	}
 	transcript := filepath.Join(base, "s1.jsonl")
