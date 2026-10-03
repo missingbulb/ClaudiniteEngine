@@ -1,7 +1,8 @@
 // Command cn-keys is the key ceremony tool, run by the key-ceremony
 // workflow. `ceremony` makes the root and standby root and stores a
 // certified key for every working use in its GitHub secret in one run;
-// `rotate` replaces working keys later; `standby decrypt` recovers the
+// `rotate` replaces working keys later; `roots` prints the root and
+// standby root public keys again; `standby decrypt` recovers the
 // sealed standby root; the rest are single steps for keys kept as files.
 // README.md is the runbook.
 package main
@@ -26,6 +27,7 @@ import (
 const usage = `usage:
   cn-keys ceremony --summary FILE           (reads $CEREMONY_PASSPHRASE)
   cn-keys rotate --summary FILE [--use USE[,USE]]  (reads $ROOT_KEY)
+  cn-keys roots --summary FILE              (reads $ROOT_KEY, $STANDBY_SEALED, $CEREMONY_PASSPHRASE)
   cn-keys standby decrypt --in SEALED --out KEY   (reads $CEREMONY_PASSPHRASE)
   cn-keys root new --out DIR [--name root]
   cn-keys key new --out DIR --name NAME
@@ -67,6 +69,8 @@ func dispatch(args []string, stdout io.Writer) error {
 		return ceremonyCmd(args[1:], stdout)
 	case args[0] == "rotate":
 		return rotateCmd(args[1:], stdout)
+	case args[0] == "roots":
+		return rootsCmd(args[1:], stdout)
 	case len(args) >= 2 && args[0] == "standby" && args[1] == "decrypt":
 		return standbyDecrypt(args[2:], stdout)
 	case len(args) >= 2 && args[0] == "root" && args[1] == "new":

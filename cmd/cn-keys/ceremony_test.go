@@ -387,10 +387,18 @@ func TestKeyCeremonyWorkflowShape(t *testing.T) {
 		"secrets.CEREMONY_TOKEN",
 		"go run ./cmd/cn-keys ceremony --summary \"$GITHUB_STEP_SUMMARY\"",
 		"go run ./cmd/cn-keys rotate --summary \"$GITHUB_STEP_SUMMARY\"",
+		"go run ./cmd/cn-keys roots --summary \"$GITHUB_STEP_SUMMARY\"",
+		"secrets." + standbySealedVar,
 	} {
 		if !strings.Contains(wf, want) {
 			t.Errorf("key-ceremony.yml lacks %q", want)
 		}
+	}
+	// The roots mode only reads: no token, and a read-only job token.
+	if i := strings.Index(wf, "\n  roots:\n"); i < 0 {
+		t.Error("key-ceremony.yml has no roots job")
+	} else if job := wf[i:]; strings.Contains(job, "CEREMONY_TOKEN") || !strings.Contains(job, "permissions:\n      contents: read\n") {
+		t.Error("the roots job must hold no token and only contents: read")
 	}
 }
 
