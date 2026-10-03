@@ -266,7 +266,13 @@ var BuiltinTerms = Terms{
 	{Name: "commits-outside", Signals: []string{"commits"}, TakesArg: true, ArgName: "path-prefix"},
 	{Name: "no-open-pr-touching", Signals: []string{"prs"}, TakesArg: true, ArgName: "path-prefix"},
 	{Name: "no-open-pr-titled", Signals: []string{"prs"}, TakesArg: true, ArgName: "title-prefix"},
+	{Name: LogPastRetention, Signals: []string{"conversationLogs"}},
 }
+
+// LogPastRetention holds when the conversation-logs branch's oldest
+// capture is older than the repo's retention: a clock crossing a
+// boundary, which no movement term can say.
+const LogPastRetention = "log-past-retention"
 
 // RequestEligible is the engine's own request task's term: about one named
 // issue, so it reads the item.

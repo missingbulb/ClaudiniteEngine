@@ -3,6 +3,7 @@ package growth
 import (
 	"encoding/json"
 	"fmt"
+	sharedgrowth "github.com/missingbulb/ClaudiniteEngine/shared/growth"
 	"os"
 	"path/filepath"
 	"time"
@@ -158,7 +159,7 @@ func Decide(core string, raw []byte) (any, error) {
 			return nil, err
 		}
 		v, present := probe["declared"]
-		return map[string]any{"days": prune.ResolveRetentionDays(v, present)}, nil
+		return map[string]any{"days": sharedgrowth.ResolveRetentionDays(v, present)}, nil
 	}
 	return nil, fmt.Errorf("unknown growth core %q: one of %v", core, Cores)
 }

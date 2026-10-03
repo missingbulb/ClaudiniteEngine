@@ -267,7 +267,8 @@ func Append(io WriteIO, pack string, elements []string, text string, o AppendOpt
 		if declined {
 			file = pack + "/" + prov.Dir + "/" + prov.DeclinedFile
 		}
-		if !declined && !io.Exists(file) && !(o.Backfill && e.Kind == "born") {
+		opensFile := o.Backfill && e.Kind == "born"
+		if !declined && !io.Exists(file) && !opensFile {
 			hint := ""
 			if o.Backfill {
 				hint = "; a --backfill batch opens a new file with born"

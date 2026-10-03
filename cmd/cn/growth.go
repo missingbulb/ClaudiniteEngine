@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	sharedgrowth "github.com/missingbulb/ClaudiniteEngine/shared/growth"
 	"io"
 	"os"
 	"path/filepath"
@@ -116,7 +117,7 @@ func growthPrune(args []string, stdout io.Writer) error {
 		fmt.Fprintln(stdout, "this repo's claudinite-growth declaration could not be read for a retention — deleting nothing")
 		return nil
 	}
-	days := prune.ResolveRetentionDays(declared, present)
+	days := sharedgrowth.ResolveRetentionDays(declared, present)
 	if days == nil {
 		fmt.Fprintf(stdout, "retention_days is %v — capture-only by this repo's own choice, deleting nothing\n", declared)
 		return nil
@@ -156,7 +157,7 @@ func retentionDeclared(root string) (value any, present, readable bool) {
 		if !ok {
 			return nil, false, true
 		}
-		if _, num := prune.Number(v); !num {
+		if _, num := sharedgrowth.Number(v); !num {
 			return v, true, false
 		}
 		return v, true, true

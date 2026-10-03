@@ -51,7 +51,8 @@ func ParseArgs(args []string, dir string) (Request, bool) {
 	}
 	pr, hasPr := vals["pr"]
 	issue, hasIssue := vals["issue"]
-	if hasPr == hasIssue || !(hasPr && prArg.MatchString(pr) || hasIssue && issueArg.MatchString(issue)) {
+	valid := hasPr && prArg.MatchString(pr) || hasIssue && issueArg.MatchString(issue)
+	if hasPr == hasIssue || !valid {
 		return Request{}, false
 	}
 	req := Request{Branch: DefaultBranch, Dir: dir}

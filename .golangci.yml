@@ -26,7 +26,6 @@ linters:
           files:
             - "**/hooks/**"
             - "**/license/**"
-            - "**/growth/**"
             - "**/sdkserver/**"
             - "**/shared/**"
             - "!**/shared/descriptor/**"
@@ -36,6 +35,15 @@ linters:
           allow:
             - $gostd
             - github.com/missingbulb/ClaudiniteEngine/shared
+        growth:
+          list-mode: strict
+          files:
+            - "**/growth/**"
+            - "!**/shared/growth/**"
+          allow:
+            - $gostd
+            - github.com/missingbulb/ClaudiniteEngine/shared
+            - github.com/missingbulb/ClaudiniteEngine/growth
         tasks:
           list-mode: strict
           files:

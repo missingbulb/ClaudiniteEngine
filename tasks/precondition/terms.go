@@ -4,6 +4,7 @@ import (
 	"strings"
 	"time"
 
+	sharedgrowth "github.com/missingbulb/ClaudiniteEngine/shared/growth"
 	"github.com/missingbulb/ClaudiniteEngine/shared/jsjson"
 	"github.com/missingbulb/ClaudiniteEngine/shared/taskspec"
 	"github.com/missingbulb/ClaudiniteEngine/tasks/calendar"
@@ -223,6 +224,7 @@ func init() {
 			}
 			return Outcome{Reason: "no conversation log was captured in the window"}
 		},
+		taskspec.LogPastRetention: logPastRetention,
 		"issues-touched": func(s Signals, _ Opts) Outcome {
 			if _, touched := nonTaskIssues(s); len(touched) > 0 {
 				return Outcome{Holds: true, Reason: itoa(len(touched)) + " issue(s) moved in the window",
@@ -344,4 +346,32 @@ func EngineJudged(name string) bool {
 	_, builtin := holds[name]
 	_, engine := engineHolds[name]
 	return builtin || engine
+}
+
+// logPastRetention holds on no reading at all: nothing asks the prune, so
+// its item exists only because a person made one, and the code-work reads
+// the branch first-hand. An absent branch, retention off, or an unknown
+// oldest age declines.
+func logPastRetention(s Signals, _ Opts) Outcome {
+	logs := s.ConversationLogs
+	if logs == nil {
+		return Outcome{Holds: true, Reason: "no conversation-logs reading — the worker decides what is deletable"}
+	}
+	if !logs.Present {
+		return Outcome{Reason: "no conversation-logs branch — nothing captured yet"}
+	}
+	var declared any
+	if logs.RetentionDays != nil {
+		declared = *logs.RetentionDays
+	}
+	retention := sharedgrowth.ResolveRetentionDays(declared, true)
+	if retention == nil {
+		return Outcome{Reason: "retention_days is " + jsjson.FormatNumber(*logs.RetentionDays) + " — capture-only by this repo's own choice, so the prune deletes nothing"}
+	}
+	days := jsjson.FormatNumber(*retention)
+	oldest := logs.OldestLogAgeDays
+	if oldest == nil || !(*oldest > *retention) {
+		return Outcome{Reason: "no log older than retention " + days + "d — nothing to prune"}
+	}
+	return Outcome{Holds: true, Reason: "oldest log " + jsjson.ToFixed(*oldest, 1) + "d old vs retention " + days + "d"}
 }
