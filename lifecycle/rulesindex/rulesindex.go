@@ -27,13 +27,9 @@ const Import = "@" + File
 // ClaudeMD is the member's memory file.
 const ClaudeMD = "CLAUDE.md"
 
-// prepareStep is the file a pack ships when it copies a pack into the
-// session; a member with one imports the person's copied prose.
-const prepareStep = "session-prepare.mjs"
-
-// sessionUserProse is the copied person's prose as the index addresses it:
-// a literal, because the copy happens at session start, after the index is
-// written.
+// sessionUserProse is the copied person's prose as the index addresses it
+// where the user-pack pack is declared: a literal, because the copy
+// happens at session start, after the index is written.
 const sessionUserProse = "../temp/packs/current_user/RULES.md"
 
 // Imports are the index's import paths for an active pack set, relative to
@@ -42,7 +38,7 @@ func Imports(s packset.Set) []string {
 	var out []string
 	prepare := false
 	for _, p := range s.Packs {
-		if st, err := os.Stat(filepath.Join(p.Dir, prepareStep)); err == nil && st.Mode().IsRegular() {
+		if p.Kind == packset.Canon && p.ID == packset.UserPackID {
 			prepare = true
 		}
 		if p.Kind == packset.Temp || p.ProsePath() == "" {

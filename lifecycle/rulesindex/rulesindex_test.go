@@ -29,7 +29,8 @@ func member(t *testing.T) string {
 }
 
 // The Node engine's bytes: canon by name, then local, POSIX paths relative
-// to the index, the person's literal line last when a pack copies one.
+// to the index, the person's literal line last where the user-pack pack is
+// declared, and never for a pack that merely ships Node's prepare step.
 func TestContentMatchesNode(t *testing.T) {
 	repo := member(t)
 	got, err := Content(repo, "0.0.0")
@@ -41,9 +42,13 @@ func TestContentMatchesNode(t *testing.T) {
 		t.Fatalf("got %q\nwant %q", got, want)
 	}
 	write(t, filepath.Join(repo, ".claudinite/shared/packs/web/session-prepare.mjs"), "")
-	got, _ = Content(repo, "0.0.0")
-	if got != want+"@../temp/packs/current_user/RULES.md\n" {
-		t.Fatalf("prepare: %q", got)
+	if got, _ = Content(repo, "0.0.0"); got != want {
+		t.Fatalf("a prepare step alone imports nothing: %q", got)
+	}
+	write(t, filepath.Join(repo, ".claudinite/settings.yaml"), "packs:\n  declared:\n    - web\n    - basics\n    - local/mine\n    - quiet\n    - claude-code-web-users-support\n")
+	write(t, filepath.Join(repo, ".claudinite/shared/packs/claude-code-web-users-support/pack.json"), `{"version": "1.0", "prose": null}`)
+	if got, _ = Content(repo, "0.0.0"); got != want+"@../temp/packs/current_user/RULES.md\n" {
+		t.Fatalf("the user-pack pack declared: %q", got)
 	}
 }
 

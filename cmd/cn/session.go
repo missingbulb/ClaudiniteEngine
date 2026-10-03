@@ -5,10 +5,13 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"time"
 
+	"github.com/missingbulb/ClaudiniteEngine/growth/userpack"
 	"github.com/missingbulb/ClaudiniteEngine/license"
 	"github.com/missingbulb/ClaudiniteEngine/shared/report"
 	"github.com/missingbulb/ClaudiniteEngine/shared/workitem"
@@ -133,5 +136,40 @@ func workValidate(args []string, stdout io.Writer, verify func(grant string, iss
 	}
 	fmt.Fprintf(stdout, "item #%s is this session's: %s\ntask file: %s\nmodel: %s\noutcome ceiling: %s\n",
 		strconv.Itoa(item.Number), v.Task.Path(), v.TaskPath, v.Model, v.Outcome)
+	return nil
+}
+
+// hookUserPack is SessionStart's user-pack step over the real process:
+// its environment, the default HTTP client (which honours the session's
+// proxy) and git.
+type hookUserPack struct{}
+
+func (hookUserPack) Prepare(repo string) string {
+	r, ok := userpack.Prepare(repo, userpack.Env{Getenv: os.Getenv, Client: http.DefaultClient})
+	if !ok {
+		return ""
+	}
+	return r.Line()
+}
+
+// cmdSession is `cn session user-pack`, the SessionStart step by hand.
+func cmdSession(args []string, stdout io.Writer) error {
+	if len(args) == 0 || args[0] != "user-pack" {
+		return report.New(report.Usage, "session takes user-pack [--repo DIR]")
+	}
+	fs := flag.NewFlagSet("session user-pack", flag.ContinueOnError)
+	repo := fs.String("repo", ".", "")
+	if err := flags(fs, args[1:]); err != nil {
+		return err
+	}
+	root, err := filepath.Abs(*repo)
+	if err != nil {
+		return report.Wrap(report.IO, "session user-pack", err)
+	}
+	r, ok := userpack.Prepare(root, userpack.Env{Getenv: os.Getenv, Client: http.DefaultClient})
+	if !ok {
+		return report.New(report.Verify, "session user-pack: this repo does not declare "+userpack.Pack)
+	}
+	fmt.Fprintln(stdout, r.Line())
 	return nil
 }

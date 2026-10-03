@@ -19,6 +19,14 @@ const (
 	TempDir  = ".claudinite/temp/packs"
 )
 
+// UserPackID is the canon pack whose declaration turns on the
+// SessionStart step copying the person in front of a session's own pack
+// in, as the temp pack CurrentUser.
+const (
+	UserPackID  = "claude-code-web-users-support"
+	CurrentUser = "current_user"
+)
+
 // ProseFile is the prose a pack carries by convention.
 const ProseFile = "RULES.md"
 

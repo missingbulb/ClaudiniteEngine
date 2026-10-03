@@ -14,10 +14,13 @@ import (
 )
 
 func put(t *testing.T, root, rel, body string) {
-	t.Helper()
 	p := filepath.Join(root, filepath.FromSlash(rel))
 	_ = os.MkdirAll(filepath.Dir(p), 0o755)
 	if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+		if t == nil {
+			panic(err)
+		}
+		t.Helper()
 		t.Fatal(err)
 	}
 }
@@ -330,5 +333,37 @@ func TestSessionStartNamesPendingQuestions(t *testing.T) {
 	out, _ = hook(t, Handler{ProjectDir: pulled}, "session-start", startIn)
 	if ctx := contextOf(t, out); strings.Contains(ctx, "adoption questions") {
 		t.Errorf("a via-only entry asked:\n%s", ctx)
+	}
+}
+
+type fakeUserPack struct{ calls []string }
+
+func (f *fakeUserPack) Prepare(repo string) string {
+	f.calls = append(f.calls, repo)
+	put(nil, repo, ".claudinite/temp/packs/current_user/pack.json", `{}`)
+	put(nil, repo, ".claudinite/temp/packs/current_user/skills/mine/SKILL.md", "copied")
+	return "[cn] personal pack: copied preferences/ariel/ from acme/store for GitHub user ariel."
+}
+
+// The user-pack step runs before the pack set is read, so the pack it
+// copies in loads and mounts in the same session, and its line leads the
+// context after the hello rule.
+func TestSessionStartCopiesThePersonsPackBeforeReadingThePacks(t *testing.T) {
+	repo := member(t, []string{"canon"}, map[string]map[string]string{"canon": {"pack.json": `{"version": "1.0"}`}})
+	up := &fakeUserPack{}
+	out, _ := hook(t, Handler{ProjectDir: repo, UserPack: up}, "session-start", startIn)
+	ctx := contextOf(t, out)
+	if len(up.calls) != 1 || up.calls[0] != repo {
+		t.Fatalf("Prepare calls %v", up.calls)
+	}
+	step := strings.Index(ctx, "\n[cn] personal pack: copied preferences/ariel/ from acme/store for GitHub user ariel.\n")
+	if step < strings.Index(ctx, HelloRule()) || step > strings.Index(ctx, "[cn] packs ") {
+		t.Errorf("the step's line follows the hello rule and leads the packs:\n%s", ctx)
+	}
+	if m := selfCheck.FindStringSubmatch(ctx); m == nil || !strings.Contains(m[4], "temp/current_user: rules 0 skills 1") {
+		t.Errorf("the copied pack loads in the same session: %q", m)
+	}
+	if b, _ := os.ReadFile(filepath.Join(repo, ".claude/skills/mine/SKILL.md")); string(b) != "copied" {
+		t.Error("the copied pack's skill is not mounted")
 	}
 }
