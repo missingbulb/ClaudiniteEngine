@@ -7,21 +7,21 @@ import (
 )
 
 func TestDeprecateCommands(t *testing.T) {
-	d, err := DeprecateCommands(DeprecateInput{Action: "hold", Version: "60930.3.0", Reason: "it's broken", RCVersions: `["0.0.0","60930.3.0"]`, StableVersions: `["0.0.0","60930.3.0"]`})
+	d, err := DeprecateCommands(DeprecateInput{Action: "hold", Version: "1.60930.3", Reason: "it's broken", RCVersions: `["0.0.0","1.60930.3"]`, StableVersions: `["0.0.0","1.60930.3"]`})
 	if err != nil || !d.Exists {
 		t.Fatalf("%+v %v", d, err)
 	}
 	golden(t, "deprecate-commands.txt", strings.Join(d.Commands, "\n")+"\n")
 
-	d, err = DeprecateCommands(DeprecateInput{Action: "revoke", Version: "60930.3.0", Reason: "phase 2 gate", RCVersions: `"60930.3.0"`, StableVersions: ""})
+	d, err = DeprecateCommands(DeprecateInput{Action: "revoke", Version: "1.60930.3", Reason: "phase 2 gate", RCVersions: `"1.60930.3"`, StableVersions: ""})
 	if err != nil || len(d.Commands) != 6 || !strings.Contains(d.Commands[0], `'revoked: phase 2 gate'`) {
 		t.Errorf("rc only: %+v %v", d, err)
 	}
-	d, err = DeprecateCommands(DeprecateInput{Action: "hold", Version: "60930.3.0", Reason: "x", RCVersions: `["60930.3.0"]`, StableVersions: `{"error":{"code":"E404","summary":"not found"}}`})
+	d, err = DeprecateCommands(DeprecateInput{Action: "hold", Version: "1.60930.3", Reason: "x", RCVersions: `["1.60930.3"]`, StableVersions: `{"error":{"code":"E404","summary":"not found"}}`})
 	if err != nil || len(d.Commands) != 6 {
 		t.Errorf("stable E404: %+v %v", d, err)
 	}
-	if _, err := DeprecateCommands(DeprecateInput{Action: "hold", Version: "60930.3.0", Reason: "x", RCVersions: `{"error":{"code":"E500","summary":"down"}}`}); err == nil || !strings.Contains(err.Error(), "E500") {
+	if _, err := DeprecateCommands(DeprecateInput{Action: "hold", Version: "1.60930.3", Reason: "x", RCVersions: `{"error":{"code":"E500","summary":"down"}}`}); err == nil || !strings.Contains(err.Error(), "E500") {
 		t.Errorf("a failed read passed: %v", err)
 	}
 	for _, c := range d.Commands {
@@ -34,7 +34,7 @@ func TestDeprecateCommands(t *testing.T) {
 // release lifts a hold or revocation: the same packages, an empty
 // message, no reason needed.
 func TestUndeprecateCommands(t *testing.T) {
-	d, err := DeprecateCommands(DeprecateInput{Action: "release", Version: "60930.3.0", RCVersions: `["60930.3.0"]`})
+	d, err := DeprecateCommands(DeprecateInput{Action: "release", Version: "1.60930.3", RCVersions: `["1.60930.3"]`})
 	if err != nil || !d.Exists {
 		t.Fatalf("%+v %v", d, err)
 	}
@@ -43,19 +43,19 @@ func TestUndeprecateCommands(t *testing.T) {
 
 // A version npm does not have is not an error: nothing to hold.
 func TestDeprecateCommandsForAMissingVersion(t *testing.T) {
-	d, err := DeprecateCommands(DeprecateInput{Action: "hold", Version: "60930.9.0", Reason: "x", RCVersions: `["60930.3.0"]`})
-	if err != nil || d.Exists || len(d.Commands) != 0 || !strings.Contains(d.Notice, "60930.9.0") {
+	d, err := DeprecateCommands(DeprecateInput{Action: "hold", Version: "1.60930.9", Reason: "x", RCVersions: `["1.60930.3"]`})
+	if err != nil || d.Exists || len(d.Commands) != 0 || !strings.Contains(d.Notice, "1.60930.9") {
 		t.Errorf("%+v %v", d, err)
 	}
 }
 
 func TestDeprecateCommandsRefuses(t *testing.T) {
 	for name, in := range map[string]DeprecateInput{
-		"promote":        {Action: "promote", Version: "60930.3.0", Reason: "x"},
-		"no reason":      {Action: "hold", Version: "60930.3.0"},
-		"a newline":      {Action: "hold", Version: "60930.3.0", Reason: "a\nb"},
+		"promote":        {Action: "promote", Version: "1.60930.3", Reason: "x"},
+		"no reason":      {Action: "hold", Version: "1.60930.3"},
+		"a newline":      {Action: "hold", Version: "1.60930.3", Reason: "a\nb"},
 		"not a version":  {Action: "hold", Version: "60930.3", Reason: "x"},
-		"bad npm answer": {Action: "hold", Version: "60930.3.0", Reason: "x", RCVersions: "{"},
+		"bad npm answer": {Action: "hold", Version: "1.60930.3", Reason: "x", RCVersions: "{"},
 	} {
 		if _, err := DeprecateCommands(in); err == nil {
 			t.Errorf("%s: accepted", name)

@@ -78,7 +78,7 @@ const MaxLine = 16 << 20
 // by construction, and release/version.sh refuses any version below it,
 // reading it from engine_floor.txt beside this file, which a test holds
 // equal to this constant.
-const EngineFloor = "61001.1.0"
+const EngineFloor = "1.61001.1"
 
 // CheckDeadline is how long one check may work, engine answers excluded; Main reads
 // CLAUDINITE_CHECK_DEADLINE_MS over it.

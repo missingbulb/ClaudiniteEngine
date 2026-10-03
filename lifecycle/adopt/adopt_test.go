@@ -33,7 +33,7 @@ import (
 
 const (
 	pkg = "@claudinite/cli-rc"
-	ver = "61001.1.0"
+	ver = "1.61001.1"
 )
 
 var (

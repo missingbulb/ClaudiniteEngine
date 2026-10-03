@@ -239,7 +239,7 @@ func TestSessionStartMountsSkills(t *testing.T) {
 
 func TestSessionStartNamesJavaScriptItIgnores(t *testing.T) {
 	repo := member(t, []string{"basics"}, map[string]map[string]string{
-		"basics": {"pack.json": `{"version": "60928.1", "minEngineVersion": "60928.1.0"}`, "worldRules/x.mjs": "export default 1", "RULES.md": "- r\n"},
+		"basics": {"pack.json": `{"version": "60928.1", "minEngineVersion": "1.60928.1"}`, "worldRules/x.mjs": "export default 1", "RULES.md": "- r\n"},
 	})
 	out, _ := hook(t, Handler{ProjectDir: repo}, "session-start", startIn)
 	if ctx := contextOf(t, out); !strings.Contains(ctx, "pack basics: its coded checks (worldRules/, workRules/, skills/*/checks.mjs) and tasks are not run by this engine; its declared checks are") {
@@ -249,12 +249,12 @@ func TestSessionStartNamesJavaScriptItIgnores(t *testing.T) {
 
 func TestSessionStartRefusesAPackForANewerEngine(t *testing.T) {
 	repo := member(t, []string{"future"}, map[string]map[string]string{
-		"future": {"pack.json": `{"version": "1", "minEngineVersion": "99999.0.0"}`, "RULES.md": "- secret future rule\n"},
+		"future": {"pack.json": `{"version": "1", "minEngineVersion": "99.991231.99"}`, "RULES.md": "- secret future rule\n"},
 	})
 	h := Handler{ProjectDir: repo, Engine: "1.1.0"}
 	out, _ := hook(t, h, "session-start", startIn)
 	ctx := contextOf(t, out)
-	if strings.Contains(ctx, "secret future rule") || !strings.Contains(ctx, "pack future 1 needs engine 99999.0.0 or newer") {
+	if strings.Contains(ctx, "secret future rule") || !strings.Contains(ctx, "pack future 1 needs engine 99.991231.99 or newer") {
 		t.Errorf("%s", ctx)
 	}
 	if m := selfCheck.FindStringSubmatch(ctx); m == nil || m[1] != "0" || m[2] != "1" {

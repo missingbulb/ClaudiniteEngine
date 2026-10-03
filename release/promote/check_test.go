@@ -16,7 +16,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/shared/version"
 )
 
-const ver = "60930.1.0"
+const ver = "1.60930.1"
 
 type tamper struct {
 	manifest, sig, binary bool

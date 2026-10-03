@@ -170,7 +170,7 @@ else
   [ -n "$package" ] || package=@claudinite/cli
 
   matches "$version" '[0-9]+\.[0-9]+\.[0-9]+' \
-    || refuse "engine.version in $settings must be a quoted version like \"60928.1.0\""
+    || refuse "engine.version in $settings must be a quoted version like \"1.60928.1\""
   matches "$manifest_pin" 'sha512-[A-Za-z0-9+/]{86}==' \
     || refuse "engine.manifest in $settings must be a quoted sha512-... integrity string"
   matches "$package" '@claudinite/cli(-rc)?' \

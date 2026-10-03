@@ -198,10 +198,25 @@ func mustJSON(s string) string { b, _ := json.Marshal(s); return string(b) }
 
 func mustRe(s string) *regexp.Regexp { return regexp.MustCompile(s) }
 
-// The floor can never be raised past a version that exists: its day part
-// is never after today's.
+// The floor can never be raised past a version that exists: its major is
+// never above the release line's and its day part never after today's.
 func TestEngineFloorIsBehindTheClock(t *testing.T) {
-	day, err := strconv.Atoi(strings.SplitN(EngineFloor, ".", 2)[0])
+	parts := strings.Split(EngineFloor, ".")
+	if len(parts) != 3 {
+		t.Fatalf("EngineFloor %s is not <major>.<day>.<n>", EngineFloor)
+	}
+	major, err := strconv.Atoi(parts[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile("../release/major")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if line, err := strconv.Atoi(strings.TrimSpace(string(raw))); err != nil || major > line {
+		t.Errorf("EngineFloor %s is above release/major %q", EngineFloor, raw)
+	}
+	day, err := strconv.Atoi(parts[1])
 	if err != nil {
 		t.Fatal(err)
 	}

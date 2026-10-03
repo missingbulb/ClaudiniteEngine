@@ -24,7 +24,7 @@ func buildUnder(t *testing.T, parent, extra string) string {
 	}
 	cmd := exec.Command("sh", "release/gobuild.sh", "linux-x64", out)
 	cmd.Dir = ".."
-	cmd.Env = append(os.Environ(), "VERSION=1.1.0", "EXTRA_LDFLAGS="+extra)
+	cmd.Env = append(os.Environ(), "VERSION=1.61001.1", "EXTRA_LDFLAGS="+extra)
 	if o, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("build: %v\n%s", err, o)
 	}

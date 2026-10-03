@@ -214,8 +214,8 @@ for b in "$DIST"/bin/*/*; do
   break
 done
 
-next=$(printf '%s\n' "$version" | awk -F. '{ print $1 "." $2 + 1 "." $3 }')
-third=$(printf '%s\n' "$version" | awk -F. '{ print $1 "." $2 + 2 "." $3 }')
+next=$(printf '%s\n' "$version" | awk -F. '{ print $1 "." $2 "." $3 + 1 }')
+third=$(printf '%s\n' "$version" | awk -F. '{ print $1 "." $2 "." $3 + 2 }')
 dist1=$DIST
 dist2=$work/dist2
 dist3=$work/dist3
@@ -252,14 +252,16 @@ case " $modes " in
     ;;
 esac
 # live-packs runs alone, so dist2's slot is free for the build it needs
-# when this release predates the shelf's floor: a release's own day is
-# never older than the packs it ships beside.
+# when this release predates the shelf's floor: a release of today's major
+# and day is never older than the packs it ships beside.
 live_version=$version live_dist=$dist1
 case " $modes " in
   *" live-packs "*)
     day=$(go run ./cmd/cn version --day)
-    if [ "${version%%.*}" -lt "$day" ]; then
-      live_version=$day.1.0 live_dist=$dist2
+    major=$(cat release/major)
+    vmajor=${version%%.*} vday=$(echo "$version" | cut -d. -f2)
+    if [ "$vmajor" -lt "$major" ] || { [ "$vmajor" -eq "$major" ] && [ "$vday" -lt "$day" ]; }; then
+      live_version=$major.$day.1 live_dist=$dist2
       step "live-packs: building $live_version into dist2/ from the same source, the shelf's floor being above $version"
       DIST=$dist2 VERSION=$live_version PACKAGE=$package REHEARSAL=1 BUILD_TAGS=devroots sh release/build.sh > "$work/build-live.out" || fail "build of $live_version: $(cat "$work/build-live.out")"
       rehearsal_sign "$dist2"
@@ -478,7 +480,7 @@ for mode in $modes; do
     stale)
       step "stale: a member warm on $version moves its pin to a version nobody serves"
       warm_member stale
-      missing=$(printf '%s\n' "$version" | awk -F. '{ print $1 "." $2 + 1000 "." $3 }')
+      missing=$(printf '%s\n' "$version" | awk -F. '{ print $1 "." $2 "." $3 + 1000 }')
       repin "$missing" "$pin"
       out=$(session_start) || fail "stale: SessionStart exited non-zero"
       case $out in

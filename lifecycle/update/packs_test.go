@@ -45,7 +45,7 @@ func packTgz(t *testing.T, files map[string]string) []byte {
 
 func helloFiles(ver string) map[string]string {
 	return map[string]string{
-		"pack.json":         `{"version": "` + ver + `", "minEngineVersion": "60930.1.0"}`,
+		"pack.json":         `{"version": "` + ver + `", "minEngineVersion": "1.60930.1"}`,
 		"RULES.md":          "# hello " + ver + "\n\n- hello " + ver + " loaded.\n",
 		"skills/x/SKILL.md": "skill\n",
 	}
@@ -70,7 +70,7 @@ func (f *fakePacks) publish(id, ver, channel string, files map[string]string) {
 	sum := sha256.Sum256(a)
 	f.archives[id+"/"+ver] = a
 	f.entries[id] = append(f.entries[id], packindex.Entry{Version: ver, SHA256: hex.EncodeToString(sum[:]), Size: int64(len(a)),
-		MinEngineVersion: "60930.1.0", Channel: channel})
+		MinEngineVersion: "1.60930.1", Channel: channel})
 	f.serial++
 }
 
@@ -295,7 +295,7 @@ func TestPacksUpToDateNamesTheSkips(t *testing.T) {
 	w.converge(t)
 	w.packs.entries["hello"][1].Revoked = true
 	w.packs.publish("hello", "1.2", "canary", helloFiles("1.2"))
-	w.packs.entries["hello"][2].MinEngineVersion = "99999.0.0"
+	w.packs.entries["hello"][2].MinEngineVersion = "99.991231.99"
 	v, err := Packs(w.deps(t), Options{})
 	if err != nil || v != "up to date" || !strings.Contains(w.out.String(), "hello 1.2 skipped: not for this engine") {
 		t.Errorf("%q %v\n%s", v, err, w.out)
@@ -459,7 +459,7 @@ func TestLandRefusesAPackPRThatIsNotThePublishedSet(t *testing.T) {
 			rewrite(w, t, pr, ".claudinite/shared/packs/hello/RULES.md", "- something else\n")
 		},
 		"a version the pinned engine is too old for": func(w *packWorld, t *testing.T, pr *githubapi.PR) {
-			w.packs.entries["hello"][1].MinEngineVersion = "99999.0.0"
+			w.packs.entries["hello"][1].MinEngineVersion = "99.991231.99"
 		},
 		"a canary version on a stable member": func(w *packWorld, t *testing.T, pr *githubapi.PR) {
 			path := filepath.Join(w.repo, ".claudinite/settings.yaml")

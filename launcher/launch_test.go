@@ -19,7 +19,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/shared/version"
 )
 
-const testVersion = "1.1.0"
+const testVersion = "1.61001.1"
 
 var (
 	tools    string // built cn and regstub
@@ -383,15 +383,15 @@ func TestLauncher(t *testing.T) {
 		s := startStub(t, rel.dist)
 		bad := map[string]string{
 			"short version":       yaml("1.1", rel.pin),
-			"version with suffix": yaml("1.1.0-rc1", rel.pin),
-			"path in version":     yaml("../1.1.0", rel.pin),
-			"shell in version":    yaml("1.1.0$(id)", rel.pin),
+			"version with suffix": yaml("1.61001.1-rc1", rel.pin),
+			"path in version":     yaml("../1.61001.1", rel.pin),
+			"shell in version":    yaml("1.61001.1$(id)", rel.pin),
 			"md5 manifest":        yaml(testVersion, "md5-abc"),
 			"short manifest":      yaml(testVersion, rel.pin[:40]),
 			"manifest no padding": yaml(testVersion, strings.TrimSuffix(rel.pin, "==")),
 			"unquoted version":    strings.Replace(yaml(testVersion, rel.pin), `"`+testVersion+`"`, testVersion, 1),
-			"duplicate version":   yaml(testVersion, rel.pin) + "engine:\n  version: \"1.2.0\"\n",
-			"missing manifest":    "engine:\n  version: \"1.1.0\"\n",
+			"duplicate version":   yaml(testVersion, rel.pin) + "engine:\n  version: \"1.61001.2\"\n",
+			"missing manifest":    "engine:\n  version: \"1.61001.1\"\n",
 			"bad package":         yaml(testVersion, rel.pin) + "",
 		}
 		bad["bad package"] = strings.Replace(yaml(testVersion, rel.pin), "packs:", "  package: \"@evil/cli\"\npacks:", 1)
@@ -410,7 +410,7 @@ func TestLauncher(t *testing.T) {
 
 		s.reset(t)
 		m := newMember(t, s)
-		m.settings(t, "settings.json", fmt.Sprintf(`{"engine": {"version": %q, "manifest": %q}, "other": {}, "engine": {"version": "1.2.0", "manifest": %q}}`, testVersion, rel.pin, rel.pin))
+		m.settings(t, "settings.json", fmt.Sprintf(`{"engine": {"version": %q, "manifest": %q}, "other": {}, "engine": {"version": "1.61001.2", "manifest": %q}}`, testVersion, rel.pin, rel.pin))
 		_, e, code := m.run(t, "", "env", "install")
 		if code == 0 || !strings.Contains(e, "settings.json") || !strings.Contains(e, "exactly one") {
 			t.Errorf("two engine objects in json: exit %d, stderr %q", code, e)

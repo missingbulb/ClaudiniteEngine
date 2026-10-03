@@ -101,7 +101,7 @@ jobs:
       # development keys (testkeys/), which release/rehearse.sh's every key chains to.
       - run: release/build.sh
         env:
-          VERSION: "1.1.0"
+          VERSION: "1.61001.1"
           REHEARSAL: "1"
           BUILD_TAGS: devroots
       - run: release/sign.sh
@@ -113,7 +113,7 @@ jobs:
       - run: release/smoke.sh
       - run: release/repro.sh
         env:
-          VERSION: "1.1.0"
+          VERSION: "1.61001.1"
       - run: release/secretscan.sh dist/bin
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:

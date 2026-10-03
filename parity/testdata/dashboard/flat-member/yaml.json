@@ -1,7 +1,7 @@
 {
   "input": {
     "files": {
-      ".claudinite/settings.yaml": "# a member on YAML\nengine:\n  version: \"61003.1.0\"\n  manifest: \"sha512-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\"\npacks:\n  channel: \"canary\"\n  declared:\n    - id: basics\n      config:\n        sharedConstants: []\n        note: \"kept\"\n      via: [\"claudinite-tasks\"]\n    - id: claudinite-tasks\n      config:\n        dormant: false\n    - local/mine\n",
+      ".claudinite/settings.yaml": "# a member on YAML\nengine:\n  version: \"1.61003.1\"\n  manifest: \"sha512-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\"\npacks:\n  channel: \"canary\"\n  declared:\n    - id: basics\n      config:\n        sharedConstants: []\n        note: \"kept\"\n      via: [\"claudinite-tasks\"]\n    - id: claudinite-tasks\n      config:\n        dormant: false\n    - local/mine\n",
       ".claudinite/shared/packs/basics/pack.json": "{\"version\": \"61003.1\", \"minEngineVersion\": \"0.0.0\"}",
       ".claudinite/shared/packs/claudinite-tasks/pack.json": "{\"version\": \"61003.2\", \"minEngineVersion\": \"0.0.0\"}",
       ".claudinite/local/packs/mine/RULES.md": "- mine\n"
@@ -15,7 +15,7 @@
     },
     "engine": {
       "package": "@claudinite/cli",
-      "version": "61003.1.0",
+      "version": "1.61003.1",
       "channel": "stable"
     },
     "packs": {

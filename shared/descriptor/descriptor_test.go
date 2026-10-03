@@ -35,10 +35,10 @@ func TestFindExactlyOne(t *testing.T) {
 
 // One descriptor written three ways parses to the same Go value.
 func TestThreeFormatsOneValue(t *testing.T) {
-	js := `{"version": "1.1", "minEngineVersion": "61001.1.0", "requires": ["a", "b"], "prose": null,
+	js := `{"version": "1.1", "minEngineVersion": "1.61001.1", "requires": ["a", "b"], "prose": null,
   "n": 3, "f": 1.5, "ok": true, "nested": {"k": "v", "list": [1, 2]}}`
 	ym := `version: "1.1"
-minEngineVersion: "61001.1.0"
+minEngineVersion: "1.61001.1"
 requires:
   - a
   - b
@@ -51,7 +51,7 @@ nested:
   list: [1, 2]
 `
 	tm := `version = "1.1"
-minEngineVersion = "61001.1.0"
+minEngineVersion = "1.61001.1"
 requires = ["a", "b"]
 n = 3
 f = 1.5

@@ -12,8 +12,8 @@ func TestBlockerIssue(t *testing.T) {
 		fmt.Fprintf(&log, "line %d\n", i)
 	}
 	log.WriteString("~~~~ a fence in the log\nsmoke-platform: FAIL: selftest version: version 0.0.0\n")
-	title, body := BlockerIssue("60928.3.0", "darwin-arm64", "https://github.com/missingbulb/ClaudiniteEngine/actions/runs/1", log.String())
-	if !strings.Contains(title, "60928.3.0") || !strings.Contains(title, "darwin-arm64") {
+	title, body := BlockerIssue("1.60928.3", "darwin-arm64", "https://github.com/missingbulb/ClaudiniteEngine/actions/runs/1", log.String())
+	if !strings.Contains(title, "1.60928.3") || !strings.Contains(title, "darwin-arm64") {
 		t.Errorf("title %q", title)
 	}
 	if strings.Contains(body, "line 40\n") || !strings.Contains(body, "line 100\n") {
@@ -24,8 +24,8 @@ func TestBlockerIssue(t *testing.T) {
 
 func TestLivePacksBlockerIssue(t *testing.T) {
 	log := "rehearse: live-packs 1: cn init through npx vendored 8 packs\nrehearse: FAIL: live-packs 2: check world on the adopted tree: aws-sam/handler-path\n"
-	title, body := LivePacksBlockerIssue("61003.2.0", "https://github.com/missingbulb/ClaudiniteEngine/actions/runs/2", log)
-	if !strings.Contains(title, "61003.2.0") || !strings.Contains(title, "live-packs") {
+	title, body := LivePacksBlockerIssue("1.61003.2", "https://github.com/missingbulb/ClaudiniteEngine/actions/runs/2", log)
+	if !strings.Contains(title, "1.61003.2") || !strings.Contains(title, "live-packs") {
 		t.Errorf("title %q", title)
 	}
 	if !strings.Contains(body, "promote.yml") || !strings.Contains(body, "live-packs 2") {

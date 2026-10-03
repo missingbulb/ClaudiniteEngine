@@ -55,7 +55,7 @@ var Labels = map[string]string{"v1": "1.0", "v2": "1.4", "v3": "1.5", "v4": "1.6
 
 // unreachableEngine is v5's minEngineVersion, nodeEngine v6's.
 const (
-	unreachableEngine = "99999.0.0"
+	unreachableEngine = "99.991231.99"
 	nodeEngine        = "60928.1"
 )
 

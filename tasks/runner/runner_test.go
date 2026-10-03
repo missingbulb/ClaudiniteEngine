@@ -27,7 +27,7 @@ func unpacked(t *testing.T) Runner {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return Runner{Dir: dir, Engine: "61002.9.0"}
+	return Runner{Dir: dir, Engine: "1.61002.9"}
 }
 
 func taskDir(t *testing.T, files map[string]string) string {

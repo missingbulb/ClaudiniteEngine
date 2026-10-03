@@ -44,13 +44,13 @@ func runCN(t *testing.T, bin string, env []string, stdin string, args ...string)
 }
 
 func TestVersionPrintsInjectedVersion(t *testing.T) {
-	bin := buildCN(t, "-X github.com/missingbulb/ClaudiniteEngine/shared/version.version=60928.3.0 -X github.com/missingbulb/ClaudiniteEngine/shared/version.commit=abc1234")
+	bin := buildCN(t, "-X github.com/missingbulb/ClaudiniteEngine/shared/version.version=1.60928.3 -X github.com/missingbulb/ClaudiniteEngine/shared/version.commit=abc1234")
 	out, _, code := runCN(t, bin, nil, "", "version")
 	if code != 0 {
 		t.Fatalf("exit %d", code)
 	}
 	lines := strings.Split(strings.TrimSpace(out), "\n")
-	if lines[0] != "60928.3.0" {
+	if lines[0] != "1.60928.3" {
 		t.Fatalf("first line %q", lines[0])
 	}
 	if len(lines) < 2 || !strings.Contains(lines[1], "abc1234") {

@@ -18,7 +18,7 @@ func TestTarballURLsAreTheLaunchers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	vars := map[string]string{"registry": "https://r.example", "package": "@claudinite/cli-rc", "name": "cli-rc", "version": "60930.1.0", "platform": "linux-arm64"}
+	vars := map[string]string{"registry": "https://r.example", "package": "@claudinite/cli-rc", "name": "cli-rc", "version": "1.60930.1", "platform": "linux-arm64"}
 	eval := func(name string) string {
 		m := regexp.MustCompile(`(?m)^\s*` + name + `=(\S+)$`).FindStringSubmatch(string(raw))
 		if m == nil {
@@ -28,10 +28,10 @@ func TestTarballURLsAreTheLaunchers(t *testing.T) {
 			return vars[strings.Trim(v, "${}")]
 		})
 	}
-	if got, want := TarballURL("https://r.example", "@claudinite/cli-rc", "60930.1.0"), eval("manifest_url"); got != want {
+	if got, want := TarballURL("https://r.example", "@claudinite/cli-rc", "1.60930.1"), eval("manifest_url"); got != want {
 		t.Errorf("TarballURL %s, launcher %s", got, want)
 	}
-	if got, want := PlatformTarballURL("https://r.example", "@claudinite/cli-rc", "linux-arm64", "60930.1.0"), eval("binary_url"); got != want {
+	if got, want := PlatformTarballURL("https://r.example", "@claudinite/cli-rc", "linux-arm64", "1.60930.1"), eval("binary_url"); got != want {
 		t.Errorf("PlatformTarballURL %s, launcher %s", got, want)
 	}
 }
@@ -41,7 +41,7 @@ func TestParseDeprecation(t *testing.T) {
 		"":                      {},
 		"held: canary red":      {Kind: Held, Reason: "canary red"},
 		"revoked: bad build":    {Kind: Revoked, Reason: "bad build"},
-		"use 60931.1.0 instead": {Kind: Deprecated, Reason: "use 60931.1.0 instead"},
+		"use 1.60931.1 instead": {Kind: Deprecated, Reason: "use 1.60931.1 instead"},
 		"Held: not a hold":      {Kind: Deprecated, Reason: "Held: not a hold"},
 		"revoked:":              {Kind: Revoked, Reason: ""},
 	} {

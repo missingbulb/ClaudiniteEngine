@@ -133,7 +133,7 @@ func TestRules(t *testing.T) {
 		{"two settings files", func(t *testing.T, d string) { write(t, d, ".claudinite/settings.json", "{}") }, []string{"descriptor-duplicate"}, nil},
 		{"bad version", func(t *testing.T, d string) {
 			raw, _ := os.ReadFile(filepath.Join(d, ".claudinite/settings.yaml"))
-			write(t, d, ".claudinite/settings.yaml", strings.Replace(string(raw), `"60930.1.0"`, `"60930.1"`, 1))
+			write(t, d, ".claudinite/settings.yaml", strings.Replace(string(raw), `"1.60930.1"`, `"60930.1"`, 1))
 		}, []string{"engine-pin"}, nil},
 		{"bad package", func(t *testing.T, d string) {
 			raw, _ := os.ReadFile(filepath.Join(d, ".claudinite/settings.yaml"))
@@ -176,16 +176,16 @@ func TestRules(t *testing.T) {
 		}, nil, []string{"bin-ignore"}},
 		{"bin not ignored", func(t *testing.T, d string) { _ = os.Remove(filepath.Join(d, ".claudinite/.gitignore")) }, []string{"bin-ignore"}, nil},
 		{"declared pack held", func(t *testing.T, d string) {
-			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "60930.1.0"}`)
+			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "1.60930.1"}`)
 		}, nil, nil},
 		{"declared pack missing", func(t *testing.T, d string) {
 			declare(t, d, "acme-pack", "")
 		}, []string{"pack-declared"}, nil},
 		{"vendored pack undeclared", func(t *testing.T, d string) {
-			write(t, d, ".claudinite/shared/packs/acme-old/pack.json", `{"version": "1.0", "minEngineVersion": "60930.1.0"}`)
+			write(t, d, ".claudinite/shared/packs/acme-old/pack.json", `{"version": "1.0", "minEngineVersion": "1.60930.1"}`)
 		}, nil, []string{"pack-declared"}},
 		{"pack needs a newer engine", func(t *testing.T, d string) {
-			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "60930.2.0"}`)
+			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "1.60930.2"}`)
 		}, []string{"pack-min-engine"}, nil},
 		{"pack with two-part minimum", func(t *testing.T, d string) {
 			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "60928.1"}`)
@@ -194,15 +194,15 @@ func TestRules(t *testing.T) {
 			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "soon"}`)
 		}, []string{"pack-min-engine"}, nil},
 		{"pack.yaml", func(t *testing.T, d string) {
-			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "60930.1.0"}`)
+			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "1.60930.1"}`)
 			write(t, d, ".claudinite/shared/packs/acme-pack/pack.yaml", "version: 1\n")
 		}, []string{"descriptor-duplicate"}, nil},
 		{"pack manifest with a stray key", func(t *testing.T, d string) {
-			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "60930.1.0", "colour": "red"}`)
+			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "1.60930.1", "colour": "red"}`)
 		}, []string{"descriptor-format"}, nil},
 		{"pack manifest in yaml", func(t *testing.T, d string) {
 			declare(t, d, "acme-pack", "")
-			write(t, d, ".claudinite/shared/packs/acme-pack/pack.yaml", "version: \"1.0\"\nminEngineVersion: \"60930.1.0\"\n")
+			write(t, d, ".claudinite/shared/packs/acme-pack/pack.yaml", "version: \"1.0\"\nminEngineVersion: \"1.60930.1\"\n")
 		}, nil, nil},
 		{"local pack declared, no tree", func(t *testing.T, d string) {
 			declare(t, d, "local/mine", "")
@@ -221,7 +221,7 @@ func TestRules(t *testing.T) {
 			appendSettings(t, d, "packs:\n  declared:\n    - id: acme-pack\n      rules: {acme-check: advise}\ncheckss: 1\n")
 			raw, _ := os.ReadFile(filepath.Join(d, ".claudinite/settings.yaml"))
 			write(t, d, ".claudinite/settings.yaml", strings.Replace(string(raw), "checkss: 1\n", "checks:\n  rules: {acme-check: block}\n", 1))
-			write(t, d, ".claudinite/shared/packs/acme-pack/pack.json", `{"version": "1.0", "minEngineVersion": "60930.1.0"}`)
+			write(t, d, ".claudinite/shared/packs/acme-pack/pack.json", `{"version": "1.0", "minEngineVersion": "1.60930.1"}`)
 		}, []string{"settings-checks"}, nil},
 		{"good overrides", func(t *testing.T, d string) {
 			appendSettings(t, d, "checks:\n  rules:\n    acme-check: \"off\"\n  accept:\n    - rule: acme-other\n      reason: \"the fixture is meant to\"\n")
@@ -231,20 +231,20 @@ func TestRules(t *testing.T) {
 		}, nil, []string{"settings-checks"}},
 		{"sharedConstants on the basics entry", func(t *testing.T, d string) {
 			appendSettings(t, d, "packs:\n  declared:\n    - id: basics\n      config:\n        sharedConstants:\n          - name: port\n")
-			write(t, d, ".claudinite/shared/packs/basics/pack.json", `{"version": "1.0", "minEngineVersion": "60930.1.0"}`)
+			write(t, d, ".claudinite/shared/packs/basics/pack.json", `{"version": "1.0", "minEngineVersion": "1.60930.1"}`)
 		}, nil, nil},
 		{"prose without the index", func(t *testing.T, d string) {
-			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "60930.1.0"}`)
+			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "1.60930.1"}`)
 			write(t, d, ".claudinite/shared/packs/acme-pack/RULES.md", "- r\n")
 		}, nil, []string{"claude-md-import", "rules-index-current"}},
 		{"a stale index", func(t *testing.T, d string) {
-			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "60930.1.0"}`)
+			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "1.60930.1"}`)
 			write(t, d, ".claudinite/shared/packs/acme-pack/RULES.md", "- r\n")
 			write(t, d, ".claudinite/flat/claudinite-rules.GENERATED.md", "@../shared/packs/other/RULES.md\n")
 			write(t, d, "CLAUDE.md", "@.claudinite/flat/claudinite-rules.GENERATED.md\n")
 		}, []string{"rules-index-current"}, nil},
 		{"a current index", func(t *testing.T, d string) {
-			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "60930.1.0"}`)
+			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "1.60930.1"}`)
 			write(t, d, ".claudinite/shared/packs/acme-pack/RULES.md", "- r\n")
 			write(t, d, ".claudinite/flat/claudinite-rules.GENERATED.md", "@../shared/packs/acme-pack/RULES.md\n")
 			write(t, d, "CLAUDE.md", "# mine\n@.claudinite/flat/claudinite-rules.GENERATED.md\n")
@@ -281,7 +281,7 @@ func TestRules(t *testing.T) {
 			write(t, d, ".claudinite/temp/packs/current_user/pack.json", `{"marker": "x"}`)
 		}, nil, []string{"local-pack-shape"}},
 		{"canon manifest with a retired key", func(t *testing.T, d string) {
-			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "60930.1.0", "marker": null}`)
+			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "1.60930.1", "marker": null}`)
 		}, []string{"descriptor-format"}, nil},
 		{"local module manifest", func(t *testing.T, d string) {
 			declare(t, d, "local/mine", "")
@@ -292,7 +292,7 @@ func TestRules(t *testing.T) {
 		}, nil, []string{"settings-checks"}},
 		{"via and answers on an entry", func(t *testing.T, d string) {
 			appendSettings(t, d, "packs:\n  declared:\n    - id: acme-pack\n      via: [basics]\n      answers: {store: \"o/r\"}\n")
-			write(t, d, ".claudinite/shared/packs/acme-pack/pack.json", `{"version": "1.0", "minEngineVersion": "60930.1.0"}`)
+			write(t, d, ".claudinite/shared/packs/acme-pack/pack.json", `{"version": "1.0", "minEngineVersion": "1.60930.1"}`)
 		}, nil, nil},
 		{"a renamed pack declared", func(t *testing.T, d string) {
 			declare(t, d, "tidy-repo", "")
@@ -314,16 +314,16 @@ func TestRules(t *testing.T) {
 			write(t, d, ".gitignore", "node_modules/\n/.claudinite-hooks.log*\n")
 		}, nil, []string{"node-leftovers"}},
 		{"a declared pack's skill with no skills index", func(t *testing.T, d string) {
-			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "60930.1.0"}`)
+			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "1.60930.1"}`)
 			write(t, d, ".claudinite/shared/packs/acme-pack/skills/demo/SKILL.md", "---\nname: demo\ndescription: d\n---\n")
 		}, nil, []string{"skills-index-current"}},
 		{"a skills index missing a held skill", func(t *testing.T, d string) {
-			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "60930.1.0"}`)
+			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "1.60930.1"}`)
 			write(t, d, ".claudinite/shared/packs/acme-pack/skills/demo/SKILL.md", "---\nname: demo\ndescription: d\n---\n")
 			write(t, d, ".claudinite/flat/claudinite-skills.GENERATED.md", "| `other` | acme-pack | o |\n")
 		}, []string{"skills-index-current"}, nil},
 		{"a skill outside its pack's manifest subset, unnamed", func(t *testing.T, d string) {
-			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "60930.1.0", "skills": ["demo"]}`)
+			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "1.60930.1", "skills": ["demo"]}`)
 			write(t, d, ".claudinite/shared/packs/acme-pack/skills/demo/SKILL.md", "---\nname: demo\ndescription: d\n---\n")
 			write(t, d, ".claudinite/shared/packs/acme-pack/skills/draft/SKILL.md", "---\nname: draft\ndescription: d\n---\n")
 			write(t, d, ".claudinite/flat/claudinite-skills.GENERATED.md", "| `demo` | acme-pack | d |\n")
@@ -484,7 +484,7 @@ func TestPackManifestMinEngineVersion(t *testing.T) {
 	if fs := PackManifest(".claudinite/shared/packs/basics/pack.json", "60928.1"); len(fs) != 1 || fs[0].Class != findings.Deprecation || fs[0].ID != "pack-min-engine" || !strings.Contains(fs[0].Sentence, "Node engine") {
 		t.Errorf("two-part: %v", fs)
 	}
-	if fs := PackManifest("p/pack.json", "60928.1.0"); len(fs) != 0 {
+	if fs := PackManifest("p/pack.json", "1.60928.1"); len(fs) != 0 {
 		t.Errorf("three-part: %v", fs)
 	}
 	if fs := PackManifest("p/pack.json", "60928"); len(fs) != 1 || fs[0].Class != findings.Break {

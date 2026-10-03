@@ -94,7 +94,7 @@ func TestEveryKeyItSignsVerifies(t *testing.T) {
 		{State: "grace", Seats: &license.Seats{Paid: 1, Counted: 3}, CheckoutURL: "https://polar.sh/c/acme"},
 		{State: "degraded"},
 		{State: "unverified", Plan: "private-repo"},
-		{Plan: "organization", Release: &license.Release{Held: []string{"60930.2.0"}, PackIndexSerial: 4, PackKeys: []string{"0123456789abcdef"}}},
+		{Plan: "organization", Release: &license.Release{Held: []string{"1.60930.2"}, PackIndexSerial: 4, PackKeys: []string{"0123456789abcdef"}}},
 	} {
 		st, err := newStub(devRoot(t), cfg, fakeGH(t, false, true), time.Now)
 		if err != nil {
@@ -117,7 +117,7 @@ func TestEveryKeyItSignsVerifies(t *testing.T) {
 		}
 		keys = append(keys, out["key"].(string))
 		// actions, then a grant from it
-		code, out = call(t, st, http.MethodPost, "/v1/actions-key", oidcToken(actionsClaims(nil)), map[string]any{"engine_version": "60930.1.0"})
+		code, out = call(t, st, http.MethodPost, "/v1/actions-key", oidcToken(actionsClaims(nil)), map[string]any{"engine_version": "1.60930.1"})
 		if code != 200 {
 			t.Fatalf("%+v: actions-key %d %v", cfg, code, out)
 		}

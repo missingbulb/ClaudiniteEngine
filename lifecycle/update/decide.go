@@ -18,7 +18,7 @@ import (
 // time against the Node engine's packs/claudinite-lifecycle/updates/.
 // Where they answer otherwise, a design record row says why: no update
 // migrates member files and none runs an agent (32), a pin only moves
-// forward (8), a minimum engine is <day>.<n>.<patch> (12), and the pack
+// forward (8), a minimum engine is <major>.<day>.<n> (12), and the pack
 // PR carries the packs, the rules index and its CLAUDE.md import alone
 // (39).
 

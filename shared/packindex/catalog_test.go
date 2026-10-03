@@ -10,15 +10,15 @@ import (
 const catalog = `{
   "v": 1, "serial": 7, "extra": true,
   "packs": [
-    {"id": "node", "version": "61002.1", "channel": "stable", "minEngineVersion": "61001.1.0", "requires": [],
+    {"id": "node", "version": "61002.1", "channel": "stable", "minEngineVersion": "1.61001.1", "requires": [],
      "relevanceDetector": {"about": "a package.json", "paths": {"source": "(^|/)package\\.json$", "flags": ""}},
      "belongs": "Node projects", "future": 1},
-    {"id": "node", "version": "61003.1", "channel": "canary", "minEngineVersion": "61001.1.0", "requires": [],
+    {"id": "node", "version": "61003.1", "channel": "canary", "minEngineVersion": "1.61001.1", "requires": [],
      "relevanceDetector": {"about": "a package.json", "paths": {"source": "(^|/)package\\.json$", "flags": ""}}},
-    {"id": "jwt", "version": "61001.1", "channel": "stable", "minEngineVersion": "61001.1.0",
+    {"id": "jwt", "version": "61001.1", "channel": "stable", "minEngineVersion": "1.61001.1",
      "relevanceDetector": {"about": "a JWT library", "paths": {"source": "\\.(js|mjs)$", "flags": ""},
        "text": [{"source": "JSONWEBTOKEN", "flags": "i"}], "search": ["jsonwebtoken"]}},
-    {"id": "asks", "version": "61001.1", "channel": "canary", "minEngineVersion": "61001.1.0", "relevanceDetector": null,
+    {"id": "asks", "version": "61001.1", "channel": "canary", "minEngineVersion": "1.61001.1", "relevanceDetector": null,
      "questions": [{"id": "goals", "prompt": "What should it prove?"}]}
   ]
 }`

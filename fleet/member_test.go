@@ -54,9 +54,9 @@ func (w *world) gh(method, path string, _ any) (fleet.Response, error) {
 const manifest = "sha512-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
 
 var declarations = map[settings.Format]string{
-	settings.YAML: "engine:\n  version: \"61001.1.0\"\n  manifest: \"" + manifest + "\"\npacks:\n  declared:\n    - basics\n    - id: claudinite-tasks\n      config:\n        dormant: true\n",
-	settings.TOML: "[engine]\nversion = \"61001.1.0\"\nmanifest = \"" + manifest + "\"\n\n[packs]\ndeclared = [\"basics\"]\n",
-	settings.JSON: "{\"engine\": {\"version\": \"61001.1.0\", \"manifest\": \"" + manifest + "\"}, \"packs\": {\"declared\": [\"basics\"]}}\n",
+	settings.YAML: "engine:\n  version: \"1.61001.1\"\n  manifest: \"" + manifest + "\"\npacks:\n  declared:\n    - basics\n    - id: claudinite-tasks\n      config:\n        dormant: true\n",
+	settings.TOML: "[engine]\nversion = \"1.61001.1\"\nmanifest = \"" + manifest + "\"\n\n[packs]\ndeclared = [\"basics\"]\n",
+	settings.JSON: "{\"engine\": {\"version\": \"1.61001.1\", \"manifest\": \"" + manifest + "\"}, \"packs\": {\"declared\": [\"basics\"]}}\n",
 }
 
 func TestReadMemberReadsEachFormat(t *testing.T) {
@@ -69,7 +69,7 @@ func TestReadMemberReadsEachFormat(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", f, err)
 		}
-		if m.Shape != fleet.ShapeCn || m.Format != f || m.Pin.Version != "61001.1.0" || m.Held["basics"] != "3.1.0" || !m.Covered() {
+		if m.Shape != fleet.ShapeCn || m.Format != f || m.Pin.Version != "1.61001.1" || m.Held["basics"] != "3.1.0" || !m.Covered() {
 			t.Errorf("%s: %+v", f, m)
 		}
 		if m.SettingsPath() != ".claudinite/settings."+string(f) {
@@ -157,22 +157,22 @@ func TestMeasureIsWhatTheMembersOwnUpdateWouldDecide(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := shelf{engine: "61002.1.0", index: map[string]packindex.Index{"basics": {Pack: "basics",
+	s := shelf{engine: "1.61002.1", index: map[string]packindex.Index{"basics": {Pack: "basics",
 		Versions: []packindex.Entry{{Version: "3.2.0", Channel: "stable", MinEngineVersion: "0.0.0"}}}}}
 	in, err := fleet.Measure(m, true, s)
 	if err != nil {
 		t.Fatal(err)
 	}
 	got := fleet.Classify(in)
-	if got.State != fleet.StateBehind || got.Detail != "behind the published versions by engine 61001.1.0 → 61002.1.0, basics 3.1.0 → 3.2.0" {
+	if got.State != fleet.StateBehind || got.Detail != "behind the published versions by engine 1.61001.1 → 1.61002.1, basics 3.1.0 → 3.2.0" {
 		t.Errorf("%+v", got)
 	}
-	s = shelf{engine: "61001.1.0", index: map[string]packindex.Index{}}
+	s = shelf{engine: "1.61001.1", index: map[string]packindex.Index{}}
 	in, _ = fleet.Measure(m, true, s)
-	if got := fleet.Classify(in); got.State != fleet.StateFresh || got.Detail != "engine 61001.1.0, 1 declared pack(s) at the published versions" {
+	if got := fleet.Classify(in); got.State != fleet.StateFresh || got.Detail != "engine 1.61001.1, 1 declared pack(s) at the published versions" {
 		t.Errorf("a pack the shelf does not offer is no gap: %+v", got)
 	}
-	if got := fleet.Classify(fleet.FreshIn{Shape: fleet.ShapeCn, Format: settings.TOML, Pin: "61001.1.0"}); got.State != fleet.StateNoScheduler {
+	if got := fleet.Classify(fleet.FreshIn{Shape: fleet.ShapeCn, Format: settings.TOML, Pin: "1.61001.1"}); got.State != fleet.StateNoScheduler {
 		t.Errorf("no scheduler: %+v", got)
 	}
 	if _, err := fleet.Measure(m, true, shelf{err: errors.New("offline")}); err == nil || !strings.Contains(err.Error(), "offline") {
@@ -200,7 +200,7 @@ func TestEnumerateRefusesAnOwnerWithNothing(t *testing.T) {
 func TestACnMemberSignalsItsPacksAndItsScheduler(t *testing.T) {
 	w := &world{
 		files: map[string]string{
-			".claudinite/settings.json":                  `{"engine": {"version": "61001.1.0", "manifest": "` + manifest + `"}, "packs": {"declared": ["basics", {"id": "local/mine", "config": {"a": 1}}]}}`,
+			".claudinite/settings.json":                  `{"engine": {"version": "1.61001.1", "manifest": "` + manifest + `"}, "packs": {"declared": ["basics", {"id": "local/mine", "config": {"a": 1}}]}}`,
 			".github/workflows/claudinite-scheduler.yml": "on: {}\n",
 		},
 		raw: map[string]fleet.Response{"/user/repos?affiliation=owner&per_page=100&page=1": {Status: 200,

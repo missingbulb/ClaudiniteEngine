@@ -18,11 +18,11 @@ func TestRehearseModes(t *testing.T) {
 		"current": {"current: SessionStart fetched", "the old cache is untouched"},
 		"stale":   {"stale: SessionStart halted", "Stop ran the cached"},
 		"update": {
-			"update 1: opened #1 for 1.2.0", "update 2: check world passes the bot's pin and refuses a person's",
-			"update 3: landed 1.2.0", "update 4: SessionStart runs 1.2.0 with no download",
-			"update 5: a hook naming an event 1.3.0 does not answer: skipped: selftest failed (hooks)",
-			"update 6: no PR: 1.3.0 would break this repo", "update 7: skipped: main is not green (failure)",
-			"update 8: held 1.3.0 skipped", "update 8: revoked 1.3.0 skipped", "update 8: one issue for the revoked pin 1.2.0",
+			"update 1: opened #1 for 1.61001.2", "update 2: check world passes the bot's pin and refuses a person's",
+			"update 3: landed 1.61001.2", "update 4: SessionStart runs 1.61001.2 with no download",
+			"update 5: a hook naming an event 1.61001.3 does not answer: skipped: selftest failed (hooks)",
+			"update 6: no PR: 1.61001.3 would break this repo", "update 7: skipped: main is not green (failure)",
+			"update 8: held 1.61001.3 skipped", "update 8: revoked 1.61001.3 skipped", "update 8: one issue for the revoked pin 1.61001.2",
 			"update 9: the old shape is one deprecation", "update 10: the scheduler filed #", "update 11: a second run the same day files nothing",
 		},
 	} {

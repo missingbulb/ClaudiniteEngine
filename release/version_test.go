@@ -51,40 +51,72 @@ func versionSh(t *testing.T, dir string, args ...string) (string, int) {
 	return string(out), code
 }
 
+// major is the hand-edited release line release/major holds.
+func major(t *testing.T) string {
+	t.Helper()
+	raw, err := os.ReadFile("major")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := strings.TrimSpace(string(raw))
+	if _, err := strconv.Atoi(m); err != nil || m != string(raw[:len(raw)-1]) {
+		t.Fatalf("release/major holds %q, want one number on one line", raw)
+	}
+	return m
+}
+
 func TestVersionNext(t *testing.T) {
+	m := major(t)
 	day := version.Today(time.Now())
 	d := strconv.Itoa(day)
 	out, code := versionSh(t, gitRepo(t), "next")
-	if code != 0 || strings.TrimSpace(out) != d+".1.0" {
+	if code != 0 || strings.TrimSpace(out) != m+"."+d+".1" {
 		t.Fatalf("no tags: exit %d, %q", code, out)
 	}
-	repo := gitRepo(t, "v"+d+".1.0", "v"+d+".2.0", "v"+strconv.Itoa(day-1)+".7.0", "unrelated")
+	// Today's builds of this major count; another day's, another major's
+	// and the retired <day>.<n>.0 tags do not.
+	other := strconv.Itoa(mustAtoi(t, m) + 1)
+	repo := gitRepo(t, "v"+m+"."+d+".1", "v"+m+"."+d+".2", "v"+m+"."+strconv.Itoa(day-1)+".7",
+		"v"+other+"."+d+".9", "v"+d+".5.0", "v61003.1.0", "unrelated")
 	out, code = versionSh(t, repo, "next")
-	if code != 0 || strings.TrimSpace(out) != d+".3.0" {
+	if code != 0 || strings.TrimSpace(out) != m+"."+d+".3" {
 		t.Fatalf("two tags today: exit %d, %q", code, out)
+	}
+	if _, err := version.Parse(strings.TrimSpace(out)); err != nil {
+		t.Fatalf("next printed a version Parse refuses: %v", err)
 	}
 }
 
-func TestVersionCheck(t *testing.T) {
-	repo := gitRepo(t, "v61002.2.0")
-	if out, code := versionSh(t, repo, "check", "61002.3.0"); code != 0 {
-		t.Errorf("free version: exit %d %s", code, out)
+func mustAtoi(t *testing.T, s string) int {
+	t.Helper()
+	n, err := strconv.Atoi(s)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if out, code := versionSh(t, repo, "check", "61002.2.0"); code != 1 {
+	return n
+}
+
+func TestVersionCheck(t *testing.T) {
+	repo := gitRepo(t, "v1.61002.2")
+	for _, free := range []string{"1.61002.3", "1.61001.1", "2.60101.1"} {
+		if out, code := versionSh(t, repo, "check", free); code != 0 {
+			t.Errorf("free version %s: exit %d %s", free, code, out)
+		}
+	}
+	if out, code := versionSh(t, repo, "check", "1.61002.2"); code != 1 {
 		t.Errorf("taken version: exit %d %s", code, out)
 	}
-	if out, code := versionSh(t, repo, "check", "61002.2"); code == 0 {
-		t.Errorf("malformed version accepted: %s", out)
+	for _, bad := range []string{"1.61002", "61002.3.0", "1.61002.0", "01.61002.1", "1.61002.1.0"} {
+		if out, code := versionSh(t, repo, "check", bad); code == 0 || !strings.Contains(out, "not a <major>.<day>.<n> version") {
+			t.Errorf("malformed version %s: exit %d %s", bad, code, out)
+		}
 	}
 	// A version below the SDK's engine floor would ship an engine the
 	// floor says cannot answer SDK calls.
-	for _, below := range []string{"60930.4.0", "61000.9.0"} {
-		if out, code := versionSh(t, repo, "check", below); code == 0 || !strings.Contains(out, "below the engine floor 61001.1.0") {
+	for _, below := range []string{"1.60930.4", "1.60915.9", "0.61005.1"} {
+		if out, code := versionSh(t, repo, "check", below); code == 0 || !strings.Contains(out, "below the engine floor 1.61001.1") {
 			t.Errorf("%s below the floor: exit %d %s", below, code, out)
 		}
-	}
-	if out, code := versionSh(t, repo, "check", "61001.1.0"); code != 0 {
-		t.Errorf("the floor itself: exit %d %s", code, out)
 	}
 }
 
@@ -102,7 +134,7 @@ func TestVersionRefusesAShallowClone(t *testing.T) {
 // check reads the floor from the file the SDK embeds, so it runs with no
 // Go toolchain on PATH.
 func TestVersionCheckRunsWithoutGo(t *testing.T) {
-	repo := gitRepo(t, "v61002.2.0")
+	repo := gitRepo(t, "v1.61002.2")
 	gitBin, err := exec.LookPath("git")
 	if err != nil {
 		t.Fatal(err)
@@ -112,7 +144,7 @@ func TestVersionCheckRunsWithoutGo(t *testing.T) {
 		t.Fatal(err)
 	}
 	script, _ := filepath.Abs("version.sh")
-	cmd := exec.Command("/bin/sh", script, "check", "61002.9.0")
+	cmd := exec.Command("/bin/sh", script, "check", "1.61002.9")
 	cmd.Dir = repo
 	cmd.Env = []string{"PATH=" + bin + ":/usr/bin:/bin", "HOME=" + t.TempDir()}
 	if _, err := exec.LookPath("go"); err == nil {

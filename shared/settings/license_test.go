@@ -7,21 +7,21 @@ import (
 
 const testManifest = pin1
 
-const pinLines = "  version: \"60928.1.0\"\n  manifest: \"" + testManifest + "\"\n"
+const pinLines = "  version: \"1.60928.1\"\n  manifest: \"" + testManifest + "\"\n"
 
 func licenseFixtures() map[Format]string {
 	return map[Format]string{
 		YAML: "# kept\nengine:\n" + pinLines + "license:\n  plan: \"public\"\npacks:\n  channel: \"stable\"\n",
-		TOML: "# kept\n[engine]\nversion = \"60928.1.0\"\nmanifest = \"" + testManifest + "\"\n\n[license]\nplan = \"public\"\n",
-		JSON: "{\n  \"engine\": {\"version\": \"60928.1.0\", \"manifest\": \"" + testManifest + "\"},\n  \"license\": {\"plan\": \"public\"}\n}\n",
+		TOML: "# kept\n[engine]\nversion = \"1.60928.1\"\nmanifest = \"" + testManifest + "\"\n\n[license]\nplan = \"public\"\n",
+		JSON: "{\n  \"engine\": {\"version\": \"1.60928.1\", \"manifest\": \"" + testManifest + "\"},\n  \"license\": {\"plan\": \"public\"}\n}\n",
 	}
 }
 
 func noLicenseFixtures() map[Format]string {
 	return map[Format]string{
 		YAML: "# kept\nengine:\n" + pinLines,
-		TOML: "[engine]\nversion = \"60928.1.0\"\nmanifest = \"" + testManifest + "\"\n",
-		JSON: "{\n  \"engine\": {\"version\": \"60928.1.0\", \"manifest\": \"" + testManifest + "\"}\n}\n",
+		TOML: "[engine]\nversion = \"1.60928.1\"\nmanifest = \"" + testManifest + "\"\n",
+		JSON: "{\n  \"engine\": {\"version\": \"1.60928.1\", \"manifest\": \"" + testManifest + "\"}\n}\n",
 	}
 }
 
@@ -92,7 +92,7 @@ func TestPlanOnlyChange(t *testing.T) {
 		if err := PlanOnlyChange([]byte(raw), moved, f); err != nil {
 			t.Errorf("%s: %v", f, err)
 		}
-		pin, _ := SetPin(moved, f, "60929.1.0", testManifest)
+		pin, _ := SetPin(moved, f, "1.60929.1", testManifest)
 		if err := PlanOnlyChange([]byte(raw), pin, f); err == nil {
 			t.Errorf("%s: a pin move passed as plan-only", f)
 		}

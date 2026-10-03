@@ -18,7 +18,7 @@ import (
 
 func service(t *testing.T) Service {
 	t.Helper()
-	return Service{Build: build.Config{CacheRoot: filepath.Join(t.TempDir(), "claudinite"), Engine: "61001.1.0", SDK: checksdk.Sources()}, Exe: "/nonexistent/cn"}
+	return Service{Build: build.Config{CacheRoot: filepath.Join(t.TempDir(), "claudinite"), Engine: "1.61001.1", SDK: checksdk.Sources()}, Exe: "/nonexistent/cn"}
 }
 
 func helloRepo(t *testing.T) string {
@@ -217,13 +217,13 @@ func acmeRepo(t *testing.T, rules string) string {
 	t.Helper()
 	repo := t.TempDir()
 	files := map[string]string{
-		".claudinite/shared/packs/acme-pack/pack.json":      `{"version":"1.0","minEngineVersion":"61001.1.0"}`,
+		".claudinite/shared/packs/acme-pack/pack.json":      `{"version":"1.0","minEngineVersion":"1.61001.1"}`,
 		".claudinite/shared/packs/acme-pack/checks/acme.go": strings.ReplaceAll(acmeChecks, "@@TODAY@@", time.Now().UTC().Format("2006-01-02")),
 		".claudinite/local/packs/probe/pack.json":           `{}`,
 		".claudinite/local/packs/probe/checks/local.go":     localChecks,
 		".claudinite/temp/packs/copied/pack.json":           `{}`,
 		".claudinite/temp/packs/copied/checks/broken.go":    "package checks\n\nthis does not compile\n",
-		".claudinite/settings.yaml":                         "engine:\n  version: \"61001.1.0\"\npacks:\n  declared:\n    - id: acme-pack\n      config:\n        probe: true\n    - local/probe\n" + rules,
+		".claudinite/settings.yaml":                         "engine:\n  version: \"1.61001.1\"\npacks:\n  declared:\n    - id: acme-pack\n      config:\n        probe: true\n    - local/probe\n" + rules,
 		"README.md":                                         "hi\n",
 		"ACME_ONE":                                          "x\n",
 		"HELLO_LOCAL":                                       "x\n",
@@ -329,8 +329,8 @@ func TestBuiltinsListAndRunUnderTheirPack(t *testing.T) {
 	repo := t.TempDir()
 	for rel, body := range map[string]string{
 		".claudinite/settings.yaml":                               "engine:\n  version: \"1.1.0\"\npacks:\n  declared:\n    - claudinite-lifecycle\n    - claudinite-growth\n",
-		".claudinite/shared/packs/claudinite-lifecycle/pack.json": "{\"version\": \"1\", \"minEngineVersion\": \"61001.1.0\"}\n",
-		".claudinite/shared/packs/claudinite-growth/pack.json":    "{\"version\": \"1\", \"minEngineVersion\": \"61001.1.0\", \"requires\": [\"claudinite-lifecycle\"]}\n",
+		".claudinite/shared/packs/claudinite-lifecycle/pack.json": "{\"version\": \"1\", \"minEngineVersion\": \"1.61001.1\"}\n",
+		".claudinite/shared/packs/claudinite-growth/pack.json":    "{\"version\": \"1\", \"minEngineVersion\": \"1.61001.1\", \"requires\": [\"claudinite-lifecycle\"]}\n",
 		".claudinite/local/packs/mine/pack.json":                  "{}\n",
 		".claudinite/local/packs/mine/tasks/nightly/task.md":      "Run `bash gather.sh`.\n",
 	} {

@@ -52,8 +52,8 @@ func rcNames() []string {
 }
 
 func TestPublishDryRunPrintsOneLinePerTarball(t *testing.T) {
-	dist := fakeTarballs(t, "1.1.0", rcNames()...)
-	out, err := runScript(t, []string{"DIST=" + dist, "VERSION=1.1.0", "PATH=" + noNpmPath(t)}, "release/publish.sh", "--channel", "rc", "--dry-run")
+	dist := fakeTarballs(t, "1.61001.1", rcNames()...)
+	out, err := runScript(t, []string{"DIST=" + dist, "VERSION=1.61001.1", "PATH=" + noNpmPath(t)}, "release/publish.sh", "--channel", "rc", "--dry-run")
 	if err != nil {
 		t.Fatalf("%v\n%s", err, out)
 	}
@@ -61,7 +61,7 @@ func TestPublishDryRunPrintsOneLinePerTarball(t *testing.T) {
 	if len(files) != 6 {
 		t.Fatalf("%d publish lines, want 6:\n%s", len(files), out)
 	}
-	if files[len(files)-1] != "cli-rc-1.1.0.tgz" {
+	if files[len(files)-1] != "cli-rc-1.61001.1.tgz" {
 		t.Errorf("the channel package is not published last: %v", files)
 	}
 }
@@ -88,13 +88,13 @@ func TestPublishRefusesBeforePublishingAnything(t *testing.T) {
 		channel string
 		dist    string
 	}{
-		"name outside @claudinite": {"rc", fakeTarballs(t, "1.1.0", append(rcNames(), "@evil/cli-rc")...)},
-		"stable name on rc":        {"rc", fakeTarballs(t, "1.1.0", append(rcNames(), "@claudinite/cli-linux-x64")...)},
-		"rc name on stable":        {"stable", fakeTarballs(t, "1.1.0", "@claudinite/cli", "@claudinite/cli-rc-linux-x64")},
-		"win32 platform name":      {"rc", fakeTarballs(t, "1.1.0", "@claudinite/cli-rc-win32-x64")},
+		"name outside @claudinite": {"rc", fakeTarballs(t, "1.61001.1", append(rcNames(), "@evil/cli-rc")...)},
+		"stable name on rc":        {"rc", fakeTarballs(t, "1.61001.1", append(rcNames(), "@claudinite/cli-linux-x64")...)},
+		"rc name on stable":        {"stable", fakeTarballs(t, "1.61001.1", "@claudinite/cli", "@claudinite/cli-rc-linux-x64")},
+		"win32 platform name":      {"rc", fakeTarballs(t, "1.61001.1", "@claudinite/cli-rc-win32-x64")},
 	}
 	for name, c := range cases {
-		out, err := runScript(t, []string{"DIST=" + c.dist, "VERSION=1.1.0", "PATH=" + noNpmPath(t)}, "release/publish.sh", "--channel", c.channel, "--dry-run")
+		out, err := runScript(t, []string{"DIST=" + c.dist, "VERSION=1.61001.1", "PATH=" + noNpmPath(t)}, "release/publish.sh", "--channel", c.channel, "--dry-run")
 		if err == nil {
 			t.Errorf("%s: accepted\n%s", name, out)
 		}
@@ -103,9 +103,9 @@ func TestPublishRefusesBeforePublishingAnything(t *testing.T) {
 		}
 	}
 
-	stale := fakeTarballs(t, "1.1.0", rcNames()...)
-	out, err := runScript(t, []string{"DIST=" + stale, "VERSION=1.2.0", "PATH=" + noNpmPath(t)}, "release/publish.sh", "--channel", "rc", "--dry-run")
-	if err == nil || strings.Contains(out, "npm publish") || !strings.Contains(out, "1.2.0") {
+	stale := fakeTarballs(t, "1.61001.1", rcNames()...)
+	out, err := runScript(t, []string{"DIST=" + stale, "VERSION=1.61001.2", "PATH=" + noNpmPath(t)}, "release/publish.sh", "--channel", "rc", "--dry-run")
+	if err == nil || strings.Contains(out, "npm publish") || !strings.Contains(out, "1.61001.2") {
 		t.Errorf("stale dist: err %v\n%s", err, out)
 	}
 }
@@ -207,9 +207,9 @@ func TestPublishTokenAuthNamesTheCauseOfARefusal(t *testing.T) {
 }
 
 func TestPublishOIDCRefusalPointsAtTheTrustedPublisher(t *testing.T) {
-	dist := fakeTarballs(t, "1.1.0", rcNames()...)
+	dist := fakeTarballs(t, "1.61001.1", rcNames()...)
 	path, log := fakeNpm(t, "", "")
-	out, err := runScript(t, []string{"DIST=" + dist, "VERSION=1.1.0", "PATH=" + path}, "release/publish.sh", "--channel", "rc", "--auth", "oidc")
+	out, err := runScript(t, []string{"DIST=" + dist, "VERSION=1.61001.1", "PATH=" + path}, "release/publish.sh", "--channel", "rc", "--auth", "oidc")
 	if err == nil || !strings.Contains(out, "attach its trusted publisher") {
 		t.Fatalf("err %v\n%s", err, out)
 	}
@@ -223,9 +223,9 @@ func TestPublishOIDCRefusalPointsAtTheTrustedPublisher(t *testing.T) {
 }
 
 func TestPublishRequiresAnAuthModeToPublish(t *testing.T) {
-	dist := fakeTarballs(t, "1.1.0", rcNames()...)
+	dist := fakeTarballs(t, "1.61001.1", rcNames()...)
 	for _, args := range [][]string{{"--channel", "rc"}, {"--channel", "rc", "--auth", "password"}} {
-		out, err := runScript(t, []string{"DIST=" + dist, "VERSION=1.1.0", "PATH=" + noNpmPath(t)}, "release/publish.sh", args...)
+		out, err := runScript(t, []string{"DIST=" + dist, "VERSION=1.61001.1", "PATH=" + noNpmPath(t)}, "release/publish.sh", args...)
 		if err == nil || !strings.Contains(out, "--auth") || strings.Contains(out, "npm was called") {
 			t.Errorf("%v: err %v\n%s", args, err, out)
 		}

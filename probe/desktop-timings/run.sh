@@ -69,7 +69,7 @@ printf 'module checkprog\n\ngo 1.24\n' > "$work/checkprog/go.mod"
   -- env GOCACHE="$work/gocache" GOPROXY=off GOFLAGS= go -C "$work/checkprog" build -o "$work/checkprog.bin$exe" .
 
 say "4/4 launcher on a warm cache"
-DIST=$work/dist VERSION=1.1.0 sh release/build.sh > "$work/build.out"
+DIST=$work/dist VERSION=1.61001.1 sh release/build.sh > "$work/build.out"
 pin=$(cat "$work/dist/manifest.integrity")
 go build -o "$work/regstub$exe" ./release/regstub
 "$work/regstub$exe" --dist "$work/dist" --ready "$work/ready" --ca-out "$work/ca.pem" &
@@ -92,7 +92,7 @@ fi
 member=$work/member
 mkdir -p "$member/.claudinite" "$work/home"
 cp launcher/launch "$member/.claudinite/launch"
-printf 'engine:\n  version: "1.1.0"\n  manifest: "%s"\n' "$pin" > "$member/.claudinite/settings.yaml"
+printf 'engine:\n  version: "1.61001.1"\n  manifest: "%s"\n' "$pin" > "$member/.claudinite/settings.yaml"
 (
   unset GITHUB_ACTIONS
   HOME=$work/home
