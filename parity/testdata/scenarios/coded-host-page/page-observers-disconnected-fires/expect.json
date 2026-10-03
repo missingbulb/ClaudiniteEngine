@@ -1,0 +1,12 @@
+{
+  "rules": "@../shared/packs/host-page/RULES.md\n",
+  "mounts": [],
+  "world": [
+    "page-observers-disconnected lib/io.ts:1 block",
+    "page-observers-disconnected src/watch.js:3 block"
+  ],
+  "work": [],
+  "only": [
+    "page-observers-disconnected"
+  ]
+}

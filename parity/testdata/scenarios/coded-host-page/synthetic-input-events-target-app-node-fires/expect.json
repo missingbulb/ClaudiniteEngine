@@ -1,0 +1,13 @@
+{
+  "rules": "@../shared/packs/host-page/RULES.md\n",
+  "mounts": [],
+  "world": [
+    "synthetic-input-events-target-app-node src/a.js:2 block",
+    "synthetic-input-events-target-app-node src/a.js:3 block",
+    "synthetic-input-events-target-app-node src/a.js:6 block"
+  ],
+  "work": [],
+  "only": [
+    "synthetic-input-events-target-app-node"
+  ]
+}
