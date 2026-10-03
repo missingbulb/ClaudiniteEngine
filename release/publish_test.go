@@ -186,8 +186,11 @@ func TestPublishTokenAuthNamesTheCauseOfARefusal(t *testing.T) {
 	}
 	for name, c := range cases {
 		dist := fakeTarballs(t, "0.0.0", rcNames()...)
-		path, _ := fakeNpm(t, c.whoami, c.org)
+		path, log := fakeNpm(t, c.whoami, c.org)
 		out, err := runScript(t, []string{"DIST=" + dist, "VERSION=0.0.0", "PATH=" + path}, "release/publish.sh", "--channel", "rc", "--auth", "token", "--skip-existing")
+		if calls := readCalls(t, log); strings.Contains(calls, "loglevel=verbose") {
+			t.Errorf("%s: a token publish ran npm at verbose:\n%s", name, calls)
+		}
 		if err == nil {
 			t.Errorf("%s: a refused publish succeeded:\n%s", name, out)
 			continue

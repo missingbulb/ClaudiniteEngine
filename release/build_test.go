@@ -70,7 +70,7 @@ func TestBuildNamesEveryTarballForItsChannel(t *testing.T) {
 		names := tarballNames(t, dist)
 		for file, url := range tarballRepositoryURLs(t, dist) {
 			if url != "git+https://github.com/missingbulb/ClaudiniteEngine.git" {
-				t.Errorf("%s: %s names repository.url %q; npm trusted publishing refuses a package whose repository.url is not the publishing repository", pkg, file, url)
+				t.Errorf("%s: %s names repository.url %q; npm matches repository.url against the publishing repository", pkg, file, url)
 			}
 		}
 		var got []string
