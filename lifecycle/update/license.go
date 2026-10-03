@@ -17,10 +17,6 @@ import (
 // PlanBranchPrefix starts every plan correction branch; the day follows.
 const PlanBranchPrefix = "claudinite/plan-"
 
-// KeyReason is the reason a version held or revoked by the license key
-// alone carries.
-const KeyReason = "license key"
-
 // installTitle is the one issue a run files when the license server
 // refuses the repo because the App does not cover it.
 const installTitle = "Claudinite needs its GitHub App installed"
@@ -64,25 +60,6 @@ func StatesFromKey(k *LicenseKey) States {
 		s.Revoked[v] = KeyReason
 	}
 	return s
-}
-
-// Union is s with o's entries added; s's reason stands where both name a
-// version.
-func (s States) Union(o States) States {
-	out := States{Held: map[string]string{}, Revoked: map[string]string{}}
-	for _, src := range []States{s, o} {
-		for v, r := range src.Held {
-			if _, ok := out.Held[v]; !ok {
-				out.Held[v] = r
-			}
-		}
-		for v, r := range src.Revoked {
-			if _, ok := out.Revoked[v]; !ok {
-				out.Revoked[v] = r
-			}
-		}
-	}
-	return out
 }
 
 // licenseGate is the run's key, or the skip verdict when there is none or
@@ -286,12 +263,4 @@ func landPlan(d Deps, pr githubapi.PR, sha string) (string, error) {
 // keyStates is npm's states with the key's unioned in, the key's first.
 func keyStates(key *LicenseKey, p *npmreg.Packument) States {
 	return StatesFromKey(key).Union(StatesFromPackument(p))
-}
-
-// skipReason names a held or revoked state, marking one the key alone set.
-func skipReason(k npmreg.Kind, reason string) string {
-	if reason == KeyReason {
-		return string(k) + " (" + KeyReason + ")"
-	}
-	return string(k)
 }
