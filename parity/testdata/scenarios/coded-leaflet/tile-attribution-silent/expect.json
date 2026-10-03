@@ -1,0 +1,9 @@
+{
+  "rules": "@../shared/packs/leaflet/RULES.md\n",
+  "mounts": [],
+  "world": [],
+  "work": [],
+  "only": [
+    "tile-attribution"
+  ]
+}

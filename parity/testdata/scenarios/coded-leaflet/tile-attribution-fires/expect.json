@@ -1,0 +1,15 @@
+{
+  "rules": "@../shared/packs/leaflet/RULES.md\n",
+  "mounts": [],
+  "world": [
+    "tile-attribution index.html:5 block",
+    "tile-attribution js/app.js:2 block",
+    "tile-attribution js/app.js:5 block",
+    "tile-attribution js/app.js:6 block",
+    "tile-attribution src/m.ts:1 block"
+  ],
+  "work": [],
+  "only": [
+    "tile-attribution"
+  ]
+}

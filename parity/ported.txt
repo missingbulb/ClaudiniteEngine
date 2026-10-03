@@ -17,3 +17,4 @@ chrome-extension
 cloudflare-site
 github-pages
 host-page
+leaflet
