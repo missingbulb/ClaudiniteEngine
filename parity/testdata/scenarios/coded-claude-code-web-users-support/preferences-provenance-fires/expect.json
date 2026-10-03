@@ -1,0 +1,12 @@
+{
+  "rules": "@../shared/packs/claude-code-web-users-support/RULES.md\n@../temp/packs/current_user/RULES.md\n",
+  "mounts": [],
+  "world": [
+    "preferences-provenance preferences/octocat/RULES.md:4 advise",
+    "preferences-provenance preferences/octocat/RULES.md:7 advise"
+  ],
+  "work": [],
+  "only": [
+    "preferences-provenance"
+  ]
+}

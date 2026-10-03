@@ -20,3 +20,4 @@ host-page
 leaflet
 macos
 web-speech
+claude-code-web-users-support

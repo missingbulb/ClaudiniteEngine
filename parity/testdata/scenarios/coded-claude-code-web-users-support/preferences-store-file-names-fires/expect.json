@@ -1,0 +1,13 @@
+{
+  "rules": "@../shared/packs/claude-code-web-users-support/RULES.md\n@../temp/packs/current_user/RULES.md\n",
+  "mounts": [],
+  "world": [
+    "preferences-store-file-names preferences/Octo advise",
+    "preferences-store-file-names preferences/a--b advise",
+    "preferences-store-file-names preferences/loose.md advise"
+  ],
+  "work": [],
+  "only": [
+    "preferences-store-file-names"
+  ]
+}

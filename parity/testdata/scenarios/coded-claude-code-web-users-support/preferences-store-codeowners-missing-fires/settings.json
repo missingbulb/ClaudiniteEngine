@@ -1,0 +1,10 @@
+{
+  "packs": [
+    {
+      "id": "claude-code-web-users-support",
+      "config": {
+        "repo": "acme/prefs"
+      }
+    }
+  ]
+}
