@@ -27,6 +27,9 @@ const (
 	Advise   Outcome = "advise"
 	Nudge    Outcome = "nudge"
 	Deadline Outcome = "deadline"
+	// Skip is a capability that ran and had nothing to do: a capture with
+	// no new lines, or one its license turns off.
+	Skip Outcome = "skip"
 )
 
 var (
@@ -44,7 +47,7 @@ func Line(capability, event string, outcome Outcome, d time.Duration) string {
 		event = "unknown"
 	}
 	switch outcome {
-	case OK, Error, Crash, Timeout, Block, Advise, Nudge, Deadline:
+	case OK, Error, Crash, Timeout, Block, Advise, Nudge, Deadline, Skip:
 	default:
 		outcome = Error
 	}

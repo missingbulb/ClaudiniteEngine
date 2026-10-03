@@ -70,19 +70,14 @@ type callInput struct {
 	Prompt         any             `json:"prompt"`
 }
 
-// perCall answers pre-tool-use, post-tool-use, user-prompt-submit and
-// session-end. A block on PreToolUse goes to stderr and exits 2; a block
+// perCall answers pre-tool-use, post-tool-use and user-prompt-submit. A
+// block on PreToolUse goes to stderr and exits 2; a block
 // elsewhere cannot block and is passed on as context; context goes out as
 // additionalContext; a hook that cannot decide, or runs past its
 // deadline, answers {} and lets the call through. Every path ends with
 // the breadcrumb.
 func (h Handler) perCall(event string, raw []byte, readErr error, stdout, stderr io.Writer, start time.Time) error {
-	name, ok := contextEvents[event]
-	if !ok {
-		fmt.Fprintln(stdout, "{}")
-		fmt.Fprintln(stderr, breadcrumb.Line("hooks", event, breadcrumb.OK, time.Since(start)))
-		return nil
-	}
+	name := contextEvents[event]
 	var in callInput
 	parseErr := json.Unmarshal(raw, &in)
 	repo := h.projectDir(hookInput{Cwd: in.Cwd})

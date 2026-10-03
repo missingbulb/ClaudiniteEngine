@@ -126,7 +126,7 @@ commands:
 var secretScanPlant string
 
 // runHook is a variable so a test can make a hook panic.
-var runHook = hooks.Handler{Checks: hookChecks{}, Guards: hookGuards{}, License: hookLicense{}, Index: hookIndex{}}.Run
+var runHook = hooks.Handler{Checks: hookChecks{}, Guards: hookGuards{}, License: hookLicense{}, Index: hookIndex{}, Growth: hookGrowth{}}.Run
 
 func main() {
 	if len(os.Args) == 3 && os.Args[1] == "hook" && perCallEvents[os.Args[2]] {
@@ -168,7 +168,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) (code int) {
 	}()
 
 	err := dispatch(args, stdin, stdout, stderr, start)
-	if report.CodeOf(err) == report.Usage {
+	if report.CodeOf(err) == report.Usage && !report.IsQuiet(err) {
 		return usageExit(stderr, err)
 	}
 	return report.Exit(stderr, err, isHook)
@@ -252,6 +252,12 @@ func dispatch(args []string, stdin io.Reader, stdout, stderr io.Writer, start ti
 		return cmdWork(args[1:], stdout)
 	case "execute":
 		return cmdExecute(args[1:], stdout)
+	case "growth":
+		return cmdGrowth(args[1:], stdout, stderr, start)
+	case "provenance":
+		return cmdProvenance(args[1:], stdin, stdout, stderr)
+	case "pack":
+		return cmdPack(args[1:], stdout)
 	}
 	return report.New(report.Usage, fmt.Sprintf("unknown command %q", args[0]))
 }
