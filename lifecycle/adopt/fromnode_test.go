@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/missingbulb/ClaudiniteEngine/lifecycle/verify"
+	"github.com/missingbulb/ClaudiniteEngine/lifecycle/workflows"
 	"github.com/missingbulb/ClaudiniteEngine/shared/findings"
 	"github.com/missingbulb/ClaudiniteEngine/shared/packindex"
 	"github.com/missingbulb/ClaudiniteEngine/shared/settings"
@@ -70,6 +71,33 @@ func treeHash(t *testing.T, dir string) string {
 	return strings.Join(lines, "\n")
 }
 
+// nodeHookCommands is every hook command in a .claude/settings.json that
+// names an engine/hooks/ path, under any root.
+func nodeHookCommands(t *testing.T, raw []byte) []string {
+	t.Helper()
+	var cfg struct {
+		Hooks map[string][]struct {
+			Hooks []struct {
+				Command string `json:"command"`
+			} `json:"hooks"`
+		} `json:"hooks"`
+	}
+	if err := json.Unmarshal(raw, &cfg); err != nil {
+		t.Fatalf(".claude/settings.json: %v", err)
+	}
+	var out []string
+	for _, groups := range cfg.Hooks {
+		for _, g := range groups {
+			for _, c := range g.Hooks {
+				if strings.Contains(c.Command, "engine/hooks/") {
+					out = append(out, c.Command)
+				}
+			}
+		}
+	}
+	return out
+}
+
 func nodeMember(t *testing.T) string {
 	repo := t.TempDir()
 	copyTree(t, filepath.Join("testdata", "node-member"), repo)
@@ -115,8 +143,13 @@ func TestFromNodeMovesANodeMember(t *testing.T) {
 		t.Errorf("packs %+v %v\n%s", p, err, raw)
 	}
 	cs, _ := os.ReadFile(filepath.Join(repo, ".claude/settings.json"))
-	if strings.Contains(string(cs), nodeHookPath) || !strings.Contains(string(cs), "sh scripts/member-own-stop.sh") || !strings.Contains(string(cs), "Bash(npm test)") {
-		t.Errorf(".claude/settings.json:\n%s", cs)
+	if hooks := nodeHookCommands(t, cs); len(hooks) > 0 {
+		t.Errorf("the move kept the Node engine's hooks %v:\n%s", hooks, cs)
+	}
+	for _, want := range []string{"sh scripts/member-own-stop.sh", "sh scripts/member-own-lint.sh", "Bash(npm test)"} {
+		if !strings.Contains(string(cs), want) {
+			t.Errorf(".claude/settings.json lost %q:\n%s", want, cs)
+		}
 	}
 	sched, _ := os.ReadFile(filepath.Join(repo, ".github/workflows/claudinite-scheduler.yml"))
 	if !strings.Contains(string(sched), `    - cron: "26 4,16 * * *"`) {
@@ -215,6 +248,10 @@ func TestFromNodeOverRealMembers(t *testing.T) {
 				t.Fatalf("%v\n%s", err, out)
 			}
 			t.Logf("cn init --from-node over %s:\n%s", src, out)
+			cs, _ := os.ReadFile(filepath.Join(repo, ".claude/settings.json"))
+			if hooks := nodeHookCommands(t, cs); len(hooks) > 0 {
+				t.Errorf("the move kept the Node engine's hooks %v", hooks)
+			}
 			var got []findings.Finding
 			for _, f := range verify.Verify(verify.Input{Repo: repo, Launcher: []byte(launcherBody)}) {
 				got = append(got, f)
@@ -300,4 +337,58 @@ func (f *fakePacks) add(id string, files map[string][]byte) {
 	f.archives[id+"/"+pj.Version] = a
 	f.entries[id] = append(f.entries[id], packindex.Entry{Version: pj.Version, SHA256: hex.EncodeToString(sum[:]), Size: int64(len(a)),
 		MinEngineVersion: ver, Channel: "canary", Requires: pj.Requires})
+}
+
+// A move that fails after it began writing removes the launcher and the
+// settings file it wrote, so a re-run is not refused as a cn member, and
+// names the restore for the rest.
+func TestFromNodeFailurePartWayLeavesARerunnableRepo(t *testing.T) {
+	repo := nodeMember(t)
+	// The rules index cannot be written under a file.
+	_ = os.RemoveAll(filepath.Join(repo, ".claudinite", "flat"))
+	if err := os.WriteFile(filepath.Join(repo, ".claudinite", "flat"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	in, out := input(t, repo)
+	err := FromNode(in)
+	if err == nil {
+		t.Fatalf("moved:\n%s", out)
+	}
+	if !strings.Contains(err.Error(), "git checkout -- .") {
+		t.Errorf("the error names no restore: %v", err)
+	}
+	for _, gone := range []string{".claudinite/launch", ".claudinite/settings.yaml"} {
+		if _, err := os.Stat(filepath.Join(repo, gone)); err == nil {
+			t.Errorf("%s survived the failed move", gone)
+		}
+	}
+	if err := fromNodeState(repo); err != nil {
+		t.Errorf("a re-run is refused: %v", err)
+	}
+}
+
+// A Node scheduler whose cron the hash could not have written, or with
+// no cron line at all, moves to the repo's own hashed cron rather than the
+// template's placeholder; a hashed one survives, in either quoting.
+func TestMovedWorkflowFallsBackFromThePlaceholder(t *testing.T) {
+	const n = "claudinite-scheduler.yml"
+	forRepo := workflows.ForRepo("acme/widget")
+	for name, have := range map[string]string{
+		"a hand-set cron":    "on:\n  schedule:\n    - cron: '0 3 * * *'\n",
+		"a drain off by one": "on:\n  schedule:\n    - cron: '26 4,17 * * *'\n",
+		"no cron line":       "on:\n  workflow_dispatch:\n",
+	} {
+		got := movedWorkflow(n, []byte(have), forRepo[n])
+		if string(got) != string(forRepo[n]) {
+			t.Errorf("%s: not the repo's template:\n%s", name, got)
+		}
+		if strings.Contains(string(got), workflows.CronPlaceholder) {
+			t.Errorf("%s: the placeholder reached the member", name)
+		}
+	}
+	for _, have := range []string{"    - cron: '26 4,16 * * *'\n", "    - cron: \"26 4,16 * * *\"\n"} {
+		if got := movedWorkflow(n, []byte(have), forRepo[n]); !strings.Contains(string(got), `    - cron: "26 4,16 * * *"`) || string(got) == string(forRepo[n]) {
+			t.Errorf("%q: the member's hashed cron did not survive:\n%s", have, got)
+		}
+	}
 }
