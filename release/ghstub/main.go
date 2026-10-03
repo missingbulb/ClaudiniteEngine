@@ -23,6 +23,9 @@
 //	GET  /_stub/state     pulls, issues, dispatches, fires, agent runs,
 //	                      armed auto-merges and the call log
 //
+// For a fleet manager's sweeps it answers GET /user/repos and every call
+// on a fleet member, each a directory on disk (fleet.go).
+//
 // It writes its base URL to --ready once listening and the certificate to
 // --ca-out.
 package main
@@ -89,6 +92,8 @@ type dispatch struct {
 	Workflow string            `json:"workflow"`
 	Ref      string            `json:"ref"`
 	Inputs   map[string]string `json:"inputs"`
+	// Repo is a fleet member's; the manager's own dispatches leave it out.
+	Repo string `json:"repo,omitempty"`
 }
 
 // stubState is what GET /_stub/state answers.
@@ -130,6 +135,9 @@ type stub struct {
 	rsaKey      *rsa.PrivateKey
 	licReady    string
 	licCA       string
+
+	// fleet is the members a fleet token reaches beside the repo (fleet.go).
+	fleet []*fleetMember
 }
 
 // defaultSession is a public repo of a User, person 7 with push access,
@@ -241,6 +249,9 @@ func (s *stub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if s.serveTopLevel(w, r, body) {
 		return
 	}
+	if s.serveFleet(w, r, body) {
+		return
+	}
 	if s.serveSession(w, r, body) {
 		return
 	}
@@ -286,7 +297,7 @@ func (s *stub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			fail(w, http.StatusUnprocessableEntity, "No ref found for: "+str("ref"))
 			return
 		}
-		s.disps = append(s.disps, dispatch{wf, str("ref"), inputs})
+		s.disps = append(s.disps, dispatch{Workflow: wf, Ref: str("ref"), Inputs: inputs})
 		s.calls = append(s.calls, fmt.Sprintf("dispatch %s %s pr=%s", wf, str("ref"), inputs["pr"]))
 		if s.onDisp != "" {
 			s.addRun(head, "workflow_dispatch", "completed", s.onDisp)
@@ -480,6 +491,8 @@ func (s *stub) control(w http.ResponseWriter, r *http.Request, str func(string) 
 		reply(w, 200, st)
 	case "/_stub/routine", "/_stub/converge":
 		s.taskControl(w, r.URL.Path, body)
+	case "/_stub/advance", "/_stub/deny":
+		s.fleetControl(w, r.URL.Path, body)
 	default:
 		fail(w, http.StatusNotFound, "no such control")
 	}
@@ -487,7 +500,8 @@ func (s *stub) control(w http.ResponseWriter, r *http.Request, str func(string) 
 
 func main() {
 	origin := flag.String("origin", "", "the member's bare origin repository")
-	repo := flag.String("repo", "acme/member", "the owner/name GITHUB_REPOSITORY names")
+	rs := &repos{home: "acme/member"}
+	flag.Var(rs, "repo", "the owner/name GITHUB_REPOSITORY names; owner/name=DIR[;archived][;fork], repeatable, adds a fleet member served from DIR")
 	token := flag.String("token", "", "the token cn must present")
 	addr := flag.String("addr", "127.0.0.1:0", "listen address")
 	ready := flag.String("ready", "", "file to write the base URL to once listening")
@@ -509,7 +523,7 @@ func main() {
 	flag.StringVar(&sess.WorkflowRef, "workflow-ref", "", "the OIDC token's job_workflow_ref (default the update workflow on main)")
 	flag.Parse()
 	if *origin == "" || *token == "" {
-		fmt.Fprintln(os.Stderr, "usage: ghstub --origin BARE.git --token T [--repo O/N] [--ready F] [--ca-out F]")
+		fmt.Fprintln(os.Stderr, "usage: ghstub --origin BARE.git --token T [--repo O/N] [--repo O/N=DIR]... [--ready F] [--ca-out F]")
 		os.Exit(2)
 	}
 	cert, pemBytes, err := stubtls.SelfSigned("ghstub")
@@ -525,7 +539,8 @@ func main() {
 	if err != nil {
 		die(err)
 	}
-	st := newStub(*origin, *repo, *token)
+	st := newStub(*origin, rs.home, *token)
+	st.fleet = rs.members
 	st.agent, st.routineToken = *agent, *routine
 	st.sess, st.licReady, st.licCA = sess, *licReady, *licCA
 	srv := &http.Server{Handler: st, ReadHeaderTimeout: 10 * time.Second}
