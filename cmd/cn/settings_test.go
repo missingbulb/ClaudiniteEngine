@@ -102,3 +102,29 @@ func TestSettingsImportRefusalWritesNothing(t *testing.T) {
 		t.Errorf("a refusal changed the file:\n%s", got)
 	}
 }
+
+// cn settings answer turns the entry into an object, and refuses what it
+// cannot record with exit 1.
+func TestSettingsAnswer(t *testing.T) {
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	dir := t.TempDir()
+	path := filepath.Join(dir, ".claudinite", "settings.yaml")
+	pack := filepath.Join(dir, ".claudinite", "shared", "packs", "asks")
+	_ = os.MkdirAll(pack, 0o755)
+	_ = os.WriteFile(filepath.Join(pack, "pack.json"), []byte(`{"version": "1.0", "questions": [{"id": "goals", "prompt": "Why?"}]}`), 0o644)
+	_ = os.WriteFile(path, []byte(devPin+"packs:\n  declared:\n    - asks\n"), 0o644)
+	out, errOut, code := runInProc([]string{"settings", "answer", "asks/goals", "n/a — none wanted", "--repo", dir}, "")
+	if code != 0 || out != "answered asks/goals in .claudinite/settings.yaml\n" {
+		t.Fatalf("code %d out %q err %q", code, out, errOut)
+	}
+	raw, _ := os.ReadFile(path)
+	if !strings.Contains(string(raw), "answers:") || !strings.Contains(string(raw), "n/a — none wanted") || !strings.HasPrefix(string(raw), devPin) {
+		t.Errorf("settings:\n%s", raw)
+	}
+	for _, args := range [][]string{{"asks/nope", "x"}, {"other/goals", "x"}, {"asks/goals", ""}, {"asks/goals"}} {
+		_, errOut, code := runInProc(append(append([]string{"settings", "answer"}, args...), "--repo", dir), "")
+		if code == 0 {
+			t.Errorf("%v: recorded (%s)", args, errOut)
+		}
+	}
+}

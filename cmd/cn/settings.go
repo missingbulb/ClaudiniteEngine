@@ -8,15 +8,20 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/missingbulb/ClaudiniteEngine/lifecycle/adopt"
 	"github.com/missingbulb/ClaudiniteEngine/shared/packset"
 	"github.com/missingbulb/ClaudiniteEngine/shared/report"
 	"github.com/missingbulb/ClaudiniteEngine/shared/settings"
 	"github.com/missingbulb/ClaudiniteEngine/shared/settings/node"
+	"github.com/missingbulb/ClaudiniteEngine/shared/version"
 )
 
 func cmdSettings(args []string, stdout io.Writer) error {
+	if len(args) > 0 && args[0] == "answer" {
+		return cmdSettingsAnswer(args[1:], stdout)
+	}
 	if len(args) == 0 || args[0] != "import" {
-		return report.New(report.Usage, "settings takes import")
+		return report.New(report.Usage, "settings takes import or answer")
 	}
 	fs := flag.NewFlagSet("settings import", flag.ContinueOnError)
 	repo := fs.String("repo", ".", "")
@@ -82,6 +87,28 @@ func cmdSettings(args []string, stdout io.Writer) error {
 		return report.Wrap(report.Internal, "settings import wrote settings it cannot read back", err)
 	}
 	return writeKeepingMode(path, out)
+}
+
+// cmdSettingsAnswer is cn settings answer <pack>/<question> <text>.
+func cmdSettingsAnswer(args []string, stdout io.Writer) error {
+	var pos []string
+	for len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+		pos, args = append(pos, args[0]), args[1:]
+	}
+	fs := flag.NewFlagSet("settings answer", flag.ContinueOnError)
+	repo := fs.String("repo", ".", "")
+	if err := flags(fs, args); err != nil {
+		return err
+	}
+	if len(pos) != 2 {
+		return report.New(report.Usage, "settings answer takes <pack>/<question> <text>")
+	}
+	file, err := adopt.Answer(*repo, version.Version(), pos[0], pos[1])
+	if err != nil {
+		return report.Wrap(report.Verify, "settings answer", err)
+	}
+	fmt.Fprintf(stdout, "answered %s in %s\n", pos[0], file)
+	return nil
 }
 
 func writeKeepingMode(path string, raw []byte) error {

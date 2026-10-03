@@ -23,11 +23,13 @@ func cmdInit(args []string, stdout, stderr io.Writer) error {
 	channel := fs.String("channel", "stable", "")
 	pkg := fs.String("package", adopt.DefaultPackage, "")
 	repo := fs.String("repo", ".", "")
+	var answers answerFlags
+	fs.Var(&answers, "answer", "")
 	if err := flags(fs, args); err != nil {
 		return err
 	}
 	if *packList == "" {
-		return report.New(report.Usage, "init needs --packs ID[,ID]")
+		return report.New(report.Usage, "init needs --packs ID[,ID]; basics is the usual first pack (it requires claudinite-lifecycle and git-github), and the vendored branch's directory lists the rest")
 	}
 	roots, err := license.Roots()
 	if err != nil {
@@ -49,7 +51,7 @@ func cmdInit(args []string, stdout, stderr io.Writer) error {
 	err = adopt.Init(adopt.Input{
 		Repo: *repo, FullName: initFullName(*repo), Packs: strings.Split(*packList, ","), Channel: *channel, Package: *pkg,
 		Fetch:  update.FetchInput{Registry: reg, Roots: roots, CacheRoot: paths.CacheRoot(), Platform: version.Platform(), Now: time.Now()},
-		Reader: reader, Timeout: childTimeout, Out: stdout, Key: initKey(stderr),
+		Reader: reader, Timeout: childTimeout, Out: stdout, Key: initKey(stderr), Answers: answers,
 	})
 	if err != nil {
 		return report.Wrap(report.IO, "init", err)
@@ -59,10 +61,12 @@ func cmdInit(args []string, stdout, stderr io.Writer) error {
 
 func cmdAdopt(args []string, stdout io.Writer) error {
 	if len(args) == 0 || strings.HasPrefix(args[0], "-") {
-		return report.New(report.Usage, "adopt takes a pack id")
+		return report.New(report.Usage, "adopt takes ID[,ID]")
 	}
 	fs := flag.NewFlagSet("adopt", flag.ContinueOnError)
 	repo := fs.String("repo", ".", "")
+	var answers answerFlags
+	fs.Var(&answers, "answer", "")
 	if err := flags(fs, args[1:]); err != nil {
 		return err
 	}
@@ -72,7 +76,7 @@ func cmdAdopt(args []string, stdout io.Writer) error {
 	}
 	reader, closeReader := packReader(roots, stdout)
 	defer closeReader()
-	if err := adopt.Adopt(adopt.AdoptInput{Repo: *repo, ID: args[0], Reader: reader, Out: stdout}); err != nil {
+	if err := adopt.Adopt(adopt.AdoptInput{Repo: *repo, IDs: strings.Split(args[0], ","), Answers: answers, Reader: reader, Out: stdout}); err != nil {
 		return report.Wrap(report.IO, "adopt", err)
 	}
 	return nil
@@ -86,4 +90,18 @@ func initFullName(dir string) string {
 		abs = dir
 	}
 	return adopt.FullNameOf(origin, abs)
+}
+
+// answerFlags is a repeatable --answer <pack>/<question>=<text>.
+type answerFlags []adopt.AnswerFlag
+
+func (a *answerFlags) String() string { return "" }
+
+func (a *answerFlags) Set(v string) error {
+	f, err := adopt.ParseAnswerFlag(v)
+	if err != nil {
+		return err
+	}
+	*a = append(*a, f)
+	return nil
 }

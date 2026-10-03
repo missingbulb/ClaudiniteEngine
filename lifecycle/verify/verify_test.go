@@ -307,6 +307,21 @@ func TestRules(t *testing.T) {
 			write(t, d, ".claudinite/claudinite-rules.GENERATED.md", "\n")
 			write(t, d, ".claudinite/claudinite-skills.GENERATED.md", "\n")
 		}, nil, []string{"node-leftovers", "node-leftovers"}},
+		{"a workflow step running the Node checks", func(t *testing.T, d string) {
+			write(t, d, ".github/workflows/ci.yml", "jobs:\n  c:\n    steps:\n      - run: node .claudinite/shared/engine/checks/check_the_world.mjs\n")
+		}, nil, []string{"node-leftovers"}},
+		{"the Node hook log ignored", func(t *testing.T, d string) {
+			write(t, d, ".gitignore", "node_modules/\n/.claudinite-hooks.log*\n")
+		}, nil, []string{"node-leftovers"}},
+		{"a declared pack's skill with no skills index", func(t *testing.T, d string) {
+			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "60930.1.0"}`)
+			write(t, d, ".claudinite/shared/packs/acme-pack/skills/demo/SKILL.md", "---\nname: demo\ndescription: d\n---\n")
+		}, nil, []string{"skills-index-current"}},
+		{"a skills index missing a held skill", func(t *testing.T, d string) {
+			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "60930.1.0"}`)
+			write(t, d, ".claudinite/shared/packs/acme-pack/skills/demo/SKILL.md", "---\nname: demo\ndescription: d\n---\n")
+			write(t, d, ".claudinite/flat/claudinite-skills.GENERATED.md", "| `other` | acme-pack | o |\n")
+		}, []string{"skills-index-current"}, nil},
 		{"hooks naming the Node engine", func(t *testing.T, d string) {
 			write(t, d, ".claude/settings.json", `{"hooks": {"SessionStart": [{"hooks": [{"type": "command", "command": "node .claudinite/shared/engine/hooks/run-session-start.mjs"}]}]}}`)
 		}, []string{"hooks"}, nil},

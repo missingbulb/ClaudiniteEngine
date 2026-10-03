@@ -93,5 +93,5 @@ func runExecutorWorkflowSecrets(ctx *declared.Ctx, _ *transcript.Session) []find
 		line = strings.Count(text[:at[0]], "\n") + 1
 	}
 	return []findings.Finding{executorWorkflowSecrets.Finding(executorWorkflow, line, what,
-		"add "+strings.Join(lines, " and ")+" to the executor's env, beneath its `# claudinite:secrets` marker — this pack's `converge-workflows.mjs <owner/repo>` (under `.claudinite/shared/` in a member) writes the whole list — and get that PR merged: a converge cannot push to .github/workflows/. Setting the repository secret itself is the other half")}
+		"add "+strings.Join(lines, " and ")+" to the executor's env, beneath its `# claudinite:secrets` marker — `cn adopt` stamps a pack's secrets there when it adopts the pack — and get that PR merged: a converge cannot push to .github/workflows/. Setting the repository secret itself is the other half")}
 }

@@ -22,3 +22,5 @@ v8-node-mount-leftover mount=ok packs=ok hooks=ok skills=skip scheduler=ok rules
 v8-old-index-path mount=ok packs=ok hooks=ok skills=skip scheduler=ok rules=ok
 v8-rules-blocking mount=ok packs=ok hooks=ok skills=skip scheduler=ok rules=ok
 v8-via-answers mount=ok packs=ok hooks=ok skills=skip scheduler=ok rules=ok
+v9-node-ci-step mount=ok packs=ok hooks=ok skills=skip scheduler=ok rules=ok
+v9-skills-index mount=ok packs=ok hooks=ok skills=ok scheduler=ok rules=ok

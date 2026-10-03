@@ -121,7 +121,18 @@ type fakePacks struct {
 }
 
 func (f *fakePacks) publish(id, v, channel string, requires ...string) {
-	a := tgz(f.t, "", map[string][]byte{"pack.json": []byte(`{"version": "` + v + `", "minEngineVersion": "` + ver + `"}`), "RULES.md": []byte("- " + id + "\n")})
+	f.publishFiles(id, v, channel, "", nil, requires...)
+}
+
+// publishFiles publishes a pack whose manifest carries extra (JSON
+// members after version and minEngineVersion) and whose archive carries
+// files beside its manifest and prose.
+func (f *fakePacks) publishFiles(id, v, channel, extra string, files map[string][]byte, requires ...string) {
+	all := map[string][]byte{"pack.json": []byte(`{"version": "` + v + `", "minEngineVersion": "` + ver + `"` + extra + `}`), "RULES.md": []byte("- " + id + "\n")}
+	for n, b := range files {
+		all[n] = b
+	}
+	a := tgz(f.t, "", all)
 	sum := sha256.Sum256(a)
 	f.archives[id+"/"+v] = a
 	f.entries[id] = append(f.entries[id], packindex.Entry{Version: v, SHA256: hex.EncodeToString(sum[:]), Size: int64(len(a)), MinEngineVersion: ver, Channel: channel, Requires: requires})
@@ -211,7 +222,7 @@ func TestInitAdoptsAnEmptyRepo(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(repo, ".github/workflows", workflows.Superseded)); err == nil {
 		t.Error("init wrote the superseded update workflow; engine/update runs the update")
 	}
-	if !strings.Contains(out.String(), "adding pack base, which hello 1.0 requires") || !strings.Contains(out.String(), "Commit everything above") {
+	if !strings.Contains(out.String(), "adding pack base, which hello 1.0 requires") || !strings.Contains(out.String(), "NEXT: commit everything above") {
 		t.Errorf("output:\n%s", out)
 	}
 	// Launcher is the release's own here, so only that rule may speak.
@@ -285,7 +296,7 @@ func TestAdoptDeclaresAndVendors(t *testing.T) {
 	body := "engine:\n  version: \"" + ver + "\"\n  manifest: \"sha512-" + strings.Repeat("A", 86) + "==\"\npacks:\n  channel: \"canary\"\n  declared:\n    - base\n"
 	_ = os.WriteFile(filepath.Join(repo, ".claudinite/settings.yaml"), []byte(body), 0o644)
 	var out bytes.Buffer
-	if err := Adopt(AdoptInput{Repo: repo, ID: "hello", Reader: newPacks(t), Out: &out}); err != nil {
+	if err := Adopt(AdoptInput{Repo: repo, IDs: []string{"hello"}, Reader: newPacks(t), Out: &out}); err != nil {
 		t.Fatalf("%v\n%s", err, out.String())
 	}
 	raw, _ := os.ReadFile(filepath.Join(repo, ".claudinite/settings.yaml"))
@@ -298,7 +309,7 @@ func TestAdoptDeclaresAndVendors(t *testing.T) {
 	if g, _ := os.ReadFile(filepath.Join(repo, ".claude/skills/.gitignore")); string(g) != "*\n!.gitignore\n" {
 		t.Errorf("skills ignore %q", g)
 	}
-	if err := Adopt(AdoptInput{Repo: repo, ID: "hello", Reader: newPacks(t), Out: &out}); err == nil || !strings.Contains(err.Error(), "already declared") {
+	if err := Adopt(AdoptInput{Repo: repo, IDs: []string{"hello"}, Reader: newPacks(t), Out: &out}); err == nil || !strings.Contains(err.Error(), "already declared") {
 		t.Errorf("%v", err)
 	}
 }
@@ -312,7 +323,7 @@ func TestAdoptKeepsAnExistingSkillsIgnore(t *testing.T) {
 	body := "engine:\n  version: \"" + ver + "\"\n  manifest: \"sha512-" + strings.Repeat("A", 86) + "==\"\npacks:\n  channel: \"canary\"\n  declared:\n    - base\n"
 	_ = os.WriteFile(filepath.Join(repo, ".claudinite/settings.yaml"), []byte(body), 0o644)
 	var out bytes.Buffer
-	if err := Adopt(AdoptInput{Repo: repo, ID: "hello", Reader: newPacks(t), Out: &out}); err != nil {
+	if err := Adopt(AdoptInput{Repo: repo, IDs: []string{"hello"}, Reader: newPacks(t), Out: &out}); err != nil {
 		t.Fatalf("%v\n%s", err, out.String())
 	}
 	if g, _ := os.ReadFile(filepath.Join(repo, ".claude/skills/.gitignore")); string(g) != "mine\n" {

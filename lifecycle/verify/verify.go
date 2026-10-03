@@ -81,6 +81,7 @@ var rules = []rule{
 	{"descriptor-duplicate", checkDescriptorDuplicate},
 	{"settings-checks", checkSettingsChecks},
 	{"rules-index-current", checkRulesIndex},
+	{"skills-index-current", checkSkillsIndex},
 	{"claude-md-import", checkClaudeMDImport},
 	{"local-pack-shape", checkLocalPackShape},
 	{"node-leftovers", checkNodeLeftovers},
@@ -613,6 +614,55 @@ func pinOf(in Input) string {
 // checkRulesIndex breaks when the rules index differs from what the
 // declaration produces; an absent index is a deprecation until the rules
 // channel's live measurement makes it a break.
+// checkSkillsIndex asks the Node rule's question of the repo's own files:
+// is there a skills index, and does it name every skill a declared pack
+// holds here. An index no earlier cn release wrote is a deprecation; one
+// that misses a held skill is stale.
+func checkSkillsIndex(in Input) []findings.Finding {
+	path, f, err := settings.Find(in.Repo)
+	if err != nil {
+		return nil
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	declared, err := settings.ReadPacks(raw, f)
+	if err != nil {
+		return nil
+	}
+	seen := map[string]bool{}
+	var held []string
+	for _, id := range append(append([]string{}, declared.Declared...), declared.Local...) {
+		for _, root := range []string{packset.Dir, packset.LocalDir} {
+			m, _ := filepath.Glob(filepath.Join(in.Repo, filepath.FromSlash(root), id, "skills", "*", "SKILL.md"))
+			sort.Strings(m)
+			for _, p := range m {
+				name := filepath.Base(filepath.Dir(p))
+				if st, err := os.Stat(p); err == nil && st.Mode().IsRegular() && !seen[name] {
+					seen[name] = true
+					held = append(held, name)
+				}
+			}
+		}
+	}
+	if len(held) == 0 {
+		return nil
+	}
+	const fix = "run `cn rules-index` and commit it"
+	text, err := os.ReadFile(filepath.Join(in.Repo, filepath.FromSlash(rulesindex.SkillsFile)))
+	if err != nil {
+		return []findings.Finding{dep("skills-index-current", rulesindex.SkillsFile, "is missing, so nothing names which skill loads when; "+fix)}
+	}
+	var out []findings.Finding
+	for _, name := range held {
+		if !strings.Contains(string(text), "`"+name+"`") {
+			out = append(out, brk("skills-index-current", rulesindex.SkillsFile, "does not name the skill "+name+", which a declared pack holds here; "+fix))
+		}
+	}
+	return out
+}
+
 func checkRulesIndex(in Input) []findings.Finding {
 	if _, _, err := settings.Find(in.Repo); err != nil {
 		return nil

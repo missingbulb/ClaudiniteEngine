@@ -50,10 +50,20 @@ type PackEntry struct {
 	Config map[string]any
 	Rules  map[string]string
 	Accept []Acceptance
-	// Via and Answers are carried opaque: the adoption slice gives them
-	// meaning, and an import keeps them where the Node adoption flow
-	// left them.
-	Via, Answers any
+	// Via is carried opaque: the Node resolver's record of the packs that
+	// pulled this one in, which the interview reads as "not chosen".
+	Via any
+	// Answers are the adoption questions' answers, verbatim, by question
+	// id; cn settings answer is their one writer.
+	Answers map[string]string
+}
+
+// Pulled reports whether the entry was pulled in by another pack's
+// requires (a non-empty via) and the project has not engaged with it: no
+// config and no answers. Its adoption questions do not apply.
+func (e PackEntry) Pulled() bool {
+	via, _ := e.Via.([]any)
+	return len(via) > 0 && e.Config == nil && len(e.Answers) == 0
 }
 
 // Token is the entry's id as the declaration spells it.
@@ -239,7 +249,21 @@ func parseEntry(e any, i int, retired *[]RetiredOverride) (PackEntry, error) {
 		if c, ok := v["config"].(map[string]any); ok {
 			entry.Config = c
 		}
-		entry.Via, entry.Answers = v["via"], v["answers"]
+		entry.Via = v["via"]
+		if a, ok := v["answers"]; ok && a != nil {
+			obj, ok := a.(map[string]any)
+			if !ok {
+				return PackEntry{}, fmt.Errorf("packs.declared[%d]: the %s entry's answers must be an object of question id to answer text", i, token)
+			}
+			entry.Answers = map[string]string{}
+			for q, t := range obj {
+				text, ok := t.(string)
+				if !ok {
+					return PackEntry{}, fmt.Errorf("packs.declared[%d]: the %s entry's answer to %q must be text", i, token, q)
+				}
+				entry.Answers[q] = text
+			}
+		}
 		c, err := parseChecks(map[string]any{"rules": v["rules"], "accept": v["accept"]}, "the "+token+" pack entry", retired)
 		if err != nil {
 			return PackEntry{}, err

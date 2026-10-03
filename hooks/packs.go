@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/missingbulb/ClaudiniteEngine/shared/interview"
 	"github.com/missingbulb/ClaudiniteEngine/shared/packset"
 	"github.com/missingbulb/ClaudiniteEngine/shared/settings"
 	"github.com/missingbulb/ClaudiniteEngine/shared/skillfm"
@@ -86,11 +87,30 @@ func assemble(repo, engine string) assembled {
 	a.skills, mountNotes = mount(repo, offered)
 	a.notes = append(a.notes, mountNotes...)
 	a.notes = append(a.notes, malformedNotes(set.Packs)...)
+	if l := pendingLine(set); l != "" {
+		a.notes = append(a.notes, l)
+	}
 	a.selfCheck = fmt.Sprintf("[cn] packs %d/%d loaded", len(set.Packs), len(set.Packs)+len(set.NotLoaded))
 	if len(parts) > 0 {
 		a.selfCheck += " (" + strings.Join(parts, "; ") + ")"
 	}
 	return a
+}
+
+// pendingLine is the one line naming the adoption questions the active
+// packs ask and their entries do not answer; never a finding.
+func pendingLine(set packset.Set) string {
+	pending, _ := interview.State(set)
+	var ids []string
+	for _, p := range pending {
+		for _, q := range p.Questions {
+			ids = append(ids, p.Pack.Token()+"/"+q.ID)
+		}
+	}
+	if len(ids) == 0 {
+		return ""
+	}
+	return "[cn] adoption questions pending (" + strings.Join(ids, ", ") + "): in an interactive session, at a natural moment, ask the person and record each with cn settings answer; an unattended session ignores this"
 }
 
 // hasCoded reports whether a pack ships modules the Node engine ran and

@@ -2,8 +2,9 @@
 // declaration and the first vendoring. Init adopts a repo from nothing:
 // it picks the newest allowed engine version, fetches and verifies it and
 // runs its selftest, reads and verifies every declared pack (plus what
-// they require), and only when every read succeeded writes the files. No
-// adoption questions or seed operations run yet (phase 6).
+// they require), and only when every read succeeded writes the files; it
+// then records any answers given, seeds and stamps for the new packs and
+// prints what is left: the questions, the human steps and the next one.
 package adopt
 
 import (
@@ -22,9 +23,11 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/lifecycle/update"
 	"github.com/missingbulb/ClaudiniteEngine/lifecycle/verify"
 	"github.com/missingbulb/ClaudiniteEngine/lifecycle/workflows"
+	"github.com/missingbulb/ClaudiniteEngine/shared/interview"
 	"github.com/missingbulb/ClaudiniteEngine/shared/packindex"
 	"github.com/missingbulb/ClaudiniteEngine/shared/packset"
 	"github.com/missingbulb/ClaudiniteEngine/shared/settings"
+	"github.com/missingbulb/ClaudiniteEngine/shared/workitem"
 )
 
 // DefaultPackage is the engine package a pin names when it names none.
@@ -45,6 +48,8 @@ type Input struct {
 	Reader  update.PackReader
 	Timeout time.Duration
 	Out     io.Writer
+	// Answers are recorded once the packs are declared.
+	Answers []AnswerFlag
 	// Key makes init's one key request for the repo, in the foreground
 	// within the cut; nil makes none.
 	Key func(repo string) KeyGrant
@@ -56,6 +61,9 @@ type KeyGrant struct {
 	Plan   string
 	Reason string
 	Link   string
+	// Checkout is the plan checkout a no-plan or refused-private refusal
+	// carried, "" when none came.
+	Checkout string
 }
 
 // vendored is one pack chosen and read, ready to unpack.
@@ -255,21 +263,63 @@ func Init(in Input) error {
 		if err := os.WriteFile(p, moved, 0o644); err != nil {
 			return err
 		}
+		fmt.Fprintf(in.Out, "plan: %s\n", g.Plan)
 	}
-	fmt.Fprintf(in.Out, `
-Adopted. Next:
-  1. Commit everything above and open a pull request; a person merges it, since it adds workflows.
-  2. In the repository's Settings > Actions > General, allow GitHub Actions to create and approve pull requests, so the nightly update can open its PRs.
-`)
-	if g.Plan != "" {
-		fmt.Fprintf(in.Out, "  3. The Claudinite App answered with this repo's license key; the settings file now names its plan.\nplan: %s\n", g.Plan)
-		return nil
+	return finish(finishInput{Repo: in.Repo, Engine: got.Version, Newly: ids, Answers: in.Answers, Core: true, Key: g, Out: in.Out})
+}
+
+// finishInput is the tail init and adopt share once the packs are
+// vendored and declared.
+type finishInput struct {
+	Repo, Engine string
+	// Newly are the packs this run vendored, in the order it chose them.
+	Newly   []string
+	Answers []AnswerFlag
+	// Core adds the core HANDOVER rows; Key is the key request's answer.
+	Core bool
+	Key  KeyGrant
+	// First are NEXT's steps before the commit's.
+	First []string
+	// Seed writes the new packs' seedOps; a move seeds nothing.
+	NoSeed bool
+	Out    io.Writer
+}
+
+// finish records the answers, seeds and stamps for the new packs, and
+// prints QUESTIONS, HANDOVER and NEXT.
+func finish(in finishInput) error {
+	if err := applyAnswers(in.Repo, in.Engine, in.Answers, in.Out); err != nil {
+		return err
 	}
-	link := g.Link
-	if link == "" {
-		link = InstallURL
+	if !in.NoSeed {
+		if err := seedAll(in.Repo, in.Newly, in.Out); err != nil {
+			return err
+		}
 	}
-	fmt.Fprintf(in.Out, "  3. No license key came (%s): the Claudinite GitHub App is not installed on this repo or not reachable, and sessions run degraded until an owner installs it:\n     %s\n", g.Reason, link)
+	set, err := packset.Load(in.Repo, in.Engine, false)
+	if err != nil {
+		return err
+	}
+	newly := map[string]bool{}
+	for _, id := range in.Newly {
+		newly[id] = true
+	}
+	if err := stampExecutor(in.Repo, packSecrets(set, newly), in.Out); err != nil {
+		return err
+	}
+	var packs []packset.Pack
+	for _, id := range in.Newly {
+		for _, p := range set.Packs {
+			if p.Kind == packset.Canon && p.ID == id {
+				packs = append(packs, p)
+			}
+		}
+	}
+	pending, _ := interview.State(set)
+	steps := Handover(HandoverInput{Core: in.Core, Key: in.Key, Tasks: newly[workitem.TasksPackID], Newly: packs})
+	writeQuestions(in.Out, pending)
+	writeHandover(in.Out, steps)
+	writeNext(in.Out, NextInput{First: in.First, Routine: newly[workitem.TasksPackID], Handover: len(steps) > 0})
 	return nil
 }
 
@@ -332,10 +382,11 @@ func mergeHooks(path string) ([]byte, error) {
 
 // AdoptInput is one cn adopt.
 type AdoptInput struct {
-	Repo   string
-	ID     string
-	Reader update.PackReader
-	Out    io.Writer
+	Repo    string
+	IDs     []string
+	Answers []AnswerFlag
+	Reader  update.PackReader
+	Out     io.Writer
 }
 
 // SkillsIgnore keeps the skills SessionStart mounts out of git.
@@ -355,12 +406,13 @@ func ensureSkillsIgnore(repo string) error {
 	return os.WriteFile(path, []byte(skillsIgnoreBody), 0o644)
 }
 
-// Adopt declares one more pack on an adopted repo, with what it requires,
-// and vendors them for the pinned engine; it regenerates the rules index
-// and writes what a member adopted before them lacks: the CLAUDE.md
-// import and the skills ignore. Skills mount at the next SessionStart.
+// Adopt declares more packs on an adopted repo, with what they require,
+// and vendors them for the pinned engine once every one resolved; it
+// regenerates the indexes, writes what a member adopted before them lacks
+// (the CLAUDE.md import, the skills ignore), and ends as init does for
+// what it added. Skills mount at the next SessionStart.
 func Adopt(in AdoptInput) error {
-	if err := checkIDs([]string{in.ID}); err != nil {
+	if err := checkIDs(in.IDs); err != nil {
 		return err
 	}
 	path, f, err := settings.Find(in.Repo)
@@ -383,17 +435,21 @@ func Adopt(in AdoptInput) error {
 	for _, id := range declared.Declared {
 		held[id] = true
 	}
-	if held[in.ID] {
-		return fmt.Errorf("pack %s is already declared", in.ID)
+	for _, id := range in.IDs {
+		if held[id] {
+			return fmt.Errorf("pack %s is already declared", id)
+		}
 	}
-	chosen, err := resolve(in.Reader, []string{in.ID}, held, declared.Channel, pin.Version, in.Out)
+	chosen, err := resolve(in.Reader, in.IDs, held, declared.Channel, pin.Version, in.Out)
 	if err != nil {
 		return err
 	}
+	var ids []string
 	for _, v := range chosen {
 		if raw, err = settings.AddDeclared(raw, f, v.id); err != nil {
 			return err
 		}
+		ids = append(ids, v.id)
 	}
 	for _, v := range chosen {
 		if err := packs.Unpack(v.archive, packset.Tree(in.Repo, v.id)); err != nil {
@@ -401,7 +457,7 @@ func Adopt(in AdoptInput) error {
 		}
 		fmt.Fprintf(in.Out, "pack: %s %s\n", v.id, v.entry.Version)
 	}
-	if err := os.WriteFile(path, raw, 0o644); err != nil {
+	if err := writeKeepingMode(path, raw); err != nil {
 		return err
 	}
 	if _, err := rulesindex.Converge(in.Repo, pin.Version); err != nil {
@@ -413,6 +469,6 @@ func Adopt(in AdoptInput) error {
 	if err := ensureSkillsIgnore(in.Repo); err != nil {
 		return err
 	}
-	fmt.Fprintf(in.Out, "Declared in %s; commit it with %s/, %s, %s and %s and open a pull request.\n", settings.RelPath(f), packset.Dir, rulesindex.File, rulesindex.ClaudeMD, SkillsIgnore)
-	return nil
+	fmt.Fprintf(in.Out, "Declared in %s.\n", settings.RelPath(f))
+	return finish(finishInput{Repo: in.Repo, Engine: pin.Version, Newly: ids, Answers: in.Answers, Out: in.Out})
 }

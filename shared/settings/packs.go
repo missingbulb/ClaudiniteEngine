@@ -368,13 +368,15 @@ func AddDeclared(raw []byte, f Format, id string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	object := false
 	for _, e := range p.Entries {
-		if e.Object {
-			return nil, fmt.Errorf("packs.declared holds an entry object (%s); add %s to the list by hand, since a line edit cannot keep an object entry intact", e.Token(), id)
-		}
+		object = object || e.Object
 		if e.Token() == id {
 			return nil, fmt.Errorf("%s is already declared", id)
 		}
+	}
+	if object {
+		return appendDeclared(raw, f, id)
 	}
 	l, err := readPacksLayout(raw, f)
 	if err != nil {
