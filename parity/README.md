@@ -36,10 +36,15 @@ cases: the branch's files, bytes and commit subjects),
 `provenance/mark-local-prefix`, record row 90 (cn resolves `local/<name>`,
 which Node's tool refused). A second came later:
 `provenance/append-unknown-kind`, record row 125 (cn's kind vocabulary
-reads the shelf's `ported`, `gate-changed` and `hardened`).
+reads the shelf's `ported`, `gate-changed` and `hardened`). A third:
+`provenance/brief-go-check`, record row 126 (`brief` reads a pack's Go
+check as its carrier and follows it back to the module it was ported
+from, where Node's tool found no carrier at all).
 
-Phase 7 added `scenarios/provenance/*`'s maintainer verbs (thirteen more,
-46 in all: `reduce`, `apply`, `convert-references`) and
+Phase 7 added `scenarios/provenance/*`'s maintainer verbs (eighteen more,
+51 in all: `reduce`, `apply`, `convert-references` and `brief`, whose
+repos carry authors, an origin, a sweep, a moved rule, a rule reworded in
+place and a promoted pack) and
 `scenarios/pack-history/*` (three: the shelf, one pack, an earlier ref),
 where Node's `pack-versions.mjs` answers through `shims/pack-history.mjs`
 in `cn pack history --json`'s shape, and `scenarios/promote-scope/*`

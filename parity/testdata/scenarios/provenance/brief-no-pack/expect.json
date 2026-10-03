@@ -1,0 +1,13 @@
+{
+  "runs": [
+    {
+      "exit": 2,
+      "stdout": "",
+      "stderr": "no pack \"nope\" under packs or .claudinite/local/packs"
+    }
+  ],
+  "branch": null,
+  "files": {
+    "x.txt": "x\n"
+  }
+}
