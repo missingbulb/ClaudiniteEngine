@@ -14,7 +14,6 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/fleet/addpacks"
 	"github.com/missingbulb/ClaudiniteEngine/fleet/seeds"
 	"github.com/missingbulb/ClaudiniteEngine/shared/report"
-	"github.com/missingbulb/ClaudiniteEngine/shared/settings"
 )
 
 // minPlausiblePacks is the smallest catalog a scan runs against: a
@@ -69,24 +68,6 @@ func splitCodeWork(args []string) (repo, api string, argv []string, err error) {
 	return repo, api, argv, nil
 }
 
-// managerChannel is the channel the manager's own declaration reads pack
-// versions from: the catalog entries the scan fingerprints against.
-func managerChannel(root string) string {
-	path, f, err := settings.Find(root)
-	if err != nil {
-		return settings.ChannelStable
-	}
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		return settings.ChannelStable
-	}
-	p, err := settings.ReadPacks(raw, f)
-	if err != nil || p.Channel == "" {
-		return settings.ChannelStable
-	}
-	return p.Channel
-}
-
 // fleetAddPacks is `cn fleet add-packs`, the fleet-add-missing-packs
 // task's code-work: the scheduled scan from its command line, a force
 // from its item's Context.
@@ -128,18 +109,18 @@ func fleetAddPacks(args []string, stdout, stderr io.Writer, start time.Time) err
 		s.crumb("add-packs", "error", 0, 0)
 		return s.failed(fmt.Errorf("the shelf's catalog could not be read: %w", err))
 	}
-	channel := managerChannel(s.root)
-	corpus := cat.Catalog.For(channel)
-	fmt.Fprintf(stdout, "catalog: %d pack(s) on the %s channel, serial %d from %s\n", len(corpus), channel, cat.Catalog.Serial, cat.From)
+	corpus := addpacks.CatalogCorpus(cat.Catalog)
+	ids, onStable, onCanary := addpacks.Count(cat.Catalog)
+	fmt.Fprintf(stdout, "catalog: %d pack(s), %d on stable and %d on canary, serial %d from %s\n", ids, onStable, onCanary, cat.Catalog.Serial, cat.From)
 	floor := minPlausiblePacks
 	if n, err := strconv.Atoi(os.Getenv("CLAUDINITE_FLEET_MIN_PACKS")); err == nil && n > 0 {
 		floor = n
 	}
-	if len(corpus) < floor {
+	if ids < floor {
 		s.crumb("add-packs", "error", 0, 0)
-		return s.failed(fmt.Errorf("only %d pack(s) in the shelf's catalog — refusing to sweep the fleet against a corpus that small, because every member would report as fitted for the wrong reason", len(corpus)))
+		return s.failed(fmt.Errorf("only %d pack(s) in the shelf's catalog across both channels — refusing to sweep the fleet against a corpus that small, because every member would report as fitted for the wrong reason", ids))
 	}
-	if err := addpacks.Validate(p, s.cfg.Owner, s.cfg, corpus); err != nil {
+	if err := addpacks.Validate(p, s.cfg.Owner, s.cfg, corpus.Union); err != nil {
 		s.crumb("add-packs", "refused", 0, 0)
 		return s.failed(err)
 	}

@@ -42,7 +42,7 @@ func TestAForceWithOneBadTargetWritesNothing(t *testing.T) {
 		t.Fatalf("validate: %v", err)
 	}
 	repos := []fleet.Repo{{Name: "good", FullName: "acme/good", DefaultBranch: "main"}}
-	_, err := addpacks.Run(recorder(&writes), repos, "acme/manager", cfg, p, shelf)
+	_, err := addpacks.Run(recorder(&writes), repos, "acme/manager", cfg, p, addpacks.FixedCorpus(shelf))
 	if !addpacks.IsRefusal(err) {
 		t.Fatalf("want a refusal, got %v", err)
 	}

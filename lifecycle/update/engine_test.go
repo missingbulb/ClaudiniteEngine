@@ -672,7 +672,7 @@ func TestAnUpdatePRForAVersionNowHeldIsClosed(t *testing.T) {
 func TestProposeRestatesTheMemberFile(t *testing.T) {
 	w := newWorld(t, settings.YAML)
 	for rel, body := range map[string]string{
-		settings.RelPath(settings.YAML):          settingsFor(settings.YAML, v1, pin1) + "packs:\n  declared:\n    - hello\n",
+		settings.RelPath(settings.YAML):            settingsFor(settings.YAML, v1, pin1) + "packs:\n  declared:\n    - hello\n",
 		".claudinite/shared/packs/hello/pack.json": `{"version": "1.0", "minEngineVersion": "0.0.0"}`,
 	} {
 		p := filepath.Join(w.repo, filepath.FromSlash(rel))

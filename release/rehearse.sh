@@ -1871,7 +1871,7 @@ YAML
 
       # Steps 8 to 13 read the shelf's catalog from a local pack source:
       # hello and hello-asks, each with a fingerprint, on the canary channel
-      # the manager declares.
+      # acme/behind declares.
       src=$work/fleetsrc
       sh release/packs-fixture.sh "$src" --min-engine "$version" > "$work/fixture.out" 2>&1 || fail "fleet 8: fixture: $(cat "$work/fixture.out")"
       sh release/packs-fixture.sh "$src" --publish-pack hello-asks > "$work/fixture.out" 2>&1 || fail "fleet 8: fixture hello-asks: $(cat "$work/fixture.out")"
@@ -1892,7 +1892,7 @@ YAML
       suspected="Add packs: suspected"
 
       fleet_cn add-packs --scan-for-needed-packs=true --repos=all-covered-members || fail "fleet 8: add-packs: $(cat "$work/fleet.out" "$work/fleet.err")"
-      expect_line 'catalog: 2 pack(s) on the canary channel' 8
+      expect_line 'catalog: 2 pack(s), 0 on stable and 2 on canary' 8
       member_issues behind | grep -qF "$suspected" || fail "fleet 8: no suspected issue in acme/behind: $(member_issues behind) $(cat "$work/fleet.out")"
       member_issues behind | grep -qF 'task:origin:ad-hoc' || fail "fleet 8: the suspected issue carries no mark: $(member_issues behind)"
       gh_count 'st.fleet["acme/behind"][0].body' | grep -qF "${bt}hello${bt}" || fail "fleet 8: the suspected list names no hello: $(gh_count 'st.fleet["acme/behind"][0].body')"

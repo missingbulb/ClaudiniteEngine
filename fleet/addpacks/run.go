@@ -80,7 +80,8 @@ func (o Outcome) Err() error {
 // the scan, the force, and the nudge to each member left with an open
 // list. A refused nudge is reported and nothing more: the member adopts
 // the marked issue on its own next scheduler run.
-func Run(gh fleet.GH, repos []fleet.Repo, home string, cfg fleet.Config, p Params, packs []packindex.CatalogPack) (Outcome, error) {
+func Run(gh fleet.GH, repos []fleet.Repo, home string, cfg fleet.Config, p Params, corpus Corpus) (Outcome, error) {
+	packs := corpus.Union
 	var o Outcome
 	branches := map[string]string{}
 	for _, r := range repos {
@@ -111,7 +112,7 @@ func Run(gh fleet.GH, repos []fleet.Repo, home string, cfg fleet.Config, p Param
 	}
 	if p.Scan {
 		o.Logs = append(o.Logs, "scanning the fleet for packs a member's shape suspects but its declaration does not carry")
-		s := RunScan(gh, repos, home, cfg, packs, scoped)
+		s := RunScan(gh, repos, home, cfg, corpus, scoped)
 		var fired []string
 		for _, t := range s.ToFire {
 			if fire(t.FullName, t.DefaultBranch) {
