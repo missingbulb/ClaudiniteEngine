@@ -8,11 +8,14 @@ import (
 	"time"
 
 	"github.com/missingbulb/ClaudiniteEngine/growth/scaffold"
+	"github.com/missingbulb/ClaudiniteEngine/lifecycle/rulesindex"
 	"github.com/missingbulb/ClaudiniteEngine/shared/report"
+	"github.com/missingbulb/ClaudiniteEngine/shared/version"
 )
 
 // cmdPack is `cn pack new <name>`: the local pack a repo's own lessons
-// land in, scaffolded and declared.
+// land in, scaffolded and declared, and the rules index converged so the
+// pack's rules reach the next session.
 func cmdPack(args []string, stdout io.Writer) error {
 	if len(args) == 0 || args[0] != "new" {
 		return report.New(report.Usage, "pack takes new <name> [--belongs TEXT] [--excludes TEXT] [--repo DIR]")
@@ -45,5 +48,12 @@ func cmdPack(args []string, stdout io.Writer) error {
 		fmt.Fprintln(stdout, f)
 	}
 	fmt.Fprintf(stdout, "declared %s in %s\n", made.Token, made.Settings)
+	written, err := rulesindex.Converge(root, version.Version())
+	if err != nil {
+		return report.Wrap(report.IO, "pack new: the rules index", err)
+	}
+	for _, f := range written {
+		fmt.Fprintf(stdout, "wrote %s\n", f)
+	}
 	return nil
 }

@@ -1,6 +1,6 @@
 #!/bin/sh
 # The local Phase 1 to 4 gates, against the built release in $DIST
-# (default dist/) served by regstub, in eight modes:
+# (default dist/) served by regstub, in nine modes:
 #
 #   fresh    the host's smoke leg (release/smoke-platform.sh) on a new member
 #   current  a member warm on this release moves its pin to the next ordinal
@@ -50,11 +50,18 @@
 #            no push access, refusals and bindings, resume and renewal, the
 #            desktop after cn login, and the Actions key in cn update engine
 #            with its release states, refusals and the plan correction PR.
+#   growth   a member declaring claudinite-growth with a GitHub origin: cn
+#            growth capture writes the branch and a disjoint delta,
+#            SessionEnd captures under CLAUDINITE_SESSION_ISSUE and writes
+#            nothing under a degraded key, a logs-prune item runs cn growth
+#            prune as its code-work only once the captures are past
+#            retention, and cn pack new leaves verify and cn provenance
+#            check clean.
 #
-# The update, packs, adopt, tasks and license modes give every member a GitHub-shaped
+# The update, packs, adopt, tasks, license and growth modes give every member a GitHub-shaped
 # origin (url.<bare>.insteadOf), as the session's key request reads it.
 #
-#   release/rehearse.sh [--mode fresh|current|stale|update|packs|adopt|tasks|license]   (default: all eight)
+#   release/rehearse.sh [--mode fresh|current|stale|update|packs|adopt|tasks|license|growth]   (default: all nine)
 #
 # UPDATE_STEPS=4 stops the update mode after the landing and the session on
 # the landed version (release/hop.sh); the default, 11, runs every step.
@@ -72,13 +79,13 @@ export GOCACHE
 fail() { echo "rehearse: FAIL: $*" >&2; exit 1; }
 step() { echo "rehearse: $*"; }
 
-usage="usage: release/rehearse.sh [--mode fresh|current|stale|update|packs|adopt|tasks|license]"
-modes="fresh current stale update packs adopt tasks license"
+usage="usage: release/rehearse.sh [--mode fresh|current|stale|update|packs|adopt|tasks|license|growth]"
+modes="fresh current stale update packs adopt tasks license growth"
 case $# in
   0) ;;
   2)
     [ "$1" = --mode ] || fail "$usage"
-    case $2 in fresh|current|stale|update|packs|adopt|tasks|license) modes=$2 ;; *) fail "unknown mode $2" ;; esac ;;
+    case $2 in fresh|current|stale|update|packs|adopt|tasks|license|growth) modes=$2 ;; *) fail "unknown mode $2" ;; esac ;;
   *) fail "$usage" ;;
 esac
 
@@ -154,7 +161,7 @@ case " $modes " in
     ;;
 esac
 case " $modes " in
-  *" update "*|*" packs "*|*" adopt "*|*" tasks "*|*" license "*)
+  *" update "*|*" packs "*|*" adopt "*|*" tasks "*|*" license "*|*" growth "*)
     # The caller's dist stays as it was: sign a copy.
     dist1=$work/dist1
     cp -R "$DIST" "$dist1"
@@ -1603,6 +1610,144 @@ GO
       [ -z "$verify_out" ] || fail "license 10: verify reported: $verify_out"
       licctl '{"plan":""}'
       step "license 10: the key's plan opened, passed check world and landed the plan PR; verify is clean"
+      ;;
+    growth)
+      step "growth: a member declaring claudinite-growth with a GitHub origin, ghstub and licstub"
+      rm -f "$dist3"/tarballs/*
+      printf '{}\n' > "$work/deprecations.json"
+      warm_member growth
+      # The packs the steps read, each standing in as its manifest, and
+      # claudinite-growth's logs-prune task as the pack declares it.
+      for p in claudinite-growth claudinite-tasks claudinite-lifecycle; do
+        mkdir -p "$member/.claudinite/shared/packs/$p"
+        printf '{\n  "version": "1.0",\n  "minEngineVersion": "%s"\n}\n' "$version" > "$member/.claudinite/shared/packs/$p/pack.json"
+      done
+      mkdir -p "$member/.claudinite/shared/packs/claudinite-growth/tasks/logs-prune"
+      cat > "$member/.claudinite/shared/packs/claudinite-growth/tasks/logs-prune/task.json" <<'JSON'
+{
+  "id": "logs-prune",
+  "description": "Retention on the conversation-logs branch.",
+  "trigger": "request",
+  "preconditions": ["log-past-retention"],
+  "expected_outcome": "no_code_changes",
+  "code_work": "cn growth prune",
+  "code_work_timeout": 60
+}
+JSON
+      cat >> "$member/.claudinite/settings.yaml" <<'YAML'
+packs:
+  declared:
+    - claudinite-growth
+    - claudinite-lifecycle
+    - id: claudinite-tasks
+      config:
+        disabledTasks:
+          - engine/update
+YAML
+      # The rules index and its import, as init writes them.
+      (cd "$member" && .claudinite/bin/cn rules-index) > "$work/index.out" 2>&1 || fail "growth: rules-index: $(cat "$work/index.out")"
+      printf '@.claudinite/flat/claudinite-rules.GENERATED.md\n' > "$member/CLAUDE.md"
+      origin=$work/growth-origin.git
+      git init -q --bare -b main "$origin"
+      gitc() { (cd "$member" && git -c user.name=rehearse -c user.email=r@x -c commit.gpgsign=false "$@"); }
+      (cd "$member" && git init -q -b main && git add -A) || fail "growth: git setup"
+      gitc commit -q -m adopt || fail "growth: adopt commit"
+      github_origin "$origin"
+      (cd "$member" && git -c push.negotiate=false push -q origin main) || fail "growth: push"
+      start_ghstub "$origin"
+      start_licstub
+      cat "$work/ca.pem" "$work/gh-ca.pem" "$work/lic-ca.pem" > "$work/cas.pem"
+      SSL_CERT_FILE=$work/cas.pem CURL_CA_BUNDLE=$work/cas.pem
+      GITHUB_REPOSITORY=acme/member CLAUDINITE_GITHUB_API=$gh GH_TOKEN=rehearsal-token GITHUB_REF_NAME=main
+      export SSL_CERT_FILE CURL_CA_BUNDLE GITHUB_REPOSITORY CLAUDINITE_GITHUB_API GH_TOKEN GITHUB_REF_NAME
+      sessions=$XDG_CACHE_HOME/claudinite/sessions
+      gfield() {
+        node -e 'try { const f = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")); const v = f[process.argv[2]]; process.stdout.write(v === undefined || v === null ? "" : String(v)) } catch (e) {}' \
+          "$sessions/$1.json" "$2"
+      }
+      landed() {
+        tries=0
+        until [ "$(gfield "$1" state)" = landed ]; do
+          tries=$((tries + 1))
+          [ "$tries" -le 50 ] || fail "growth: session $1's key did not land: $(cat "$sessions/$1.json" "$sessions/$1.log" 2>&1)"
+          sleep 0.1
+        done
+      }
+      captures() { git --git-dir "$origin" ls-tree --name-only conversation-logs 2>/dev/null | grep -c '\.jsonl$' || :; }
+      # transcript NAME PART...: a transcript of the growth-capture fixture's parts.
+      fixture=$root/parity/testdata/scenarios/growth-capture/second-merge-delta
+      transcript() { t=$work/$1.jsonl; shift; : > "$t"; for p in "$@"; do cat "$fixture/$p" >> "$t"; done; }
+      session_end() {
+        (cd "$member" && printf '{"hook_event_name":"SessionEnd","session_id":"%s","transcript_path":"%s","cwd":"%s"}' "$1" "$work/$1.jsonl" "$member" \
+          | CLAUDE_PROJECT_DIR=$member CLAUDINITE_SESSION_ISSUE=$2 sh -c "$(hook_command SessionEnd)" > "$work/end.out" 2> "$work/end.err") \
+          || fail "growth: SessionEnd $1 exited non-zero: $(cat "$work/end.err")"
+        [ "$(cat "$work/end.out")" = "{}" ] || fail "growth: SessionEnd $1 answered $(cat "$work/end.out")"
+      }
+
+      transcript g1 part1.jsonl
+      cn_member growth capture --pr 1 --transcript "$work/g1.jsonl" > "$work/cap.out" 2> "$work/cap.err" || fail "growth 1: capture: $(cat "$work/cap.out" "$work/cap.err")"
+      names=$(git --git-dir "$origin" ls-tree --name-only conversation-logs) || fail "growth 1: no conversation-logs branch: $(cat "$work/cap.err")"
+      case $names in *--pr-1--g1.jsonl*README.md) ;; *) fail "growth 1: the branch holds $names" ;; esac
+      grep -q '^\[cn\] growth capture ok ' "$work/cap.err" || fail "growth 1: no breadcrumb: $(cat "$work/cap.err")"
+      step "growth 1: the first capture created the branch with its README and one file"
+
+      transcript g1 part1.jsonl part2.jsonl
+      cn_member growth capture --pr 2 --transcript "$work/g1.jsonl" > "$work/cap.out" 2> "$work/cap.err" || fail "growth 2: capture: $(cat "$work/cap.out" "$work/cap.err")"
+      grep -q '(delta since ' "$work/cap.out" || fail "growth 2: not a delta: $(cat "$work/cap.out")"
+      second=$(git --git-dir "$origin" ls-tree --name-only conversation-logs | grep -- '--pr-2--g1.jsonl') || fail "growth 2: no second file"
+      git --git-dir "$origin" show "conversation-logs:$second" | grep -q 'second merge' || fail "growth 2: the delta lacks the new lines"
+      if git --git-dir "$origin" show "conversation-logs:$second" | grep -q 'first merge'; then fail "growth 2: the delta repeats the first capture"; fi
+      step "growth 2: a second capture wrote only the delta, in a second file"
+
+      session_start g3 > /dev/null || fail "growth 3: SessionStart exited non-zero"
+      landed g3
+      transcript g3 part1.jsonl
+      session_end g3 5
+      git --git-dir "$origin" ls-tree --name-only conversation-logs | grep -q -- '--issue-5--g3.jsonl$' || fail "growth 3: no issue-5 file: $(cat "$work/end.err")"
+      grep -q '^\[cn\] growth capture ok ' "$work/end.err" || fail "growth 3: no capture breadcrumb: $(cat "$work/end.err")"
+      step "growth 3: SessionEnd under CLAUDINITE_SESSION_ISSUE=5 captured --issue-5--, answered {} and exit 0"
+
+      licctl '{"state":"degraded"}'
+      session_start g4 > /dev/null || fail "growth 4: SessionStart exited non-zero"
+      landed g4
+      before=$(captures)
+      transcript g4 part1.jsonl
+      session_end g4 0
+      licctl '{"state":"ok"}'
+      [ "$(captures)" = "$before" ] || fail "growth 4: a degraded key captured: $(git --git-dir "$origin" ls-tree --name-only conversation-logs)"
+      grep -q 'capture is off under this key (degraded' "$work/end.err" || fail "growth 4: no reason given: $(cat "$work/end.err")"
+      step "growth 4: under a degraded key SessionEnd wrote nothing, said why, answered {} and exit 0"
+
+      actions_env
+      execute() { (cd "$member" && GITHUB_TOKEN=rehearsal-token CLAUDINITE_NOW=${1:-} .claudinite/bin/cn execute loop) > "$work/exec.out" 2>&1; }
+      item() { gh_count 'Math.max(0,...st.issues.filter(i=>i.title==="'"$1"'").map(i=>i.number))'; }
+      labels_of() { gh_count 'st.issues.find(i=>i.number==='"$1"').labels.join(" ")'; }
+      prune="[claudinite-work] claudinite-growth/logs-prune"
+      cn_member work create claudinite-growth/logs-prune --qualifier now > "$work/create.out" 2>&1 || fail "growth 5: work create: $(cat "$work/create.out")"
+      (cd "$member" && GITHUB_OUTPUT=$work/gh-output GITHUB_TOKEN=rehearsal-token .claudinite/bin/cn schedule run) > "$work/sched.out" 2>&1 || fail "growth 5: schedule run: $(cat "$work/sched.out")"
+      n=$(item "$prune now")
+      execute || fail "growth 5: execute: $(cat "$work/exec.out")"
+      case " $(labels_of "$n") " in *" task:status:done "*) fail "growth 5: #$n ran inside retention: $(cat "$work/exec.out")" ;; esac
+      [ "$(captures)" = 3 ] || fail "growth 5: a prune inside retention removed files"
+      later=$(date -u -d '11 days' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -v+11d +%Y-%m-%dT%H:%M:%SZ)
+      cn_member work create claudinite-growth/logs-prune --qualifier later > "$work/create.out" 2>&1 || fail "growth 5: work create: $(cat "$work/create.out")"
+      n=$(item "$prune later")
+      execute "$later" || fail "growth 5: execute 11 days on: $(cat "$work/exec.out")"
+      case " $(labels_of "$n") " in *" task:status:done "*) ;; *) fail "growth 5: 11 days on, #$n is $(labels_of "$n"): $(cat "$work/exec.out")" ;; esac
+      [ "$(captures)" = 0 ] || fail "growth 5: the prune left $(git --git-dir "$origin" ls-tree --name-only conversation-logs)"
+      git --git-dir "$origin" ls-tree --name-only conversation-logs | grep -qx README.md || fail "growth 5: the prune removed the README"
+      step "growth 5: logs-prune declined inside retention; 11 days on cn growth prune removed the three captures and kept the README"
+
+      cn_member pack new acme --belongs "acme's own conventions" > "$work/pack.out" 2>&1 || fail "growth 6: pack new: $(cat "$work/pack.out")"
+      grep -q "^declared local/acme in .claudinite/settings.yaml$" "$work/pack.out" || fail "growth 6: pack new said $(cat "$work/pack.out")"
+      grep -q "^wrote .claudinite/flat/claudinite-rules.GENERATED.md$" "$work/pack.out" || fail "growth 6: pack new did not converge the rules index: $(cat "$work/pack.out")"
+      verify_out=$(cd "$member" && .claudinite/bin/cn verify) || fail "growth 6: verify: $verify_out"
+      [ -z "$verify_out" ] || fail "growth 6: verify reported: $verify_out"
+      cn_member provenance check acme > "$work/prov.out" 2>&1 || fail "growth 6: provenance check: $(cat "$work/prov.out")"
+      printf '## 2026-10-03 · scope-changed · acme owns its widgets\n- **Reason:** the first lesson landed.\n- **Actor:** @rehearse (owner).\n- **Mechanism:** the pack manifest.\n' \
+        | cn_member provenance append acme _pack > "$work/prov.out" 2>&1 || fail "growth 6: provenance append: $(cat "$work/prov.out")"
+      grep -q 'scope-changed · acme owns its widgets' "$member/.claudinite/local/packs/acme/provenance/_pack.md" || fail "growth 6: the entry is not in the file"
+      step "growth 6: cn pack new declared local/acme and wrote the rules index; verify and cn provenance check are clean; append wrote the entry"
       ;;
   esac
 done
