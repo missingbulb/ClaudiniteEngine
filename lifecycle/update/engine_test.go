@@ -671,6 +671,75 @@ func TestAnUpdatePRForAVersionNowHeldIsClosed(t *testing.T) {
 // beside the settings edit.
 func TestProposeRestatesTheMemberFile(t *testing.T) {
 	w := newWorld(t, settings.YAML)
+	declareHello(t, w)
+	w.publish(t, v2, relOpts{})
+	if v, err := Engine(w.deps(t), Options{}); err != nil || v != "opened #1 for "+v2 {
+		t.Fatalf("%q %v\n%s", v, err, w.out)
+	}
+	branch := "claudinite/engine-" + v2
+	if got := gitRun(t, w.bare, "diff", "--name-only", "main", branch); got != ".claudinite/flat/member.GENERATED.json\n"+settings.RelPath(settings.YAML) {
+		t.Errorf("branch changes %q", got)
+	}
+	member := gitRun(t, w.bare, "show", branch+":.claudinite/flat/member.GENERATED.json")
+	if !strings.Contains(member, `"version": "`+v2+`"`) || !strings.Contains(member, `"hello": "1.0"`) {
+		t.Errorf("the member file does not state the new pin and the held pack:\n%s", member)
+	}
+}
+
+// An engine update PR that restates the member file lands once green, and
+// one whose member file is not the render of its own tree does not.
+func TestLandAnUpdatePRRestatingTheMemberFile(t *testing.T) {
+	propose := func(t *testing.T) (*world, string) {
+		w := newWorld(t, settings.YAML)
+		declareHello(t, w)
+		w.publish(t, v2, relOpts{})
+		if v, err := Engine(w.deps(t), Options{}); err != nil || v != "opened #1 for "+v2 {
+			t.Fatalf("%q %v\n%s", v, err, w.out)
+		}
+		return w, gitRun(t, w.bare, "rev-parse", "claudinite/engine-"+v2)
+	}
+	w, sha := propose(t)
+	w.hub.pulls[0].HeadSHA = sha
+	if v, err := Land(w.deps(t), 1, sha); err != nil || v != "landed "+v2 {
+		t.Fatalf("%q %v\n%s", v, err, w.out)
+	}
+
+	w, _ = propose(t)
+	branch := "claudinite/engine-" + v2
+	gitRun(t, w.repo, "fetch", "-q", "origin", branch)
+	gitRun(t, w.repo, "checkout", "-q", "FETCH_HEAD")
+	p := filepath.Join(w.repo, ".claudinite/flat/member.GENERATED.json")
+	b, _ := os.ReadFile(p)
+	_ = os.WriteFile(p, bytes.Replace(b, []byte(`"hello": "1.0"`), []byte(`"hello": "9.9"`), 1), 0o644)
+	gitRun(t, w.repo, "commit", "-q", "-am", "tamper")
+	gitRun(t, w.repo, "push", "-q", "-f", "origin", "HEAD:refs/heads/"+branch)
+	w.hub.pulls[0].HeadSHA = w.head(t)
+	gitRun(t, w.repo, "checkout", "-q", "main")
+	if _, err := Land(w.deps(t), 1, w.hub.pulls[0].HeadSHA); err == nil || !strings.Contains(err.Error(), "member") {
+		t.Errorf("a member file that is not the render landed: %v", err)
+	}
+	if len(w.hub.called("merge")) != 0 {
+		t.Error("merged")
+	}
+
+	// main moving past the PR's pin refuses it, the member file beside it
+	// or not.
+	w, sha = propose(t)
+	w.hub.pulls[0].HeadSHA = sha
+	w.publish(t, v3, relOpts{})
+	p = filepath.Join(w.repo, settings.RelPath(w.f))
+	b, _ = os.ReadFile(p)
+	_ = os.WriteFile(p, bytes.Replace(b, []byte(settingsFor(w.f, v1, pin1)), []byte(settingsFor(w.f, v3, w.pinOf(t, v3))), 1), 0o644)
+	gitRun(t, w.repo, "commit", "-q", "-am", "main moves on")
+	gitRun(t, w.repo, "push", "-q", "origin", "main")
+	if _, err := Land(w.deps(t), 1, sha); err == nil || !strings.Contains(err.Error(), "not newer") {
+		t.Errorf("a pin older than main's landed: %v", err)
+	}
+}
+
+// declareHello commits a declaration of hello, vendored at 1.0, on main.
+func declareHello(t *testing.T, w *world) {
+	t.Helper()
 	for rel, body := range map[string]string{
 		settings.RelPath(settings.YAML):            settingsFor(settings.YAML, v1, pin1) + "packs:\n  declared:\n    - hello\n",
 		".claudinite/shared/packs/hello/pack.json": `{"version": "1.0", "minEngineVersion": "0.0.0"}`,
@@ -685,16 +754,4 @@ func TestProposeRestatesTheMemberFile(t *testing.T) {
 	gitRun(t, w.repo, "commit", "-q", "-m", "declare hello")
 	gitRun(t, w.repo, "push", "-q", "origin", "main")
 	w.mainRun(t, "success")
-	w.publish(t, v2, relOpts{})
-	if v, err := Engine(w.deps(t), Options{}); err != nil || v != "opened #1 for "+v2 {
-		t.Fatalf("%q %v\n%s", v, err, w.out)
-	}
-	branch := "claudinite/engine-" + v2
-	if got := gitRun(t, w.bare, "diff", "--name-only", "main", branch); got != ".claudinite/flat/member.GENERATED.json\n"+settings.RelPath(settings.YAML) {
-		t.Errorf("branch changes %q", got)
-	}
-	member := gitRun(t, w.bare, "show", branch+":.claudinite/flat/member.GENERATED.json")
-	if !strings.Contains(member, `"version": "`+v2+`"`) || !strings.Contains(member, `"hello": "1.0"`) {
-		t.Errorf("the member file does not state the new pin and the held pack:\n%s", member)
-	}
 }

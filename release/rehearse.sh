@@ -422,7 +422,14 @@ for mode in $modes; do
       plan_public
       origin=$work/origin.git
       git init -q --bare -b main "$origin"
-      (cd "$member" && git init -q -b main && git add -A && git -c user.name=rehearse -c user.email=r@x commit -q -m adopt) || fail "update: git setup"
+      # The member declares a pack, so its update PR restates the member file.
+      mkdir -p "$member/.claudinite/shared/packs/hello"
+      printf '{\n  "version": "1.0",\n  "minEngineVersion": "%s"\n}\n' "$version" > "$member/.claudinite/shared/packs/hello/pack.json"
+      printf 'packs:\n  declared:\n    - hello\n' >> "$member/.claudinite/settings.yaml"
+      (cd "$member" && git init -q -b main) || fail "update: git init"
+      (cd "$member" && sh .claudinite/launch rules-index) > "$work/index.out" 2>&1 || fail "update: rules-index: $(cat "$work/index.out")"
+      grep -q '"hello": "1.0"' "$member/.claudinite/flat/member.GENERATED.json" || fail "update: rules-index wrote no member file holding hello"
+      (cd "$member" && git add -A && git -c user.name=rehearse -c user.email=r@x commit -q -m adopt) || fail "update: git setup"
       github_origin "$origin"
       (cd "$member" && git push -q origin main) || fail "update: push"
       start_ghstub "$origin"
@@ -446,7 +453,9 @@ for mode in $modes; do
       update_engine
       expect_verdict "opened #1 for $next"
       [ "$(git --git-dir "$origin" rev-list --count "main..$branch")" = 1 ] || fail "update 1: $branch is not one commit on main"
-      [ "$(git --git-dir "$origin" diff --name-only main "$branch")" = .claudinite/settings.yaml ] || fail "update 1: the branch changes more than the pin"
+      [ "$(git --git-dir "$origin" diff --name-only main "$branch" | tr '\n' ' ')" = ".claudinite/flat/member.GENERATED.json .claudinite/settings.yaml " ] \
+        || fail "update 1: the branch changes more than the pin and the member file: $(git --git-dir "$origin" diff --name-only main "$branch")"
+      git --git-dir "$origin" show "$branch:.claudinite/flat/member.GENERATED.json" | grep -q "\"version\": \"$next\"" || fail "update 1: the member file does not state $next"
       [ "$(gh_count 'st.dispatches.filter(d=>d.ref==="'"$branch"'"&&d.inputs.pr==="1").length')" = 1 ] || fail "update 1: dispatches $(gh_state)"
       # The candidate's verify ran in this checkout: the token reached the
       # push child alone, never the checkout's config.
@@ -471,7 +480,8 @@ for mode in $modes; do
       [ "$(gh_count 'st.dispatches.filter(d=>d.ref==="main").length')" = 1 ] || fail "update 3: no dispatch on main: $(gh_state)"
       (cd "$member" && git fetch -q origin && git reset -q --hard origin/main) || fail "update 3: pull"
       grep -q "version: \"$next\"" "$member/.claudinite/settings.yaml" || fail "update 3: main does not pin $next"
-      step "update 3: $verdict"
+      grep -q "\"version\": \"$next\"" "$member/.claudinite/flat/member.GENERATED.json" || fail "update 3: main's member file does not state $next"
+      step "update 3: $verdict, the member file beside the pin"
 
       : > "$work/requests.log"
       out=$(session_start) || fail "update 4: SessionStart exited non-zero"
