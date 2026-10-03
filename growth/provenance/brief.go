@@ -1146,8 +1146,12 @@ func Brief(io WriteIO, git gitcmd.Repo, pack string, wanted []string) []string {
 	byCommit := map[string][]draft{}
 	var commitOrder []string
 	sweeps := map[string][]string{}
-	var unknown []string
+	var unknown, engineCarried []string
 	for _, el := range elements {
+		if len(el.events) == 0 && el.carrier == prov.EngineCarrierFile {
+			engineCarried = append(engineCarried, el.id)
+			continue
+		}
 		if len(el.events) == 0 {
 			unknown = append(unknown, el.id)
 			continue
@@ -1263,6 +1267,9 @@ func Brief(io WriteIO, git gitcmd.Repo, pack string, wanted []string) []string {
 	}
 	if len(unknown) > 0 {
 		lines = append(lines, "", "## no history found", "git holds no commit for: "+strings.Join(unknown, ", ")+" (is the clone shallow?)")
+	}
+	if len(engineCarried) > 0 {
+		lines = append(lines, "", "## carried by the engine", "the engine carries these checks, so their history is the engine's, not this pack's: "+strings.Join(engineCarried, ", "))
 	}
 	var follows, inPlaces, unfollows []*element
 	var manifest *element
