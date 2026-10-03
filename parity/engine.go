@@ -10,7 +10,9 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -61,7 +63,8 @@ type Engine interface {
 	// Mounts are the skills the engine mounted, with each SKILL.md.
 	Mounts(dir string) (map[string]string, error)
 	// Flat is the flat task and dashboard declarations the active packs
-	// produce, both files' text in order.
+	// produce, both files' text in order; cn's member file, which Node
+	// has no counterpart of, is left out.
 	Flat(dir string) (string, error)
 	// World and Work are the findings of a whole-repo sweep and of the
 	// change; Work reads the session transcript at transcript, "" for none.
@@ -335,7 +338,53 @@ func (c Cn) Flat(dir string) (string, error) {
 	if err != nil || code != 0 {
 		return "", fmt.Errorf("cn tasks flat: exit %d %v: %s", code, err, stderr)
 	}
-	return out, nil
+	rest, _, err := splitMemberFile(out)
+	return rest, err
+}
+
+// MemberFileRel is the flat file only cn writes, stating the member.
+const MemberFileRel = ".claudinite/flat/member.GENERATED.json"
+
+// WriteMemberFile writes the member file cn produces for dir, as an
+// adoption would leave it beside the settings file.
+func (c Cn) WriteMemberFile(dir string) error {
+	out, stderr, code, err := run(dir, c.env(dir), "", c.Binary, "tasks", "flat", "--repo", dir)
+	if err != nil || code != 0 {
+		return fmt.Errorf("cn tasks flat: exit %d %v: %s", code, err, stderr)
+	}
+	_, member, err := splitMemberFile(out)
+	if err != nil || member == "" {
+		return err
+	}
+	p := filepath.Join(dir, filepath.FromSlash(MemberFileRel))
+	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(p, []byte(member), 0o644)
+}
+
+// splitMemberFile parts cn's flat output into the documents Node writes
+// too and the member file, the document stating a settings file, which
+// only cn writes; each keeps its bytes.
+func splitMemberFile(out string) (rest, member string, err error) {
+	dec := json.NewDecoder(strings.NewReader(out))
+	var kept strings.Builder
+	for {
+		start := dec.InputOffset()
+		var doc map[string]json.RawMessage
+		if err := dec.Decode(&doc); err != nil {
+			if errors.Is(err, io.EOF) {
+				return kept.String(), member, nil
+			}
+			return "", "", fmt.Errorf("cn tasks flat: %v", err)
+		}
+		text := strings.TrimLeft(out[start:dec.InputOffset()], "\n") + "\n"
+		if _, ok := doc["settings"]; ok {
+			member = text
+			continue
+		}
+		kept.WriteString(text)
+	}
 }
 
 func (c Cn) Rules(dir string) (string, error) {

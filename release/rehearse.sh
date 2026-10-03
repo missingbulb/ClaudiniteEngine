@@ -721,7 +721,8 @@ for mode in $modes; do
       main_run success
       update_packs
       expect_verdict "opened #1 for packs hello 1.4"
-      if git --git-dir "$origin" diff --name-only main "$branch" | grep -v '^CLAUDE\.md$' | grep -v '^\.claudinite/flat/claudinite-skills\.GENERATED\.md$' | grep -qv '^\.claudinite/shared/packs/hello/'; then fail "packs 5: the branch changes more than the hello pack, the skills index and CLAUDE.md"; fi
+      if git --git-dir "$origin" diff --name-only main "$branch" | grep -v '^CLAUDE\.md$' | grep -Ev '^\.claudinite/flat/(claudinite-skills\.GENERATED\.md|(tasks|dashboard|member)\.GENERATED\.json)$' | grep -qv '^\.claudinite/shared/packs/hello/'; then fail "packs 5: the branch changes more than the hello pack, the skills index, the flat files and CLAUDE.md"; fi
+      git --git-dir "$origin" show "$branch:.claudinite/flat/member.GENERATED.json" | grep -q '"hello": "1.4"' || fail "packs 5: the member file does not hold hello 1.4: $(git --git-dir "$origin" show "$branch:.claudinite/flat/member.GENERATED.json" 2>&1)"
       git --git-dir "$origin" show "$branch:.claudinite/flat/claudinite-skills.GENERATED.md" | grep -q hello-guide || fail "packs 5: the branch's skills index does not name hello-guide"
       [ "$(git --git-dir "$origin" show "$branch:CLAUDE.md")" = "$(printf '# Member\n@.claudinite/flat/claudinite-rules.GENERATED.md')" ] || fail "packs 5: the branch's CLAUDE.md: $(git --git-dir "$origin" show "$branch:CLAUDE.md")"
       [ "$(gh_count 'st.dispatches.filter(d=>d.ref==="'"$branch"'"&&d.inputs.pr==="1").length')" = 1 ] || fail "packs 5: dispatches $(gh_state)"
@@ -1116,7 +1117,10 @@ GO
       # The adoption is three days old, so the repo starts quiet.
       old=$(date -u -d '3 days ago' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -v-3d +%Y-%m-%dT%H:%M:%SZ)
       gitc() { (cd "$member" && git -c user.name=rehearse -c user.email=r@x -c commit.gpgsign=false "$@"); }
-      (cd "$member" && git init -q -b main && git add -A) || fail "tasks: git setup"
+      (cd "$member" && git init -q -b main) || fail "tasks: git init"
+      # The adopt commit holds the flat files that declaration produces.
+      (cd "$member" && sh .claudinite/launch rules-index) > "$work/index.out" 2>&1 || fail "tasks: rules-index: $(cat "$work/index.out")"
+      (cd "$member" && git add -A) || fail "tasks: git add"
       GIT_AUTHOR_DATE=$old GIT_COMMITTER_DATE=$old gitc commit -q -m adopt || fail "tasks: adopt commit"
       github_origin "$origin"
       (cd "$member" && git -c push.negotiate=false push -q origin main) || fail "tasks: push"
@@ -1298,7 +1302,7 @@ GO
         [ -f "$fresh/.github/workflows/$f.yml" ] || fail "tasks 10: init wrote no $f.yml"
       done
       [ ! -e "$fresh/.github/workflows/claudinite-update.yml" ] || fail "tasks 10: init wrote the superseded update workflow"
-      for f in tasks.GENERATED.json dashboard.GENERATED.json; do
+      for f in tasks.GENERATED.json dashboard.GENERATED.json member.GENERATED.json; do
         [ -f "$fresh/.claudinite/flat/$f" ] || fail "tasks 10: init wrote no $f"
       done
       sed 's/once a day after any commit/once a day after a commit/' "$work/task.json" > "$decl"
@@ -1306,7 +1310,7 @@ GO
       grep -q "flat-declarations-current" "$work/world.out" || fail "tasks 10: flat-declarations-current did not fail it: $(cat "$work/world.out")"
       cn_member tasks flat --write > "$work/flat.out" 2>&1 || fail "tasks 10: tasks flat --write: $(cat "$work/flat.out")"
       cn_member check world > "$work/world.out" 2>&1 || fail "tasks 10: check world after tasks flat --write: $(cat "$work/world.out")"
-      step "tasks 10: verify breaks without the executor; init writes three workflows and both flat files; flat-declarations-current tracks a task edit"
+      step "tasks 10: verify breaks without the executor; init writes three workflows and the three flat files; flat-declarations-current tracks a task edit"
       ;;
     adopt)
       step "adopt: a local pack source with hello 1.0 and hello-asks 1.0, the CDN stub, ghstub and licstub"
@@ -1867,7 +1871,7 @@ YAML
       [ "$(gh_count 'st.dispatches.filter(d=>d.repo).length')" = 0 ] || fail "fleet 4: a dry run dispatched"
       step "fleet 4: a dry run would fire current, behind, noscheduler and nodemember, skipped dormant and ignored by name, and dispatched nothing"
 
-      ctl /_stub/advance "{\"repo\":\"acme/behind\",\"files\":{\".claudinite/settings.yaml\":\"engine:\\n  package: \\\"$package\\\"\\n  version: \\\"$latest\\\"\\n  manifest: \\\"$latest_pin\\\"\\n\"}}"
+      ctl /_stub/advance "{\"repo\":\"acme/behind\",\"files\":{\".claudinite/settings.yaml\":\"engine:\\n  package: \\\"$package\\\"\\n  version: \\\"$latest\\\"\\n  manifest: \\\"$latest_pin\\\"\\npacks:\\n  channel: \\\"canary\\\"\\n\"}}"
       ctl /_stub/advance '{"repo":"acme/nodemember","files":{".claudinite-settings.json":"{\"engineVersion\": \"61002.1\", \"packs\": [{\"id\": \"basics\", \"version\": \"3.0\"}]}\n"}}'
       if CLAUDINITE_CONTEXT='FOLLOW_MINUTES=0.05' fleet_cn update; then fail "fleet 5: a failed dispatch passed: $(cat "$work/fleet.out")"; fi
       expect_line "[${bt}acme/behind${bt}]" 5

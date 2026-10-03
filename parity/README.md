@@ -122,4 +122,7 @@ writes), `fleet/detector/*` (22 relevance detectors validated as the shelf's
 catalog reader does), `fleet/dormancy/page-corpus` (the sheepdog's reader
 over the page's corpus, which agrees) and `scenarios/lifecycle-dashboard/*`
 (six cases: `descriptor-usable` over a local, clean, mounted, undeclared,
-untracked and shelf descriptor), with no divergence.
+untracked and shelf descriptor), with no divergence. Since no Node engine writes the member file,
+cn's repo in a scenario or a differential tree carries the one cn writes,
+kept out of git beside the settings file it states, and the flat
+comparison leaves it out of cn's side.
