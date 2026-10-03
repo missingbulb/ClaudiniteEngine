@@ -355,6 +355,12 @@ func openPackPR(d Deps, o Options, moves []move, prev *githubapi.PR) (string, er
 		if changed {
 			rels = append(rels, rulesindex.File)
 		}
+		if changed, err = rulesindex.WriteSkills(d.Repo, pinVersion(d.Repo)); err != nil {
+			return err
+		}
+		if changed {
+			rels = append(rels, rulesindex.SkillsFile)
+		}
 		if _, err := os.Stat(filepath.Join(d.Repo, filepath.FromSlash(rulesindex.File))); err == nil {
 			added, err := rulesindex.EnsureImport(d.Repo)
 			if err != nil {
@@ -397,7 +403,7 @@ func openPackPR(d Deps, o Options, moves []move, prev *githubapi.PR) (string, er
 	}
 
 	var b strings.Builder
-	fmt.Fprintf(&b, "Moves this repo's vendored Claudinite packs. Only `%s/` and the rules index `%s` change, and `%s` gains the line importing that index when it lacks it.\n\n", packset.Dir, rulesindex.File, rulesindex.ClaudeMD)
+	fmt.Fprintf(&b, "Moves this repo's vendored Claudinite packs. Only `%s/`, the rules index `%s` and the skills index `%s` change, and `%s` gains the line importing the rules index when it lacks it.\n\n", packset.Dir, rulesindex.File, rulesindex.SkillsFile, rulesindex.ClaudeMD)
 	if len(moves) == 0 {
 		b.WriteString("No pack moves: the rules index or the import had fallen behind the packs this repo already holds.\n\n")
 	} else {
@@ -494,6 +500,9 @@ func landPacks(d Deps, pr githubapi.PR, sha string) (string, error) {
 					return "", fmt.Errorf("#%d: %s: %w", pr.Number, f, err)
 				}
 			}
+			continue
+		}
+		if f == rulesindex.SkillsFile {
 			continue
 		}
 		if f == rulesindex.ClaudeMD {

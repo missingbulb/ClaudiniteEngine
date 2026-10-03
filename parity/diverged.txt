@@ -11,6 +11,12 @@ claudinite-growth/tasks/growth-extract/task.json record-71
 # Engine chunk 12: the member's declaration is .claudinite/settings.*, and a
 # fix text naming the Node file names it there (record row 77):
 basics/declared-checks.json record-77
+# Engine chunk 13: the adopt skills name cn init, cn adopt and cn settings
+# answer, and the interview machinery that imported the Node engine goes
+# (record row 81):
+claudinite-lifecycle/skills/adopt-claudinite/SKILL.md record-81
+claudinite-lifecycle/skills/adopt-claudinite/interview.mjs record-81
+claudinite-lifecycle/tasks/adopt-requested-packs/task.md record-81
 # ClaudinitePacks#20 moved the task runner into the engine and its pack
 # workers onto @claudinite/sdk (record row 5):
 basics/tasks/ci-performance/github-api.mjs record-5

@@ -139,13 +139,3 @@ func writeQuestions(out io.Writer, pending []interview.Pending) {
 }
 
 func oneLine(s string) string { return strings.Join(strings.Fields(s), " ") }
-
-// pendingIn is the interview's pending set over repo as it now stands.
-func pendingIn(repo, engine string) ([]interview.Pending, error) {
-	set, err := packset.Load(repo, engine, false)
-	if err != nil {
-		return nil, err
-	}
-	pending, _ := interview.State(set)
-	return pending, nil
-}

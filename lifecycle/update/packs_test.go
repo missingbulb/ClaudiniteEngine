@@ -157,7 +157,7 @@ func TestPacksProposesAPackPR(t *testing.T) {
 	}
 	branch := "claudinite/packs-" + fmt.Sprint(versionDay())
 	files := gitRun(t, w.bare, "diff", "--name-only", "main", branch)
-	if files != ".claudinite/flat/claudinite-rules.GENERATED.md\n.claudinite/shared/packs/hello/RULES.md\n.claudinite/shared/packs/hello/pack.json\nCLAUDE.md" {
+	if files != ".claudinite/flat/claudinite-rules.GENERATED.md\n.claudinite/flat/claudinite-skills.GENERATED.md\n.claudinite/shared/packs/hello/RULES.md\n.claudinite/shared/packs/hello/pack.json\nCLAUDE.md" {
 		t.Errorf("changed %q", files)
 	}
 	if msg := gitRun(t, w.bare, "log", "-1", "--format=%s", branch); msg != "Claudinite packs "+fmt.Sprint(versionDay())+": hello 1.0→1.1" {
@@ -267,7 +267,7 @@ func TestPacksConvergeTheIndexWhenNoPackMoves(t *testing.T) {
 		t.Errorf("title %q", pr.Title)
 	}
 	files := gitRun(t, w.bare, "diff", "--name-only", "main", pr.HeadRef)
-	if files != ".claudinite/flat/claudinite-rules.GENERATED.md\nCLAUDE.md" {
+	if files != ".claudinite/flat/claudinite-rules.GENERATED.md\n.claudinite/flat/claudinite-skills.GENERATED.md\nCLAUDE.md" {
 		t.Errorf("changed %q", files)
 	}
 	if c := w.hub.pulls[len(w.hub.pulls)-1]; !strings.Contains(c.Title, "rules index") {
@@ -337,6 +337,23 @@ func (w *packWorld) openPackPR(t *testing.T, ci string) githubapi.PR {
 	}
 	w.hub.calls = nil
 	return *p
+}
+
+// A pack version bringing a skill names it in the skills index its pack
+// PR carries, and that PR still lands.
+func TestPacksNameANewSkillInTheSkillsIndex(t *testing.T) {
+	w := newPackWorld(t)
+	files := helloFiles("1.2")
+	files["skills/hello-guide/SKILL.md"] = "---\nname: hello-guide\ndescription: Guide hello. Use when greeting.\n---\n\nGuide.\n"
+	w.packs.publish("hello", "1.2", "canary", files)
+	pr := w.openPackPR(t, "success")
+	idx := gitRun(t, w.bare, "show", pr.HeadRef+":"+rulesindex.SkillsFile)
+	if !strings.Contains(idx, "hello-guide") {
+		t.Errorf("skills index %q", idx)
+	}
+	if v, err := Packs(w.deps(t), Options{}); err != nil || v != "landed packs hello 1.2" {
+		t.Fatalf("%q %v", v, err)
+	}
 }
 
 func TestPacksLandAGreenPackPR(t *testing.T) {

@@ -631,7 +631,8 @@ for mode in $modes; do
       main_run success
       update_packs
       expect_verdict "opened #1 for packs hello 1.4"
-      if git --git-dir "$origin" diff --name-only main "$branch" | grep -v '^CLAUDE\.md$' | grep -qv '^\.claudinite/shared/packs/hello/'; then fail "packs 5: the branch changes more than the hello pack and CLAUDE.md"; fi
+      if git --git-dir "$origin" diff --name-only main "$branch" | grep -v '^CLAUDE\.md$' | grep -v '^\.claudinite/flat/claudinite-skills\.GENERATED\.md$' | grep -qv '^\.claudinite/shared/packs/hello/'; then fail "packs 5: the branch changes more than the hello pack, the skills index and CLAUDE.md"; fi
+      git --git-dir "$origin" show "$branch:.claudinite/flat/claudinite-skills.GENERATED.md" | grep -q hello-guide || fail "packs 5: the branch's skills index does not name hello-guide"
       [ "$(git --git-dir "$origin" show "$branch:CLAUDE.md")" = "$(printf '# Member\n@.claudinite/flat/claudinite-rules.GENERATED.md')" ] || fail "packs 5: the branch's CLAUDE.md: $(git --git-dir "$origin" show "$branch:CLAUDE.md")"
       [ "$(gh_count 'st.dispatches.filter(d=>d.ref==="'"$branch"'"&&d.inputs.pr==="1").length')" = 1 ] || fail "packs 5: dispatches $(gh_state)"
       head=$(git --git-dir "$origin" rev-parse "$branch")
