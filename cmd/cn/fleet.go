@@ -19,7 +19,6 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/fleet/update"
 	"github.com/missingbulb/ClaudiniteEngine/license"
 	"github.com/missingbulb/ClaudiniteEngine/lifecycle/packs"
-	"github.com/missingbulb/ClaudiniteEngine/shared/breadcrumb"
 	"github.com/missingbulb/ClaudiniteEngine/shared/githubapi"
 	"github.com/missingbulb/ClaudiniteEngine/shared/npmreg"
 	"github.com/missingbulb/ClaudiniteEngine/shared/packindex"
@@ -122,8 +121,11 @@ func (s *sweep) failed(err error) error {
 	return report.Said(report.IO)
 }
 
-func (s *sweep) crumb(event string, o breadcrumb.Outcome) {
-	fmt.Fprintln(s.stderr, breadcrumb.Line("fleet", event, o, time.Since(s.start)))
+// crumb is the sweep's one breadcrumb, `[cn] fleet <event> <outcome>
+// <n>/<m> <ms>ms`: a count of what the sweep reached, which the shared
+// line has no field for.
+func (s *sweep) crumb(event, outcome string, n, m int) {
+	fmt.Fprintf(s.stderr, "[cn] fleet %s %s %d/%d %dms\n", event, outcome, n, m, time.Since(s.start).Milliseconds())
 }
 
 // openSweep checks the license, the token and the config, in that order,
@@ -132,32 +134,32 @@ func openSweep(name, event, sweepID, missingDetail, repo, api string, stderr io.
 	s := &sweep{name: name, stderr: stderr, start: start, closer: func() {}}
 	root, err := fleetRoot(repo)
 	if err != nil {
-		s.crumb(event, breadcrumb.Error)
+		s.crumb(event, "error", 0, 0)
 		return nil, report.Wrap(report.IO, name, err)
 	}
 	s.root = root
 	if on, state, notice := fleetLicense(root, stderr); !on {
 		fmt.Fprintf(stderr, "[cn] fleet: off under this key (%s)\n", state)
 		fmt.Fprintf(stderr, "claudinite-needs-human: %s — %s\n", fleet.Triage, notice)
-		s.crumb(event, breadcrumb.Skip)
+		s.crumb(event, "error", 0, 0)
 		return nil, report.Said(report.IO)
 	}
 	token := os.Getenv(fleet.TokenEnv)
 	if token == "" {
 		fmt.Fprintf(stderr, "%s failed: %s\n", name, fleet.MissingTokenError(sweepID, missingDetail))
-		s.crumb(event, breadcrumb.Error)
+		s.crumb(event, "error", 0, 0)
 		return nil, report.Said(report.IO)
 	}
 	home, err := fleetHome(root)
 	if err != nil {
-		s.crumb(event, breadcrumb.Error)
+		s.crumb(event, "error", 0, 0)
 		return nil, report.Wrap(report.IO, name, err)
 	}
 	s.home = home
 	cfg, err := fleetConfig(root, home)
 	if err != nil {
 		fmt.Fprintf(stderr, "%s failed: %s\n", name, err.Error())
-		s.crumb(event, breadcrumb.Error)
+		s.crumb(event, "error", 0, 0)
 		return nil, report.Said(report.IO)
 	}
 	if cfg.CanonRepoNamed {
@@ -173,7 +175,7 @@ func openSweep(name, event, sweepID, missingDetail, repo, api string, stderr io.
 	s.gh = fleet.NewGH(api, token)
 	shelf, closer, err := fleetShelf(stderr)
 	if err != nil {
-		s.crumb(event, breadcrumb.Error)
+		s.crumb(event, "error", 0, 0)
 		return nil, report.Wrap(report.IO, name, err)
 	}
 	s.shelf, s.closer = fleet.Memo(shelf), closer
@@ -266,7 +268,7 @@ func fleetShelf(log io.Writer) (fleet.Shelf, func(), error) {
 
 // fleetLicense is the fleet surface under the key cn update reads: the
 // Actions key in a job, the session's key on a desktop, where a session
-// with no state file counts as on.
+// with no state file, or a shell with no session, counts as on.
 func fleetLicense(root string, log io.Writer) (on bool, state, notice string) {
 	if os.Getenv("GITHUB_ACTIONS") == "true" || os.Getenv("ACTIONS_ID_TOKEN_REQUEST_URL") != "" {
 		roots, err := license.Roots()
@@ -279,11 +281,15 @@ func fleetLicense(root string, log io.Writer) (on bool, state, notice string) {
 		}
 		return license.Gate(r.Key, false).On(license.SurfaceFleet), r.Key.State, license.NoticeFor(r.Key, "", "", "")
 	}
+	session := os.Getenv("CLAUDE_CODE_SESSION_ID")
+	if session == "" {
+		return true, "no session", ""
+	}
 	e, err := licenseEnv(nil)
 	if err != nil {
 		return false, license.StateDegraded + ": no embedded roots", "[cn] license: no embedded roots"
 	}
-	s := e.Hook(root, os.Getenv("CLAUDE_CODE_SESSION_ID"))
+	s := e.Hook(root, session)
 	return s.Gates.On(license.SurfaceFleet) || s.Verdict.NoFile, stateName(s.Verdict), s.Notice
 }
 
@@ -317,25 +323,24 @@ func fleetRoster(args []string, stdout, stderr io.Writer, start time.Time) error
 		if errors.Is(err, fleet.ErrNoOwnedRepos) {
 			err = fmt.Errorf("%w; refusing to run a sweep that would close every adoption issue as stale", err)
 		}
-		s.crumb("roster", breadcrumb.Error)
+		s.crumb("roster", "error", 0, 0)
 		return s.failed(err)
 	}
 	r := roster.Build(s.gh, repos, s.home, s.cfg, s.shelf)
 	cov, fresh := roster.CoverageView(r), roster.FreshnessView(r)
+	covered, total := len(cov.Covered)+len(cov.Dormant), len(r)
 	if err := fleet.EnsureLabel(s.gh, s.home, roster.Label, roster.LabelColor, roster.LabelDescription); err != nil {
-		s.crumb("roster", breadcrumb.Error)
+		s.crumb("roster", "error", covered, total)
 		return s.failed(err)
 	}
 	actions, err := roster.ConvergeAdoption(s.gh, s.home, cov.Uncovered, append(append([]string{}, cov.Covered...), cov.Dormant...), cov.Ignored)
 	if err != nil {
-		s.crumb("roster", breadcrumb.Error)
+		s.crumb("roster", "error", covered, total)
 		return s.failed(err)
 	}
 	emit(stdout, roster.RenderCoverage(s.cfg.Owner, s.home, cov, actions)+"\n\n"+roster.RenderFreshness(s.cfg.Owner, s.home, fresh))
-	total := len(cov.Covered) + len(cov.Dormant) + len(cov.Uncovered) + len(cov.Ignored) + len(cov.Skipped) + len(cov.Unknown)
-	fmt.Fprintf(stderr, "fleet roster: %d/%d covered\n", len(cov.Covered)+len(cov.Dormant), total)
 	if unknown := roster.Unknowns(cov, fresh); len(unknown) > 0 {
-		s.crumb("roster", breadcrumb.Error)
+		s.crumb("roster", "unknown", covered, total)
 		msg := roster.UnknownError(len(unknown))
 		for _, e := range r {
 			if e.Grant {
@@ -344,7 +349,7 @@ func fleetRoster(args []string, stdout, stderr io.Writer, start time.Time) error
 		}
 		return s.failed(errors.New(msg))
 	}
-	s.crumb("roster", breadcrumb.OK)
+	s.crumb("roster", "ok", covered, total)
 	return nil
 }
 
@@ -372,7 +377,7 @@ func fleetUpdate(args []string, stdout, stderr io.Writer, start time.Time) error
 	}
 	repos, err := fleet.Enumerate(s.gh, s.cfg.Owner)
 	if err != nil {
-		s.crumb("update", breadcrumb.Error)
+		s.crumb("update", "error", 0, 0)
 		return s.failed(err)
 	}
 	fired, skipped, failed := update.Force(s.gh, repos, s.cfg, s.shelf, o)
@@ -400,9 +405,12 @@ func fleetUpdate(args []string, stdout, stderr io.Writer, start time.Time) error
 			current++
 		}
 	}
-	fmt.Fprintf(stderr, "fleet update: %d/%d current\n", current, len(fired))
 	if v := rep.Verdict(); v != "" {
-		s.crumb("update", breadcrumb.Error)
+		outcome := "not-current"
+		if len(failed) > 0 {
+			outcome = "error"
+		}
+		s.crumb("update", outcome, current, len(fired))
 		for _, f := range failed {
 			if f.State == "no-permission" {
 				return s.failed(&fleet.GrantError{Msg: v})
@@ -410,7 +418,7 @@ func fleetUpdate(args []string, stdout, stderr io.Writer, start time.Time) error
 		}
 		return s.failed(errors.New(v))
 	}
-	s.crumb("update", breadcrumb.OK)
+	s.crumb("update", "ok", current, len(fired))
 	return nil
 }
 
@@ -435,7 +443,7 @@ func fleetJudge(args []string, stdout, stderr io.Writer, start time.Time) error 
 	defer s.closer()
 	r, err := fleet.ReadRepo(s.gh, target)
 	if err != nil {
-		s.crumb("judge", breadcrumb.Error)
+		s.crumb("judge", "error", 0, 1)
 		return s.failed(err)
 	}
 	v := fleet.JudgeRepo(s.gh, r, s.home, s.cfg, s.shelf)
@@ -464,10 +472,10 @@ func fleetJudge(args []string, stdout, stderr io.Writer, start time.Time) error 
 		}
 	}
 	if v.Error != "" {
-		s.crumb("judge", breadcrumb.Error)
+		s.crumb("judge", "unknown", 0, 1)
 		return report.Said(report.IO)
 	}
-	s.crumb("judge", breadcrumb.OK)
+	s.crumb("judge", "ok", 1, 1)
 	return nil
 }
 
