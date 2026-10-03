@@ -1,0 +1,19 @@
+{
+  "input": {
+    "pack": "acme-pack",
+    "text": "{\n  \"widgets\": [\n    null,\n    \"a\",\n    {\n      \"kind\": \"stat\"\n    },\n    {\n      \"id\": \"\"\n    },\n    {\n      \"id\": 7\n    }\n  ]\n}"
+  },
+  "expect": {
+    "fault": "its dashboard.json declares no usable widget",
+    "fleet": null,
+    "pack": "acme-pack",
+    "problems": [
+      {
+        "fix": "make it satisfy packs/claudinite-dashboard/dashboard-descriptor.schema.json — at minimum a \"widgets\" array whose entries each carry an \"id\" and a \"kind\" from stat, event, window, list",
+        "what": "the dashboard reader rejects it: its dashboard.json declares no usable widget"
+      }
+    ],
+    "repo": null,
+    "widgets": null
+  }
+}

@@ -2,6 +2,7 @@ package execute
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -270,6 +271,9 @@ type CodeWorker struct {
 	Log      func(string)
 	// SDK is the server a module worker's calls reach; nil serves none.
 	SDK func(t taskspec.Task, item workitem.Issue) *SDK
+	// Rules are the merge rules the declared packs compile, which a
+	// task's automerge policy names.
+	Rules mergepolicy.Declared
 }
 
 // requestPath is where a worker writes its ask for the agent.
@@ -331,7 +335,31 @@ func (c CodeWorker) Run(t taskspec.Task, w Work) CodeWorkResult {
 	}
 	c.Log("::group::code_work " + t.Path() + " [#" + strconv.Itoa(w.Item.Number) + "]")
 	var res runner.Result
-	if module, ok := t.Decl.Str("code_worker_mjs"); ok {
+	module, isModule := t.Decl.Str("code_worker_mjs")
+	delivers := !isModule && sdk != nil && sdk.Git != nil && (w.Target.Mode == ModeFresh || w.Target.Mode == ModeAmend)
+	var before []string
+	if delivers {
+		var err error
+		if before, err = changedPaths(sdk.Git); err != nil {
+			c.Log("the checkout's state could not be read, so a tree change of this run is not delivered: " + err.Error())
+			delivers = false
+		}
+	}
+	// The checkout is shared with the executor's next item, so whatever
+	// the shell changes is put back however the run ends, unless it hands
+	// that change to the agent.
+	handedOver := false
+	if delivers {
+		defer func() {
+			if handedOver {
+				return
+			}
+			if after, err := changedPaths(sdk.Git); err == nil {
+				restorePaths(sdk.Git, c.Place.Root, newPaths(before, after))
+			}
+		}()
+	}
+	if isModule {
 		res = c.Runner.Work(step, module, secrets, mergepolicy.Expression(t.Decl["automerge"]))
 	} else {
 		command, _ := t.Decl.Str("code_work")
@@ -351,8 +379,27 @@ func (c CodeWorker) Run(t taskspec.Task, w Work) CodeWorkResult {
 	}
 	out := CodeWorkResult{OK: true, Requeue: ReadRequeue(res.Output)}
 	if req := readAgentRequest(request); req != nil {
-		out.AgentRequested = true
+		out.AgentRequested, handedOver = true, true
 		out.DeliveredPR, out.Merged, out.Branch, out.Issue, out.Reason = req.PR, req.Merged, req.Branch, req.Issue, req.Reason
+	}
+	if delivers && !out.AgentRequested {
+		after, err := changedPaths(sdk.Git)
+		if err != nil {
+			return CodeWorkResult{Why: "code-work's tree change could not be read", Detail: err.Error()}
+		}
+		if paths := c.coveredPaths(sdk.Git, t, newPaths(before, after)); len(paths) > 0 {
+			pr, err := deliverTree(sdk, c.Place.Root, c.Place.DefaultBranch, w.Target, t, w.Item.Number, paths)
+			if err != nil {
+				c.Log(err.Error())
+				return CodeWorkResult{Why: "code-work's tree change could not be delivered", Detail: err.Error()}
+			}
+			if pr == 0 {
+				c.Log("code-work's change leaves " + c.Place.DefaultBranch + " as it is; nothing delivered: " + strings.Join(paths, ", "))
+			} else {
+				c.Log(fmt.Sprintf("delivered code-work's change to %s on #%d: %s", w.Target.Branch, pr, strings.Join(paths, ", ")))
+				out.DeliveredPR, out.Branch = pr, w.Target.Branch
+			}
+		}
 	}
 	if sdk != nil && out.DeliveredPR == 0 && len(sdk.Opened) > 0 {
 		out.DeliveredPR = sdk.Opened[len(sdk.Opened)-1].Number

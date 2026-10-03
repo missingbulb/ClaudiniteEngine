@@ -1,0 +1,9 @@
+{
+  "input": {
+    "files": {
+      ".claudinite/shared/packs/acme-pack/dashboard.json": "{ broken",
+      ".claudinite/shared/packs/git-github/dashboard.json": "[]"
+    }
+  },
+  "expect": []
+}

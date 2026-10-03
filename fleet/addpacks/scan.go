@@ -172,11 +172,12 @@ type Scan struct {
 	Grant bool `json:"-"`
 }
 
-// RunScan fingerprints every in-scope member against packs and converges
+// RunScan fingerprints every in-scope member against the corpus its own
+// channel sees and converges
 // its suspected list; repos nil is the whole fleet, else the qualified
 // names the run was scoped to. A member that cannot be swept is unknown,
 // never fitted, and does not stop the rest.
-func RunScan(gh fleet.GH, repos []fleet.Repo, home string, cfg fleet.Config, packs []packindex.CatalogPack, scoped []string) Scan {
+func RunScan(gh fleet.GH, repos []fleet.Repo, home string, cfg fleet.Config, corpus Corpus, scoped []string) Scan {
 	s := Scan{Findings: []Finding{}, Unknown: []string{}, ToFire: []Fire{}, Actions: []string{}, Fitted: []string{}, Dormant: []string{}, OutOfScope: []string{}}
 	unknown := func(r fleet.Repo, msg string, err error) {
 		s.Unknown = append(s.Unknown, r.FullName+" — "+msg)
@@ -219,6 +220,7 @@ func RunScan(gh fleet.GH, repos []fleet.Repo, home string, cfg fleet.Config, pac
 			unknown(r, err.Error(), err)
 			continue
 		}
+		packs := corpus.For(m)
 		declared := DeclaredIDs(m)
 		var canonical []string
 		for _, id := range declared {

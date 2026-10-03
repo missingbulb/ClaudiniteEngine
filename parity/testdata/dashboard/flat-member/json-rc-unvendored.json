@@ -1,0 +1,43 @@
+{
+  "input": {
+    "files": {
+      ".claudinite/settings.json": "{\n  \"engine\": {\n    \"version\": \"61003.2.1\",\n    \"manifest\": \"sha512-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\",\n    \"package\": \"@claudinite/cli-rc\"\n  },\n  \"packs\": {\n    \"declared\": [\n      \"basics\",\n      \"acme-pack\",\n      {\n        \"id\": \"claudinite-tasks\",\n        \"config\": {\n          \"dormant\": \"true\"\n        }\n      }\n    ]\n  }\n}\n",
+      ".claudinite/shared/packs/basics/pack.json": "{\"version\": \"61004.1\", \"minEngineVersion\": \"0.0.0\"}",
+      ".claudinite/shared/packs/claudinite-tasks/pack.json": "{\"version\": \"61004.3\", \"minEngineVersion\": \"0.0.0\"}"
+    }
+  },
+  "expect": {
+    "version": 1,
+    "settings": {
+      "path": ".claudinite/settings.json",
+      "format": "json"
+    },
+    "engine": {
+      "package": "@claudinite/cli-rc",
+      "version": "61003.2.1",
+      "channel": "canary"
+    },
+    "packs": {
+      "channel": "stable",
+      "declared": [
+        {
+          "id": "basics"
+        },
+        {
+          "id": "acme-pack"
+        },
+        {
+          "id": "claudinite-tasks",
+          "config": {
+            "dormant": "true"
+          }
+        }
+      ]
+    },
+    "dormant": false,
+    "held": {
+      "basics": "61004.1",
+      "claudinite-tasks": "61004.3"
+    }
+  }
+}

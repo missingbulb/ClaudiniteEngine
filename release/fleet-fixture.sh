@@ -9,8 +9,8 @@
 # acme/<name>:
 #
 #   current      pinned to LATEST, with its scheduler, its mount carrying hello
-#   behind       pinned to BEHIND, with its scheduler, a hello.json and a
-#                greeting.txt asking for hello-asks
+#   behind       pinned to BEHIND, with its scheduler, on the canary
+#                channel, a hello.json and a greeting.txt asking for hello-asks
 #   noscheduler  pinned to LATEST, no scheduler workflow
 #   dormant      pinned to LATEST, claudinite-tasks dormant
 #   uncovered    no declaration
@@ -93,6 +93,7 @@ member current "$latest"; scheduler current
 mkdir -p "$work/fleet/current/.claudinite/shared/packs/hello"
 printf '{\n  "version": "1.0",\n  "minEngineVersion": "%s"\n}\n' "$version" > "$work/fleet/current/.claudinite/shared/packs/hello/pack.json"
 member behind "$behind"; scheduler behind
+printf 'packs:\n  channel: "canary"\n' >> "$work/fleet/behind/.claudinite/settings.yaml"
 printf '{}\n' > "$work/fleet/behind/hello.json"
 printf 'please add hello-asks\n' > "$work/fleet/behind/greeting.txt"
 member noscheduler "$latest"

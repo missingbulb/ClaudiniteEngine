@@ -1,0 +1,11 @@
+{
+  "input": {
+    "detector": {
+      "about": "x",
+      "paths": 7
+    }
+  },
+  "expect": [
+    "relevanceDetector.paths is a RegExp over tracked paths"
+  ]
+}

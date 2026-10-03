@@ -163,13 +163,17 @@ func compare(t *testing.T, label string, nf, cf []Finding, ids map[string]bool, 
 	t.Logf("%s: agreed %d, only-node %d, only-cn %d, subtracted %d (coded: %s)", label, agreed, len(onlyNode), len(onlyCn), n, strings.Join(rules, ", "))
 }
 
-// cnSettings writes cn's import of the declaration, kept out of git.
+// cnSettings writes cn's import of the declaration and the member file
+// it states, both kept out of git.
 func cnSettings(cn Cn, dir string, decl map[string]any) error {
 	rel, err := cn.Settings(dir, decl)
 	if err != nil {
 		return err
 	}
-	return appendFile(filepath.Join(dir, ".git/info/exclude"), "/"+rel+"\n")
+	if err := cn.WriteMemberFile(dir); err != nil {
+		return err
+	}
+	return appendFile(filepath.Join(dir, ".git/info/exclude"), "/"+rel+"\n/"+MemberFileRel+"\n")
 }
 
 // vendorPacks lays the declared canon packs where a member holds them,

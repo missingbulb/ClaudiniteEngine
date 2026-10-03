@@ -229,8 +229,9 @@ func loadScenario(group, name, dir string) (Scenario, error) {
 }
 
 // Materialize builds the scenario's repo for one engine under parent and
-// returns its directory. The engine's settings file is excluded from git,
-// so both engines see the same tracked and untracked files.
+// returns its directory. The engine's settings file, and cn's member file
+// stating it, are excluded from git, so both engines see the same tracked
+// and untracked files.
 func (s Scenario) Materialize(parent, canonPacks string, e Engine) (string, error) {
 	dir := filepath.Join(parent, e.Name())
 	if err := copyTree(filepath.Join(s.Dir, "member"), dir); err != nil {
@@ -264,6 +265,17 @@ func (s Scenario) Materialize(parent, canonPacks string, e Engine) (string, erro
 			return "", err
 		}
 	}
+	// cn's member file states the settings file, so it stands beside it
+	// as an adoption leaves it, out of git like the overlay it describes.
+	cn, isCn := e.(Cn)
+	if isCn {
+		if err := cn.WriteMemberFile(dir); err != nil {
+			return "", err
+		}
+		if err := appendFile(filepath.Join(dir, ".git/info/exclude"), "/"+MemberFileRel+"\n"); err != nil {
+			return "", err
+		}
+	}
 	if err := commitAll(dir, "base"); err != nil {
 		return "", err
 	}
@@ -274,6 +286,11 @@ func (s Scenario) Materialize(parent, canonPacks string, e Engine) (string, erro
 		if s.Base != nil {
 			if _, err := e.Settings(dir, s.Node); err != nil {
 				return "", err
+			}
+			if isCn {
+				if err := cn.WriteMemberFile(dir); err != nil {
+					return "", err
+				}
 			}
 		}
 		if exists(filepath.Join(s.Dir, "change")) {

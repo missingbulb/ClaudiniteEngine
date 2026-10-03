@@ -310,7 +310,7 @@ func scan(raw []byte) (any, error) {
 		for _, r := range in.Repos {
 			scoped = append(scoped, strings.ToLower(r))
 		}
-		s := addpacks.RunScan(gh, repos, in.Home, cfg, packs, scoped)
+		s := addpacks.RunScan(gh, repos, in.Home, cfg, addpacks.FixedCorpus(packs), scoped)
 		return map[string]any{"findings": s.Findings, "unknown": s.Unknown, "toFire": s.ToFire, "actions": s.Actions,
 			"fitted": s.Fitted, "dormant": s.Dormant, "outOfScope": s.OutOfScope, "calls": *calls}, nil
 	}

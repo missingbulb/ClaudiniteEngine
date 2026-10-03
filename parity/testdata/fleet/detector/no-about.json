@@ -1,0 +1,12 @@
+{
+  "input": {
+    "detector": {
+      "paths": {
+        "source": "a"
+      }
+    }
+  },
+  "expect": [
+    "relevanceDetector.about names what is found, in words"
+  ]
+}

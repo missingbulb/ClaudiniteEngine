@@ -1,0 +1,9 @@
+{
+  "rules": "",
+  "mounts": [],
+  "world": [],
+  "work": [],
+  "only": [
+    "descriptor-usable"
+  ]
+}

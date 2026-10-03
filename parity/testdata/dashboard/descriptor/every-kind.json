@@ -1,0 +1,62 @@
+{
+  "input": {
+    "pack": "acme-pack",
+    "text": "{\n  \"widgets\": [\n    {\n      \"id\": \"s\",\n      \"kind\": \"stat\",\n      \"label\": \"a stat\",\n      \"noun\": \"things\"\n    },\n    {\n      \"id\": \"e\",\n      \"kind\": \"event\",\n      \"label\": \"released\"\n    },\n    {\n      \"id\": \"w\",\n      \"kind\": \"window\",\n      \"label\": \"merged\",\n      \"noun\": \"PRs\"\n    },\n    {\n      \"id\": \"l\",\n      \"kind\": \"list\",\n      \"label\": \"recent\"\n    }\n  ],\n  \"repo\": [\n    \"s\",\n    \"e\",\n    \"w\",\n    \"l\"\n  ],\n  \"fleet\": {\n    \"member\": \"w\",\n    \"deployment\": [\n      \"l\",\n      \"s\"\n    ]\n  }\n}"
+  },
+  "expect": {
+    "fault": null,
+    "fleet": {
+      "deployment": [
+        "l",
+        "s"
+      ],
+      "member": "w"
+    },
+    "pack": "acme-pack",
+    "problems": [],
+    "repo": [
+      "s",
+      "e",
+      "w",
+      "l"
+    ],
+    "widgets": [
+      {
+        "glyph": null,
+        "id": "s",
+        "kind": "stat",
+        "known": true,
+        "label": "a stat",
+        "noun": "things",
+        "source": "generated"
+      },
+      {
+        "glyph": null,
+        "id": "e",
+        "kind": "event",
+        "known": true,
+        "label": "released",
+        "noun": "",
+        "source": "generated"
+      },
+      {
+        "glyph": null,
+        "id": "w",
+        "kind": "window",
+        "known": true,
+        "label": "merged",
+        "noun": "PRs",
+        "source": "generated"
+      },
+      {
+        "glyph": null,
+        "id": "l",
+        "kind": "list",
+        "known": true,
+        "label": "recent",
+        "noun": "",
+        "source": "generated"
+      }
+    ]
+  }
+}

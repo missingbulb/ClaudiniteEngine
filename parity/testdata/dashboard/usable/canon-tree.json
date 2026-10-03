@@ -1,0 +1,17 @@
+{
+  "input": {
+    "files": {
+      "packs/git-github/dashboard.json": "{\n  \"$schema\": \"../claudinite-dashboard/dashboard-descriptor.schema.json\",\n  \"widgets\": [\n    {\n      \"id\": \"stars\",\n      \"kind\": \"stat\",\n      \"label\": \"stars\",\n      \"noun\": \"stars\",\n      \"glyph\": \"★\",\n      \"source\": \"repo-stars\"\n    }\n  ],\n  \"repo\": [\"stars\"],\n  \"fleet\": { \"member\": \"stars\" }\n}\n",
+      "packs/acme-broken/dashboard.json": "{ broken",
+      "packs/acme-pack/README.md": "# acme",
+      "README.md": "# canon"
+    }
+  },
+  "expect": [
+    {
+      "file": "packs/acme-broken/dashboard.json",
+      "fix": "make it satisfy packs/claudinite-dashboard/dashboard-descriptor.schema.json — at minimum a \"widgets\" array whose entries each carry an \"id\" and a \"kind\" from stat, event, window, list",
+      "what": "the dashboard reader rejects it: its dashboard.json is not valid JSON — Expected property name or '}' in JSON at position 2 (line 1 column 3)"
+    }
+  ]
+}

@@ -225,7 +225,7 @@ func cmdExecuteLoop(args []string, stdout io.Writer, env world.Env) (err error) 
 	}
 	worker := execute.CodeWorker{
 		Runner: run, Place: execute.CodeWorkPlace{Root: r.root, Repo: env.Repo(), DefaultBranch: branch, EngineDir: engineDir()},
-		Env: jobEnv, Withheld: withheld, TempDir: env("RUNNER_TEMP"), Echo: echo, Log: log,
+		Env: jobEnv, Withheld: withheld, TempDir: env("RUNNER_TEMP"), Echo: echo, Log: log, Rules: declaredRules,
 		SDK: func(t taskspec.Task, _ workitem.Issue) *execute.SDK {
 			declared := []string{}
 			for _, p := range r.set.Packs {

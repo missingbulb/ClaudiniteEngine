@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/missingbulb/ClaudiniteEngine/shared/flatdecl"
 	"github.com/missingbulb/ClaudiniteEngine/shared/gitcmd"
 	"github.com/missingbulb/ClaudiniteEngine/shared/githubapi"
 	"github.com/missingbulb/ClaudiniteEngine/shared/npmreg"
@@ -318,7 +319,15 @@ func openPR(d Deps, f settings.Format, raw []byte, got Fetched, self, verifyOut 
 		if err := os.WriteFile(filepath.Join(d.Repo, filepath.FromSlash(rel)), moved, 0o644); err != nil {
 			return err
 		}
-		if err := d.Git.Commit(EngineTitle(got.Version), rel); err != nil {
+		rels := []string{rel}
+		member, err := writeMemberFile(d.Repo)
+		if err != nil {
+			return err
+		}
+		if member {
+			rels = append(rels, flatdecl.MemberFile)
+		}
+		if err := d.Git.Commit(EngineTitle(got.Version), rels...); err != nil {
 			return err
 		}
 		return d.Git.Push(remote, branch)
@@ -331,7 +340,7 @@ func openPR(d Deps, f settings.Format, raw []byte, got Fetched, self, verifyOut 
 	}
 
 	var b strings.Builder
-	fmt.Fprintf(&b, "Moves this repo's Claudinite engine pin to **%s**. Only `%s` changes: `engine.version` and `engine.manifest`.\n\n", got.Version, rel)
+	fmt.Fprintf(&b, "Moves this repo's Claudinite engine pin to **%s**. Only `%s` changes: `engine.version` and `engine.manifest`, with `%s` restating them.\n\n", got.Version, rel, flatdecl.MemberFile)
 	fmt.Fprintf(&b, "- Manifest: `%s`\n- Key: `%s`\n\n", got.Integrity, got.KeyID)
 	fmt.Fprintf(&b, "Self-test of the new binary:\n\n```\n%s```\n\n", self)
 	if forced {
@@ -413,24 +422,38 @@ func Land(d Deps, n int, sha string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	// The PR changes the settings file, and restates the member file
+	// beside it when the declaration renders one.
 	var f settings.Format
+	member := false
 	for _, ff := range settings.Formats {
-		if len(files) == 1 && files[0] == settings.RelPath(ff) {
+		rel := settings.RelPath(ff)
+		switch {
+		case len(files) == 1 && files[0] == rel:
 			f = ff
+		case len(files) == 2 && files[0] == flatdecl.MemberFile && files[1] == rel,
+			len(files) == 2 && files[1] == flatdecl.MemberFile && files[0] == rel:
+			f, member = ff, true
 		}
 	}
 	if f == "" {
-		return "", fmt.Errorf("#%d changes %v, not only the settings file", n, files)
+		return "", fmt.Errorf("#%d changes %v, not only the settings file and the member file", n, files)
+	}
+	rel := settings.RelPath(f)
+	if member {
+		if err := flatRendered(d.Git, sha, flatdecl.MemberFile); err != nil {
+			return "", fmt.Errorf("#%d: %s %w", n, flatdecl.MemberFile, err)
+		}
 	}
 	mb, err := d.Git.MergeBase(base, sha)
 	if err != nil {
 		return "", err
 	}
-	old, _, err := d.Git.Show(mb, files[0])
+	old, _, err := d.Git.Show(mb, rel)
 	if err != nil {
 		return "", err
 	}
-	updated, _, err := d.Git.Show(sha, files[0])
+	updated, _, err := d.Git.Show(sha, rel)
 	if err != nil {
 		return "", err
 	}
@@ -441,7 +464,7 @@ func Land(d Deps, n int, sha string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	current, _, err := d.Git.Show(base, files[0])
+	current, _, err := d.Git.Show(base, rel)
 	if err != nil {
 		return "", err
 	}

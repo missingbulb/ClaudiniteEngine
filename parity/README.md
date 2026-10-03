@@ -15,6 +15,7 @@ fixture format is at the top of its test file.
 | settings | `testdata/settings/<name>/`: a declaration and the tree it sits in | `testdata/shims/settings.mjs`: the reader, the registry and `legacy-shape-in-use` | `cn settings import`, then `cn verify` over the imported member |
 | growth | `testdata/growth/<core>/<name>.json` | `testdata/shims/growth.mjs`: `capture-log.mjs` and `prune-logs.mjs` | `cn growth decide <core> --world` |
 | fleet | `testdata/fleet/<core>/<name>.json` | `testdata/shims/fleet.mjs`: the sheepdog's modules over a fake `gh` built from the fixture's `calls` table, and the tasks pack's fleet signal reader | `cn fleet decide <core> --world` |
+| dashboard | `testdata/dashboard/<core>/<name>.json` | `testdata/shims/dashboard.mjs`: the page's `parseDescriptor` and `isDormant`, and the `descriptor-usable` rule's `run` | `cn dashboard descriptor --json`, `cn dashboard decide usable --world`, `cn fleet decide dormancy --world`; `flat-member` is cn's alone, `cn tasks flat --write` against a hand-written file |
 | from-node | real Node trees in `CLAUDINITE_PARITY_TREES`, moved in `lifecycle/adopt`'s `TestFromNodeOverRealMembers` | none: no Node answer exists for a `cn` tree | `cn init --from-node` over a copy, then `cn verify`: only `node-leftovers`, `local-pack-shape` and the shelf's legacy minimums |
 
 A fixture's `expect` is always the Node engine's answer, written by
@@ -38,6 +39,8 @@ which Node's tool refused).
 ## Divergences
 
 Growth face divergences: 0 of 57 fixtures.
+
+Dashboard face divergences: 0 of 48 fixtures.
 
 Tasks face divergences: 1 of 10 fixtures. `contract/invalid` is record row
 89: `log-past-retention` is a built-in term, so the contract's lists of
@@ -93,7 +96,7 @@ the pack-seed classification and write. cn has no canon repo: current is what
 each member's own update would move it to, and a repo once named canon is
 judged as any other.
 
-Fleet face divergences: 27 of 124 fixtures.
+Fleet face divergences: 27 of 147 fixtures.
 
 | Row | Fixtures | Why |
 | --- | --- | --- |
@@ -111,3 +114,15 @@ divergence. The settings file's line is not compared in a finding there:
 the two engines write the declaration in different formats, so the same
 entry sits on different lines. Porting the sheepdog lists its tasks under
 record row 93 and its skill under row 94 in `diverged.txt`.
+
+The 16a chunk added the `dashboard` face (37 descriptors read by the page
+and judged by `descriptor-usable`, six trees under that rule, the page's
+dormancy over 21 declarations, and four `flat-member` files no Node engine
+writes), `fleet/detector/*` (22 relevance detectors validated as the shelf's
+catalog reader does), `fleet/dormancy/page-corpus` (the sheepdog's reader
+over the page's corpus, which agrees) and `scenarios/lifecycle-dashboard/*`
+(six cases: `descriptor-usable` over a local, clean, mounted, undeclared,
+untracked and shelf descriptor), with no divergence. Since no Node engine writes the member file,
+cn's repo in a scenario or a differential tree carries the one cn writes,
+kept out of git beside the settings file it states, and the flat
+comparison leaves it out of cn's side.

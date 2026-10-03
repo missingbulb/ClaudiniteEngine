@@ -1,0 +1,22 @@
+{
+  "input": {
+    "detector": {
+      "about": "x",
+      "paths": {
+        "source": "a"
+      },
+      "text": [
+        {
+          "source": "b",
+          "flags": "y"
+        }
+      ],
+      "search": [
+        "b"
+      ]
+    }
+  },
+  "expect": [
+    "a relevanceDetector pattern carries the g or y flag, which makes .test stateful"
+  ]
+}

@@ -19,12 +19,14 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/fleet/update"
 	"github.com/missingbulb/ClaudiniteEngine/license"
 	"github.com/missingbulb/ClaudiniteEngine/lifecycle/packs"
+	"github.com/missingbulb/ClaudiniteEngine/shared/gitcmd"
 	"github.com/missingbulb/ClaudiniteEngine/shared/githubapi"
 	"github.com/missingbulb/ClaudiniteEngine/shared/npmreg"
 	"github.com/missingbulb/ClaudiniteEngine/shared/packindex"
 	"github.com/missingbulb/ClaudiniteEngine/shared/report"
 	"github.com/missingbulb/ClaudiniteEngine/shared/settings"
 	"github.com/missingbulb/ClaudiniteEngine/tasks/execute"
+	"github.com/missingbulb/ClaudiniteEngine/tasks/world"
 )
 
 func cmdFleet(args []string, stdout, stderr io.Writer, start time.Time) error {
@@ -362,6 +364,23 @@ func fleetRoster(args []string, stdout, stderr io.Writer, start time.Time) error
 		return s.failed(err)
 	}
 	emit(stdout, roster.RenderCoverage(s.cfg.Owner, s.home, cov, actions)+"\n\n"+roster.RenderFreshness(s.cfg.Owner, s.home, fresh))
+	clock, err := world.Env(os.Getenv).Clock()
+	if err != nil {
+		s.crumb("roster", "error", covered, total)
+		return s.failed(err)
+	}
+	prior, from := landedRoster(s.root)
+	fmt.Fprintf(stderr, "[cn] fleet roster: compared against %s\n", from)
+	wrote, err := roster.WriteArtifact(s.root, s.cfg.Owner, roster.Verdicts(r), clock.Now().UTC().Format(time.RFC3339), prior)
+	if err != nil {
+		s.crumb("roster", "error", covered, total)
+		return s.failed(err)
+	}
+	if wrote {
+		fmt.Fprintf(stderr, "[cn] fleet roster: wrote %s\n", roster.RosterFile)
+	} else {
+		fmt.Fprintf(stderr, "[cn] fleet roster: %s unchanged\n", roster.RosterFile)
+	}
 	if unknown := roster.Unknowns(cov, fresh); len(unknown) > 0 {
 		s.crumb("roster", "unknown", covered, total)
 		msg := roster.UnknownError(len(unknown))
@@ -374,6 +393,29 @@ func fleetRoster(args []string, stdout, stderr io.Writer, start time.Time) error
 	}
 	s.crumb("roster", "ok", covered, total)
 	return nil
+}
+
+// landedRoster is the roster file as the branch this run lands on holds
+// it, and where it was read: the executor's target branch, else the
+// default branch, each fetched over the job's token, else nil for the
+// checkout's own copy. A recompute is judged against what already landed,
+// not against a checkout the executor resets between items.
+func landedRoster(root string) ([]byte, string) {
+	git := gitcmd.Repo{Dir: root, Token: os.Getenv("GITHUB_TOKEN")}
+	for _, ref := range []string{os.Getenv("CLAUDINITE_TARGET_BRANCH"), os.Getenv("CLAUDINITE_DEFAULT_BRANCH")} {
+		if ref == "" {
+			continue
+		}
+		if ran, err := git.Run("fetch", "--quiet", "origin", ref); err != nil || ran.Code != 0 {
+			continue
+		}
+		ran, err := git.Run("show", "FETCH_HEAD:"+roster.RosterFile)
+		if err == nil && ran.Code == 0 {
+			return []byte(ran.Stdout), "origin/" + ref
+		}
+		return nil, "the checkout (origin/" + ref + " has no roster)"
+	}
+	return nil, "the checkout"
 }
 
 // fleetUpdate is `cn fleet update`, the fleet-update task's code-work;

@@ -18,7 +18,7 @@ import (
 )
 
 // Cores are the decisions Decide answers.
-var Cores = []string{"token", "config", "dormancy", "dispatch", "scope", "freshness", "views", "reports", "adoption", "follow", "bag", "signal", "params", "force", "protocol", "mark", "fit", "scan", "seeds"}
+var Cores = []string{"token", "config", "detector", "dormancy", "dispatch", "scope", "freshness", "views", "reports", "adoption", "follow", "bag", "signal", "params", "force", "protocol", "mark", "fit", "scan", "seeds"}
 
 // Decide answers one core over raw.
 func Decide(core string, raw []byte) (any, error) {
@@ -27,6 +27,21 @@ func Decide(core string, raw []byte) (any, error) {
 		return token(raw)
 	case "config":
 		return config(raw)
+	case "detector":
+		var in struct {
+			Detector json.RawMessage `json:"detector"`
+		}
+		if err := json.Unmarshal(raw, &in); err != nil {
+			return nil, err
+		}
+		if len(in.Detector) == 0 {
+			in.Detector = json.RawMessage("null")
+		}
+		out := packindex.ValidateDetector(in.Detector)
+		if out == nil {
+			out = []string{}
+		}
+		return out, nil
 	case "dormancy":
 		var in struct{ Configs []any }
 		if err := json.Unmarshal(raw, &in); err != nil {

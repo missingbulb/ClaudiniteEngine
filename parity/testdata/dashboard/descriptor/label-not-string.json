@@ -1,0 +1,63 @@
+{
+  "input": {
+    "pack": "acme-pack",
+    "text": "{\n  \"widgets\": [\n    {\n      \"id\": \"a\",\n      \"kind\": \"stat\",\n      \"label\": 1.5e+21\n    },\n    {\n      \"id\": \"b\",\n      \"kind\": \"stat\",\n      \"label\": [\n        1,\n        [\n          2,\n          null\n        ],\n        \"x\"\n      ]\n    },\n    {\n      \"id\": \"c\",\n      \"kind\": \"stat\",\n      \"label\": {\n        \"x\": 1\n      }\n    },\n    {\n      \"id\": \"d\",\n      \"kind\": \"stat\",\n      \"label\": true\n    },\n    {\n      \"id\": \"e\",\n      \"kind\": \"stat\",\n      \"label\": null\n    }\n  ]\n}"
+  },
+  "expect": {
+    "fault": null,
+    "fleet": {
+      "deployment": [],
+      "member": null
+    },
+    "pack": "acme-pack",
+    "problems": [],
+    "repo": [],
+    "widgets": [
+      {
+        "glyph": null,
+        "id": "a",
+        "kind": "stat",
+        "known": true,
+        "label": "1.5e+21",
+        "noun": "",
+        "source": "generated"
+      },
+      {
+        "glyph": null,
+        "id": "b",
+        "kind": "stat",
+        "known": true,
+        "label": "1,2,,x",
+        "noun": "",
+        "source": "generated"
+      },
+      {
+        "glyph": null,
+        "id": "c",
+        "kind": "stat",
+        "known": true,
+        "label": "[object Object]",
+        "noun": "",
+        "source": "generated"
+      },
+      {
+        "glyph": null,
+        "id": "d",
+        "kind": "stat",
+        "known": true,
+        "label": "true",
+        "noun": "",
+        "source": "generated"
+      },
+      {
+        "glyph": null,
+        "id": "e",
+        "kind": "stat",
+        "known": true,
+        "label": "e",
+        "noun": "",
+        "source": "generated"
+      }
+    ]
+  }
+}

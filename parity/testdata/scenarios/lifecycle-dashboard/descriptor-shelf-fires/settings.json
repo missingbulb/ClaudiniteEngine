@@ -1,0 +1,11 @@
+{
+  "packs": [
+    "claudinite-tasks",
+    {
+      "id": "claudinite-dashboard",
+      "config": {
+        "mode": "repo"
+      }
+    }
+  ]
+}

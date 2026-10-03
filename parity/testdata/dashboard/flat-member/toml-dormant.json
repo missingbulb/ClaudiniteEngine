@@ -1,0 +1,40 @@
+{
+  "input": {
+    "files": {
+      ".claudinite/settings.toml": "[engine]\nversion = \"61003.1.0\"\nmanifest = \"sha512-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\"\npackage = \"@claudinite/cli\"\n\n[packs]\ndeclared = [\"basics\", { id = \"claudinite-tasks\", config = { dormant = true } }]\n",
+      ".claudinite/shared/packs/basics/pack.json": "{\"version\": \"61003.1\", \"minEngineVersion\": \"0.0.0\"}",
+      ".claudinite/shared/packs/claudinite-tasks/pack.json": "{\"version\": \"61003.2\", \"minEngineVersion\": \"0.0.0\"}"
+    }
+  },
+  "expect": {
+    "version": 1,
+    "settings": {
+      "path": ".claudinite/settings.toml",
+      "format": "toml"
+    },
+    "engine": {
+      "package": "@claudinite/cli",
+      "version": "61003.1.0",
+      "channel": "stable"
+    },
+    "packs": {
+      "channel": "stable",
+      "declared": [
+        {
+          "id": "basics"
+        },
+        {
+          "id": "claudinite-tasks",
+          "config": {
+            "dormant": true
+          }
+        }
+      ]
+    },
+    "dormant": true,
+    "held": {
+      "basics": "61003.1",
+      "claudinite-tasks": "61003.2"
+    }
+  }
+}

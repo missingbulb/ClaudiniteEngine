@@ -1,0 +1,15 @@
+{
+  "input": {
+    "files": {
+      ".claudinite/local/packs/mine/dashboard.json": "{\"widgets\":[{\"id\":\"a\",\"kind\":\"stat\"}],\"fleet\":{\"member\":\"a\"}}",
+      ".claudinite/settings.yaml": "packs: {}\n"
+    }
+  },
+  "expect": [
+    {
+      "file": ".claudinite/local/packs/mine/dashboard.json",
+      "fix": "give the widget a short \"noun\" — what the quantity is of — so the phrase reads \"18 stars\" rather than \"18\"",
+      "what": "its fleet mini-card \"a\" is a stat with no \"noun\", so it would render as a bare number"
+    }
+  ]
+}

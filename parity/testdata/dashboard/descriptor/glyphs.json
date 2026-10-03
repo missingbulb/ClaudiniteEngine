@@ -1,0 +1,63 @@
+{
+  "input": {
+    "pack": "acme-pack",
+    "text": "{\n  \"widgets\": [\n    {\n      \"id\": \"a\",\n      \"kind\": \"stat\",\n      \"glyph\": \" ★ \"\n    },\n    {\n      \"id\": \"b\",\n      \"kind\": \"stat\",\n      \"glyph\": \"★★\"\n    },\n    {\n      \"id\": \"c\",\n      \"kind\": \"stat\",\n      \"glyph\": \"😀\"\n    },\n    {\n      \"id\": \"d\",\n      \"kind\": \"stat\",\n      \"glyph\": 7\n    },\n    {\n      \"id\": \"e\",\n      \"kind\": \"stat\",\n      \"glyph\": \"\"\n    }\n  ]\n}"
+  },
+  "expect": {
+    "fault": null,
+    "fleet": {
+      "deployment": [],
+      "member": null
+    },
+    "pack": "acme-pack",
+    "problems": [],
+    "repo": [],
+    "widgets": [
+      {
+        "glyph": "★",
+        "id": "a",
+        "kind": "stat",
+        "known": true,
+        "label": "a",
+        "noun": "",
+        "source": "generated"
+      },
+      {
+        "glyph": null,
+        "id": "b",
+        "kind": "stat",
+        "known": true,
+        "label": "b",
+        "noun": "",
+        "source": "generated"
+      },
+      {
+        "glyph": "😀",
+        "id": "c",
+        "kind": "stat",
+        "known": true,
+        "label": "c",
+        "noun": "",
+        "source": "generated"
+      },
+      {
+        "glyph": null,
+        "id": "d",
+        "kind": "stat",
+        "known": true,
+        "label": "d",
+        "noun": "",
+        "source": "generated"
+      },
+      {
+        "glyph": null,
+        "id": "e",
+        "kind": "stat",
+        "known": true,
+        "label": "e",
+        "noun": "",
+        "source": "generated"
+      }
+    ]
+  }
+}

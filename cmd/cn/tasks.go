@@ -58,17 +58,26 @@ func cmdTasksList(args []string, stdout io.Writer) error {
 
 // cmdTasksFlat prints the flat declarations the active packs produce,
 // writes them (--write) or compares them with the files on disk (--check),
-// naming each stale file and failing.
+// naming each stale file and failing; --paths prints where the three
+// files live, for a reader's drift test.
 func cmdTasksFlat(args []string, stdout io.Writer) error {
 	fs := flag.NewFlagSet("tasks flat", flag.ContinueOnError)
 	repo := fs.String("repo", ".", "")
 	write := fs.Bool("write", false, "")
 	check := fs.Bool("check", false, "")
+	paths := fs.Bool("paths", false, "")
+	asJSON := fs.Bool("json", false, "")
 	if err := flags(fs, args); err != nil {
 		return err
 	}
-	if *write && *check {
-		return report.New(report.Usage, "tasks flat takes --write or --check, not both")
+	if *write && *check || *paths && (*write || *check) {
+		return report.New(report.Usage, "tasks flat takes one of --write, --check and --paths")
+	}
+	if *asJSON && !*paths {
+		return report.New(report.Usage, "tasks flat takes --json with --paths alone")
+	}
+	if *paths {
+		return printFlatPaths(stdout, *asJSON)
 	}
 	set, err := packset.Load(*repo, version.Version(), false)
 	if err != nil {
@@ -88,17 +97,16 @@ func cmdTasksFlat(args []string, stdout io.Writer) error {
 	if err != nil {
 		return report.New(report.IO, err.Error())
 	}
-	files := []string{flatdecl.TasksFile, flatdecl.DashboardFile}
 	if !*check {
-		for _, f := range files {
+		for _, f := range flatdecl.Files {
 			fmt.Fprint(stdout, content[f])
 		}
 		return nil
 	}
 	var stale []string
-	for _, f := range files {
-		if content == nil {
-			break
+	for _, f := range flatdecl.Files {
+		if _, ok := content[f]; !ok {
+			continue
 		}
 		have, err := os.ReadFile(filepath.Join(*repo, filepath.FromSlash(f)))
 		if err != nil || string(have) != content[f] {
@@ -109,6 +117,19 @@ func cmdTasksFlat(args []string, stdout io.Writer) error {
 		return report.New(report.Verify, strings.Join(stale, ", ")+" not what the declared packs produce; run cn tasks flat --write")
 	}
 	return nil
+}
+
+// printFlatPaths is `cn tasks flat --paths [--json]`.
+func printFlatPaths(stdout io.Writer, asJSON bool) error {
+	if !asJSON {
+		for _, f := range flatdecl.Files {
+			fmt.Fprintln(stdout, f)
+		}
+		return nil
+	}
+	enc := json.NewEncoder(stdout)
+	enc.SetIndent("", "  ")
+	return enc.Encode(map[string]string{"tasks": flatdecl.TasksFile, "dashboards": flatdecl.DashboardFile, "member": flatdecl.MemberFile})
 }
 
 // tasksAnswers are the pure decision cores `cn tasks <kind> --world F`

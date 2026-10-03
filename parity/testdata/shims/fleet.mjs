@@ -80,6 +80,10 @@ const cores = {
       return { error: e.message };
     }
   },
+  async detector() {
+    const d = await import(pathToFileURL(join(engine, 'engine/pack_loader/relevance-detector.mjs')).href);
+    return d.validateRelevanceDetector(d.relevanceDetectorFromData(input.detector));
+  },
   async dormancy() {
     const d = await sheepdog('dormancy.mjs');
     return input.configs.map((cfg) => d.isDormant(cfg));
