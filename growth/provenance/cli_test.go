@@ -92,3 +92,21 @@ func TestAnUnknownPackIsAUsageError(t *testing.T) {
 		t.Fatalf("exit %d, stderr %q", code, stderr)
 	}
 }
+
+func TestAppendRefusesAMalformedEntry(t *testing.T) {
+	filled := map[string]string{".claudinite/local/packs/acme-pack/provenance/writing-widget.md": born}
+	for name, entry := range map[string]string{
+		"unknown kind":            "## 2026-08-01 · polished · a widget rule\n- **Actor:** @x (owner).\n",
+		"bad date":                "## 2026-13-45 · reworded · a widget rule\n- **Actor:** @x (owner).\n- **Mechanism:** a RULES.md rule.\n",
+		"moved with no mechanism": "## 2026-08-01 · moved · a widget rule\n- **Actor:** @x (owner).\n",
+	} {
+		root := acmePack(t, filled)
+		code, _, stderr := run(root, entry, "append", "acme-pack", "writing-widget")
+		if code != 1 || stderr == "" {
+			t.Errorf("%s: exit %d, stderr %q", name, code, stderr)
+		}
+		if b, _ := os.ReadFile(filepath.Join(root, ".claudinite/local/packs/acme-pack/provenance/writing-widget.md")); string(b) != born {
+			t.Errorf("%s: the file changed: %q", name, b)
+		}
+	}
+}
