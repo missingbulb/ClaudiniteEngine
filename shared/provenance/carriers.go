@@ -234,7 +234,7 @@ func GoCheckIDs(sources []string) []string {
 			if next := strings.Index(body, "\nfunc "); next >= 0 {
 				body = body[:next]
 			}
-			if regexp.MustCompile(`\bID:\s*`+regexp.QuoteMeta(param)+`\b`).MatchString(body) && !has(registrars, name) {
+			if regexp.MustCompile(`\bID:\s*`+regexp.QuoteMeta(param)+`\s*[,}]`).MatchString(body) && !has(registrars, name) {
 				registrars = append(registrars, name)
 			}
 		}

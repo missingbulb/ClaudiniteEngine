@@ -457,3 +457,12 @@ func TestVocabularyReadsTheShelfsPortKinds(t *testing.T) {
 		t.Errorf("faults %v: none of the three owes a Mechanism", faults)
 	}
 }
+
+// A function that reads a field off its parameter, ID: c.ID, passes no
+// id of its own, so a call to it names no check.
+func TestAFieldOffTheParameterIsNoRegistrar(t *testing.T) {
+	src := "package checks\n\nfunc wrap(c any, why string) checksdk.Check {\n\treturn checksdk.Check{ID: c.(checksdk.Check).ID, Why: why}\n}\n\nfunc register(id string) {\n\tchecksdk.Register(checksdk.Check{\n\t\tID: id,\n\t})\n}\n\nfunc init() {\n\twrap(\"not-a-check\", \"why\")\n\tregister(\"real-check\")\n}\n"
+	if got := GoCheckIDs([]string{src}); !reflect.DeepEqual(got, []string{"real-check"}) {
+		t.Errorf("ids %v, want [real-check]", got)
+	}
+}
