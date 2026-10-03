@@ -1,6 +1,7 @@
 package release
 
 import (
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -28,6 +29,30 @@ func tarballNames(t *testing.T, dist string) map[string]string {
 	return out
 }
 
+// tarballRepositoryURLs reads the package.json repository.url of every
+// tarball in DIST/tarballs.
+func tarballRepositoryURLs(t *testing.T, dist string) map[string]string {
+	t.Helper()
+	files, _ := filepath.Glob(filepath.Join(dist, "tarballs", "*.tgz"))
+	out := map[string]string{}
+	for _, f := range files {
+		raw, err := exec.Command("tar", "-xzOf", f, "package/package.json").Output()
+		if err != nil {
+			t.Fatalf("%s: %v", f, err)
+		}
+		var pj struct {
+			Repository struct {
+				URL string `json:"url"`
+			} `json:"repository"`
+		}
+		if err := json.Unmarshal(raw, &pj); err != nil {
+			t.Fatalf("%s: %v", f, err)
+		}
+		out[filepath.Base(f)] = pj.Repository.URL
+	}
+	return out
+}
+
 func TestBuildNamesEveryTarballForItsChannel(t *testing.T) {
 	for _, pkg := range []string{"@claudinite/cli", "@claudinite/cli-rc"} {
 		dist := filepath.Join(t.TempDir(), "dist")
@@ -43,6 +68,11 @@ func TestBuildNamesEveryTarballForItsChannel(t *testing.T) {
 			t.Fatalf("%s: smoke: %v\n%s", pkg, err, out)
 		}
 		names := tarballNames(t, dist)
+		for file, url := range tarballRepositoryURLs(t, dist) {
+			if url != "git+https://github.com/missingbulb/ClaudiniteEngine.git" {
+				t.Errorf("%s: %s names repository.url %q; npm trusted publishing refuses a package whose repository.url is not the publishing repository", pkg, file, url)
+			}
+		}
 		var got []string
 		for file, name := range names {
 			if file != strings.TrimPrefix(name, "@claudinite/")+"-0.0.0.tgz" {

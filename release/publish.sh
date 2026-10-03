@@ -104,9 +104,13 @@ sort "$list" | while read -r _ name tgz; do
     continue
   fi
   echo "$line"
+  # Verbose under OIDC so a refusal shows whether npm's token exchange ran
+  # and what the registry answered it, which the error itself never says.
+  level=notice
+  [ "$auth" = oidc ] && level=verbose
   # $line is word-split on purpose: the tarball path has no spaces.
   # shellcheck disable=SC2086
-  if ! $line; then
+  if ! npm_config_loglevel=$level $line; then
     if [ "$auth" = token ]; then
       token_refusal "$name" >&2
     else
