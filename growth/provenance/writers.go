@@ -193,8 +193,7 @@ func MarkPack(packDir string, io WriteIO) ([]string, error) {
 			slug := ProposeSlug(r.Trigger, taken)
 			taken[slug] = true
 			lines = markLine(lines, r.LastLine-1, slug, Width)
-			line := fmt.Sprintf("%s:%d: %q marked (%s)", file, r.Line, r.Trigger, slug)
-			line = fmt.Sprintf("%s:%d: \"%s\" marked (%s)", file, r.Line, r.Trigger, slug)
+			line := fmt.Sprintf("%s:%d: \"%s\" marked (%s)", file, r.Line, r.Trigger, slug)
 			if r.Numeric != "" {
 				line += " - numeric marker (" + r.Numeric + ") replaced"
 			}
