@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -49,7 +50,7 @@ func TestAFleetSweepUnderAnOffKeyParksActionAndReadsNoMember(t *testing.T) {
 		t.Fatalf("license request: %d %s", code, errOut)
 	}
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "s1")
-	for _, cmd := range [][]string{{"fleet", "roster"}, {"fleet", "update"}, {"fleet", "judge", "acme/m"}} {
+	for _, cmd := range [][]string{{"fleet", "roster"}, {"fleet", "update"}, {"fleet", "judge", "acme/m"}, {"fleet", "add-packs"}, {"fleet", "pack-seeds"}} {
 		_, errOut, code := runInProc(append(cmd, "--repo", repo), "")
 		if code != 1 || !strings.Contains(errOut, "[cn] fleet: off under this key (degraded: ") ||
 			!strings.Contains(errOut, "claudinite-needs-human: action — ") {
@@ -71,6 +72,33 @@ func TestAFleetSweepWithoutTheTokenSaysWhatToGrant(t *testing.T) {
 	}
 	if calls.Load() != 0 {
 		t.Error("a missing token made API calls")
+	}
+}
+
+func TestTheWriteSweepsWithoutTheTokenSayWhatToGrant(t *testing.T) {
+	repo, calls := fleetManager(t)
+	t.Setenv("FLEET_GITHUB_TOKEN", "")
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "")
+	for _, sweep := range []string{"add-packs", "pack-seeds"} {
+		_, errOut, code := runInProc([]string{"fleet", sweep, "--repo", repo}, "")
+		if code != 1 || !strings.Contains(errOut, "FLEET_GITHUB_TOKEN") || !strings.Contains(errOut, "[cn] fleet "+sweep+" error 0/0 ") {
+			t.Errorf("%s: exit %d, err %q", sweep, code, errOut)
+		}
+	}
+	if calls.Load() != 0 {
+		t.Error("a missing token made API calls")
+	}
+}
+
+// The member half's protocol test reads the constants as JSON.
+func TestFleetProtocolPrintsTheWorkListConstants(t *testing.T) {
+	out, errOut, code := runInProc([]string{"fleet", "protocol", "--json"}, "")
+	var p map[string]string
+	if code != 0 || json.Unmarshal([]byte(out), &p) != nil {
+		t.Fatalf("exit %d, out %q, err %q", code, out, errOut)
+	}
+	if p["label"] == "" || p["memberTaskId"] == "" || p["requestedTitle"] == "" {
+		t.Errorf("protocol %v", p)
 	}
 }
 
