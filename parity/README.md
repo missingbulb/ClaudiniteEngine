@@ -34,7 +34,9 @@ cases: the branch's files, bytes and commit subjects),
 `scenarios/session-end/*` (seven) and `scenarios/provenance/*` (33: `mark`,
 `append`, `check`, `history`). One scenario diverges:
 `provenance/mark-local-prefix`, record row 90 (cn resolves `local/<name>`,
-which Node's tool refused).
+which Node's tool refused). A second came later:
+`provenance/append-unknown-kind`, record row 125 (cn's kind vocabulary
+reads the shelf's `ported`, `gate-changed` and `hardened`).
 
 Phase 7 added `scenarios/provenance/*`'s maintainer verbs (thirteen more,
 46 in all: `reduce`, `apply`, `convert-references`) and

@@ -425,3 +425,19 @@ func TestGoAndEngineChecksAreCarriers(t *testing.T) {
 		t.Errorf("checks %v, want %v", got, want)
 	}
 }
+
+// The shelf wrote ported, gate-changed and hardened while porting onto
+// cn; the vocabulary reads them, so a file carrying one still takes an
+// append (ClaudinitePacks#33).
+func TestVocabularyReadsTheShelfsPortKinds(t *testing.T) {
+	text := born + "\n## 2026-09-30 · ported · onto the SDK (#20)\n- **Reason:** the runtime moved.\n" +
+		"\n## 2026-10-01 · gate-changed · the precondition reads the change\n- **Reason:** it fired on nothing.\n" +
+		"\n## 2026-10-02 · hardened · a missing secret parks the item\n- **Reason:** it degraded silently.\n"
+	entries, problems := Parse(text)
+	if len(problems) != 0 || len(entries) != 4 {
+		t.Fatalf("entries %d, problems %v", len(entries), problems)
+	}
+	if faults := EntryFaults(entries); len(faults) != 0 {
+		t.Errorf("faults %v: none of the three owes a Mechanism", faults)
+	}
+}
