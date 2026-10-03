@@ -1,5 +1,5 @@
 {
-  "version": "1.4",
+  "version": "1.5",
   "minEngineVersion": "61001.1.0",
   "githubActions": [
     "createComment",

@@ -2,6 +2,9 @@
 name: hello-guide
 description: The hello pack's forced-loading probe. Load it before editing under HELLO_SCOPED/, running a hello-call command, acting on a HELLO PROMPT or on a HELLO_RESULT.
 metadata:
+  body: workflow
+  usage:
+    expect: triggered
   force-load-on-file-edits-paths:
     - 'HELLO_SCOPED/**'
   force-load-on-tool-calls:

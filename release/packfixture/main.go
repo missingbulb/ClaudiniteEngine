@@ -152,7 +152,7 @@ var (
 	// githubActionsField is pack.json's githubActions list, as written.
 	githubActionsField = regexp.MustCompile(`,\n  "githubActions": \[[^\]]*\]`)
 	rulesHeading       = regexp.MustCompile(`(?m)^# hello .*$`)
-	changedRule        = "- **The hello rule changed** — this bullet arrived with hello 1.1.\n"
+	changedRule        = "- **The hello rule changed** — this bullet arrived with hello 1.1. (hello-rule-changed)\n"
 	guardRule          = regexp.MustCompile("(?m)^- \\*\\*The hello (guard|SDK probes|tasks) arrived\\*\\*.*\n")
 	declaredLine       = regexp.MustCompile("(?m)^- \\*\\*(Declared checks|Forced skill|Judge|SDK probes|Tasks)\\*\\*(.*\n)(  .*\n)*")
 )
