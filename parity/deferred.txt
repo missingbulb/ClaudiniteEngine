@@ -4,10 +4,3 @@
 # verify answers instead is a case under testdata/answered. The
 # differential refuses a subtraction of a ported pack's rule that neither
 # names, and a line naming a rule the frozen shelf does not carry.
-
-# claudinite-canon-curation
-pack-no-enforcement-narration #24
-skill-no-enforcement-narration #24
-skill-usage-declared #24
-pack-version-log-ordered #24
-pack-discovery-entry-await #24

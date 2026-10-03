@@ -1,0 +1,15 @@
+{
+  "rules": "@../shared/packs/claudinite-canon-curation/RULES.md\n",
+  "mounts": [
+    "extract-packs-from-a-project",
+    "writing-claudinite-skills"
+  ],
+  "world": [
+    "pack-no-enforcement-narration packs/acme-pack/RULES.md:3 block",
+    "pack-no-enforcement-narration packs/acme-pack/RULES.md:4 block"
+  ],
+  "work": [],
+  "only": [
+    "pack-no-enforcement-narration"
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "rules": "@../shared/packs/claudinite-canon-curation/RULES.md\n",
+  "mounts": [
+    "extract-packs-from-a-project",
+    "writing-claudinite-skills"
+  ],
+  "world": [
+    "skill-usage-declared packs/acme-pack/skills/a/SKILL.md advise",
+    "skill-usage-declared packs/acme-pack/skills/b/SKILL.md advise",
+    "skill-usage-declared packs/acme-pack/skills/c/SKILL.md advise",
+    "skill-usage-declared packs/acme-pack/skills/c/SKILL.md advise",
+    "skill-usage-declared packs/acme-pack/skills/d/SKILL.md advise"
+  ],
+  "work": [],
+  "only": [
+    "skill-usage-declared"
+  ]
+}

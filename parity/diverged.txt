@@ -115,3 +115,9 @@ chrome-extension/skills/chrome-store-releases/SKILL.md record-121
 cloudflare-site/tasks/site-release/task.json record-5
 github-pages/tasks/site-release/task.json record-5
 github-pages/skills/github-pages-pipeline/SKILL.md record-121
+# The canon-curation slice: its task declarations and declared checks
+# moved with ClaudinitePacks#20 (record row 5) and its manifest names the
+# cn floor and the actions its workers call (record row 120):
+claudinite-canon-curation/tasks record-5
+claudinite-canon-curation/declared-checks.json record-5
+claudinite-canon-curation/pack.json record-120

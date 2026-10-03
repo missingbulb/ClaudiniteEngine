@@ -1,8 +1,8 @@
 // The Node half of the verify-answers parity face: reads one case's Node
 // member files ({path: text}) on stdin, runs the frozen engine's
-// claudinite-lifecycle world rule argv[2] over them and prints the
+// world rule argv[2], from whichever pack carries it, over them and prints the
 // findings' files as JSON.
-import { readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -22,7 +22,9 @@ const ctx = {
   config,
   packs: [],
 };
-const { default: rule } = await import(pathToFileURL(join(engine, 'packs/claudinite-lifecycle/worldRules', `${id}.mjs`)).href);
+const module = readdirSync(join(engine, 'packs')).map((p) => join(engine, 'packs', p, 'worldRules', `${id}.mjs`)).find((f) => existsSync(f));
+if (!module) throw new Error(`no pack carries worldRules/${id}.mjs`);
+const { default: rule } = await import(pathToFileURL(module).href);
 if (rule.id !== id) throw new Error(`${id}.mjs declares ${rule.id}`);
 const found = await rule.run(ctx);
 process.stdout.write(`${JSON.stringify(found.map((f) => f.file ?? null))}\n`);

@@ -21,3 +21,4 @@ leaflet
 macos
 web-speech
 claude-code-web-users-support
+claudinite-canon-curation
