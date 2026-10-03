@@ -133,5 +133,5 @@ The 16b chunk ported `claudinite-dashboard`, the thirteenth pack in
 task declarations are listed in `diverged.txt`, `deploy-oauth-exchange`'s
 under record row 5 and `publish-pages`' under row 112, so cn's flat files
 read them at the frozen content. The pack's own suite holds its copies of
-the engine's predicates to `cn` (record row 110): 537 tests with
-`CLAUDINITE_CN` set, of which 10 skip without it.
+the engine's predicates to `cn` (record row 110): 544 tests with
+`CLAUDINITE_CN` set, of which 13 skip without it.

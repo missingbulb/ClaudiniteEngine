@@ -262,12 +262,18 @@ var BuiltinTerms = Terms{
 	{Name: "issues-touched", Signals: []string{"issues"}},
 	{Name: "prs-touched", Signals: []string{"prs"}},
 	{Name: "mount-moved", Signals: []string{"sharedMount"}},
-	{Name: "commits-under", Signals: []string{"commits"}, TakesArg: true, ArgName: "path-prefix"},
-	{Name: "commits-outside", Signals: []string{"commits"}, TakesArg: true, ArgName: "path-prefix"},
-	{Name: "no-open-pr-touching", Signals: []string{"prs"}, TakesArg: true, ArgName: "path-prefix"},
+	{Name: "commits-under", Signals: []string{"commits"}, TakesArg: true, ArgName: "path-prefix", ArgOk: literalPrefix, ArgHint: literalPrefixHint},
+	{Name: "commits-outside", Signals: []string{"commits"}, TakesArg: true, ArgName: "path-prefix", ArgOk: literalPrefix, ArgHint: literalPrefixHint},
+	{Name: "no-open-pr-touching", Signals: []string{"prs"}, TakesArg: true, ArgName: "path-prefix", ArgOk: literalPrefix, ArgHint: literalPrefixHint},
 	{Name: "no-open-pr-titled", Signals: []string{"prs"}, TakesArg: true, ArgName: "title-prefix"},
 	{Name: LogPastRetention, Signals: []string{"conversationLogs"}},
 }
+
+// A path-prefix term matches its argument as a literal prefix in both
+// engines, so a glob character in it can only ever match nothing.
+func literalPrefix(a string) bool { return !strings.Contains(a, "*") }
+
+const literalPrefixHint = "a literal path prefix, which matches no wildcard: drop the `*` and keep what precedes it"
 
 // LogPastRetention holds when the conversation-logs branch's oldest
 // capture is older than the repo's retention: a clock crossing a
