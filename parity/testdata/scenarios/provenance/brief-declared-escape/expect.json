@@ -1,0 +1,17 @@
+{
+  "runs": [
+    {
+      "exit": 0,
+      "stdout": "# packs/acme · backfill brief\n\n2 pending files · 2 pack-local commits · 0 sweeps\n\n## every commit that touched this pack\noldest first, each with the files it touched under the pack, the version row that claims it, and what it drafts below. a row reading NOTHING DRAFTED decided nothing, re-wrapped, or decided something no carrier's text shows - read its files before passing it\na commit touching 5 or more packs is marked \"sweep\": it goes on _pack.md where it changed the pack's shape, and on an element only where it decided something about that one - never where it merely re-wrapped it\n- #30 2026-07-01 acme: the pack · RULES.md, declared-checks.json, pack.json · acme-one (born), acme-two (born)\n- #31 2026-07-02 acme: reformat the declarations and tighten the second · declared-checks.json, pack.json · acme-two (reworded)\n\n## PR #30 · 2026-07-01 · acme: the pack\n- pack version 1\n- acme-one (born), acme-two (born)\n\nthe defaults go under every entry below them; fill Source, Reason, Rejected and Retire when where the evidence carries them, there or on one entry; delete a draft the commit did not decide\n```entry-defaults\n- **Landed:** #30 · pack version 1.\n```\n```entry acme-one\n## 2026-07-01 · born · acme: the pack (#30)\n- **Mechanism:** check acme-one, in packs/acme/declared-checks.json.\n```\n```entry acme-two\n## 2026-07-01 · born · acme: the pack (#30)\n- **Mechanism:** check acme-two, in packs/acme/declared-checks.json.\n```\n\n## PR #31 · 2026-07-02 · acme: reformat the declarations and tighten the second\n- pack version 2\n- acme-two (reworded)\n\nthe defaults go under every entry below them; fill Source, Reason, Rejected and Retire when where the evidence carries them, there or on one entry; delete a draft the commit did not decide\n```entry-defaults\n- **Landed:** #31 · pack version 2.\n```\n```entry acme-two\n## 2026-07-02 · reworded · acme: reformat the declarations and tighten the second (#31)\n```\n",
+      "stderr": ""
+    }
+  ],
+  "branch": null,
+  "files": {
+    "packs/acme/RULES.md": "# acme\n",
+    "packs/acme/declared-checks.json": "[\n  {\"id\":\"acme-one\",\"description\":\"take it — now\",\"on_fail\":\"advisory\",\"since\":1,\"scanFiles\":\"a/*.md\"},\n  {\"id\":\"acme-two\",\"description\":\"two\",\"on_fail\":\"blocking\",\"scanFiles\":\"*.md\"}\n]\n",
+    "packs/acme/pack.json": "{\n  \"version\": \"2\",\n  \"ruleRoutingGuidance\": {\n    \"belongs\": \"widgets\",\n    \"excludes\": \"everything else\"\n  }\n}\n",
+    "packs/acme/provenance/acme-one.md": "",
+    "packs/acme/provenance/acme-two.md": ""
+  }
+}

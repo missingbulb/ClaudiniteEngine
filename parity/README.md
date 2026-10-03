@@ -41,10 +41,10 @@ reads the shelf's `ported`, `gate-changed` and `hardened`). A third:
 check as its carrier and follows it back to the module it was ported
 from, where Node's tool found no carrier at all).
 
-Phase 7 added `scenarios/provenance/*`'s maintainer verbs (eighteen more,
-51 in all: `reduce`, `apply`, `convert-references` and `brief`, whose
+Phase 7 added `scenarios/provenance/*`'s maintainer verbs (nineteen more,
+52 in all: `reduce`, `apply`, `convert-references` and `brief`, whose
 repos carry authors, an origin, a sweep, a moved rule, a rule reworded in
-place and a promoted pack) and
+place, a promoted pack and a declaration re-spelled to the same value) and
 `scenarios/pack-history/*` (three: the shelf, one pack, an earlier ref),
 where Node's `pack-versions.mjs` answers through `shims/pack-history.mjs`
 in `cn pack history --json`'s shape, and `scenarios/promote-scope/*`

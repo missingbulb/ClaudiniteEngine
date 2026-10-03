@@ -1,8 +1,6 @@
 package provenance
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"math"
 	"regexp"
@@ -13,6 +11,7 @@ import (
 	"unicode/utf16"
 
 	"github.com/missingbulb/ClaudiniteEngine/shared/gitcmd"
+	"github.com/missingbulb/ClaudiniteEngine/shared/jsjson"
 	prov "github.com/missingbulb/ClaudiniteEngine/shared/provenance"
 )
 
@@ -468,24 +467,17 @@ func (b *briefer) ruleEvents(file string, rule prov.Block, blocksOf func(string)
 }
 
 // declarationOf is one check's declaration in a shared declarations file,
-// compacted with its keys in their written order.
+// re-serialized as JSON.stringify writes its parsed value, so two spellings
+// of one value read the same.
 func declarationOf(text, id string) (string, bool) {
-	var all []json.RawMessage
-	if json.Unmarshal([]byte(text), &all) != nil {
+	all, err := jsjson.Decode([]byte(text))
+	if err != nil || all.Kind != jsjson.Array {
 		return "", false
 	}
-	for _, raw := range all {
-		var d struct {
-			ID *string `json:"id"`
+	for _, d := range all.Arr {
+		if got, ok := d.Prop("id"); ok && got.Kind == jsjson.String && got.Str == id {
+			return jsjson.Stringify(d), true
 		}
-		if json.Unmarshal(raw, &d) != nil || d.ID == nil || *d.ID != id {
-			continue
-		}
-		var compact bytes.Buffer
-		if err := json.Compact(&compact, raw); err != nil {
-			return "", false
-		}
-		return compact.String(), true
 	}
 	return "", false
 }

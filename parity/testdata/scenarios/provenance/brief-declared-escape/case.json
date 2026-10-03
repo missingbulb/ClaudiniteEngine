@@ -1,0 +1,33 @@
+{
+  "remote": "https://github.com/acme/repo.git",
+  "why": "a declaration is compared by its value: re-spelling an escape, a number or a slash drafts nothing, a changed value drafts reworded",
+  "commits": [
+    {
+      "message": "acme: the pack (#30)",
+      "files": {
+        "packs/acme/pack.json": "{\n  \"version\": \"1\",\n  \"ruleRoutingGuidance\": {\n    \"belongs\": \"widgets\",\n    \"excludes\": \"everything else\"\n  }\n}\n",
+        "packs/acme/RULES.md": "# acme\n",
+        "packs/acme/declared-checks.json": "[\n  {\"id\": \"acme-one\", \"description\": \"take it \\u2014 now\", \"on_fail\": \"advisory\", \"since\": 1.0, \"scanFiles\": \"a\\/*.md\"},\n  {\"id\": \"acme-two\", \"description\": \"two\", \"on_fail\": \"advisory\", \"scanFiles\": \"*.md\"}\n]\n"
+      }
+    },
+    {
+      "message": "acme: reformat the declarations and tighten the second (#31)",
+      "files": {
+        "packs/acme/pack.json": "{\n  \"version\": \"2\",\n  \"ruleRoutingGuidance\": {\n    \"belongs\": \"widgets\",\n    \"excludes\": \"everything else\"\n  }\n}\n",
+        "packs/acme/declared-checks.json": "[\n  {\"id\":\"acme-one\",\"description\":\"take it — now\",\"on_fail\":\"advisory\",\"since\":1,\"scanFiles\":\"a/*.md\"},\n  {\"id\":\"acme-two\",\"description\":\"two\",\"on_fail\":\"blocking\",\"scanFiles\":\"*.md\"}\n]\n"
+      }
+    }
+  ],
+  "working": {
+    "packs/acme/provenance/acme-one.md": "",
+    "packs/acme/provenance/acme-two.md": ""
+  },
+  "steps": [
+    {
+      "args": [
+        "brief",
+        "acme"
+      ]
+    }
+  ]
+}
