@@ -72,7 +72,7 @@ func TestProvenanceIntegrityPendingHistoryIsOneAdvisory(t *testing.T) {
 
 func TestProvenanceIntegrityFlags(t *testing.T) {
 	expect(t, repo{base: with(filled(), map[string]string{pk + "RULES.md": "- **Doing a thing** — no marker.\n\n- **Doing another** — none either.\n"})}.run(t, "provenance-integrity"),
-		want{path: pk + "RULES.md", line: 1, what: `2 rules end with no marker.*first: "Doing a thing"`, fix: `provenance\.mjs mark mypack`},
+		want{path: pk + "RULES.md", line: 1, what: `2 rules end with no marker.*first: "Doing a thing"`, fix: `cn provenance mark mypack`},
 		want{path: pk + "provenance/doing-another.md", what: `live, and no carrier of \.claudinite/local/packs/mypack names doing-another\.md`},
 		want{path: pk + "provenance/doing-thing.md", what: `live, and no carrier of \.claudinite/local/packs/mypack names doing-thing\.md`})
 	expect(t, repo{base: with(filled(), map[string]string{
@@ -101,7 +101,7 @@ func TestProvenanceIntegrityFlags(t *testing.T) {
 		"packs/somepack/RULES.md":            "- **Doing a thing** — no marker.\n",
 		"packs/somepack/provenance/_pack.md": bornEntry,
 	})}.run(t, "provenance-integrity"),
-		want{path: "packs/somepack/RULES.md", line: 1, what: "1 rule ends with no marker", fix: `\.claudinite/shared/packs/claudinite-growth/provenance\.mjs mark somepack`})
+		want{path: "packs/somepack/RULES.md", line: 1, what: "1 rule ends with no marker", fix: `cn provenance mark somepack`})
 }
 
 func TestProvenanceIntegrityReadsGoChecks(t *testing.T) {

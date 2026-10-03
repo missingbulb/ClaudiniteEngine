@@ -30,7 +30,7 @@ func whats(ws []want) string {
 func TestProvenanceChangeRecordedRewordedRuleOwesAndTheEntryClearsIt(t *testing.T) {
 	reworded := map[string]string{pk + "RULES.md": "- **Doing a thing** — the settled way, said better. (doing-thing)\n\n- **Doing another** — plainly.\n  (doing-another)\n"}
 	expect(t, repo{base: filled(), change: reworded}.run(t, "provenance-change-recorded"),
-		want{path: pk + "RULES.md", line: 1, what: `"Doing a thing" reads differently from the base, and .*doing-thing\.md gained no entry`, fix: `provenance\.mjs append mypack doing-thing`})
+		want{path: pk + "RULES.md", line: 1, what: `"Doing a thing" reads differently from the base, and .*doing-thing\.md gained no entry`, fix: `cn provenance append mypack doing-thing`})
 	expect(t, repo{base: filled(), change: with(reworded, map[string]string{pk + "provenance/doing-thing.md": bornEntry + rewordedEntry})}.run(t, "provenance-change-recorded"))
 }
 

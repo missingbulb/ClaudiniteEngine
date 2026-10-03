@@ -1,0 +1,16 @@
+{
+  "runs": [
+    {
+      "exit": 0,
+      "stdout": "captured 5 entries → \u003cstamp\u003e--pr-1--sess-parity.jsonl on conversation-logs\n",
+      "stderr": ""
+    }
+  ],
+  "branch": {
+    "\u003cstamp\u003e--pr-1--sess-parity.jsonl": "{\"type\":\"user\",\"timestamp\":\"2026-07-19T09:40:00.000Z\",\"sessionId\":\"sess-parity\",\"message\":{\"role\":\"user\",\"content\":\"set up the token\"}}\n{\"timestamp\":\"2026-07-19T09:40:01.000Z\", \"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"done\"}]},\"z\":1,\"a\":2}\n{\"type\":\"queue-operation\",\"operation\":\"enqueue\"}\n{\"type\":\"user\",\"timestamp\":\"2026-07-19T09:40:02.000Z\",\"toolUseResult\":{\"stdout\":\"PARITY_SECRET=[REDACTED:env:PARITY_SECRET] and [REDACTED:github-token]\"}}\n{\"type\":\"assistant\",\"timestamp\":\"2026-07-19T09:40:03.000Z\",\"message\":{\"content\":\"héllo — unicode, \\\"quoted\\\"\"}}\n",
+    "README.md": "# conversation-logs\n\nCaptured working-session conversations (one JSONL per merge), pushed by the\nclaudinite-growth pack's capture step and consumed by the conversation half of\nits growth-extract scheduled task. An orphan work-queue branch: never merged, files\ndeleted by the retention prune once extracted and aged out. See the pack README\n(packs/claudinite-growth/README.md in the Claudinite canon) for the standard.\n"
+  },
+  "subjects": [
+    "capture conversation log \u003cstamp\u003e--pr-1--sess-parity.jsonl [skip ci]"
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "origin": "unreachable",
+  "steps": [
+    {
+      "transcript": [
+        "part1.jsonl"
+      ],
+      "args": [
+        "--pr",
+        "1",
+        "--transcript",
+        "{transcript}"
+      ]
+    }
+  ]
+}

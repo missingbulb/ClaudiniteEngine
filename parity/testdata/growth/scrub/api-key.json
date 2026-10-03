@@ -1,0 +1,7 @@
+{
+  "input": {
+    "text": "sk-Z9Z9Z9Z9Z9Z9Z9Z9Z9Z9Z9Z9Z9Z9Z9Z9Z9 tail",
+    "redactions": []
+  },
+  "expect": "[REDACTED:api-key] tail"
+}

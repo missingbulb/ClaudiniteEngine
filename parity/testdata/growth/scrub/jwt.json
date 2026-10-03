@@ -1,0 +1,7 @@
+{
+  "input": {
+    "text": "Bearer eyJhbGciOiJIUzI1.eyJzdWIiOiIxMjM0.SflKxwRJSM",
+    "redactions": []
+  },
+  "expect": "Bearer [REDACTED:jwt]"
+}

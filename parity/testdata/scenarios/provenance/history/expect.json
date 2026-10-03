@@ -1,0 +1,24 @@
+{
+  "runs": [
+    {
+      "exit": 0,
+      "stdout": "# .claudinite/local/packs/acme · writing-widget\n\n## commits touching .claudinite/local/packs/acme/RULES.md\n6e5db3b 2026-07-04 acme: a direct commit\n31e6966 2026-07-02 acme: reword the widget rule (#11)\n976f8a3 2026-07-01 acme: the pack (#10)\n\n## commits adding or removing \"Writing a widget\"\n976f8a3 2026-07-01 acme: the pack (#10)\n\n## pull requests those commits name\n#10 #11\n\n## VERSIONS.md rows naming them\n| 1 | born (#10) |\n| 2 | widget reworded (#11) |\n\n## README sentences that read as history\n- # acme The widget rule was kept as it was until #11.\n- It replaced the old one.\n- Writing a widget is the rule.\n\n## tracker comments\nread the promote tracker and the extract issues on GitHub; git does not hold them\n",
+      "stderr": ""
+    }
+  ],
+  "branch": null,
+  "files": {
+    ".claudinite/local/packs/acme/README.md": "# acme\n\nThe widget rule was kept as it was until #11. It replaced the old one. Widgets are small.\nWriting a widget is the rule.\n",
+    ".claudinite/local/packs/acme/RULES.md": "# acme\n\n- **Writing a widget** — keep it tiny and name it for what it does. (writing-widget)\n- **Shipping a release**: tag it first, always. (shipping-release)\n",
+    ".claudinite/local/packs/acme/pack.json": "{\n  \"version\": \"1\",\n  \"ruleRoutingGuidance\": {\n    \"belongs\": \"widgets\",\n    \"excludes\": \"everything else\"\n  }\n}\n",
+    ".claudinite/local/packs/acme/provenance/VERSIONS.md": "| version | change |\n|---|---|\n| 1 | born (#10) |\n| 2 | widget reworded (#11) |\n| 3 | nothing (#99) |\n",
+    ".claudinite/local/packs/acme/provenance/_pack.md": "## 2026-07-01 · born · the pack\n- **Source:** #10\n- **Reason:** needed one\n- **Mechanism:** prose rule in RULES.md\n",
+    ".claudinite/local/packs/acme/provenance/acme-task.md": "## 2026-07-02 · born · first written\n- **Source:** #10\n- **Reason:** needed one\n- **Mechanism:** prose rule in RULES.md\n",
+    ".claudinite/local/packs/acme/provenance/guide.md": "## 2026-07-02 · born · first written\n- **Source:** #10\n- **Reason:** needed one\n- **Mechanism:** prose rule in RULES.md\n",
+    ".claudinite/local/packs/acme/provenance/shipping-release.md": "",
+    ".claudinite/local/packs/acme/provenance/writing-widget.md": "## 2026-07-02 · born · first written\n- **Source:** #10\n- **Reason:** needed one\n- **Mechanism:** prose rule in RULES.md\n",
+    ".claudinite/local/packs/acme/skills/guide/SKILL.md": "---\nname: guide\ndescription: Guidance for gadgets. Use when building one.\nmetadata:\n  body: guidelines\n---\n\n# guide\n\n- **Doing the first thing** — do it well.\n- **Doing the second thing** — do it better.\n",
+    ".claudinite/local/packs/acme/tasks/acme-task/task.json": "{\n  \"id\": \"acme-task\",\n  \"description\": \"d\",\n  \"trigger\": \"request\",\n  \"expected_outcome\": \"no_code_changes\"\n}\n",
+    "other.txt": "x\n"
+  }
+}

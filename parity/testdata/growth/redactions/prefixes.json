@@ -1,0 +1,20 @@
+{
+  "input": {
+    "env": {
+      "LC_ALL": "en_US.UTF-8-long",
+      "XDG_CONFIG_HOME": "/home/x/.config",
+      "XDGNOT": "value-not-prefixed",
+      "LCX": "another-value-1"
+    }
+  },
+  "expect": [
+    {
+      "form": "value-not-prefixed",
+      "name": "XDGNOT"
+    },
+    {
+      "form": "another-value-1",
+      "name": "LCX"
+    }
+  ]
+}

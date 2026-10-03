@@ -1,0 +1,28 @@
+{
+  "sameMinute": true,
+  "steps": [
+    {
+      "transcript": [
+        "part1.jsonl"
+      ],
+      "args": [
+        "--pr",
+        "5",
+        "--transcript",
+        "{transcript}"
+      ]
+    },
+    {
+      "transcript": [
+        "part1.jsonl",
+        "part2.jsonl"
+      ],
+      "args": [
+        "--pr",
+        "5",
+        "--transcript",
+        "{transcript}"
+      ]
+    }
+  ]
+}

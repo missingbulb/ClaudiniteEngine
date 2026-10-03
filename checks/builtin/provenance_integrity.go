@@ -31,14 +31,8 @@ var provenanceIntegrity = declared.Builtin{
 
 func init() { register(&provenanceIntegrity, runProvenanceIntegrity) }
 
-// growthTool is the growth pack's provenance CLI as the repo holds it: the
-// shelf's own copy in a canon, the mount's in a member.
-func growthTool(ctx *declared.Ctx) string {
-	if p := "packs/claudinite-growth/provenance.mjs"; ctx.Exists(p) {
-		return p
-	}
-	return ".claudinite/shared/packs/claudinite-growth/provenance.mjs"
-}
+// growthTool is the provenance CLI a finding's remedy names.
+const growthTool = "cn provenance"
 
 // treeIO reads the working tree, its directories off the run's scanned
 // files, so an audit walks exactly what the run scans.
@@ -59,13 +53,13 @@ func runProvenanceIntegrity(ctx *declared.Ctx, _ *transcript.Session) []findings
 		return nil
 	}
 	io := treeIO(ctx)
-	tool := growthTool(ctx)
+	tool := growthTool
 	var out []findings.Finding
 	b := provenanceIntegrity
 	for _, dir := range packs {
 		a := provenance.AuditPack(dir, io)
 		id := path.Base(dir)
-		mark := fmt.Sprintf("run `node %s mark %s` and refine the proposed slugs before landing", tool, id)
+		mark := fmt.Sprintf("run `%s mark %s` and refine the proposed slugs before landing", tool, id)
 		var order []string
 		byFile := map[string][]provenance.Rule{}
 		for _, u := range a.Unmarked {
@@ -80,7 +74,7 @@ func runProvenanceIntegrity(ctx *declared.Ctx, _ *transcript.Session) []findings
 				fmt.Sprintf(`%d %s with no marker naming a provenance file (first: "%s")`, len(list), plural(len(list), "rule ends", "rules end"), list[0].Trigger), mark))
 		}
 		for _, d := range a.Dangling {
-			what, fix := "not a file", fmt.Sprintf("create the file the carrier names (`node %s mark %s` creates every missing one), or fix the marker to the file it meant", tool, id)
+			what, fix := "not a file", fmt.Sprintf("create the file the carrier names (`%s mark %s` creates every missing one), or fix the marker to the file it meant", tool, id)
 			if d.Retired {
 				what, fix = "retired - its last entry retired the element", "a retired element carries no live carrier: remove the carrier, or give the element a new file and a born entry"
 			}
@@ -92,7 +86,7 @@ func runProvenanceIntegrity(ctx *declared.Ctx, _ *transcript.Session) []findings
 		}
 		for _, n := range a.NoBody {
 			out = append(out, b.Finding(n.File, 0, "skill "+n.Name+" declares no body",
-				fmt.Sprintf("add `body: workflow` or `body: guidelines` under its frontmatter metadata (`node %s mark %s` proposes one from the shape)", tool, id)))
+				fmt.Sprintf("add `body: workflow` or `body: guidelines` under its frontmatter metadata (`%s mark %s` proposes one from the shape)", tool, id)))
 		}
 		for _, m := range a.MarkerInWorkflow {
 			out = append(out, b.Finding(m.File, m.LastLine, fmt.Sprintf(`"%s" ends with the marker (%s) inside a skill whose body is a workflow`, m.Trigger, m.Slug),

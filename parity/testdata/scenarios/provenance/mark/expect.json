@@ -1,0 +1,36 @@
+{
+  "runs": [
+    {
+      "exit": 0,
+      "stdout": ".claudinite/local/packs/acme/skills/bare/SKILL.md: body: workflow proposed (numbered steps, or no bullets)\n.claudinite/local/packs/acme/skills/flow/SKILL.md: body: workflow proposed (numbered steps, or no bullets)\n.claudinite/local/packs/acme/skills/guide/SKILL.md: body: guidelines proposed (bold-trigger bullets and no numbered steps)\n.claudinite/local/packs/acme/RULES.md:14: \"Shipping a release\" marked (shipping-release)\n.claudinite/local/packs/acme/provenance/shipping-release.md: created for rule \"Shipping a release\"\n.claudinite/local/packs/acme/RULES.md:8: \"Shipping a release\" marked (shipping-release-2)\n.claudinite/local/packs/acme/provenance/shipping-release-2.md: created for rule \"Shipping a release\"\n.claudinite/local/packs/acme/RULES.md:6: \"Naming a gadget for its very long and descriptive purpose across the whole repository surface\" marked (naming-gadget-very)\n.claudinite/local/packs/acme/provenance/naming-gadget-very.md: created for rule \"Naming a gadget for its very long and descriptive purpose across the whole repository surface\"\n.claudinite/local/packs/acme/RULES.md:5: \"Writing a widget\" marked (writing-widget) - numeric marker (3) replaced\n.claudinite/local/packs/acme/provenance/writing-widget.md: created for rule \"Writing a widget\"\n.claudinite/local/packs/acme/provenance/bare.md: created for skill bare\n.claudinite/local/packs/acme/provenance/flow.md: created for skill flow\n.claudinite/local/packs/acme/provenance/guide.md: created for skill guide\n.claudinite/local/packs/acme/provenance/guide-check.md: created for check guide-check\n.claudinite/local/packs/acme/provenance/acme-check.md: created for check acme-check\n.claudinite/local/packs/acme/provenance/acme-nested.md: created for check acme/nested\n.claudinite/local/packs/acme/provenance/data-rule.md: created for declared rule data-rule\n.claudinite/local/packs/acme/provenance/acme-task.md: created for task acme-task\n.claudinite/local/packs/acme/provenance/_pack.md: created for the manifest\n13 empty provenance files under .claudinite/local/packs/acme\n",
+      "stderr": ""
+    }
+  ],
+  "branch": null,
+  "files": {
+    ".claudinite/local/packs/acme/RULES.md": "# acme\n\nSome framing prose that is not a rule.\n\n- **Writing a widget** — keep it small and name it for what it does. (writing-widget)\n- **Naming a gadget for its very long and descriptive purpose across the whole repository surface** — never for\n  its mechanism or the technology underneath it. (naming-gadget-very)\n- **Shipping a release**: tag it first. (shipping-release-2)\n  - a nested item that belongs to the rule\n- a plain bullet, which RULES.md does not read as a rule\n\n## Later\n\n- **Shipping a release**: twice, which collides with the slug. (shipping-release)\n",
+    ".claudinite/local/packs/acme/declared-checks.json": "[{\"id\": \"acme-check\", \"description\": \"x\"}, {\"id\": \"acme/nested\"}]\n",
+    ".claudinite/local/packs/acme/pack.json": "{\n  \"version\": \"1\",\n  \"ruleRoutingGuidance\": {\n    \"belongs\": \"widgets\",\n    \"excludes\": \"everything else\"\n  }\n}\n",
+    ".claudinite/local/packs/acme/provenance/_pack.md": "",
+    ".claudinite/local/packs/acme/provenance/acme-check.md": "",
+    ".claudinite/local/packs/acme/provenance/acme-nested.md": "",
+    ".claudinite/local/packs/acme/provenance/acme-task.md": "",
+    ".claudinite/local/packs/acme/provenance/bare.md": "",
+    ".claudinite/local/packs/acme/provenance/data-rule.md": "",
+    ".claudinite/local/packs/acme/provenance/flow.md": "",
+    ".claudinite/local/packs/acme/provenance/guide-check.md": "",
+    ".claudinite/local/packs/acme/provenance/guide.md": "",
+    ".claudinite/local/packs/acme/provenance/naming-gadget-very.md": "",
+    ".claudinite/local/packs/acme/provenance/shipping-release-2.md": "",
+    ".claudinite/local/packs/acme/provenance/shipping-release.md": "",
+    ".claudinite/local/packs/acme/provenance/writing-widget.md": "",
+    ".claudinite/local/packs/acme/skills/bare/SKILL.md": "---\nmetadata:\n  body: workflow\n---\n# bare\n\nNo frontmatter here.\n",
+    ".claudinite/local/packs/acme/skills/empty/README.md": "not a skill file\n",
+    ".claudinite/local/packs/acme/skills/flow/SKILL.md": "---\nname: flow\ndescription: A procedure. Use when flowing.\nmetadata:\n  body: workflow\n  owner: acme\n---\n\n1. First step.\n2. Second step.\n\n- **A bullet in a workflow** — read as a step's note.\n",
+    ".claudinite/local/packs/acme/skills/guide/SKILL.md": "---\nname: guide\ndescription: Guidance for gadgets. Use when building one.\nmetadata:\n  body: guidelines\n---\n\n# guide\n\n- **Doing the first thing** — do it well.\n- **Doing the second thing** — do it better.\n",
+    ".claudinite/local/packs/acme/skills/guide/declared-checks.json": "[{\"id\": \"guide-check\"}]\n",
+    ".claudinite/local/packs/acme/tasks/acme-task/task.json": "{\n  \"id\": \"acme-task\",\n  \"description\": \"d\",\n  \"trigger\": \"request\",\n  \"expected_outcome\": \"no_code_changes\"\n}\n",
+    ".claudinite/local/packs/acme/tasks/not-a-task/README.md": "no task file\n",
+    ".claudinite/local/packs/acme/usage-rules.json": "{\"rules\": [{\"id\": \"data-rule\"}, {\"noid\": 1}]}\n"
+  }
+}

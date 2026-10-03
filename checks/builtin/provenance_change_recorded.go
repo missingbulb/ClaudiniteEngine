@@ -102,7 +102,7 @@ func runProvenanceChangeRecorded(ctx *declared.Ctx, _ *transcript.Session) []fin
 			}
 			out = append(out, b.Finding(file, line,
 				fmt.Sprintf("%s, and %s gained no entry in this change", what, fileOf(id)),
-				fmt.Sprintf("append the entry that records the decision - its kind (reworded, strengthened, weakened, moved, converted, trigger-changed, policy-changed, severity-changed, split, merged) and why - through `node <path to claudinite-growth>/provenance.mjs append %s %s`, reading the entry from stdin", path.Base(dir), id)))
+				fmt.Sprintf("append the entry that records the decision - its kind (reworded, strengthened, weakened, moved, converted, trigger-changed, policy-changed, severity-changed, split, merged) and why - through `cn provenance append %s %s`, reading the entry from stdin", path.Base(dir), id)))
 		}
 
 		// Rules and guidelines, by trigger; the base's bullets whatever

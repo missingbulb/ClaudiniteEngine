@@ -1,0 +1,22 @@
+{
+  "input": {
+    "names": [
+      "README.md",
+      "2026-07-01T0900Z--pr-1--a.jsonl",
+      "2026-07-08T2359Z--issue-0--b.jsonl",
+      "2026-07-09T0001Z--issue-4--c.jsonl",
+      "2026-07-18T1200Z-2--pr-7--d.jsonl",
+      "notes.txt"
+    ],
+    "retentionDays": 10,
+    "now": "2026-07-19T00:00:00.000Z"
+  },
+  "expect": {
+    "delete": [
+      "2026-07-01T0900Z--pr-1--a.jsonl",
+      "2026-07-08T2359Z--issue-0--b.jsonl"
+    ],
+    "logCount": 4,
+    "off": false
+  }
+}

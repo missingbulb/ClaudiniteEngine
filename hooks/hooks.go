@@ -66,6 +66,9 @@ type LicenseStatus struct {
 	WorkChecks bool
 	// ForcedLoading is the gate's forced-skill-loading row.
 	ForcedLoading bool
+	// Growth is the gate's in-session-growth row, on where no session
+	// state exists to gate by.
+	Growth bool
 	// State names the state for the stderr line (pending, ok, degraded).
 	State string
 	// Crumbs are license breadcrumbs this hook observed.
@@ -96,12 +99,13 @@ const MissingImport = `[cn] rules not loaded: CLAUDE.md does not import .claudin
 
 // Handler answers hook events. A nil Checks runs no coded checks; a nil
 // Guards judges no call; a nil License gates nothing; a nil Index writes
-// no rules index.
+// no rules index; a nil Growth captures nothing.
 type Handler struct {
 	Checks  Checks
 	Guards  Guards
 	License License
 	Index   RulesIndex
+	Growth  Growth
 	// ProjectDir overrides where the repo is found.
 	ProjectDir string
 	// Engine overrides this engine's version, for tests.
@@ -175,6 +179,8 @@ func (h Handler) Run(event string, stdin io.Reader, stdout, stderr io.Writer, st
 		return h.sessionStart(h.projectDir(in), in.SessionID, outcome, stdout, start)
 	case "stop":
 		return h.stop(h.projectDir(in), in, stdout, stderr, start)
+	case "session-end":
+		return h.sessionEnd(in, parseErr == nil && readErr == nil, stdout, stderr, start)
 	}
 	return h.perCall(event, raw, readErr, stdout, stderr, start)
 }

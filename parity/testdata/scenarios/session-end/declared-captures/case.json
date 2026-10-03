@@ -1,0 +1,13 @@
+{
+  "declared": [
+    "claudinite-growth"
+  ],
+  "steps": [
+    {
+      "transcript": [
+        "part1.jsonl"
+      ]
+    }
+  ],
+  "payload": "{\"hook_event_name\":\"SessionEnd\",\"session_id\":\"sess-end\",\"transcript_path\":\"{transcript}\",\"reason\":\"exit\"}"
+}

@@ -1,0 +1,7 @@
+{
+  "input": {
+    "text": "github_pat_11ABCDEFG011ABCDEFG011ABCDEFG0_xyz",
+    "redactions": []
+  },
+  "expect": "[REDACTED:github-token]"
+}

@@ -32,6 +32,9 @@ type Error struct {
 	Code Code
 	Msg  string
 	Err  error
+	// Quiet is a failure the command already said in its own words:
+	// Exit prints nothing for it.
+	Quiet bool
 }
 
 func (e *Error) Error() string {
@@ -48,6 +51,16 @@ func New(code Code, msg string) *Error { return &Error{Code: code, Msg: msg} }
 
 // Wrap classes err under code with context msg.
 func Wrap(code Code, msg string, err error) *Error { return &Error{Code: code, Msg: msg, Err: err} }
+
+// Said is a failure of class code whose sentence the command already
+// printed.
+func Said(code Code) *Error { return &Error{Code: code, Msg: "already reported", Quiet: true} }
+
+// IsQuiet reports whether err was already said.
+func IsQuiet(err error) bool {
+	var e *Error
+	return errors.As(err, &e) && e.Quiet
+}
 
 // CodeOf is err's class; an unclassed error is internal.
 func CodeOf(err error) Code {
@@ -70,8 +83,10 @@ func Exit(stderr io.Writer, err error, hook bool) int {
 	if code == Block {
 		return 2
 	}
-	msg := strings.Join(strings.Fields(err.Error()), " ")
-	fmt.Fprintf(stderr, "cn: %s: %s\n", code, msg)
+	if !IsQuiet(err) {
+		msg := strings.Join(strings.Fields(err.Error()), " ")
+		fmt.Fprintf(stderr, "cn: %s: %s\n", code, msg)
+	}
 	switch {
 	case code == Usage:
 		return 2

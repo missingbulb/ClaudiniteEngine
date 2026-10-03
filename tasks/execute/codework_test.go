@@ -284,3 +284,17 @@ export async function worker(params) {
 		t.Error(joined)
 	}
 }
+
+func TestACodeWorkNamingCnReachesTheRunningEngine(t *testing.T) {
+	engine := t.TempDir()
+	_ = os.WriteFile(filepath.Join(engine, "cn"), []byte("#!/bin/sh\necho \"engine cn $*\" > \"$CLAUDINITE_REPO_ROOT/ran\"\n"), 0o755)
+	root := t.TempDir()
+	w := worker(t)
+	w.Place.Root, w.Place.EngineDir = root, engine
+	if res := w.Run(shellTask(t, "cn growth prune", nil), Work{Item: workitem.Issue{Number: 4}}); !res.OK {
+		t.Fatalf("%+v", res)
+	}
+	if raw, _ := os.ReadFile(filepath.Join(root, "ran")); string(raw) != "engine cn growth prune\n" {
+		t.Fatalf("ran %q", raw)
+	}
+}

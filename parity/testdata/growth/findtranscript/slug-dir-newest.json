@@ -1,0 +1,21 @@
+{
+  "input": {
+    "root": "/work/member",
+    "sessionId": "absent",
+    "files": {
+      "-work-member/a.jsonl": {
+        "mtime": "2026-07-19T09:00:00Z"
+      },
+      "-work-member/b.jsonl": {
+        "mtime": "2026-07-19T09:30:00Z"
+      },
+      "-work-member/c.txt": {
+        "mtime": "2026-07-19T11:00:00Z"
+      },
+      "-elsewhere/z.jsonl": {
+        "mtime": "2026-07-19T12:00:00Z"
+      }
+    }
+  },
+  "expect": "-work-member/b.jsonl"
+}

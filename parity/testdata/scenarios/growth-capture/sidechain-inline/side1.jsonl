@@ -1,0 +1,2 @@
+{"type":"user","timestamp":"2026-07-19T09:40:01.500Z","isSidechain":true,"agentId":"a1","message":{"content":"sub task"}}
+{"type":"assistant","timestamp":"2026-07-19T09:40:02.500Z","isSidechain":true,"agentId":"a1","message":{"content":"sub done"}}

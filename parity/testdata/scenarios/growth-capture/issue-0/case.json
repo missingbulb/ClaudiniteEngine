@@ -1,0 +1,16 @@
+{
+  "session": "sess-discovered",
+  "steps": [
+    {
+      "transcript": [
+        "part1.jsonl"
+      ],
+      "args": [
+        "--issue",
+        "0",
+        "--session",
+        "sess-discovered"
+      ]
+    }
+  ]
+}

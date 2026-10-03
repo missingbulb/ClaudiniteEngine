@@ -1,0 +1,31 @@
+{
+  "runs": [
+    {
+      "exit": 1,
+      "stdout": ".claudinite/local/packs/acme/provenance/\n  _pack.md ← the manifest\n  acme-task.md ← task acme-task\n  flow.md ← skill flow (workflow)\n  flow-bullet.md ← nothing\n  guide.md ← skill guide (guidelines)\n  orphan-file.md ← nothing\n  retired-rule.md ← rule \"Retiring a rule\" (retired)\n  shipping-release.md ← rule \"Shipping a release\" (empty)\n  writing-widget.md ← rule \"Writing a widget\"\n  _declined.md ← 1 candidate turned down\n  .claudinite/local/packs/acme/RULES.md:5: \"Naming a gadget\" ends with no marker\n  .claudinite/local/packs/acme/RULES.md:6: rule \"Haunting the repo\" names ghost-rule.md, which is no file\n  .claudinite/local/packs/acme/RULES.md:7: rule \"Retiring a rule\" names retired-rule.md, which is retired\n  .claudinite/local/packs/acme/skills/bare/SKILL.md: skill bare names bare.md, which is no file\n  .claudinite/local/packs/acme/provenance/flow-bullet.md: live, and named by no carrier\n  .claudinite/local/packs/acme/provenance/orphan-file.md: live, and named by no carrier\n  .claudinite/local/packs/acme/skills/bare/SKILL.md: skill bare declares no body\n  .claudinite/local/packs/acme/skills/flow/SKILL.md:12: \"A bullet in a workflow\" carries a marker inside a workflow skill\n  .claudinite/local/packs/acme/provenance/acme-task.md:4: entry dated 2026-07-01 follows one dated 2026-07-02; entries are appended in date order\n  .claudinite/local/packs/acme/provenance/acme-task.md:6: field \"Nonsense\" is not in the vocabulary (Source, Reason, Actor, Model, Mechanism, Rejected, Retire when, Landed)\n  .claudinite/local/packs/acme/provenance/acme-task.md:7: field \"Reason\" repeats within one entry\n  .claudinite/local/packs/acme/provenance/writing-widget.md:1: text outside an entry - a file is its entries and nothing else\n  .claudinite/local/packs/acme/provenance/acme-task.md:1: the first entry is \"reworded\", and a file with entries opens with born\n  .claudinite/local/packs/acme/provenance/acme-task.md:4: a trigger-changed entry carries no Mechanism\n  .claudinite/local/packs/acme/references.md: a references.md still exists - convert-references retires it\n",
+      "stderr": ""
+    }
+  ],
+  "branch": null,
+  "files": {
+    ".claudinite/local/packs/acme/RULES.md": "# acme\n\n- **Writing a widget** — keep it small and name it for what it does. (writing-widget)\n- **Shipping a release**: tag it first. (shipping-release)\n- **Naming a gadget** — never for its mechanism.\n- **Haunting the repo** — boo. (ghost-rule)\n- **Retiring a rule** — gone. (retired-rule)\n",
+    ".claudinite/local/packs/acme/pack.json": "{\n  \"version\": \"1\",\n  \"ruleRoutingGuidance\": {\n    \"belongs\": \"widgets\",\n    \"excludes\": \"everything else\"\n  }\n}\n",
+    ".claudinite/local/packs/acme/provenance/Not_An_Element.md": "anything\n",
+    ".claudinite/local/packs/acme/provenance/VERSIONS.md": "| version | change |\n|---|---|\n| 1 | born (#10) |\n",
+    ".claudinite/local/packs/acme/provenance/_declined.md": "## 2026-07-03 · declined · a candidate\n- **Reason:** not a rule\n",
+    ".claudinite/local/packs/acme/provenance/_pack.md": "## 2026-07-01 · born · the pack\n- **Source:** #10\n- **Reason:** needed one\n- **Mechanism:** prose rule in RULES.md\n",
+    ".claudinite/local/packs/acme/provenance/acme-task.md": "## 2026-07-02 · reworded · not born first\n- **Reason:** x\n\n## 2026-07-01 · trigger-changed · out of order\n- **Reason:** y\n- **Nonsense:** z\n- **Reason:** dup\n",
+    ".claudinite/local/packs/acme/provenance/flow-bullet.md": "## 2026-07-02 · born · first written\n- **Source:** #10\n- **Reason:** needed one\n- **Mechanism:** prose rule in RULES.md\n",
+    ".claudinite/local/packs/acme/provenance/flow.md": "## 2026-07-02 · born · first written\n- **Source:** #10\n- **Reason:** needed one\n- **Mechanism:** prose rule in RULES.md\n",
+    ".claudinite/local/packs/acme/provenance/guide.md": "## 2026-07-02 · born · first written\n- **Source:** #10\n- **Reason:** needed one\n- **Mechanism:** prose rule in RULES.md\n",
+    ".claudinite/local/packs/acme/provenance/orphan-file.md": "## 2026-07-02 · born · first written\n- **Source:** #10\n- **Reason:** needed one\n- **Mechanism:** prose rule in RULES.md\n",
+    ".claudinite/local/packs/acme/provenance/retired-rule.md": "## 2026-07-02 · born · first written\n- **Source:** #10\n- **Reason:** needed one\n- **Mechanism:** prose rule in RULES.md\n\n## 2026-07-05 · retired · dropped\n- **Reason:** obsolete\n",
+    ".claudinite/local/packs/acme/provenance/shipping-release.md": "",
+    ".claudinite/local/packs/acme/provenance/writing-widget.md": "A header someone wrote.\n\n## 2026-07-02 · born · first written\n- **Source:** #10\n- **Reason:** needed one\n- **Mechanism:** prose rule in RULES.md\n",
+    ".claudinite/local/packs/acme/references.md": "# references\n",
+    ".claudinite/local/packs/acme/skills/bare/SKILL.md": "# bare\n\nNo frontmatter here.\n",
+    ".claudinite/local/packs/acme/skills/flow/SKILL.md": "---\nname: flow\ndescription: A procedure. Use when flowing.\nmetadata:\n  body: workflow\n  owner: acme\n---\n\n1. First step.\n2. Second step.\n\n- **A bullet in a workflow** — read as a step's note. (flow-bullet)\n",
+    ".claudinite/local/packs/acme/skills/guide/SKILL.md": "---\nname: guide\ndescription: Guidance for gadgets. Use when building one.\nmetadata:\n  body: guidelines\n---\n\n# guide\n\n- **Doing the first thing** — do it well.\n- **Doing the second thing** — do it better.\n",
+    ".claudinite/local/packs/acme/tasks/acme-task/task.json": "{\n  \"id\": \"acme-task\",\n  \"description\": \"d\",\n  \"trigger\": \"request\",\n  \"expected_outcome\": \"no_code_changes\"\n}\n"
+  }
+}

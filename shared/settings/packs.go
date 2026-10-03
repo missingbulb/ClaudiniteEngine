@@ -361,8 +361,8 @@ func ReadPacks(raw []byte, f Format) (Packs, error) {
 // AddDeclared appends id to the declared packs by inserting it, creating
 // the block or the list when absent, and changes no other byte.
 func AddDeclared(raw []byte, f Format, id string) ([]byte, error) {
-	if !PackIDPattern.MatchString(id) {
-		return nil, fmt.Errorf("%q is not a pack id (lowercase letters, digits and dashes)", id)
+	if !PackIDPattern.MatchString(id) && !localIDPattern.MatchString(id) {
+		return nil, fmt.Errorf("%q is not a pack id (lowercase letters, digits and dashes) or local/<name>", id)
 	}
 	p, err := ReadPacks(raw, f)
 	if err != nil {

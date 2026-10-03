@@ -13,6 +13,7 @@ fixture format is at the top of its test file.
 | update | `testdata/update/<core>/<name>.json` | `testdata/shims/update.mjs` | `cn update decide <core> --world` |
 | verify answers | `testdata/answered/<rule>/<case>.json` | `testdata/shims/answered.mjs`: the rule's `run` over `nodeFiles` | `cn verify` over `cnShape` with `cnFiles` laid over it |
 | settings | `testdata/settings/<name>/`: a declaration and the tree it sits in | `testdata/shims/settings.mjs`: the reader, the registry and `legacy-shape-in-use` | `cn settings import`, then `cn verify` over the imported member |
+| growth | `testdata/growth/<core>/<name>.json` | `testdata/shims/growth.mjs`: `capture-log.mjs` and `prune-logs.mjs` | `cn growth decide <core> --world` |
 | from-node | real Node trees in `CLAUDINITE_PARITY_TREES`, moved in `lifecycle/adopt`'s `TestFromNodeOverRealMembers` | none: no Node answer exists for a `cn` tree | `cn init --from-node` over a copy, then `cn verify`: only `node-leftovers`, `local-pack-shape` and the shelf's legacy minimums |
 
 A fixture's `expect` is always the Node engine's answer, written by
@@ -24,7 +25,22 @@ bytes: none, canon, canon-and-local, path-scoped, pipe-in-description),
 `interview-answer-stale` and `seeded-file-stale`, eleven cases) and
 `answered/skills-index-current/*` (four cases), with no divergence.
 
+The growth slice added the `growth` face (the capture's line reader,
+bundle, slice, redactions, scrub, log names and transcript discovery, and
+the prune's plan and retention), `scenarios/growth-capture/*` (thirteen
+cases: the branch's files, bytes and commit subjects),
+`scenarios/session-end/*` (seven) and `scenarios/provenance/*` (33: `mark`,
+`append`, `check`, `history`). One scenario diverges:
+`provenance/mark-local-prefix`, record row 90 (cn resolves `local/<name>`,
+which Node's tool refused).
+
 ## Divergences
+
+Growth face divergences: 0 of 57 fixtures.
+
+Tasks face divergences: 1 of 10 fixtures. `contract/invalid` is record row
+89: `log-past-retention` is a built-in term, so the contract's lists of
+built-ins name it.
 
 A ported pack file ClaudinitePacks changed on purpose after the freeze is
 listed in `diverged.txt` with its record row; cn reads it at the frozen

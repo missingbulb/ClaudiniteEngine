@@ -1,0 +1,14 @@
+{
+  "input": {
+    "names": [
+      "2026-07-09T0000Z--pr-1--a.jsonl"
+    ],
+    "retentionDays": 10,
+    "now": "2026-07-19T00:00:00.000Z"
+  },
+  "expect": {
+    "delete": [],
+    "logCount": 1,
+    "off": false
+  }
+}

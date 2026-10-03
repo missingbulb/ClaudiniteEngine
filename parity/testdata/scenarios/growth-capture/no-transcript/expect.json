@@ -1,0 +1,15 @@
+{
+  "runs": [
+    {
+      "exit": 1,
+      "stdout": "",
+      "stderr": "no session transcript found for session sess-missing under {root}/home/.claude/projects"
+    },
+    {
+      "exit": 1,
+      "stdout": "",
+      "stderr": "no session transcript found at {root}/nowhere/t.jsonl"
+    }
+  ],
+  "branch": null
+}

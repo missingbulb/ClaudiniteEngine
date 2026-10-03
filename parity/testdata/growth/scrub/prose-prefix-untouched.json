@@ -1,0 +1,7 @@
+{
+  "input": {
+    "text": "tokens start with ghp_ and sk- and AKIA and xoxb- and eyJ",
+    "redactions": []
+  },
+  "expect": "tokens start with ghp_ and sk- and AKIA and xoxb- and eyJ"
+}

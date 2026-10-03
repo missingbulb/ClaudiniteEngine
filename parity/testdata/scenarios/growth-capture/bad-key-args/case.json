@@ -1,0 +1,45 @@
+{
+  "steps": [
+    {
+      "transcript": [
+        "part1.jsonl"
+      ],
+      "args": [
+        "--pr",
+        "1",
+        "--issue",
+        "2",
+        "--transcript",
+        "{transcript}"
+      ]
+    },
+    {
+      "args": [
+        "--pr",
+        "0",
+        "--transcript",
+        "{transcript}"
+      ]
+    },
+    {
+      "args": [
+        "--transcript",
+        "{transcript}"
+      ]
+    },
+    {
+      "args": [
+        "--issue",
+        "01",
+        "--transcript",
+        "{transcript}"
+      ]
+    },
+    {
+      "args": [
+        "--pr",
+        "-3"
+      ]
+    }
+  ]
+}

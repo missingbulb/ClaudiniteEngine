@@ -1,0 +1,17 @@
+{
+  "steps": [
+    {
+      "transcript": [
+        "part1.jsonl"
+      ],
+      "args": [
+        "--pr",
+        "6",
+        "--transcript",
+        "{transcript}",
+        "--branch",
+        "conversation-logs"
+      ]
+    }
+  ]
+}

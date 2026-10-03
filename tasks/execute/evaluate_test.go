@@ -6,10 +6,15 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/missingbulb/ClaudiniteEngine/shared/taskspec"
 	"github.com/missingbulb/ClaudiniteEngine/shared/workitem"
+	"github.com/missingbulb/ClaudiniteEngine/tasks/precondition"
 	"github.com/missingbulb/ClaudiniteEngine/tasks/runner"
+	"github.com/missingbulb/ClaudiniteEngine/tasks/signals"
+	"github.com/missingbulb/ClaudiniteEngine/tasks/sim"
+	"github.com/missingbulb/ClaudiniteEngine/tasks/world"
 )
 
 func gatedTask(t *testing.T, preconditions []any, module string) taskspec.Task {
@@ -62,5 +67,32 @@ func TestTheTasksOwnTermsAreAskedOnceThroughTheRunner(t *testing.T) {
 	_ = os.WriteFile(filepath.Join(broken.Dir, LocalTermsFile), []byte("export const terms = {;\n"), 0o644)
 	if v := p.Evaluate(broken, woken, loopNow); v.Error == "" || !strings.Contains(v.Error, "did not load") {
 		t.Errorf("%+v", v)
+	}
+}
+
+// A logs-prune item runs at the pick only once the branch's oldest
+// capture is past the repo's retention, judged by the engine alone.
+func TestALogsPruneItemGoesOnlyPastRetention(t *testing.T) {
+	tk := loopTask("logs-prune", map[string]any{"trigger": "request", "preconditions": []any{"log-past-retention"},
+		"code_work": "cn growth prune", "expected_outcome": "no_code_changes"})
+	repo := sim.NewRepo()
+	repo.Branches = []world.Branch{{Name: "conversation-logs"}}
+	item := workitem.Issue{Number: 9, Title: "[claudinite-work] acme-pack/logs-prune"}
+	at := func(days float64) precondition.Verdict {
+		stamp := loopNow.Add(-time.Duration(days * 24 * float64(time.Hour)))
+		repo.Trees["conversation-logs"] = []string{"README.md", stamp.Format("2006-01-02T1504Z") + "--pr-1--s.jsonl"}
+		p := Picker{Collector: &signals.Collector{Issues: sim.NewGitHub(sim.NewClock(loopNow)), Repo: repo, DefaultBranch: "main"},
+			Runner: runner.Runner{Node: "/no/such/node"}}
+		return p.Evaluate(tk, item, loopNow)
+	}
+	if v := at(9); !v.Declined() || !strings.Contains(v.Reason, "no log older than retention 10d") {
+		t.Fatalf("inside the window: %+v", v)
+	}
+	if v := at(11); !v.Go() || !strings.Contains(v.Reason, "vs retention 10d") {
+		t.Fatalf("past the window: %+v", v)
+	}
+	repo.Branches = nil
+	if v := at(11); !v.Declined() {
+		t.Fatalf("no branch: %+v", v)
 	}
 }

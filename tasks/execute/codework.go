@@ -140,6 +140,9 @@ func WithheldSecrets(tasks []taskspec.Task, endpoints map[string]any) []string {
 // CodeWorkPlace is where every work step of one run happens.
 type CodeWorkPlace struct {
 	Root, Repo, DefaultBranch string
+	// EngineDir holds the running engine, first on code-work's PATH, so
+	// a code_work naming cn reaches the engine that runs it.
+	EngineDir string
 }
 
 // CodeWorkEnv is the whole of the CLAUDINITE_* variables code-work is
@@ -303,6 +306,9 @@ func (c CodeWorker) Run(t taskspec.Task, w Work) CodeWorkResult {
 	env := TaskEnv(secrets, c.Withheld, c.Env)
 	for k, v := range CodeWorkEnv(c.Place, t, w.Item, w.Context, request, w.Target) {
 		env[k] = v
+	}
+	if c.Place.EngineDir != "" {
+		env["PATH"] = c.Place.EngineDir + string(os.PathListSeparator) + env["PATH"]
 	}
 	timeout, _ := t.Decl.Num("code_work_timeout")
 	step := runner.Step{Dir: t.Dir, Env: envList(env), Timeout: time.Duration(timeout * float64(time.Second)), Echo: c.Echo}

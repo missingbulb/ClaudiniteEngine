@@ -369,7 +369,10 @@ var remoteCommands = map[string]bool{"fetch": true, "push": true, "pull": true, 
 // bounded, the bot's identity, the token only on a command that talks to
 // the remote. A non-zero exit is an answer, not an error; a command that
 // could not run or timed out is the error.
-func (r Repo) Run(args ...string) (Ran, error) {
+func (r Repo) Run(args ...string) (Ran, error) { return r.RunInput("", args...) }
+
+// RunInput is Run with stdin written to the child.
+func (r Repo) RunInput(stdin string, args ...string) (Ran, error) {
 	if len(args) == 0 {
 		return Ran{}, errors.New("git: no command")
 	}
@@ -377,6 +380,7 @@ func (r Repo) Run(args ...string) (Ran, error) {
 		return Ran{}, err
 	}
 	cmd, done := r.child(remoteCommands[args[0]], args)
+	cmd.Stdin = strings.NewReader(stdin)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	err := done(cmd.Run())

@@ -163,6 +163,10 @@ func (s Scenario) Transcript(parent string) (string, error) {
 // Builtins are the built-in checks both engines run.
 var Builtins = []string{"declared-check-spec-keys", "barrier", "config"}
 
+// ownFace are the scenario groups another face reads (the growth face's
+// capture, session-end and provenance runs), which LoadScenarios skips.
+var ownFace = map[string]bool{"growth-capture": true, "session-end": true, "provenance": true}
+
 // LoadScenarios reads every scenario under root, as group/name.
 func LoadScenarios(root string) ([]Scenario, error) {
 	var out []Scenario
@@ -171,7 +175,7 @@ func LoadScenarios(root string) ([]Scenario, error) {
 		return nil, err
 	}
 	for _, g := range groups {
-		if !g.IsDir() {
+		if !g.IsDir() || ownFace[g.Name()] {
 			continue
 		}
 		names, err := os.ReadDir(filepath.Join(root, g.Name()))

@@ -1,0 +1,8 @@
+{
+  "input": {
+    "declared": 2.5
+  },
+  "expect": {
+    "days": 2.5
+  }
+}

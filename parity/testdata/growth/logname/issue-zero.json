@@ -1,0 +1,8 @@
+{
+  "input": {
+    "now": "2026-01-02T00:00:00.000Z",
+    "issue": 0,
+    "session": "sess"
+  },
+  "expect": "2026-01-02T0000Z--issue-0--sess.jsonl"
+}

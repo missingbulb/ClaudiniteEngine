@@ -1,0 +1,19 @@
+{
+  "session": "sess-explicit",
+  "env": {
+    "CLAUDE_CODE_SESSION_ID": "sess-ambient"
+  },
+  "steps": [
+    {
+      "transcript": [
+        "part1.jsonl"
+      ],
+      "args": [
+        "--pr",
+        "3",
+        "--transcript",
+        "{transcript}"
+      ]
+    }
+  ]
+}

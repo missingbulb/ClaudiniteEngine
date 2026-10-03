@@ -1,0 +1,16 @@
+{
+  "input": {
+    "text": "the value abcdefghijklmnop appears and abcdefgh alone",
+    "redactions": [
+      {
+        "name": "B_KEY",
+        "form": "abcdefghijklmnop"
+      },
+      {
+        "name": "A_KEY",
+        "form": "abcdefgh"
+      }
+    ]
+  },
+  "expect": "the value [REDACTED:env:B_KEY] appears and [REDACTED:env:A_KEY] alone"
+}

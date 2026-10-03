@@ -1,0 +1,27 @@
+{
+  "steps": [
+    {
+      "transcript": [
+        "part1.jsonl"
+      ],
+      "args": [
+        "--pr",
+        "1",
+        "--transcript",
+        "{transcript}"
+      ]
+    },
+    {
+      "transcript": [
+        "part1.jsonl",
+        "part2.jsonl"
+      ],
+      "args": [
+        "--pr",
+        "2",
+        "--transcript",
+        "{transcript}"
+      ]
+    }
+  ]
+}

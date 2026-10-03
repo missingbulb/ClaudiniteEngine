@@ -1,0 +1,21 @@
+{
+  "input": {
+    "text": "{\"type\":\"user\",\"timestamp\":\"2026-07-19T09:40:00.000Z\"}\nnot json\n{\"type\":\"assistant\",\"timestamp\":\"2026-07-19T09:40:01.000Z\"}\n"
+  },
+  "expect": [
+    {
+      "entry": {
+        "timestamp": "2026-07-19T09:40:00.000Z",
+        "type": "user"
+      },
+      "raw": "{\"type\":\"user\",\"timestamp\":\"2026-07-19T09:40:00.000Z\"}"
+    },
+    {
+      "entry": {
+        "timestamp": "2026-07-19T09:40:01.000Z",
+        "type": "assistant"
+      },
+      "raw": "{\"type\":\"assistant\",\"timestamp\":\"2026-07-19T09:40:01.000Z\"}"
+    }
+  ]
+}

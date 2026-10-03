@@ -1,0 +1,14 @@
+{
+  "input": {
+    "root": "/home/user/my_repo.v2",
+    "files": {
+      "-home-user-my-repo-v2/a.jsonl": {
+        "mtime": "2026-07-19T09:00:00Z"
+      },
+      "-zzz/b.jsonl": {
+        "mtime": "2026-07-19T10:00:00Z"
+      }
+    }
+  },
+  "expect": "-home-user-my-repo-v2/a.jsonl"
+}

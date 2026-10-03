@@ -1,0 +1,15 @@
+{
+  "steps": [
+    {
+      "transcript": [
+        "junk.jsonl"
+      ],
+      "args": [
+        "--pr",
+        "1",
+        "--transcript",
+        "{transcript}"
+      ]
+    }
+  ]
+}

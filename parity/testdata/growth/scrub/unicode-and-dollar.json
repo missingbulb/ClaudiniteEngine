@@ -1,0 +1,12 @@
+{
+  "input": {
+    "text": "héllo $& secret-é-value $1 done",
+    "redactions": [
+      {
+        "name": "U",
+        "form": "secret-é-value"
+      }
+    ]
+  },
+  "expect": "héllo $\u0026 [REDACTED:env:U] $1 done"
+}
