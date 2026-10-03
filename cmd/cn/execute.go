@@ -8,6 +8,7 @@ import (
 	"io"
 	"math/rand/v2"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -222,7 +223,7 @@ func cmdExecuteLoop(args []string, stdout io.Writer, env world.Env) (err error) 
 			Items: items, Local: signals.ReadLocal(r.root, r.set.Declared.Declared, r.packConfig)}
 	}
 	worker := execute.CodeWorker{
-		Runner: run, Place: execute.CodeWorkPlace{Root: r.root, Repo: env.Repo(), DefaultBranch: branch},
+		Runner: run, Place: execute.CodeWorkPlace{Root: r.root, Repo: env.Repo(), DefaultBranch: branch, EngineDir: engineDir()},
 		Env: jobEnv, Withheld: withheld, TempDir: env("RUNNER_TEMP"), Echo: echo, Log: log,
 		SDK: func(t taskspec.Task, _ workitem.Issue) *execute.SDK {
 			declared := []string{}
@@ -319,4 +320,17 @@ func cmdExecuteContinue(args []string, stdout io.Writer, env world.Env) error {
 		return report.New(report.IO, err.Error())
 	}
 	return nil
+}
+
+// engineDir is the directory of the running engine binary, "" where it
+// cannot be read.
+func engineDir() string {
+	exe, err := os.Executable()
+	if err != nil {
+		return ""
+	}
+	if real, err := filepath.EvalSymlinks(exe); err == nil {
+		exe = real
+	}
+	return filepath.Dir(exe)
 }

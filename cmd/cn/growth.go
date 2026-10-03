@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	sharedgrowth "github.com/missingbulb/ClaudiniteEngine/shared/growth"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/missingbulb/ClaudiniteEngine/growth"
@@ -16,8 +16,11 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/hooks"
 	"github.com/missingbulb/ClaudiniteEngine/shared/breadcrumb"
 	"github.com/missingbulb/ClaudiniteEngine/shared/gitcmd"
+	sharedgrowth "github.com/missingbulb/ClaudiniteEngine/shared/growth"
+	"github.com/missingbulb/ClaudiniteEngine/shared/jsjson"
 	"github.com/missingbulb/ClaudiniteEngine/shared/report"
 	"github.com/missingbulb/ClaudiniteEngine/shared/settings"
+	"github.com/missingbulb/ClaudiniteEngine/tasks/world"
 )
 
 // hookGrowth is the session-end capture over the real git.
@@ -104,11 +107,11 @@ func growthCapture(args []string, stdout, stderr io.Writer, start time.Time) err
 func growthPrune(args []string, stdout io.Writer) error {
 	fs := flag.NewFlagSet("growth prune", flag.ContinueOnError)
 	branch := fs.String("branch", capture.DefaultBranch, "")
-	repo := fs.String("repo", ".", "")
+	repo := fs.String("repo", "", "")
 	if err := flags(fs, args); err != nil {
 		return err
 	}
-	root, err := filepath.Abs(*repo)
+	root, err := pruneRoot(*repo)
 	if err != nil {
 		return report.Wrap(report.IO, "growth prune", err)
 	}
@@ -119,17 +122,47 @@ func growthPrune(args []string, stdout io.Writer) error {
 	}
 	days := sharedgrowth.ResolveRetentionDays(declared, present)
 	if days == nil {
-		fmt.Fprintf(stdout, "retention_days is %v — capture-only by this repo's own choice, deleting nothing\n", declared)
+		if n, ok := sharedgrowth.Number(declared); ok {
+			fmt.Fprintf(stdout, "retention_days is %s — capture-only by this repo's own choice, deleting nothing\n", jsjson.FormatNumber(n))
+		} else {
+			fmt.Fprintf(stdout, "retention_days is unreadable (%v, not a number) — deleting nothing\n", declared)
+		}
 		return nil
 	}
 	if !present {
 		fmt.Fprintf(stdout, "retention_days is undeclared — using the %vd default\n", *days)
 	}
+	clock, err := world.Env(os.Getenv).Clock()
+	if err != nil {
+		return report.Wrap(report.Usage, "growth prune", err)
+	}
 	git := gitcmd.Repo{Dir: root, Token: os.Getenv("GITHUB_TOKEN")}
-	if err := prune.Run(git, *branch, *days, time.Now, stdout); err != nil {
+	if err := prune.Run(git, *branch, *days, clock.Now, stdout); err != nil {
 		return report.Wrap(report.IO, "growth prune", err)
 	}
 	return nil
+}
+
+// pruneRoot is the repository a prune reads: --repo, else the executor's
+// CLAUDINITE_REPO_ROOT (code-work runs in its task's folder), else the
+// checkout around the working directory.
+func pruneRoot(repo string) (string, error) {
+	if repo == "" {
+		repo = os.Getenv("CLAUDINITE_REPO_ROOT")
+	}
+	if repo == "" {
+		wd, err := os.Getwd()
+		if err != nil {
+			return "", err
+		}
+		repo = wd
+		if r, err := (gitcmd.Repo{Dir: wd}).Run("rev-parse", "--show-toplevel"); err == nil && r.Code == 0 {
+			if top := strings.TrimSpace(r.Stdout); top != "" {
+				repo = top
+			}
+		}
+	}
+	return filepath.Abs(repo)
 }
 
 // retentionDeclared is the claudinite-growth entry's retention_days as

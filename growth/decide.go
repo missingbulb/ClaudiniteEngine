@@ -3,13 +3,13 @@ package growth
 import (
 	"encoding/json"
 	"fmt"
-	sharedgrowth "github.com/missingbulb/ClaudiniteEngine/shared/growth"
 	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/missingbulb/ClaudiniteEngine/growth/capture"
 	"github.com/missingbulb/ClaudiniteEngine/growth/prune"
+	sharedgrowth "github.com/missingbulb/ClaudiniteEngine/shared/growth"
 )
 
 // Cores are the decisions Decide answers.
