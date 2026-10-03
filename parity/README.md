@@ -13,9 +13,16 @@ fixture format is at the top of its test file.
 | update | `testdata/update/<core>/<name>.json` | `testdata/shims/update.mjs` | `cn update decide <core> --world` |
 | verify answers | `testdata/answered/<rule>/<case>.json` | `testdata/shims/answered.mjs`: the rule's `run` over `nodeFiles` | `cn verify` over `cnShape` with `cnFiles` laid over it |
 | settings | `testdata/settings/<name>/`: a declaration and the tree it sits in | `testdata/shims/settings.mjs`: the reader, the registry and `legacy-shape-in-use` | `cn settings import`, then `cn verify` over the imported member |
+| from-node | real Node trees in `CLAUDINITE_PARITY_TREES`, moved in `lifecycle/adopt`'s `TestFromNodeOverRealMembers` | none: no Node answer exists for a `cn` tree | `cn init --from-node` over a copy, then `cn verify`: only `node-leftovers`, `local-pack-shape` and the shelf's legacy minimums |
 
 A fixture's `expect` is always the Node engine's answer, written by
 `CLAUDINITE_PARITY_RECORD=1` before the Go side existed.
+
+The adoption slice added `scenarios/skills-index/*` (the skills index's
+bytes: none, canon, canon-and-local, path-scoped, pipe-in-description),
+`scenarios/lifecycle-adoption/*` (`adoption-answers-pending`,
+`interview-answer-stale` and `seeded-file-stale`, eleven cases) and
+`answered/skills-index-current/*` (four cases), with no divergence.
 
 ## Divergences
 
