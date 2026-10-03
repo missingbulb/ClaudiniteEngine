@@ -8,6 +8,7 @@ package provenance
 import (
 	"fmt"
 	"io"
+	"path"
 	"regexp"
 	"sort"
 	"strconv"
@@ -24,6 +25,9 @@ const VersionsFile = "VERSIONS.md"
 // LocalPrefix is how a declaration names a local pack.
 const LocalPrefix = "local/"
 
+// MountDir is the vendored mount, which the update flows replace whole.
+const MountDir = ".claudinite/shared"
+
 func manifestOf(io WriteIO, dir string) bool {
 	for _, f := range prov.ManifestFiles {
 		if io.Exists(dir + "/" + f) {
@@ -35,29 +39,32 @@ func manifestOf(io WriteIO, dir string) bool {
 
 // ResolvePack is the pack directory id names: a path to a pack, local/<name>
 // for a member's local pack, else packs/<id> in a canon checkout, then
-// .claudinite/local/packs/<id>. The vendored mount is never a target. ""
-// for none.
-func ResolvePack(io WriteIO, id string) string {
+// .claudinite/local/packs/<id>. The vendored mount is never a target: a
+// path under it is refused. "" for none.
+func ResolvePack(io WriteIO, id string) (string, error) {
 	if name, ok := strings.CutPrefix(id, LocalPrefix); ok && name != "" && !strings.Contains(name, "/") {
 		dir := prov.PackRoots[1] + "/" + name
 		if manifestOf(io, dir) {
-			return dir
+			return dir, nil
 		}
-		return ""
+		return "", nil
 	}
 	if strings.Contains(id, "/") {
-		dir := strings.TrimRight(id, "/")
-		if manifestOf(io, dir) {
-			return dir
+		dir := path.Clean(id)
+		if dir == MountDir || strings.HasPrefix(dir, MountDir+"/") {
+			return "", fmt.Errorf("%s is under the vendored mount %s/, which the update flows replace whole - change the pack in the canon, or carry the difference in a local pack", dir, MountDir)
 		}
-		return ""
+		if manifestOf(io, dir) {
+			return dir, nil
+		}
+		return "", nil
 	}
 	for _, r := range prov.PackRoots {
 		if manifestOf(io, r+"/"+id) {
-			return r + "/" + id
+			return r + "/" + id, nil
 		}
 	}
-	return ""
+	return "", nil
 }
 
 // AllPacks are every pack under both roots.
@@ -596,7 +603,11 @@ func Main(args []string, root string, stdin io.Reader, stdout, stderr io.Writer)
 		}
 		dir := ""
 		if id != "" {
-			dir = ResolvePack(io, id)
+			var err error
+			if dir, err = ResolvePack(io, id); err != nil {
+				fmt.Fprintln(stderr, "provenance: "+err.Error())
+				return nil
+			}
 		}
 		if dir == "" {
 			fmt.Fprintf(stderr, "no pack %q under %s\n", id, strings.Join(prov.PackRoots, " or "))

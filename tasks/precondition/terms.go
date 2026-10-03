@@ -350,8 +350,8 @@ func EngineJudged(name string) bool {
 
 // logPastRetention holds on no reading at all: nothing asks the prune, so
 // its item exists only because a person made one, and the code-work reads
-// the branch first-hand. An absent branch, retention off, or an unknown
-// oldest age declines.
+// the branch first-hand. An absent branch, retention off, an unreadable
+// retention or an unknown oldest age declines.
 func logPastRetention(s Signals, _ Opts) Outcome {
 	logs := s.ConversationLogs
 	if logs == nil {
@@ -359,6 +359,9 @@ func logPastRetention(s Signals, _ Opts) Outcome {
 	}
 	if !logs.Present {
 		return Outcome{Reason: "no conversation-logs branch — nothing captured yet"}
+	}
+	if logs.RetentionUnreadable {
+		return Outcome{Reason: "retention_days is unreadable (not a number) — the prune deletes nothing"}
 	}
 	var declared any
 	if logs.RetentionDays != nil {

@@ -87,6 +87,9 @@ type Local struct {
 	ManifestVersion      *string
 	ShipsReleasePipeline bool
 	RetentionDays        *float64
+	// RetentionUnreadable is a retention_days some pack declares as
+	// neither null nor a finite number, while none declares a number.
+	RetentionUnreadable bool
 }
 
 var manifestPaths = []string{"manifest.json", "src/manifest.json", "public/manifest.json", "dist/manifest.json"}
@@ -126,12 +129,16 @@ func ReadLocal(root string, packIDs []string, packConfig func(string) map[string
 			break
 		}
 	}
+	unreadable := false
 	for _, id := range packIDs {
-		if v, ok := packConfig(id)["retention_days"].(float64); ok && !math.IsInf(v, 0) && !math.IsNaN(v) {
+		raw, declared := packConfig(id)["retention_days"]
+		if v, ok := raw.(float64); ok && !math.IsInf(v, 0) && !math.IsNaN(v) {
 			l.RetentionDays = &v
 			break
 		}
+		unreadable = unreadable || (declared && raw != nil)
 	}
+	l.RetentionUnreadable = l.RetentionDays == nil && unreadable
 	return l
 }
 
@@ -581,7 +588,7 @@ func (c *Collector) issues(since string) (*precondition.Issues, error) {
 }
 
 func (c *Collector) logs(now time.Time) (*precondition.Logs, error) {
-	out := &precondition.Logs{RetentionDays: c.Local.RetentionDays}
+	out := &precondition.Logs{RetentionDays: c.Local.RetentionDays, RetentionUnreadable: c.Local.RetentionUnreadable}
 	if _, err := c.Repo.Branch("conversation-logs"); err != nil {
 		if errors.Is(err, world.ErrGone) {
 			return out, nil

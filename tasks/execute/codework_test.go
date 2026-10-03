@@ -298,3 +298,19 @@ func TestACodeWorkNamingCnReachesTheRunningEngine(t *testing.T) {
 		t.Fatalf("ran %q", raw)
 	}
 }
+
+func TestAnEmptyPathGainsOnlyTheEngineDir(t *testing.T) {
+	for name, env := range map[string]map[string]string{"empty": {"PATH": ""}, "absent": {}} {
+		t.Run(name, func(t *testing.T) {
+			engine, root := t.TempDir(), t.TempDir()
+			w := worker(t)
+			w.Env, w.Place.Root, w.Place.EngineDir = env, root, engine
+			if res := w.Run(shellTask(t, `printf %s "$PATH" > "$CLAUDINITE_REPO_ROOT/path"`, nil), Work{Item: workitem.Issue{Number: 4}}); !res.OK {
+				t.Fatalf("%+v", res)
+			}
+			if raw, _ := os.ReadFile(filepath.Join(root, "path")); string(raw) != engine {
+				t.Fatalf("PATH %q, want %q", raw, engine)
+			}
+		})
+	}
+}

@@ -23,6 +23,7 @@ func TestLogPastRetentionOverEveryLogsShape(t *testing.T) {
 		{"past a declared window", &Logs{Present: true, RetentionDays: f(3), OldestLogAgeDays: f(4)}, true, "vs retention 3d"},
 		{"retention off", &Logs{Present: true, RetentionDays: f(0), OldestLogAgeDays: f(400)}, false, "retention_days is 0 — capture-only"},
 		{"negative retention", &Logs{Present: true, RetentionDays: f(-1), OldestLogAgeDays: f(400)}, false, "retention_days is -1"},
+		{"unreadable retention", &Logs{Present: true, RetentionUnreadable: true, OldestLogAgeDays: f(400)}, false, "retention_days is unreadable"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
