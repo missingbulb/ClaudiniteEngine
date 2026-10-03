@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/missingbulb/ClaudiniteEngine/lifecycle/adopt"
-	"github.com/missingbulb/ClaudiniteEngine/shared/packset"
 	"github.com/missingbulb/ClaudiniteEngine/shared/report"
 	"github.com/missingbulb/ClaudiniteEngine/shared/settings"
 	"github.com/missingbulb/ClaudiniteEngine/shared/settings/node"
@@ -38,7 +37,7 @@ func cmdSettings(args []string, stdout io.Writer) error {
 	if err != nil {
 		return report.Wrap(report.IO, "settings import", err)
 	}
-	decl, rep, err := node.Read(raw, localTree(*repo))
+	decl, rep, err := node.Read(raw, adopt.LocalTree(*repo))
 	if err != nil {
 		return report.Wrap(report.IO, "settings import", err)
 	}
@@ -122,13 +121,3 @@ func writeKeepingMode(path string, raw []byte) error {
 	return nil
 }
 
-// localTree answers the import's question about the member's own packs.
-type localTree string
-
-func (t localTree) HasLocal(name string) bool {
-	if strings.ContainsAny(name, `/\`) || name == "." || name == ".." {
-		return false
-	}
-	st, err := os.Stat(filepath.Join(string(t), filepath.FromSlash(packset.LocalDir), name))
-	return err == nil && st.IsDir()
-}

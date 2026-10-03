@@ -55,6 +55,10 @@ commands:
                  member files, vendor the packs and what they require,
                  seed and stamp for them; ends on the QUESTIONS, HANDOVER
                  and NEXT blocks
+  init --from-node [--channel stable|canary] [--package PKG] [--repo DIR]
+                 move a Node member: pin, import .claudinite-settings.json,
+                 vendor its canon packs again, replace the Node hooks and
+                 write the workflows; deletes no member file
   adopt ID[,ID] [--answer PACK/Q=TEXT]... [--repo DIR]
                  declare and vendor more packs on an adopted repo, every
                  id resolved before any write; ends as init does

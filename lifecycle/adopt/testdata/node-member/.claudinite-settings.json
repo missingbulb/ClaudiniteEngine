@@ -1,0 +1,17 @@
+{
+  "packs": [
+    {
+      "id": "hello",
+      "version": "0.9"
+    },
+    "local/mine",
+    {
+      "id": "base",
+      "version": "1.0",
+      "via": [
+        "hello"
+      ]
+    }
+  ],
+  "engineVersion": "60928.1"
+}

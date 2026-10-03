@@ -23,12 +23,16 @@ func cmdInit(args []string, stdout, stderr io.Writer) error {
 	channel := fs.String("channel", "stable", "")
 	pkg := fs.String("package", adopt.DefaultPackage, "")
 	repo := fs.String("repo", ".", "")
+	fromNode := fs.Bool("from-node", false, "")
 	var answers answerFlags
 	fs.Var(&answers, "answer", "")
 	if err := flags(fs, args); err != nil {
 		return err
 	}
-	if *packList == "" {
+	if *fromNode && *packList != "" {
+		return report.New(report.Usage, "init --from-node reads the packs from the Node declaration; drop --packs")
+	}
+	if *packList == "" && !*fromNode {
 		return report.New(report.Usage, "init needs --packs ID[,ID]; basics is the usual first pack (it requires claudinite-lifecycle and git-github), and the vendored branch's directory lists the rest")
 	}
 	roots, err := license.Roots()
@@ -48,11 +52,17 @@ func cmdInit(args []string, stdout, stderr io.Writer) error {
 	}
 	reader, closeReader := packReader(roots, stdout)
 	defer closeReader()
-	err = adopt.Init(adopt.Input{
-		Repo: *repo, FullName: initFullName(*repo), Packs: strings.Split(*packList, ","), Channel: *channel, Package: *pkg,
+	in := adopt.Input{
+		Repo: *repo, FullName: initFullName(*repo), Channel: *channel, Package: *pkg,
 		Fetch:  update.FetchInput{Registry: reg, Roots: roots, CacheRoot: paths.CacheRoot(), Platform: version.Platform(), Now: time.Now()},
 		Reader: reader, Timeout: childTimeout, Out: stdout, Key: initKey(stderr), Answers: answers,
-	})
+	}
+	if *fromNode {
+		err = adopt.FromNode(in)
+	} else {
+		in.Packs = strings.Split(*packList, ",")
+		err = adopt.Init(in)
+	}
 	if err != nil {
 		return report.Wrap(report.IO, "init", err)
 	}

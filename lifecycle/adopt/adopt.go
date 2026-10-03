@@ -27,6 +27,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/shared/packindex"
 	"github.com/missingbulb/ClaudiniteEngine/shared/packset"
 	"github.com/missingbulb/ClaudiniteEngine/shared/settings"
+	"github.com/missingbulb/ClaudiniteEngine/shared/settings/node"
 	"github.com/missingbulb/ClaudiniteEngine/shared/workitem"
 )
 
@@ -142,46 +143,17 @@ func Init(in Input) error {
 	if _, err := os.Stat(filepath.Join(in.Repo, ".claudinite", "launch")); err == nil {
 		return errors.New(".claudinite/launch already exists: this repo is adopted")
 	}
-	if in.Channel == "" {
-		in.Channel = settings.ChannelStable
-	}
-	if in.Channel != settings.ChannelStable && in.Channel != settings.ChannelCanary {
-		return fmt.Errorf("channel %q: want stable or canary", in.Channel)
-	}
-	if in.Package == "" {
-		in.Package = DefaultPackage
-	}
-	if in.Package != "@claudinite/cli" && in.Package != "@claudinite/cli-rc" {
-		return fmt.Errorf("package %q: want @claudinite/cli or @claudinite/cli-rc", in.Package)
+	if _, err := os.Stat(filepath.Join(in.Repo, node.File)); err == nil {
+		return fmt.Errorf("%s exists: this repo runs the Node engine; cn init --from-node moves it", node.File)
 	}
 	if err := checkIDs(in.Packs); err != nil {
 		return err
 	}
-
-	p, err := in.Fetch.Registry.Packument(in.Package)
-	if err != nil {
-		return fmt.Errorf("%s from %s: %w", in.Package, in.Fetch.Registry.Registry, err)
-	}
-	c := update.Candidate("0.0.0", p, update.StatesFromPackument(p))
-	if c.Version == "" {
-		return fmt.Errorf("%s on %s has no version that is not deprecated, held or revoked", in.Package, in.Fetch.Registry.Registry)
-	}
-	fi := in.Fetch
-	fi.Package, fi.Version, fi.Packument = in.Package, c.Version, p
-	got, err := update.Fetch(fi)
+	got, err := pickEngine(&in)
 	if err != nil {
 		return err
 	}
-	if len(got.Launcher) == 0 {
-		return fmt.Errorf("%s %s carries no launcher (package/launch)", in.Package, c.Version)
-	}
-	self, err := update.Selftest(got.Binary, c.Version, "", in.Timeout)
-	if err != nil {
-		return err
-	}
-	fmt.Fprintf(in.Out, "engine: %s %s (manifest %s, key %s)\n", in.Package, c.Version, got.Integrity, got.KeyID)
-	fmt.Fprint(in.Out, self)
-	chosen, err := resolve(in.Reader, in.Packs, nil, in.Channel, c.Version, in.Out)
+	chosen, err := resolve(in.Reader, in.Packs, nil, in.Channel, got.Version, in.Out)
 	if err != nil {
 		return err
 	}
@@ -204,11 +176,7 @@ func Init(in Input) error {
 	if err != nil {
 		return err
 	}
-	files := []struct {
-		rel  string
-		data []byte
-		mode os.FileMode
-	}{
+	files := []memberFile{
 		{".claudinite/launch", got.Launcher, 0o755},
 		{".claudinite/settings.yaml", cfg.Bytes(), 0o644},
 		{".claudinite/.gitignore", []byte("bin/\n"), 0o644},
@@ -221,23 +189,10 @@ func Init(in Input) error {
 	}
 	tmpl := workflows.ForRepo(name)
 	for _, n := range workflows.Names {
-		files = append(files, struct {
-			rel  string
-			data []byte
-			mode os.FileMode
-		}{".github/workflows/" + n, tmpl[n], 0o644})
+		files = append(files, memberFile{".github/workflows/" + n, tmpl[n], 0o644})
 	}
-	for _, f := range files {
-		p := filepath.Join(in.Repo, filepath.FromSlash(f.rel))
-		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
-			return err
-		}
-		if err := os.WriteFile(p, f.data, f.mode); err != nil {
-			return err
-		}
-		if err := os.Chmod(p, f.mode); err != nil {
-			return err
-		}
+	if err := writeFiles(in.Repo, files); err != nil {
+		return err
 	}
 	for _, v := range chosen {
 		if err := packs.Unpack(v.archive, packset.Tree(in.Repo, v.id)); err != nil {
@@ -266,6 +221,47 @@ func Init(in Input) error {
 		fmt.Fprintf(in.Out, "plan: %s\n", g.Plan)
 	}
 	return finish(finishInput{Repo: in.Repo, Engine: got.Version, Newly: ids, Answers: in.Answers, Core: true, Key: g, Out: in.Out})
+}
+
+// pickEngine settles in's channel and package, then picks, fetches and
+// selftests the newest allowed engine, printing what it chose.
+func pickEngine(in *Input) (update.Fetched, error) {
+	if in.Channel == "" {
+		in.Channel = settings.ChannelStable
+	}
+	if in.Channel != settings.ChannelStable && in.Channel != settings.ChannelCanary {
+		return update.Fetched{}, fmt.Errorf("channel %q: want stable or canary", in.Channel)
+	}
+	if in.Package == "" {
+		in.Package = DefaultPackage
+	}
+	if in.Package != "@claudinite/cli" && in.Package != "@claudinite/cli-rc" {
+		return update.Fetched{}, fmt.Errorf("package %q: want @claudinite/cli or @claudinite/cli-rc", in.Package)
+	}
+	p, err := in.Fetch.Registry.Packument(in.Package)
+	if err != nil {
+		return update.Fetched{}, fmt.Errorf("%s from %s: %w", in.Package, in.Fetch.Registry.Registry, err)
+	}
+	c := update.Candidate("0.0.0", p, update.StatesFromPackument(p))
+	if c.Version == "" {
+		return update.Fetched{}, fmt.Errorf("%s on %s has no version that is not deprecated, held or revoked", in.Package, in.Fetch.Registry.Registry)
+	}
+	fi := in.Fetch
+	fi.Package, fi.Version, fi.Packument = in.Package, c.Version, p
+	got, err := update.Fetch(fi)
+	if err != nil {
+		return update.Fetched{}, err
+	}
+	if len(got.Launcher) == 0 {
+		return update.Fetched{}, fmt.Errorf("%s %s carries no launcher (package/launch)", in.Package, c.Version)
+	}
+	self, err := update.Selftest(got.Binary, c.Version, "", in.Timeout)
+	if err != nil {
+		return update.Fetched{}, err
+	}
+	fmt.Fprintf(in.Out, "engine: %s %s (manifest %s, key %s)\n", in.Package, c.Version, got.Integrity, got.KeyID)
+	fmt.Fprint(in.Out, self)
+	return got, nil
 }
 
 // finishInput is the tail init and adopt share once the packs are
@@ -333,6 +329,16 @@ const InstallURL = "https://github.com/apps/claudinite/installations/new"
 // cn does not own survive (re-serialized, the one Claude Code file cn
 // init rewrites).
 func mergeHooks(path string) ([]byte, error) {
+	obj, err := readClaudeSettings(path)
+	if err != nil {
+		return nil, err
+	}
+	return mergeHooksInto(obj)
+}
+
+// readClaudeSettings is .claude/settings.json as an object, empty when
+// the file is absent.
+func readClaudeSettings(path string) (map[string]any, error) {
 	obj := map[string]any{}
 	if raw, err := os.ReadFile(path); err == nil {
 		if err := json.Unmarshal(raw, &obj); err != nil {
@@ -341,6 +347,12 @@ func mergeHooks(path string) ([]byte, error) {
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return nil, err
 	}
+	return obj, nil
+}
+
+// mergeHooksInto adds the six wirings to obj where missing and serializes
+// it.
+func mergeHooksInto(obj map[string]any) ([]byte, error) {
 	hooks, _ := obj["hooks"].(map[string]any)
 	if hooks == nil {
 		if _, present := obj["hooks"]; present {
