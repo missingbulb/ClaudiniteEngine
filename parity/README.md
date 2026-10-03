@@ -40,7 +40,9 @@ Phase 7 added `scenarios/provenance/*`'s maintainer verbs (thirteen more,
 46 in all: `reduce`, `apply`, `convert-references`) and
 `scenarios/pack-history/*` (three: the shelf, one pack, an earlier ref),
 where Node's `pack-versions.mjs` answers through `shims/pack-history.mjs`
-in `cn pack history --json`'s shape. The fixtures keep to what both read:
+in `cn pack history --json`'s shape, and `scenarios/promote-scope/*`
+(four: inside the roots, outside, a second root from config, no merge
+base), Node's rule through `shims/promote-scope.mjs` against `--base`. The fixtures keep to what both read:
 cn drops a pack's `test/`, `docs/` and `checks/*_test.go` as the vendored
 set does, where Node dropped only `*.test.mjs`, and reads any dotted pack
 version, where Node read none below a date-anchored one.

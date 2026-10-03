@@ -125,6 +125,11 @@ commands:
                  [--branch NAME] [--repo DIR]
                  push the session's transcript, scrubbed, as a delta onto
                  the conversation-logs branch; session-end runs it too
+  growth promote-scope --base REF [--repo DIR]
+                 the promote pull request's gate: every path the branch
+                 touches since its merge base with REF lies under the
+                 canon's corpus roots (packs/ and the canon-curation
+                 entry's write_paths); exit 1 names each stray path
   growth prune [--branch NAME] [--repo DIR]
                  remove the captures past the repo's retention_days in one
                  commit; the logs-prune task's code-work

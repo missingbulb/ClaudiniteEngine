@@ -164,9 +164,9 @@ func (s Scenario) Transcript(parent string) (string, error) {
 var Builtins = []string{"declared-check-spec-keys", "barrier", "config"}
 
 // ownFace are the scenario groups another face reads (the growth face's
-// capture, session-end, provenance and pack-history runs), which
-// LoadScenarios skips.
-var ownFace = map[string]bool{"growth-capture": true, "session-end": true, "provenance": true, "pack-history": true}
+// capture, session-end, provenance, pack-history and promote-scope runs),
+// which LoadScenarios skips.
+var ownFace = map[string]bool{"growth-capture": true, "session-end": true, "provenance": true, "pack-history": true, "promote-scope": true}
 
 // LoadScenarios reads every scenario under root, as group/name.
 func LoadScenarios(root string) ([]Scenario, error) {
