@@ -1,0 +1,52 @@
+{
+  "input": {
+    "configs": [
+      {
+        "packs": [
+          {
+            "id": "claudinite-tasks",
+            "config": {
+              "dormant": true
+            }
+          }
+        ]
+      },
+      {
+        "packs": [
+          {
+            "id": "claudinite-tasks",
+            "config": {
+              "dormant": false
+            }
+          }
+        ]
+      },
+      {
+        "packs": [
+          {
+            "id": "claudinite-tasks"
+          }
+        ]
+      },
+      {
+        "packs": [
+          "claudinite-tasks"
+        ]
+      },
+      {
+        "packs": []
+      },
+      {},
+      null
+    ]
+  },
+  "expect": [
+    true,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false
+  ]
+}

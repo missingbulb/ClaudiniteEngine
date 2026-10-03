@@ -1,0 +1,21 @@
+{
+  "input": {
+    "hasScheduler": true,
+    "installed": {
+      "engineVersion": "61001.1",
+      "packVersions": {
+        "basics": "61002.3"
+      }
+    },
+    "canon": {
+      "engineVersion": "61002.1",
+      "packVersions": {
+        "basics": "61002.3"
+      }
+    }
+  },
+  "expect": {
+    "detail": "behind canon by engine v61001.1 → v61002.1",
+    "state": "behind"
+  }
+}

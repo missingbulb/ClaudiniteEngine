@@ -1,0 +1,23 @@
+{
+  "input": {
+    "roster": []
+  },
+  "expect": {
+    "coverage": {
+      "covered": [],
+      "dormant": [],
+      "ignored": [],
+      "skipped": [],
+      "uncovered": [],
+      "unknown": []
+    },
+    "freshness": {
+      "dormant": [],
+      "fresh": [],
+      "ignored": [],
+      "outOfScope": [],
+      "unhealthy": [],
+      "unknown": []
+    }
+  }
+}

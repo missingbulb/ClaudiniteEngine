@@ -1,0 +1,22 @@
+{
+  "input": {
+    "cfg": {
+      "packs": [
+        {
+          "id": "claudinite-fleet-sheepdog",
+          "config": {
+            "owner": "acme",
+            "canonRepo": "acme/Claudinite"
+          }
+        }
+      ]
+    },
+    "home": "acme/manager"
+  },
+  "expect": {
+    "canonRepo": "acme/Claudinite",
+    "exclude": [],
+    "owner": "acme",
+    "packSeeds": []
+  }
+}

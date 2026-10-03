@@ -1,0 +1,25 @@
+{
+  "input": {
+    "home": "acme/manager",
+    "uncovered": [],
+    "covered": [],
+    "ignored": [],
+    "calls": {
+      "GET /repos/acme/manager/issues?labels=fleet-adoption&state=all&per_page=100&page=1": {
+        "status": 403,
+        "json": {
+          "message": "Resource not accessible"
+        }
+      }
+    }
+  },
+  "expect": {
+    "calls": [
+      [
+        "GET",
+        "/repos/acme/manager/issues?labels=fleet-adoption\u0026state=all\u0026per_page=100\u0026page=1"
+      ]
+    ],
+    "error": "GET /repos/acme/manager/issues?labels=fleet-adoption\u0026state=all page 1 failed with status 403 — the FLEET_GITHUB_TOKEN PAT is most likely missing Issues: read and write (the roster and seed sweeps converge labelled issues in this repo, and the missing-packs sweep files a work-list issue in each member)"
+  }
+}

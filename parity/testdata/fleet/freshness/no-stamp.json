@@ -1,0 +1,17 @@
+{
+  "input": {
+    "hasScheduler": true,
+    "installed": {
+      "engineVersion": null,
+      "packVersions": {}
+    },
+    "canon": {
+      "engineVersion": null,
+      "packVersions": {}
+    }
+  },
+  "expect": {
+    "detail": ".claudinite-settings.json carries no engineVersion and no pack versions — the repo declares packs but has never been vendored",
+    "state": "no-stamp"
+  }
+}

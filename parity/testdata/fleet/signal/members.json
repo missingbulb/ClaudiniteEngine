@@ -1,0 +1,174 @@
+{
+  "input": {
+    "owner": "acme",
+    "canonRepo": "acme/claudinite",
+    "sinceIso": "2026-10-01T00:00:00Z",
+    "calls": {
+      "GET /user/repos?affiliation=owner&per_page=100&page=1": {
+        "status": 200,
+        "json": [
+          {
+            "name": "beta",
+            "full_name": "acme/beta",
+            "owner": {
+              "login": "acme"
+            },
+            "default_branch": "trunk"
+          },
+          {
+            "name": "alpha",
+            "full_name": "acme/alpha",
+            "owner": {
+              "login": "acme"
+            },
+            "default_branch": "main"
+          },
+          {
+            "name": "gamma",
+            "full_name": "acme/gamma",
+            "owner": {
+              "login": "acme"
+            },
+            "default_branch": "main"
+          },
+          {
+            "name": "delta",
+            "full_name": "acme/delta",
+            "owner": {
+              "login": "acme"
+            },
+            "default_branch": "main"
+          }
+        ]
+      },
+      "GET /repos/acme/alpha/contents/.claudinite-settings.json": {
+        "status": 200,
+        "json": {
+          "content": "ewogICJ0YXNrU2NoZWR1bGVyIjoge30sCiAgImNsYXVkaW5pdGUiOiB7CiAgICAidXBkYXRlZCI6ICIyMDI2LTA5LTAxIiwKICAgICJyZWYiOiAiYWJjMTIzIgogIH0sCiAgInBhY2tzIjogWwogICAgImJhc2ljcyIsCiAgICB7CiAgICAgICJpZCI6ICJiYXJyaWVycyIKICAgIH0sCiAgICB7CiAgICAgICJpZCI6ICJjbGF1ZGluaXRlLWdyb3d0aCIsCiAgICAgICJjb25maWciOiB7CiAgICAgICAgInJldGVudGlvbl9kYXlzIjogNQogICAgICB9CiAgICB9LAogICAgImxvY2FsL2FscGhhIgogIF0KfQ=="
+        }
+      },
+      "GET /repos/acme/alpha/commits?sha=main&since=2026-10-01T00:00:00Z&per_page=100&page=1": {
+        "status": 200,
+        "json": [
+          {
+            "sha": "c1"
+          },
+          {
+            "sha": "c2"
+          }
+        ]
+      },
+      "GET /repos/acme/alpha/commits/c1": {
+        "status": 200,
+        "json": {
+          "files": [
+            {
+              "filename": "src/x.js"
+            }
+          ]
+        }
+      },
+      "GET /repos/acme/alpha/commits/c2": {
+        "status": 200,
+        "json": {
+          "files": [
+            {
+              "filename": ".claudinite/local/packs/alpha/RULES.md"
+            }
+          ]
+        }
+      },
+      "GET /repos/acme/beta/contents/.claudinite-settings.json": {
+        "status": 200,
+        "json": {
+          "content": "ewogICJwYWNrcyI6IFsKICAgICJiYXNpY3MiCiAgXQp9"
+        }
+      },
+      "GET /repos/acme/beta/commits?sha=trunk&since=2026-10-01T00:00:00Z&per_page=100&page=1": {
+        "status": 200,
+        "json": [
+          {
+            "sha": "b1"
+          }
+        ]
+      },
+      "GET /repos/acme/beta/commits/b1": {
+        "status": 500,
+        "json": null
+      },
+      "GET /repos/acme/gamma/contents/.claudinite-settings.json": {
+        "status": 200,
+        "json": {
+          "content": "ewogICJwYWNrcyI6IFtdCn0="
+        }
+      },
+      "GET /repos/acme/delta/contents/.claudinite-settings.json": {
+        "status": 200,
+        "json": {
+          "content": "ewogICJwYWNrcyI6IFsKICAgICJiYXNpY3MiCiAgXSwKICAidGFza1NjaGVkdWxlciI6IG51bGwKfQ=="
+        }
+      },
+      "GET /repos/acme/delta/commits?sha=main&since=2026-10-01T00:00:00Z&per_page=100&page=1": {
+        "status": 403,
+        "json": null
+      }
+    }
+  },
+  "expect": {
+    "members": [
+      {
+        "activePacks": [
+          "basics",
+          "basics",
+          "claudinite-growth",
+          "alpha"
+        ],
+        "defaultBranch": "main",
+        "localPacksChanged": true,
+        "packConfigs": {
+          "claudinite-growth": {
+            "retention_days": 5
+          }
+        },
+        "repo": "acme/alpha",
+        "schedulesItself": true,
+        "stamp": {
+          "ref": "abc123",
+          "updated": "2026-09-01"
+        }
+      },
+      {
+        "activePacks": [
+          "basics"
+        ],
+        "defaultBranch": "trunk",
+        "localPacksChanged": false,
+        "packConfigs": {},
+        "repo": "acme/beta",
+        "schedulesItself": false,
+        "stamp": null
+      },
+      {
+        "activePacks": [
+          "basics"
+        ],
+        "defaultBranch": "main",
+        "localPacksChanged": false,
+        "packConfigs": {},
+        "repo": "acme/delta",
+        "schedulesItself": false,
+        "stamp": null
+      },
+      {
+        "activePacks": [],
+        "defaultBranch": "main",
+        "localPacksChanged": false,
+        "packConfigs": {},
+        "repo": "acme/gamma",
+        "schedulesItself": false,
+        "stamp": null
+      }
+    ],
+    "owner": "acme"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "input": {
+    "kind": "update",
+    "args": {
+      "owner": "acme",
+      "dryRun": true,
+      "filter": [
+        "acme/a",
+        "acme/b"
+      ],
+      "fired": [
+        {
+          "fullName": "acme/a",
+          "state": "would-fire"
+        }
+      ],
+      "followed": [],
+      "skipped": [],
+      "failed": []
+    }
+  },
+  "expect": "# Fleet update — acme (DRY RUN — nothing was dispatched)\nWould ask each covered member's own `claudinite-scheduler.yml` to wake its `update` item.\nFiltered to: acme/a, acme/b\n| would fire | skipped |\n| --- | --- |\n| 1 | 0 |\n**Would fire:**\n- [`acme/a`](https://github.com/acme/a/actions/workflows/claudinite-scheduler.yml)\n_Current means the member stamps canon's published engine and pack versions. Canon content_\n_that shipped without a version bump moves no number, so it is invisible here._"
+}

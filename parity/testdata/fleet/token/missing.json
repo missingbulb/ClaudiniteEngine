@@ -1,0 +1,36 @@
+{
+  "input": {
+    "sweeps": [],
+    "paths": [],
+    "missing": [
+      {
+        "sweep": "fleet-roster",
+        "detail": "The default GITHUB_TOKEN sees only this repo and cannot sweep the fleet."
+      },
+      {
+        "sweep": "fleet-update",
+        "detail": "The default GITHUB_TOKEN sees only this repo and cannot dispatch another repo's workflow."
+      },
+      {
+        "sweep": "no-such-sweep",
+        "detail": "x"
+      }
+    ]
+  },
+  "expect": {
+    "grant": "Metadata read, Contents read and write, Issues read and write, Actions read and write",
+    "grantFor": {},
+    "handover": {
+      "breaks": "every claudinite-fleet-sheepdog sweep fails — and a token short one permission fails only on the sweep that needs it, which can be a week later, on the one sweep that writes or dispatches",
+      "done": "the secret exists and each claudinite-fleet-sheepdog task's next run is green",
+      "step": "Create a fine-grained PAT on this account covering ALL repositories, granted Metadata read, Contents read and write, Issues read and write, Actions read and write, and add it to this repo as the Actions secret FLEET_GITHUB_TOKEN. Grant every permission listed, not the subset the first sweep you run needs."
+    },
+    "hint": {},
+    "missing": [
+      "FLEET_GITHUB_TOKEN is not set. Add a repo secret holding a fine-grained PAT on this account, ALL repositories, granted: Metadata read, Contents read and write, Issues read and write, Actions read and write. Grant the whole set — it is one token for the whole pack, and a subset breaks a different sweep later (this one, fleet-roster, uses Metadata read, Contents read, Issues read and write). The default GITHUB_TOKEN sees only this repo and cannot sweep the fleet.",
+      "FLEET_GITHUB_TOKEN is not set. Add a repo secret holding a fine-grained PAT on this account, ALL repositories, granted: Metadata read, Contents read and write, Issues read and write, Actions read and write. Grant the whole set — it is one token for the whole pack, and a subset breaks a different sweep later (this one, fleet-update, uses Metadata read, Contents read, Actions read and write). The default GITHUB_TOKEN sees only this repo and cannot dispatch another repo's workflow.",
+      "FLEET_GITHUB_TOKEN is not set. Add a repo secret holding a fine-grained PAT on this account, ALL repositories, granted: Metadata read, Contents read and write, Issues read and write, Actions read and write. Grant the whole set — it is one token for the whole pack, and a subset breaks a different sweep later. x"
+    ],
+    "permissionFor": {}
+  }
+}

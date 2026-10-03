@@ -1,0 +1,23 @@
+{
+  "input": {
+    "owner": "acme",
+    "canonRepo": "acme/claudinite",
+    "exclude": [],
+    "repos": [
+      {
+        "full_name": "acme/Claudinite"
+      }
+    ],
+    "filter": null
+  },
+  "expect": {
+    "filter": null,
+    "scopes": [
+      {
+        "detail": "canon has no vendored mount — forcing it would queue a run whose only outcome is its own self-skip",
+        "fullName": "acme/claudinite",
+        "state": "canon"
+      }
+    ]
+  }
+}

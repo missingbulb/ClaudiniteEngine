@@ -1,0 +1,15 @@
+{
+  "input": {
+    "kind": "update",
+    "args": {
+      "owner": "acme",
+      "dryRun": false,
+      "filter": null,
+      "fired": [],
+      "followed": [],
+      "skipped": [],
+      "failed": []
+    }
+  },
+  "expect": "# Fleet update — acme\nAsked each covered member's own `claudinite-scheduler.yml` to wake its `update` item, then followed each one until its own `.claudinite-settings.json` stamped the engine and every declared pack at the versions canon publishes.\n| current | not current | not dispatched | skipped |\n| --- | --- | --- | --- |\n| 0 of 0 | 0 | 0 | 0 |\n**No member was dispatched** — check the filter, or whether anything under this owner is covered.\n_Current means the member stamps canon's published engine and pack versions. Canon content_\n_that shipped without a version bump moves no number, so it is invisible here._"
+}

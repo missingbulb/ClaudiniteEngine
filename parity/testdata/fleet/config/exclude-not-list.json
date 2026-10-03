@@ -1,0 +1,21 @@
+{
+  "input": {
+    "cfg": {
+      "packs": [
+        {
+          "id": "claudinite-fleet-sheepdog",
+          "config": {
+            "owner": "acme",
+            "exclude": "acme/x"
+          }
+        }
+      ]
+    },
+    "home": "acme/manager"
+  },
+  "expect": {
+    "exclude": [],
+    "owner": "acme",
+    "packSeeds": []
+  }
+}
