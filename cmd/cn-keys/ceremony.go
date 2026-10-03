@@ -76,8 +76,8 @@ func summaryFlag(name string, args []string) (*string, *string, error) {
 	if err := fs.Parse(args); err != nil || *summary == "" || fs.NArg() != 0 {
 		return nil, nil, usageError{name + " needs --summary FILE"}
 	}
-	if name == "ceremony" && *uses != "" {
-		return nil, nil, usageError{"ceremony certifies every use; --use is for rotate"}
+	if name != "rotate" && *uses != "" {
+		return nil, nil, usageError{name + " takes no --use; --use is for rotate"}
 	}
 	return summary, uses, nil
 }
@@ -230,9 +230,10 @@ func ceremony(gh secretStore, passphrase string, now time.Time, summary, log io.
 	fmt.Fprintf(&b, "### Sealed standby root\n\nSave this whole block in your password manager, beside the passphrase. "+
 		"It is the only copy of the standby root.\n\n```\n%s```\n\n", sealed)
 	fmt.Fprintf(&b, "### Now\n\n1. Save the sealed block above in your password manager, beside the passphrase.\n"+
-		"2. Delete this workflow run, so the sealed block stops being public.\n"+
-		"3. Delete the `ceremony` environment's secrets `CEREMONY_TOKEN` and `%s`, then revoke the token.\n"+
-		"4. Comment on #5 that the ceremony ran.\n\n", passphraseVar)
+		"2. Comment on #5 that the ceremony ran, pasting the root and standby root public keys and key ids above: "+
+		"they are public, and this summary goes with the run.\n"+
+		"3. Delete this workflow run, so the sealed block stops being public.\n"+
+		"4. Delete the `ceremony` environment's secrets `CEREMONY_TOKEN` and `%s`, then revoke the token.\n\n", passphraseVar)
 	fmt.Fprint(&b, rootsToSwap)
 	// The summary carries the only copy of the sealed standby, so it is
 	// written before the root is stored: a run that cannot report stores no

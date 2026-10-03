@@ -33,16 +33,19 @@ standby root.
 5. Actions → key-ceremony → Run workflow, mode `ceremony`, and approve the run.
 6. From the run's summary, copy the block from `BEGIN CLAUDINITE STANDBY ROOT` to
    `END CLAUDINITE STANDBY ROOT` into your password manager beside the passphrase. It is the only
-   copy of the standby root. Then delete the workflow run (the run's `…` menu → Delete workflow
-   run), so the sealed block stops being public.
-7. Delete `CEREMONY_TOKEN` and `CEREMONY_PASSPHRASE` from the `ceremony` environment and revoke
+   copy of the standby root.
+7. Comment on #5 that the ceremony ran, pasting the root and standby root public keys and key ids
+   from the summary: they are public, and the summary goes with the run.
+8. Delete the workflow run (the run's `…` menu → Delete workflow run), so the sealed block stops
+   being public.
+9. Delete `CEREMONY_TOKEN` and `CEREMONY_PASSPHRASE` from the `ceremony` environment and revoke
    the token.
-8. Comment on #5 that the ceremony ran. The public keys in the summary then replace the
-   development roots: ClaudiniteEngine `license/roots/`, ClaudinitePacks `keys/dev/roots/` (what
-   `release-packs.yml` passes to `--roots`) and ClaudiniteLicenses `keys/dev/` (its root and both
-   development issuing keys, `license-public` and `license`). From the moment the
-   run sets the working keys until those land, every Engine release, Packs publish and Licenses
-   deploy signs with a chain nothing trusts and fails verification.
+10. The public keys from #5 then replace the development roots: ClaudiniteEngine
+    `license/roots/`, ClaudinitePacks `keys/dev/roots/` (what `release-packs.yml` passes to
+    `--roots`) and ClaudiniteLicenses `keys/dev/` (its root and both development issuing keys,
+    `license-public` and `license`). From the moment the run sets the working keys until those
+    land, every Engine release, Packs publish and Licenses deploy signs with a chain nothing
+    trusts and fails verification.
 
 A second ceremony refuses once `ROOT_KEY` exists. A run that fails before storing the root can be
 run again; it replaces any working key it had already set. If a run dies after `ROOT_KEY` is stored
@@ -55,6 +58,13 @@ Working keys expire, the release key after a year and the others after 90 days. 
 add a token like step 1's as `CEREMONY_TOKEN` in the `root` environment, run key-ceremony with mode
 `rotate` (`uses` empty for all, or a list such as `manifest`), approve it, then delete the token.
 The root never leaves its secret.
+
+## Recovering the public keys
+
+If the summary is gone before the public keys were saved, run key-ceremony with mode `roots` and
+approve it: it prints the root's public key and id from `ROOT_KEY`. For the standby root's too, first
+add the sealed block as `STANDBY_SEALED` and the passphrase as `CEREMONY_PASSPHRASE` to the `root`
+environment, and delete both once the run is done. It needs no token and prints nothing secret.
 
 ## Recovering with the standby root
 

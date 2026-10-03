@@ -2,16 +2,16 @@
 # browser. cmd/cn-keys/README.md is the owner's runbook. This repository is
 # public: nothing secret is printed, cached or uploaded, and the step
 # summary carries only public keys, certificates and the passphrase-sealed
-# standby root.
+# standby root; the roots mode prints the two root public keys alone.
 name: key-ceremony
 
 on:
   workflow_dispatch:
     inputs:
       mode:
-        description: ceremony (once) or rotate (replace working keys)
+        description: ceremony (once), rotate (replace working keys) or roots (print the root public keys again)
         type: choice
-        options: [ceremony, rotate]
+        options: [ceremony, rotate, roots]
         required: true
       uses:
         description: "rotate only: comma-separated uses (manifest, packs, license-public, license); empty is all"
@@ -60,3 +60,23 @@ jobs:
           ROOT_KEY: ${{ secrets.ROOT_KEY }}
           USES: ${{ inputs.uses }}
         run: go run ./cmd/cn-keys rotate --summary "$GITHUB_STEP_SUMMARY" --use "$USES"
+
+  roots:
+    if: inputs.mode == 'roots'
+    runs-on: ubuntu-24.04
+    environment: root
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.24"
+          cache: false
+      - env:
+          ROOT_KEY: ${{ secrets.ROOT_KEY }}
+          STANDBY_SEALED: ${{ secrets.STANDBY_SEALED }}
+          CEREMONY_PASSPHRASE: ${{ secrets.CEREMONY_PASSPHRASE }}
+        run: go run ./cmd/cn-keys roots --summary "$GITHUB_STEP_SUMMARY"
