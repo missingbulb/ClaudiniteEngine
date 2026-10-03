@@ -110,3 +110,22 @@ func TestAppendRefusesAMalformedEntry(t *testing.T) {
 		}
 	}
 }
+
+func TestTheVendoredMountIsNeverATarget(t *testing.T) {
+	root := acmePack(t, map[string]string{
+		".claudinite/shared/packs/acme-pack/pack.json": "{}\n",
+		".claudinite/shared/packs/acme-pack/RULES.md":  "- **Writing a widget** — keep it small.\n",
+	})
+	for _, id := range []string{".claudinite/shared/packs/acme-pack", "./.claudinite/shared/packs/acme-pack/", ".claudinite/local/../shared/packs/acme-pack"} {
+		code, _, stderr := run(root, "", "mark", id)
+		if code != 2 || !strings.Contains(stderr, "vendored mount") {
+			t.Fatalf("%s: exit %d, stderr %q", id, code, stderr)
+		}
+	}
+	if b, _ := os.ReadFile(filepath.Join(root, ".claudinite/shared/packs/acme-pack/RULES.md")); strings.Contains(string(b), "(writing-widget)") {
+		t.Fatalf("the mount was marked: %q", b)
+	}
+	if code, _, stderr := run(root, "", "check", ".claudinite/local/packs/acme-pack"); code != 0 {
+		t.Fatalf("a local pack by path: exit %d, stderr %q", code, stderr)
+	}
+}

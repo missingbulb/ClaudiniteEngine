@@ -308,7 +308,11 @@ func (c CodeWorker) Run(t taskspec.Task, w Work) CodeWorkResult {
 		env[k] = v
 	}
 	if c.Place.EngineDir != "" {
-		env["PATH"] = c.Place.EngineDir + string(os.PathListSeparator) + env["PATH"]
+		if env["PATH"] == "" {
+			env["PATH"] = c.Place.EngineDir
+		} else {
+			env["PATH"] = c.Place.EngineDir + string(os.PathListSeparator) + env["PATH"]
+		}
 	}
 	timeout, _ := t.Decl.Num("code_work_timeout")
 	step := runner.Step{Dir: t.Dir, Env: envList(env), Timeout: time.Duration(timeout * float64(time.Second)), Echo: c.Echo}

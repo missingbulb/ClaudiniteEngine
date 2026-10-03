@@ -1,3 +1,10 @@
+// The session-end capture. With stdin that does not parse, the hook has
+// no session id or transcript path and falls through to discovery, which
+// captures the newest transcript anywhere under ~/.claude/projects, as
+// Node did (the newest-anywhere findtranscript fixture). A manual run on
+// a developer machine can therefore push an unrelated project's
+// transcript.
+
 package hooks
 
 import (

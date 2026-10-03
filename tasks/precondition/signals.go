@@ -123,13 +123,16 @@ type MergedPR struct {
 }
 
 // Logs is the conversation-log branch; a nil age is unknown.
+// RetentionUnreadable is a retention_days declared as something other
+// than a number, which RetentionDays cannot carry.
 type Logs struct {
-	Present          bool     `json:"present"`
-	RetentionDays    *float64 `json:"retentionDays"`
-	OldestLogAgeDays *float64 `json:"oldestLogAgeDays"`
-	NewestLogAgeDays *float64 `json:"newestLogAgeDays"`
-	LogCount         int      `json:"logCount"`
-	Error            string   `json:"error,omitempty"`
+	Present             bool     `json:"present"`
+	RetentionDays       *float64 `json:"retentionDays"`
+	RetentionUnreadable bool     `json:"retentionUnreadable,omitempty"`
+	OldestLogAgeDays    *float64 `json:"oldestLogAgeDays"`
+	NewestLogAgeDays    *float64 `json:"newestLogAgeDays"`
+	LogCount            int      `json:"logCount"`
+	Error               string   `json:"error,omitempty"`
 }
 
 // Mount is the vendored canon's movement.
