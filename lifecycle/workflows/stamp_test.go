@@ -33,3 +33,31 @@ func TestStamp(t *testing.T) {
 		t.Error("a repeated name stamped twice")
 	}
 }
+
+// A name the env already passes outside the stamped block, above or below
+// it, is left to that line; a line passing another secret under the name
+// does not count.
+func TestStampLeavesANamePassedOutsideTheBlock(t *testing.T) {
+	exe := "jobs:\n  run:\n    steps:\n      - env:\n" +
+		"          ABOVE_TOKEN: ${{ secrets.ABOVE_TOKEN }}\n" +
+		"          " + SecretsMarker + "\n" +
+		"          OLD_TOKEN: ${{ secrets.OLD_TOKEN }}\n" +
+		"          GH_TOKEN: ${{ github.token }}\n" +
+		"          BELOW_TOKEN: ${{ secrets.BELOW_TOKEN }}\n" +
+		"          ALIAS_TOKEN: ${{ secrets.OTHER_TOKEN }}\n"
+	got, ok := Stamp([]byte(exe), []string{"BELOW_TOKEN", "ABOVE_TOKEN", "ALIAS_TOKEN", "NEW_TOKEN"})
+	if !ok {
+		t.Fatal("no marker found")
+	}
+	if s := StampedSecrets(got); !reflect.DeepEqual(s, []string{"ALIAS_TOKEN", "NEW_TOKEN"}) {
+		t.Errorf("stamped %v\n%s", s, got)
+	}
+	for _, n := range []string{"ABOVE_TOKEN", "BELOW_TOKEN"} {
+		if c := strings.Count(string(got), n+": ${{ secrets."+n+" }}"); c != 1 {
+			t.Errorf("%s passed %d times:\n%s", n, c, got)
+		}
+	}
+	if strings.Contains(string(got), "OLD_TOKEN") {
+		t.Errorf("the block's old line survived:\n%s", got)
+	}
+}

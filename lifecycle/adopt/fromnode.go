@@ -11,6 +11,7 @@ import (
 
 	"github.com/missingbulb/ClaudiniteEngine/lifecycle/packs"
 	"github.com/missingbulb/ClaudiniteEngine/lifecycle/rulesindex"
+	"github.com/missingbulb/ClaudiniteEngine/lifecycle/verify"
 	"github.com/missingbulb/ClaudiniteEngine/lifecycle/workflows"
 	"github.com/missingbulb/ClaudiniteEngine/shared/packset"
 	"github.com/missingbulb/ClaudiniteEngine/shared/settings"
@@ -23,9 +24,6 @@ import (
 // to cn's and the workflows are written through Expected, so a member's
 // stamped secrets and cron survive. No member-owned file is deleted: the
 // Node declaration stays until the move's pull request drops it.
-
-// nodeHookPath is where the Node engine's hook commands live in a member.
-const nodeHookPath = ".claudinite/shared/engine/hooks/"
 
 // LocalTree answers the Node import's question of a member's own packs.
 type LocalTree string
@@ -140,25 +138,45 @@ func FromNode(in Input) error {
 		return err
 	}
 	if err := writeFiles(in.Repo, files); err != nil {
-		return err
+		return halfMoved(in.Repo, err)
 	}
 	if err := ensureSkillsIgnore(in.Repo); err != nil {
-		return err
+		return halfMoved(in.Repo, err)
 	}
 	for _, v := range chosen {
 		if err := packs.Unpack(v.archive, packset.Tree(in.Repo, v.id)); err != nil {
-			return err
+			return halfMoved(in.Repo, err)
 		}
 	}
 	if _, err := rulesindex.Converge(in.Repo, got.Version); err != nil {
-		return err
+		return halfMoved(in.Repo, err)
 	}
 	if _, err := rulesindex.EnsureImport(in.Repo); err != nil {
-		return err
+		return halfMoved(in.Repo, err)
 	}
 	g := requestKey(in, cfg)
-	return finish(finishInput{Repo: in.Repo, Engine: got.Version, Answers: in.Answers, Core: true, Key: g, NoSeed: true,
+	err = finish(finishInput{Repo: in.Repo, Engine: got.Version, Answers: in.Answers, Core: true, Key: g, NoSeed: true,
 		First: []string{"git rm " + node.File + " (the Node declaration, now read into .claudinite/settings.yaml)"}, Out: in.Out})
+	if err != nil {
+		return halfMoved(in.Repo, err)
+	}
+	return nil
+}
+
+// halfMoved undoes what marks repo a cn member after the move failed part
+// way, so a re-run is not refused, and names the restore for the rest.
+func halfMoved(repo string, cause error) error {
+	var left []string
+	for _, rel := range []string{".claudinite/launch", ".claudinite/settings.yaml"} {
+		if err := os.Remove(filepath.Join(repo, filepath.FromSlash(rel))); err != nil && !errors.Is(err, os.ErrNotExist) {
+			left = append(left, rel)
+		}
+	}
+	msg := "removed .claudinite/launch and .claudinite/settings.yaml"
+	if len(left) > 0 {
+		msg = "could not remove " + strings.Join(left, " and ")
+	}
+	return fmt.Errorf("%w; the move stopped part way: %s, and `git checkout -- .` restores the rest", cause, msg)
 }
 
 // movedSettings is the pinned settings file a moved member starts from:
@@ -187,9 +205,9 @@ func movedSettings(pkg, version, integrity, channel string, decl node.Decl) ([]b
 	return settings.SpliceBlocks(b.Bytes(), settings.YAML, d.Blocks())
 }
 
-// movedHooks is .claude/settings.json with every hook group that runs the
-// Node engine's hooks removed and cn's six wirings merged in; the
-// member's own groups survive.
+// movedHooks is .claude/settings.json with every command that runs the
+// Node engine's hooks removed and cn's six wirings merged in; a group left
+// with no command goes, and the member's own commands survive.
 func movedHooks(path string) ([]byte, error) {
 	obj, err := readClaudeSettings(path)
 	if err != nil {
@@ -200,7 +218,7 @@ func movedHooks(path string) ([]byte, error) {
 			groups, _ := v.([]any)
 			var kept []any
 			for _, g := range groups {
-				if !runsNodeHook(g) {
+				if g, ok := withoutNodeHooks(g); ok {
 					kept = append(kept, g)
 				}
 			}
@@ -214,16 +232,33 @@ func movedHooks(path string) ([]byte, error) {
 	return mergeHooksInto(obj)
 }
 
-func runsNodeHook(group any) bool {
-	gm, _ := group.(map[string]any)
-	list, _ := gm["hooks"].([]any)
+// withoutNodeHooks is group with its Node engine commands dropped, and
+// whether any command remains; a group naming none is returned as it was.
+func withoutNodeHooks(group any) (any, bool) {
+	gm, ok := group.(map[string]any)
+	if !ok {
+		return group, true
+	}
+	list, ok := gm["hooks"].([]any)
+	if !ok {
+		return group, true
+	}
+	var kept []any
 	for _, c := range list {
 		cm, _ := c.(map[string]any)
-		if cmd, _ := cm["command"].(string); strings.Contains(cmd, nodeHookPath) {
-			return true
+		if cmd, _ := cm["command"].(string); verify.NodeHook.MatchString(cmd) {
+			continue
 		}
+		kept = append(kept, c)
 	}
-	return false
+	if len(kept) == len(list) {
+		return group, true
+	}
+	if len(kept) == 0 {
+		return nil, false
+	}
+	gm["hooks"] = kept
+	return gm, true
 }
 
 // nodeCron is the Node engine's scheduler cron line, single-quoted.

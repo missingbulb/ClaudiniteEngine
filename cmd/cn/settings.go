@@ -88,10 +88,22 @@ func cmdSettings(args []string, stdout io.Writer) error {
 	return writeKeepingMode(path, out)
 }
 
-// cmdSettingsAnswer is cn settings answer <pack>/<question> <text>.
+// cmdSettingsAnswer is cn settings answer <pack>/<question> [--] <text>.
+// The two positionals come first; after a `--` the next ones are taken as
+// they are, so a text may start with a dash.
 func cmdSettingsAnswer(args []string, stdout io.Writer) error {
 	var pos []string
-	for len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+	for len(args) > 0 && len(pos) < 2 {
+		if args[0] == "--" {
+			args = args[1:]
+			for len(args) > 0 && len(pos) < 2 {
+				pos, args = append(pos, args[0]), args[1:]
+			}
+			break
+		}
+		if strings.HasPrefix(args[0], "-") {
+			break
+		}
 		pos, args = append(pos, args[0]), args[1:]
 	}
 	fs := flag.NewFlagSet("settings answer", flag.ContinueOnError)
@@ -100,7 +112,7 @@ func cmdSettingsAnswer(args []string, stdout io.Writer) error {
 		return err
 	}
 	if len(pos) != 2 {
-		return report.New(report.Usage, "settings answer takes <pack>/<question> <text>")
+		return report.New(report.Usage, "settings answer takes <pack>/<question> [--] <text>")
 	}
 	file, err := adopt.Answer(*repo, version.Version(), pos[0], pos[1])
 	if err != nil {
@@ -120,4 +132,3 @@ func writeKeepingMode(path string, raw []byte) error {
 	}
 	return nil
 }
-

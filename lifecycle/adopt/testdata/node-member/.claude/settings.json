@@ -15,12 +15,27 @@
         ]
       }
     ],
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node $CLAUDE_PROJECT_DIR/engine/hooks/pretooluse-command.mjs"
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [
           {
             "type": "command",
             "command": "node $CLAUDE_PROJECT_DIR/.claudinite/shared/engine/hooks/stop-command.mjs"
+          },
+          {
+            "type": "command",
+            "command": "sh scripts/member-own-lint.sh"
           }
         ]
       },
