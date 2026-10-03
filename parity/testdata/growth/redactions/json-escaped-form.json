@@ -1,0 +1,35 @@
+{
+  "input": {
+    "env": {
+      "QUOTED": "pass\"word\\with-escapes",
+      "NEWLINE": "line-one\nline-two",
+      "TAB": "a\tb-cdefgh"
+    }
+  },
+  "expect": [
+    {
+      "form": "pass\\\"word\\\\with-escapes",
+      "name": "QUOTED"
+    },
+    {
+      "form": "pass\"word\\with-escapes",
+      "name": "QUOTED"
+    },
+    {
+      "form": "line-one\\nline-two",
+      "name": "NEWLINE"
+    },
+    {
+      "form": "line-one\nline-two",
+      "name": "NEWLINE"
+    },
+    {
+      "form": "a\\tb-cdefgh",
+      "name": "TAB"
+    },
+    {
+      "form": "a\tb-cdefgh",
+      "name": "TAB"
+    }
+  ]
+}

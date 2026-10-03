@@ -1,0 +1,15 @@
+{
+  "input": {
+    "root": "/work/member",
+    "sessionId": "sess-1",
+    "files": {
+      "-other-dir/sess-1.jsonl": {
+        "mtime": "2026-07-19T09:00:00Z"
+      },
+      "-work-member/newer.jsonl": {
+        "mtime": "2026-07-19T10:00:00Z"
+      }
+    }
+  },
+  "expect": "-other-dir/sess-1.jsonl"
+}

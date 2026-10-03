@@ -1,0 +1,20 @@
+{
+  "input": {
+    "text": "{\"type\":\"tool_result\",\"content\":\"export MY_TOKEN=tok-abcdefgh-123 done\"}",
+    "redactions": [
+      {
+        "name": "MY_TOKEN",
+        "form": "tok-abcdefgh-123"
+      },
+      {
+        "name": "QUOTED",
+        "form": "pass\\\"word"
+      },
+      {
+        "name": "QUOTED",
+        "form": "pass\"word"
+      }
+    ]
+  },
+  "expect": "{\"type\":\"tool_result\",\"content\":\"export MY_TOKEN=[REDACTED:env:MY_TOKEN] done\"}"
+}

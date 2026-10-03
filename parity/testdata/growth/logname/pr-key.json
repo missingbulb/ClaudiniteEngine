@@ -1,0 +1,8 @@
+{
+  "input": {
+    "now": "2026-07-19T09:40:12.345Z",
+    "pr": 1583,
+    "session": "0b1c2d3e-aaaa"
+  },
+  "expect": "2026-07-19T0940Z--pr-1583--0b1c2d3e-aaaa.jsonl"
+}

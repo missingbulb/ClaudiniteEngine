@@ -1,0 +1,7 @@
+{
+  "input": {
+    "text": "token ghp_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA and gho_b1b1b1b1b1b1b1b1b1b1b1b1 end",
+    "redactions": []
+  },
+  "expect": "token [REDACTED:github-token] and [REDACTED:github-token] end"
+}

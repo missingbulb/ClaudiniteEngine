@@ -1,0 +1,17 @@
+{
+  "input": {
+    "root": "/work/member",
+    "files": {
+      "-one/a.jsonl": {
+        "mtime": "2026-07-19T09:00:00Z"
+      },
+      "-two/b.jsonl": {
+        "mtime": "2026-07-19T09:45:00Z"
+      },
+      "-two/c.jsonl": {
+        "mtime": "2026-07-19T09:15:00Z"
+      }
+    }
+  },
+  "expect": "-two/b.jsonl"
+}

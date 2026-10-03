@@ -1,0 +1,16 @@
+{
+  "input": {
+    "env": {
+      "PATH": "/usr/local/bin:/usr/bin",
+      "HOME": "/home/someone",
+      "GITHUB_SHA": "0123456789abcdef",
+      "MY_TOKEN": "tok-abcdefgh-123"
+    }
+  },
+  "expect": [
+    {
+      "form": "tok-abcdefgh-123",
+      "name": "MY_TOKEN"
+    }
+  ]
+}

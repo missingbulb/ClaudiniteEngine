@@ -1,0 +1,14 @@
+{
+  "input": {
+    "names": [
+      "README.md"
+    ],
+    "retentionDays": 1,
+    "now": "2026-07-19T00:00:00.000Z"
+  },
+  "expect": {
+    "delete": [],
+    "logCount": 0,
+    "off": false
+  }
+}

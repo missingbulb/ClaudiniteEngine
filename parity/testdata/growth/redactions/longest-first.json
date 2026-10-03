@@ -1,0 +1,28 @@
+{
+  "input": {
+    "env": {
+      "A_KEY": "abcdefgh",
+      "B_KEY": "abcdefghijklmnop",
+      "C_KEY": "abcdefghijkl",
+      "D_KEY": "zzzzzzzz"
+    }
+  },
+  "expect": [
+    {
+      "form": "abcdefghijklmnop",
+      "name": "B_KEY"
+    },
+    {
+      "form": "abcdefghijkl",
+      "name": "C_KEY"
+    },
+    {
+      "form": "abcdefgh",
+      "name": "A_KEY"
+    },
+    {
+      "form": "zzzzzzzz",
+      "name": "D_KEY"
+    }
+  ]
+}

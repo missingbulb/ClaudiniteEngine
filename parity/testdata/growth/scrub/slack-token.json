@@ -1,0 +1,7 @@
+{
+  "input": {
+    "text": "xoxb-1234567890-abc",
+    "redactions": []
+  },
+  "expect": "[REDACTED:slack-token]"
+}

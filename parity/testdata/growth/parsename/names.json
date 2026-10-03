@@ -1,0 +1,49 @@
+{
+  "input": {
+    "names": [
+      "2026-07-19T0940Z--pr-1583--0b1c2d3e-aaaa.jsonl",
+      "2026-07-19T2305Z--issue-772--s1.jsonl",
+      "2026-01-02T0000Z--issue-0--sess.jsonl",
+      "2026-07-19T0940Z-2--pr-1583--0b1c.jsonl",
+      "README.md",
+      "2026-07-19T0940Z--pr-x--s.jsonl",
+      "2026-07-19T0940Z--pr-12--.jsonl",
+      "2026-07-19T0940Z--pr-12--a--b.jsonl"
+    ]
+  },
+  "expect": [
+    {
+      "capturedAt": "2026-07-19T09:40:00Z",
+      "issue": null,
+      "pr": 1583,
+      "sessionId": "0b1c2d3e-aaaa"
+    },
+    {
+      "capturedAt": "2026-07-19T23:05:00Z",
+      "issue": 772,
+      "pr": null,
+      "sessionId": "s1"
+    },
+    {
+      "capturedAt": "2026-01-02T00:00:00Z",
+      "issue": 0,
+      "pr": null,
+      "sessionId": "sess"
+    },
+    {
+      "capturedAt": "2026-07-19T09:40:00Z",
+      "issue": null,
+      "pr": 1583,
+      "sessionId": "0b1c"
+    },
+    null,
+    null,
+    null,
+    {
+      "capturedAt": "2026-07-19T09:40:00Z",
+      "issue": null,
+      "pr": 12,
+      "sessionId": "a--b"
+    }
+  ]
+}

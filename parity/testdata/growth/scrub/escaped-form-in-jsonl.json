@@ -1,0 +1,20 @@
+{
+  "input": {
+    "text": "{\"c\": \"pw is pass\\\"word\"}",
+    "redactions": [
+      {
+        "name": "MY_TOKEN",
+        "form": "tok-abcdefgh-123"
+      },
+      {
+        "name": "QUOTED",
+        "form": "pass\\\"word"
+      },
+      {
+        "name": "QUOTED",
+        "form": "pass\"word"
+      }
+    ]
+  },
+  "expect": "{\"c\": \"pw is [REDACTED:env:QUOTED]\"}"
+}

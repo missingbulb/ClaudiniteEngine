@@ -1,0 +1,14 @@
+{
+  "input": {
+    "env": {
+      "FIRST": "same-secret-value",
+      "SECOND": "same-secret-value"
+    }
+  },
+  "expect": [
+    {
+      "form": "same-secret-value",
+      "name": "FIRST"
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "input": {
+    "text": "AKIAABCDEFGHIJKLMNOP is aws",
+    "redactions": []
+  },
+  "expect": "[REDACTED:aws-key-id] is aws"
+}
