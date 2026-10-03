@@ -188,11 +188,25 @@ trap 'exit 1' HUP INT TERM
 
 # A release candidate trusts only the ceremony's roots, to which no key here
 # chains: rehearse its source rebuilt at its version and package with the
-# development roots, which differs from it only in the roots it embeds.
+# development roots. The host's binary must first be byte for byte this
+# source's plain build, so the rebuild differs from the candidate only in
+# what the devroots tag changes, the embedded roots (license/roots_dev.go;
+# TestOnlyTheRootsFilesReadTheDevrootsTag holds it to that).
 devroot=$(cat license/devroots/root.pub)
 for b in "$DIST"/bin/*/*; do
   grep -qF "$devroot" "$b" && continue
-  step "rebuilding $version with the development roots: $DIST trusts only the ceremony's"
+  case $(uname -s)-$(uname -m) in
+    Linux-x86_64) host=linux-x64 ;;
+    Linux-aarch64|Linux-arm64) host=linux-arm64 ;;
+    Darwin-x86_64) host=darwin-x64 ;;
+    Darwin-arm64) host=darwin-arm64 ;;
+    *) fail "no candidate check on $(uname -s)-$(uname -m)" ;;
+  esac
+  COMMIT=$(git rev-parse --short=7 HEAD 2>/dev/null || echo unknown) VERSION=$version BUILD_TAGS='' \
+    sh release/gobuild.sh "$host" "$work/candidate-check" || fail "the plain build of $version for $host"
+  cmp -s "$work/candidate-check" "$DIST/bin/$host/cn" \
+    || fail "$DIST/bin/$host/cn is not this source's plain build of $version, so a development-roots rebuild would not stand for it"
+  step "rebuilding $version with the development roots: $DIST trusts only the ceremony's, and its $host binary is this source's plain build"
   DIST=$work/devroots-dist VERSION=$version PACKAGE=$package REHEARSAL=1 BUILD_TAGS=devroots sh release/build.sh > "$work/build-devroots.out" \
     || fail "build of $version with the development roots: $(cat "$work/build-devroots.out")"
   DIST=$work/devroots-dist

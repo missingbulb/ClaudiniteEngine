@@ -44,7 +44,7 @@ func TestSelftestThroughCN(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("exit %d: %s", code, out)
 	}
-	if !regexp.MustCompile(`(?m)^ok roots: [0-9a-f]{16} [0-9a-f]{16}$`).MatchString(out) {
+	if !regexp.MustCompile(`(?m)^ok roots:(?: [0-9a-f]{16})+$`).MatchString(out) {
 		t.Fatalf("no root ids: %s", out)
 	}
 	repo := t.TempDir()

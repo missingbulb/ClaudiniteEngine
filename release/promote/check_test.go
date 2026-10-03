@@ -92,7 +92,7 @@ func TestCheck(t *testing.T) {
 		{"flipped manifest byte", tamper{manifest: true}, passing, "refuse", "signature", "not-run"},
 		{"bad signature", tamper{sig: true}, passing, "refuse", "signature", "not-run"},
 		{"flipped binary byte", tamper{binary: true}, passing, "refuse", "darwin-x64", "not-run"},
-		{"stable test fails", tamper{}, failing, "refuse", "#5", "fail"},
+		{"stable test fails", tamper{}, failing, "refuse", "development roots", "fail"},
 	}
 	for _, c := range cases {
 		dir := rcTarballs(t, c.how)
