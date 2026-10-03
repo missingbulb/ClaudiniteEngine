@@ -1,0 +1,30 @@
+{
+  "runs": [
+    {
+      "exit": 2,
+      "stdout": "",
+      "stderr": "required: exactly one of --pr \u003cn\u003e (the pull request the merge landed) or --issue \u003cn\u003e (the issue an unmerged capture is about, or 0 for none)"
+    },
+    {
+      "exit": 2,
+      "stdout": "",
+      "stderr": "required: exactly one of --pr \u003cn\u003e (the pull request the merge landed) or --issue \u003cn\u003e (the issue an unmerged capture is about, or 0 for none)"
+    },
+    {
+      "exit": 2,
+      "stdout": "",
+      "stderr": "required: exactly one of --pr \u003cn\u003e (the pull request the merge landed) or --issue \u003cn\u003e (the issue an unmerged capture is about, or 0 for none)"
+    },
+    {
+      "exit": 2,
+      "stdout": "",
+      "stderr": "required: exactly one of --pr \u003cn\u003e (the pull request the merge landed) or --issue \u003cn\u003e (the issue an unmerged capture is about, or 0 for none)"
+    },
+    {
+      "exit": 2,
+      "stdout": "",
+      "stderr": "required: exactly one of --pr \u003cn\u003e (the pull request the merge landed) or --issue \u003cn\u003e (the issue an unmerged capture is about, or 0 for none)"
+    }
+  ],
+  "branch": null
+}

@@ -1,0 +1,6 @@
+{"type":"user","timestamp":"2026-07-19T09:40:00.000Z","sessionId":"sess-parity","message":{"role":"user","content":"set up the token"}}
+{"timestamp":"2026-07-19T09:40:01.000Z", "type":"assistant","message":{"content":[{"type":"text","text":"done"}]},"z":1,"a":2}
+{"type":"queue-operation","operation":"enqueue"}
+{"type":"user","timestamp":"2026-07-19T09:40:02.000Z","toolUseResult":{"stdout":"PARITY_SECRET=parity-secret-value-42 and ghp_QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"}}
+not json at all
+{"type":"assistant","timestamp":"2026-07-19T09:40:03.000Z","message":{"content":"héllo — unicode, \"quoted\""}}

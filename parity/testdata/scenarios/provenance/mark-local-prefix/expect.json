@@ -1,0 +1,23 @@
+{
+  "runs": [
+    {
+      "exit": 2,
+      "stdout": "",
+      "stderr": "no pack \"local/acme\" under packs or .claudinite/local/packs"
+    }
+  ],
+  "branch": null,
+  "files": {
+    ".claudinite/local/packs/acme/RULES.md": "# acme\n\nSome framing prose that is not a rule.\n\n- **Writing a widget** — keep it small and name it for what it does. (3)\n- **Naming a gadget for its very long and descriptive purpose across the whole repository surface** — never for\n  its mechanism or the technology underneath it.\n- **Shipping a release**: tag it first.\n  - a nested item that belongs to the rule\n- a plain bullet, which RULES.md does not read as a rule\n\n## Later\n\n- **Shipping a release**: twice, which collides with the slug.\n",
+    ".claudinite/local/packs/acme/declared-checks.json": "[{\"id\": \"acme-check\", \"description\": \"x\"}, {\"id\": \"acme/nested\"}]\n",
+    ".claudinite/local/packs/acme/pack.json": "{\n  \"version\": \"1\",\n  \"ruleRoutingGuidance\": {\n    \"belongs\": \"widgets\",\n    \"excludes\": \"everything else\"\n  }\n}\n",
+    ".claudinite/local/packs/acme/skills/bare/SKILL.md": "# bare\n\nNo frontmatter here.\n",
+    ".claudinite/local/packs/acme/skills/empty/README.md": "not a skill file\n",
+    ".claudinite/local/packs/acme/skills/flow/SKILL.md": "---\nname: flow\ndescription: A procedure. Use when flowing.\nmetadata:\n  owner: acme\n---\n\n1. First step.\n2. Second step.\n\n- **A bullet in a workflow** — read as a step's note.\n",
+    ".claudinite/local/packs/acme/skills/guide/SKILL.md": "---\nname: guide\ndescription: Guidance for gadgets. Use when building one.\n---\n\n# guide\n\n- **Doing the first thing** — do it well.\n- **Doing the second thing** — do it better.\n",
+    ".claudinite/local/packs/acme/skills/guide/declared-checks.json": "[{\"id\": \"guide-check\"}]\n",
+    ".claudinite/local/packs/acme/tasks/acme-task/task.json": "{\n  \"id\": \"acme-task\",\n  \"description\": \"d\",\n  \"trigger\": \"request\",\n  \"expected_outcome\": \"no_code_changes\"\n}\n",
+    ".claudinite/local/packs/acme/tasks/not-a-task/README.md": "no task file\n",
+    ".claudinite/local/packs/acme/usage-rules.json": "{\"rules\": [{\"id\": \"data-rule\"}, {\"noid\": 1}]}\n"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "declared": [
+    "claudinite-growth"
+  ],
+  "env": {
+    "CLAUDE_CODE_SESSION_ID": "sess-end",
+    "CLAUDINITE_SESSION_ISSUE": " 12 "
+  },
+  "steps": [
+    {
+      "transcript": [
+        "part1.jsonl"
+      ]
+    }
+  ],
+  "payload": ""
+}

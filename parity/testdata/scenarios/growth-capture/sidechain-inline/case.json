@@ -1,0 +1,30 @@
+{
+  "session": "sess-side",
+  "steps": [
+    {
+      "transcript": [
+        "part1.jsonl"
+      ],
+      "sidechains": {
+        "sess-side/subagents/agent-a1.jsonl": [
+          "side1.jsonl"
+        ],
+        "sess-side/nested/deeper/agent-a2.jsonl": [
+          "side2.jsonl"
+        ],
+        "sess-side/subagents/notes.jsonl": [
+          "notagent.jsonl"
+        ],
+        "agent-elsewhere.jsonl": [
+          "notagent.jsonl"
+        ]
+      },
+      "args": [
+        "--pr",
+        "4",
+        "--session",
+        "sess-side"
+      ]
+    }
+  ]
+}

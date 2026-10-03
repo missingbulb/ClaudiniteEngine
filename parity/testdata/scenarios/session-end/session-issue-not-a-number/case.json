@@ -1,0 +1,16 @@
+{
+  "declared": [
+    "claudinite-growth"
+  ],
+  "env": {
+    "CLAUDINITE_SESSION_ISSUE": "not-a-number"
+  },
+  "steps": [
+    {
+      "transcript": [
+        "part1.jsonl"
+      ]
+    }
+  ],
+  "payload": "{\"hook_event_name\":\"SessionEnd\",\"session_id\":\"sess-end\",\"transcript_path\":\"{transcript}\"}"
+}

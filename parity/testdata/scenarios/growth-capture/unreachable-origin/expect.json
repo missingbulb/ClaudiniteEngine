@@ -1,0 +1,10 @@
+{
+  "runs": [
+    {
+      "exit": 1,
+      "stdout": "",
+      "stderr": "could not capture to conversation-logs after 3 attempts — could not reach origin: fatal: '{root}/nowhere.git' does not appear to be a git repository"
+    }
+  ],
+  "branch": null
+}
