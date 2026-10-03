@@ -9,7 +9,8 @@
 #
 #   release/dashboard-fixture.sh manager DIR VERSION
 #     the manager DIR (release/fleet-fixture.sh already wrote it) on the
-#     stable channel, declaring claudinite-dashboard with mode fleet, its
+#     stable channel, declaring claudinite-dashboard with mode fleet over
+#     the owner acme, its
 #     fleet-roster task landing the roster artifact under the sheepdog's
 #     fleet-roster-artifact policy as the pack declares them
 set -eu
@@ -57,7 +58,7 @@ JSON
     settings=$dir/.claudinite/settings.yaml
     grep -v '^  channel: "canary"$' "$settings" > "$settings.tmp"
     mv "$settings.tmp" "$settings"
-    printf '    - id: claudinite-dashboard\n      config:\n        mode: "fleet"\n' >> "$settings"
+    printf '    - id: claudinite-dashboard\n      config:\n        mode: "fleet"\n        owner: "acme"\n' >> "$settings"
     sheepdog=$dir/.claudinite/shared/packs/claudinite-fleet-sheepdog
     cat > "$sheepdog/tasks/fleet-roster/task.json" <<'JSON'
 {

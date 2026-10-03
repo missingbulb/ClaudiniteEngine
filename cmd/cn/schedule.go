@@ -82,7 +82,9 @@ func (r taskRepo) disabledTasks() []string {
 }
 
 // jobClient is the Actions job's GitHub client: the job token held in
-// memory only and removed from the environment, as the updater holds it.
+// memory and removed from the process environment, as the updater holds it,
+// so nothing the engine spawns inherits it unasked; the executor hands it to
+// the work steps explicitly.
 func jobClient(env world.Env) (*githubapi.Client, error) {
 	token := env("GITHUB_TOKEN")
 	_ = os.Unsetenv("GITHUB_TOKEN")

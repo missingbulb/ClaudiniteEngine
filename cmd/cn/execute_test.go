@@ -119,3 +119,21 @@ func TestPullDiffReadsThePullRequestsOwnDiff(t *testing.T) {
 		}
 	}
 }
+
+// The job token leaves the process environment the moment the executor's
+// client takes it, and the work steps are handed it back as GITHUB_TOKEN,
+// the surface execute.TaskEnv documents them writing through; nothing else
+// read from the environment gains it.
+func TestWorkStepsAreHandedTheJobToken(t *testing.T) {
+	job := map[string]string{"PATH": "/bin"}
+	got := workStepEnv(job, "ghs_job")
+	if got["GITHUB_TOKEN"] != "ghs_job" || got["PATH"] != "/bin" {
+		t.Errorf("%v", got)
+	}
+	if _, ok := job["GITHUB_TOKEN"]; ok {
+		t.Error("the job's own map gained the token")
+	}
+	if _, ok := workStepEnv(job, "")["GITHUB_TOKEN"]; ok {
+		t.Error("an absent token was handed on as an empty one")
+	}
+}
