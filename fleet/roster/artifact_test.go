@@ -77,15 +77,15 @@ func TestRenderPinsTheRosterBytes(t *testing.T) {
 // changed verdict writes the new stamp with it.
 func TestWriteArtifactIgnoresTheStamp(t *testing.T) {
 	root := t.TempDir()
-	if wrote, err := roster.WriteArtifact(root, "acme", verdicts(), "2026-10-03T06:00:00Z"); err != nil || !wrote {
+	if wrote, err := roster.WriteArtifact(root, "acme", verdicts(), "2026-10-03T06:00:00Z", nil); err != nil || !wrote {
 		t.Fatalf("first write %v %v", wrote, err)
 	}
-	if wrote, err := roster.WriteArtifact(root, "acme", verdicts(), "2026-10-04T06:00:00Z"); err != nil || wrote {
+	if wrote, err := roster.WriteArtifact(root, "acme", verdicts(), "2026-10-04T06:00:00Z", nil); err != nil || wrote {
 		t.Fatalf("a stamp-only recompute wrote %v %v", wrote, err)
 	}
 	moved := verdicts()
 	moved[0].Dormant = true
-	if wrote, err := roster.WriteArtifact(root, "acme", moved, "2026-10-05T06:00:00Z"); err != nil || !wrote {
+	if wrote, err := roster.WriteArtifact(root, "acme", moved, "2026-10-05T06:00:00Z", nil); err != nil || !wrote {
 		t.Fatalf("a changed verdict wrote %v %v", wrote, err)
 	}
 	raw, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(roster.RosterFile)))
@@ -109,5 +109,25 @@ func TestBuildJudgesEveryRepository(t *testing.T) {
 	got := roster.Verdicts(roster.Build(none, repos, "acme/manager", fleet.Config{Owner: "acme"}, nil))
 	if len(got) != 3 || got[0].Scope != fleet.ScopeHome || got[1].Repo != "acme/old" || got[1].Scope == fleet.ScopeIn || got[2].Scope == fleet.ScopeIn {
 		t.Errorf("verdicts %+v", got)
+	}
+}
+
+// The branch's copy is the prior when one is handed in: a checkout
+// lacking the file still writes nothing new over a branch whose roster
+// differs only in its stamp, and is left holding the branch's bytes.
+func TestWriteArtifactReadsTheBranchsCopy(t *testing.T) {
+	landed, _ := roster.Render("acme", verdicts(), "2026-10-01T06:00:00Z")
+	root := t.TempDir()
+	if wrote, err := roster.WriteArtifact(root, "acme", verdicts(), "2026-10-03T06:00:00Z", []byte(landed)); err != nil || wrote {
+		t.Fatalf("a stamp-only recompute over the branch's copy wrote %v %v", wrote, err)
+	}
+	raw, _ := os.ReadFile(filepath.Join(root, filepath.FromSlash(roster.RosterFile)))
+	if string(raw) != landed {
+		t.Errorf("the checkout holds %q, not the branch's bytes", raw)
+	}
+	moved := verdicts()
+	moved[1].Covered = true
+	if wrote, err := roster.WriteArtifact(root, "acme", moved, "2026-10-03T06:00:00Z", []byte(landed)); err != nil || !wrote {
+		t.Fatalf("a changed verdict over the branch's copy wrote %v %v", wrote, err)
 	}
 }

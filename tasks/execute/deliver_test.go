@@ -119,6 +119,43 @@ func TestAShellCodeWorksTreeChangeIsDelivered(t *testing.T) {
 	}
 	clean(t, root)
 
+	// The same change again is the tree the branch holds: the pull request
+	// is answered and nothing is pushed.
+	headOf := func() string {
+		out, err := exec.Command("git", "--git-dir", origin, "rev-parse", branch).Output()
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(out)
+	}
+	before := headOf()
+	same := w.Run(tk, Work{Item: workitem.Issue{Number: 6}, Target: Target{Mode: ModeAmend, Branch: branch, PR: res.DeliveredPR}})
+	if !same.OK || same.DeliveredPR != res.DeliveredPR || headOf() != before {
+		t.Errorf("an unchanged recompute pushed or lost the pull request: %+v", same)
+	}
+	clean(t, root)
+
+	// A change the base branch already landed, behind the checkout's own
+	// HEAD, delivers nothing.
+	other := filepath.Join(t.TempDir(), "other")
+	for _, args := range [][]string{{"clone", "--quiet", origin, other}, {"-C", other, "checkout", "--quiet", "-B", "main", "origin/main"}} {
+		if out, err := exec.Command("git", args...).CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	_ = os.MkdirAll(filepath.Join(other, ".claudinite/fleet"), 0o755)
+	_ = os.WriteFile(filepath.Join(other, rosterPath), []byte("merged\n"), 0o644)
+	for _, args := range [][]string{{"-C", other, "add", "-A"}, {"-C", other, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "--quiet", "-m", "merged"}, {"-C", other, "push", "--quiet", "origin", "HEAD:main"}} {
+		if out, err := exec.Command("git", args...).CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	w.Env["ROSTER"] = "merged"
+	if res := w.Run(tk, Work{Item: workitem.Issue{Number: 7}, Target: Target{Mode: ModeFresh, Branch: "claudinite/acme-pack/a/again"}}); !res.OK || res.DeliveredPR != 0 {
+		t.Errorf("a change the base already holds delivered %+v", res)
+	}
+	clean(t, root)
+
 	// A run that leaves nothing new delivers nothing.
 	w.Env["ROSTER"] = "two"
 	tk = shellTask(t, "true", map[string]any{"expected_outcome": "amend_existing_or_create_new_pr"})

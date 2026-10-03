@@ -377,8 +377,12 @@ func (c CodeWorker) Run(t taskspec.Task, w Work) CodeWorkResult {
 				c.Log(err.Error())
 				return CodeWorkResult{Why: "code-work's tree change could not be delivered", Detail: err.Error()}
 			}
-			c.Log(fmt.Sprintf("delivered code-work's change to %s on #%d: %s", w.Target.Branch, pr, strings.Join(paths, ", ")))
-			out.DeliveredPR, out.Branch = pr, w.Target.Branch
+			if pr == 0 {
+				c.Log("code-work's change leaves " + c.Place.DefaultBranch + " as it is; nothing delivered: " + strings.Join(paths, ", "))
+			} else {
+				c.Log(fmt.Sprintf("delivered code-work's change to %s on #%d: %s", w.Target.Branch, pr, strings.Join(paths, ", ")))
+				out.DeliveredPR, out.Branch = pr, w.Target.Branch
+			}
 		}
 	}
 	if sdk != nil && out.DeliveredPR == 0 && len(sdk.Opened) > 0 {

@@ -58,20 +58,33 @@ func Verdicts(roster []Entry) []fleet.Verdict {
 }
 
 // WriteArtifact writes the roster file into the checkout at root when
-// anything but its generated stamp changed, reporting whether it did.
-func WriteArtifact(root, owner string, verdicts []fleet.Verdict, generated string) (bool, error) {
+// anything but its generated stamp changed from prior, reporting whether
+// it did. prior is the file as the branch it lands on holds it, nil to
+// read the checkout's own; a stamp-only recompute leaves prior's bytes in
+// the checkout, so the tree handed on is the one already landed.
+func WriteArtifact(root, owner string, verdicts []fleet.Verdict, generated string, prior []byte) (bool, error) {
 	p := filepath.Join(root, filepath.FromSlash(RosterFile))
-	if old, err := os.ReadFile(p); err == nil {
+	current, err := os.ReadFile(p)
+	if err != nil {
+		current = nil
+	}
+	if prior == nil {
+		prior = current
+	}
+	if prior != nil {
 		var prev struct {
 			Generated string `json:"generated"`
 		}
-		if json.Unmarshal(old, &prev) == nil {
+		if json.Unmarshal(prior, &prev) == nil {
 			same, err := Render(owner, verdicts, prev.Generated)
 			if err != nil {
 				return false, err
 			}
-			if same == string(old) {
-				return false, nil
+			if same == string(prior) {
+				if string(current) == same {
+					return false, nil
+				}
+				return false, write(p, same)
 			}
 		}
 	}
@@ -79,8 +92,12 @@ func WriteArtifact(root, owner string, verdicts []fleet.Verdict, generated strin
 	if err != nil {
 		return false, err
 	}
+	return true, write(p, text)
+}
+
+func write(p, text string) error {
 	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
-		return false, err
+		return err
 	}
-	return true, os.WriteFile(p, []byte(text), 0o644)
+	return os.WriteFile(p, []byte(text), 0o644)
 }

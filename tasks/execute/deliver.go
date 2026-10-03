@@ -79,7 +79,8 @@ func gitOK(git func(args ...string) (gitcmd.Ran, error), args ...string) (string
 }
 
 // deliverTree lands paths, read from the checkout at root, on target's
-// branch and answers the pull request it is on.
+// branch and answers the pull request it is on: none when the change
+// leaves the base branch's tree as it is.
 func deliverTree(sdk *SDK, root, base string, target Target, t taskspec.Task, item int, paths []string) (int, error) {
 	if target.Branch == "" || target.Branch == base {
 		return 0, fmt.Errorf("no branch of this task's own to deliver on (target %q)", target.Branch)
@@ -126,12 +127,32 @@ func deliverTree(sdk *SDK, root, base string, target Target, t taskspec.Task, it
 	if _, err := gitOK(sdk.Git, append([]string{"-C", tree, "add", "-A", "--"}, paths...)...); err != nil {
 		return 0, err
 	}
+	staged, err := sdk.Git("-C", tree, "diff", "--cached", "--quiet")
+	if err != nil {
+		return 0, err
+	}
+	if staged.Code == 0 {
+		return 0, nil
+	}
 	if _, err := gitOK(sdk.Git, "-C", tree, "commit", "--quiet", "-m", TreeCommitMessage(t, item, paths)); err != nil {
 		return 0, err
 	}
 	head, err := gitOK(sdk.Git, "-C", tree, "rev-parse", "HEAD")
 	if err != nil {
 		return 0, err
+	}
+	built, err := gitOK(sdk.Git, "-C", tree, "rev-parse", "HEAD^{tree}")
+	if err != nil {
+		return 0, err
+	}
+	// A recompute that builds the tree the branch already holds pushes
+	// nothing: a new head would discard every check already run on it.
+	if target.PR != 0 {
+		if _, err := gitOK(sdk.Git, "fetch", "--quiet", "origin", target.Branch); err == nil {
+			if there, err := gitOK(sdk.Git, "rev-parse", "FETCH_HEAD^{tree}"); err == nil && there == built {
+				return target.PR, nil
+			}
+		}
 	}
 	if _, err := gitOK(sdk.Git, "push", "--quiet", "--force", "origin", strings.TrimSpace(head)+":refs/heads/"+target.Branch); err != nil {
 		return 0, err

@@ -1,6 +1,6 @@
 #!/bin/sh
 # The local Phase 1 to 4 gates, against the built release in $DIST
-# (default dist/) served by regstub, in ten modes:
+# (default dist/) served by regstub, in eleven modes:
 #
 #   fresh    the host's smoke leg (release/smoke-platform.sh) on a new member
 #   current  a member warm on this release moves its pin to the next ordinal
@@ -70,11 +70,19 @@
 #            the requested list, cn fleet pack-seeds splices a seed into one
 #            member, and cn check world blocks on a seed the manager runs
 #            differently.
+#   dashboard a member declaring claudinite-dashboard in YAML with a local
+#            descriptor (release/dashboard-fixture.sh): the flat files and
+#            the member file, tasks flat --check, descriptor-usable on a
+#            local descriptor and silent on the mount's, cn dashboard
+#            descriptor; then the fleet fixture's manager declaring the
+#            dashboard: cn fleet roster's artifact, a fleet-roster item
+#            landing it under its policy and writing nothing again, and cn
+#            fleet add-packs measuring a canary member on a stable manager.
 #
 # The update, packs, adopt, tasks, license and growth modes give every member a GitHub-shaped
 # origin (url.<bare>.insteadOf), as the session's key request reads it.
 #
-#   release/rehearse.sh [--mode fresh|current|stale|update|packs|adopt|tasks|license|growth|fleet]   (default: all ten)
+#   release/rehearse.sh [--mode fresh|current|stale|update|packs|adopt|tasks|license|growth|fleet|dashboard]   (default: all eleven)
 #
 # UPDATE_STEPS=4 stops the update mode after the landing and the session on
 # the landed version (release/hop.sh); the default, 11, runs every step.
@@ -92,13 +100,13 @@ export GOCACHE
 fail() { echo "rehearse: FAIL: $*" >&2; exit 1; }
 step() { echo "rehearse: $*"; }
 
-usage="usage: release/rehearse.sh [--mode fresh|current|stale|update|packs|adopt|tasks|license|growth|fleet]"
-modes="fresh current stale update packs adopt tasks license growth fleet"
+usage="usage: release/rehearse.sh [--mode fresh|current|stale|update|packs|adopt|tasks|license|growth|fleet|dashboard]"
+modes="fresh current stale update packs adopt tasks license growth fleet dashboard"
 case $# in
   0) ;;
   2)
     [ "$1" = --mode ] || fail "$usage"
-    case $2 in fresh|current|stale|update|packs|adopt|tasks|license|growth|fleet) modes=$2 ;; *) fail "unknown mode $2" ;; esac ;;
+    case $2 in fresh|current|stale|update|packs|adopt|tasks|license|growth|fleet|dashboard) modes=$2 ;; *) fail "unknown mode $2" ;; esac ;;
   *) fail "$usage" ;;
 esac
 
@@ -305,6 +313,68 @@ gh_count() { gh_state | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("e
 # workflow runs it.
 cn_member() { (cd "$member" && GITHUB_TOKEN=rehearsal-token .claudinite/bin/cn "$@"); }
 main_run() { ctl /_stub/run "{\"ref\":\"main\",\"conclusion\":\"$1\"}"; }
+
+# fleet_rig NAME ROOT: the manager NAME declaring claudinite-fleet-sheepdog
+# over release/fleet-fixture.sh's eight acme repositories under
+# ROOT/fleet/, served by ghstub and licstub, the sweep environment a
+# desktop runs it in, and fleet_cn.
+fleet_rig() {
+  warm_member "$1"
+  # The newest release the registry serves: earlier modes may have
+  # published $next.
+  latest=$version latest_pin=$pin
+  if [ -f "$dist2/manifest.integrity" ]; then latest=$next latest_pin=$(cat "$dist2/manifest.integrity"); fi
+  behind=$(printf '%s\n' "$version" | awk -F. '{ print $1 - 1 "." $2 "." $3 }')
+  flags=$(sh release/fleet-fixture.sh "$2" "$member" "$version" "$latest" "$behind" "$latest_pin" "$package") || fail "fleet: fixture"
+  origin=$work/$1-origin.git
+  git init -q --bare -b main "$origin"
+  (cd "$member" && git init -q -b main && git add -A && git -c user.name=rehearse -c user.email=r@x -c commit.gpgsign=false commit -q -m adopt) \
+    || fail "fleet: git setup"
+  oldifs=$IFS
+  IFS='
+'
+  # shellcheck disable=SC2086 # the fixture prints one flag per line
+  set -- $flags
+  IFS=$oldifs
+  start_ghstub "$origin" "$@" --repo acme/manager
+  start_licstub
+  # Steps 1 to 5 sweep from a desktop; an earlier mode's Actions
+  # identity would name a stub that is gone.
+  unset ACTIONS_ID_TOKEN_REQUEST_URL ACTIONS_ID_TOKEN_REQUEST_TOKEN GITHUB_REPOSITORY_ID GITHUB_REPOSITORY_OWNER_ID GITHUB_REPOSITORY_OWNER
+  cat "$work/ca.pem" "$work/gh-ca.pem" "$work/lic-ca.pem" > "$work/cas.pem"
+  SSL_CERT_FILE=$work/cas.pem CURL_CA_BUNDLE=$work/cas.pem
+  GITHUB_REPOSITORY=acme/manager CLAUDINITE_GITHUB_API=$gh FLEET_GITHUB_TOKEN=rehearsal-token CLAUDINITE_FLEET_POLL_MS=50
+  export SSL_CERT_FILE CURL_CA_BUNDLE GITHUB_REPOSITORY CLAUDINITE_GITHUB_API FLEET_GITHUB_TOKEN CLAUDINITE_FLEET_POLL_MS
+  fleet_cn() { (cd "$member" && .claudinite/bin/cn fleet "$@") > "$work/fleet.out" 2> "$work/fleet.err"; }
+  adoption() { gh_count 'st.issues.filter(i=>i.labels.includes("fleet-adoption")&&i.state==="open").map(i=>i.title).join(",")'; }
+  member_calls() { gh_count 'st.calls.filter(c=>c.startsWith("member ")||c==="user-repos").length'; }
+  expect_line() { grep -qF -- "$1" "$work/fleet.out" || fail "fleet $2: no line '$1': $(cat "$work/fleet.out" "$work/fleet.err")"; }
+}
+
+# fleet_catalog NAME: the shelf's catalog from a local pack source, hello
+# and hello-asks, each with a fingerprint, on the canary channel, served
+# by cdnstub with a floor of two packs; member_issues and member_writes
+# read what the sweeps leave in the members.
+fleet_catalog() {
+  src=$work/$1-src
+  sh release/packs-fixture.sh "$src" --min-engine "$version" > "$work/fixture.out" 2>&1 || fail "$1: packs fixture: $(cat "$work/fixture.out")"
+  sh release/packs-fixture.sh "$src" --publish-pack hello-asks > "$work/fixture.out" 2>&1 || fail "$1: packs fixture hello-asks: $(cat "$work/fixture.out")"
+  [ -x "$work/cdnstub" ] || go build -o "$work/cdnstub" ./release/cdnstub
+  "$work/cdnstub" --repo "$src/cdn.git" --ready "$work/$1-cdn-ready" --ca-out "$work/$1-cdn-ca.pem" --log "$work/$1-cdn.log" &
+  cdn_pids="$cdn_pids $!"
+  tries=0
+  until [ -f "$work/$1-cdn-ready" ]; do
+    tries=$((tries + 1))
+    [ "$tries" -le 100 ] || fail "cdnstub did not start"
+    sleep 0.1
+  done
+  cat "$work/$1-cdn-ca.pem" >> "$work/cas.pem"
+  CLAUDINITE_PACKS_CDN=$(cat "$work/$1-cdn-ready") CLAUDINITE_PACKS_REPO=$src/mirror.git CLAUDINITE_FLEET_MIN_PACKS=2
+  export CLAUDINITE_PACKS_CDN CLAUDINITE_PACKS_REPO CLAUDINITE_FLEET_MIN_PACKS
+  member_issues() { gh_count 'st.fleet["acme/'"$1"'"].filter(i=>i.state==="open").map(i=>i.number+" "+i.title+" ["+i.labels.join(" ")+"]").join("\n")'; }
+  member_writes() { gh_count 'st.calls.filter(c=>/^member \S+ (POST|PATCH|PUT|DELETE) \/(issues|contents)/.test(c)).length'; }
+  suspected="Add packs: suspected"
+}
 
 for mode in $modes; do
   case $mode in
@@ -1764,36 +1834,7 @@ YAML
       ;;
     fleet)
       step "fleet: a manager declaring claudinite-fleet-sheepdog over eight acme repositories, ghstub and licstub"
-      warm_member fleet
-      # The newest release the registry serves: earlier modes may have
-      # published $next.
-      latest=$version latest_pin=$pin
-      if [ -f "$dist2/manifest.integrity" ]; then latest=$next latest_pin=$(cat "$dist2/manifest.integrity"); fi
-      behind=$(printf '%s\n' "$version" | awk -F. '{ print $1 - 1 "." $2 "." $3 }')
-      flags=$(sh release/fleet-fixture.sh "$work" "$member" "$version" "$latest" "$behind" "$latest_pin" "$package") || fail "fleet: fixture"
-      origin=$work/fleet-origin.git
-      git init -q --bare -b main "$origin"
-      (cd "$member" && git init -q -b main && git add -A && git -c user.name=rehearse -c user.email=r@x -c commit.gpgsign=false commit -q -m adopt) \
-        || fail "fleet: git setup"
-      oldifs=$IFS
-      IFS='
-'
-      # shellcheck disable=SC2086 # the fixture prints one flag per line
-      set -- $flags
-      IFS=$oldifs
-      start_ghstub "$origin" "$@" --repo acme/manager
-      start_licstub
-      # Steps 1 to 5 sweep from a desktop; an earlier mode's Actions
-      # identity would name a stub that is gone.
-      unset ACTIONS_ID_TOKEN_REQUEST_URL ACTIONS_ID_TOKEN_REQUEST_TOKEN GITHUB_REPOSITORY_ID GITHUB_REPOSITORY_OWNER_ID GITHUB_REPOSITORY_OWNER
-      cat "$work/ca.pem" "$work/gh-ca.pem" "$work/lic-ca.pem" > "$work/cas.pem"
-      SSL_CERT_FILE=$work/cas.pem CURL_CA_BUNDLE=$work/cas.pem
-      GITHUB_REPOSITORY=acme/manager CLAUDINITE_GITHUB_API=$gh FLEET_GITHUB_TOKEN=rehearsal-token CLAUDINITE_FLEET_POLL_MS=50
-      export SSL_CERT_FILE CURL_CA_BUNDLE GITHUB_REPOSITORY CLAUDINITE_GITHUB_API FLEET_GITHUB_TOKEN CLAUDINITE_FLEET_POLL_MS
-      fleet_cn() { (cd "$member" && .claudinite/bin/cn fleet "$@") > "$work/fleet.out" 2> "$work/fleet.err"; }
-      adoption() { gh_count 'st.issues.filter(i=>i.labels.includes("fleet-adoption")&&i.state==="open").map(i=>i.title).join(",")'; }
-      member_calls() { gh_count 'st.calls.filter(c=>c.startsWith("member ")||c==="user-repos").length'; }
-      expect_line() { grep -qF -- "$1" "$work/fleet.out" || fail "fleet $2: no line '$1': $(cat "$work/fleet.out" "$work/fleet.err")"; }
+      fleet_rig fleet "$work"
 
       fleet_cn roster || fail "fleet 1: roster: $(cat "$work/fleet.out" "$work/fleet.err")"
       expect_line '| 4 | 1 | 1 | 1 | 1 | 0 |' 1
@@ -1872,24 +1913,9 @@ YAML
       # Steps 8 to 13 read the shelf's catalog from a local pack source:
       # hello and hello-asks, each with a fingerprint, on the canary channel
       # acme/behind declares.
-      src=$work/fleetsrc
-      sh release/packs-fixture.sh "$src" --min-engine "$version" > "$work/fixture.out" 2>&1 || fail "fleet 8: fixture: $(cat "$work/fixture.out")"
-      sh release/packs-fixture.sh "$src" --publish-pack hello-asks > "$work/fixture.out" 2>&1 || fail "fleet 8: fixture hello-asks: $(cat "$work/fixture.out")"
-      [ -x "$work/cdnstub" ] || go build -o "$work/cdnstub" ./release/cdnstub
-      "$work/cdnstub" --repo "$src/cdn.git" --ready "$work/fleet-cdn-ready" --ca-out "$work/fleet-cdn-ca.pem" --log "$work/fleet-cdn.log" &
-      cdn_pids="$cdn_pids $!"
-      tries=0
-      until [ -f "$work/fleet-cdn-ready" ]; do
-        tries=$((tries + 1))
-        [ "$tries" -le 100 ] || fail "cdnstub did not start"
-        sleep 0.1
-      done
-      cat "$work/fleet-cdn-ca.pem" >> "$work/cas.pem"
-      CLAUDINITE_PACKS_CDN=$(cat "$work/fleet-cdn-ready") CLAUDINITE_PACKS_REPO=$src/mirror.git FLEET_GITHUB_TOKEN=$saved CLAUDINITE_FLEET_MIN_PACKS=2
-      export CLAUDINITE_PACKS_CDN CLAUDINITE_PACKS_REPO FLEET_GITHUB_TOKEN CLAUDINITE_FLEET_MIN_PACKS
-      member_issues() { gh_count 'st.fleet["acme/'"$1"'"].filter(i=>i.state==="open").map(i=>i.number+" "+i.title+" ["+i.labels.join(" ")+"]").join("\n")'; }
-      member_writes() { gh_count 'st.calls.filter(c=>/^member \S+ (POST|PATCH|PUT|DELETE) \/(issues|contents)/.test(c)).length'; }
-      suspected="Add packs: suspected"
+      fleet_catalog fleet
+      FLEET_GITHUB_TOKEN=$saved
+      export FLEET_GITHUB_TOKEN
 
       fleet_cn add-packs --scan-for-needed-packs=true --repos=all-covered-members || fail "fleet 8: add-packs: $(cat "$work/fleet.out" "$work/fleet.err")"
       expect_line 'catalog: 2 pack(s), 0 on stable and 2 on canary' 8
@@ -1942,6 +1968,111 @@ YAML
       if cn_member check world > "$work/world.out" 2>&1; then fail "fleet 13: a disagreeing seed passed: $(cat "$work/world.out")"; fi
       grep -q 'fleet-pack-seed-agrees' "$work/world.out" || fail "fleet 13: no fleet-pack-seed-agrees finding: $(cat "$work/world.out")"
       step "fleet 13: cn check world in the manager, its own hello entry disagreeing with the seed, blocks on fleet-pack-seed-agrees"
+      ;;
+    dashboard)
+      step "dashboard: a member declaring claudinite-dashboard in YAML with a local descriptor, then a fleet manager publishing its roster"
+      warm_member dashboard
+      sh release/dashboard-fixture.sh member "$member" "$version" || fail "dashboard: member fixture"
+      (cd "$member" && git init -q -b main && git add -A && git -c user.name=rehearse -c user.email=r@x -c commit.gpgsign=false commit -q -m adopt) \
+        || fail "dashboard: git setup"
+      flat=$member/.claudinite/flat
+      # json FILE EXPR: a value read from a JSON file with node.
+      json() { node -e 'const st=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));process.stdout.write(String(eval(process.argv[2])))' "$1" "$2"; }
+
+      cn_member rules-index > "$work/index.out" 2>&1 || fail "dashboard 1: rules-index: $(cat "$work/index.out")"
+      for f in tasks dashboard member; do
+        [ -f "$flat/$f.GENERATED.json" ] || fail "dashboard 1: no $f.GENERATED.json: $(cat "$work/index.out")"
+      done
+      [ "$(json "$flat/member.GENERATED.json" 'st.settings.path+" "+st.settings.format')" = ".claudinite/settings.yaml yaml" ] \
+        || fail "dashboard 1: the member file names $(json "$flat/member.GENERATED.json" 'JSON.stringify(st.settings)')"
+      [ "$(json "$flat/member.GENERATED.json" 'st.engine.package+" "+st.engine.version+" "+st.engine.channel')" = "$package $version $(case $package in *-rc) echo canary ;; *) echo stable ;; esac)" ] \
+        || fail "dashboard 1: the member file's pin is $(json "$flat/member.GENERATED.json" 'JSON.stringify(st.engine)')"
+      [ "$(json "$flat/member.GENERATED.json" 'JSON.stringify(st.held)+" "+st.packs.declared.map(e=>e.id).join(",")+" "+st.dormant')" = '{"claudinite-dashboard":"1.0"} claudinite-dashboard,local/acme false' ] \
+        || fail "dashboard 1: the member file: $(cat "$flat/member.GENERATED.json")"
+      step "dashboard 1: rules-index wrote the three flat files; member.GENERATED.json names the YAML path, the pin and the held versions"
+
+      cn_member tasks flat --check > "$work/flat.out" 2>&1 || fail "dashboard 2: a fresh tree is stale: $(cat "$work/flat.out")"
+      sed 's/        mode: "repo"/        mode: "fleet"/' "$member/.claudinite/settings.yaml" > "$work/settings.yaml" && mv "$work/settings.yaml" "$member/.claudinite/settings.yaml"
+      if cn_member tasks flat --check > "$work/flat.out" 2>&1; then fail "dashboard 2: --check passed a moved declaration"; fi
+      grep -q 'member.GENERATED.json' "$work/flat.out" || fail "dashboard 2: --check names no member file: $(cat "$work/flat.out")"
+      cn_member tasks flat --write > "$work/flat.out" 2>&1 || fail "dashboard 2: --write: $(cat "$work/flat.out")"
+      cn_member tasks flat --check > "$work/flat.out" 2>&1 || fail "dashboard 2: stale after --write: $(cat "$work/flat.out")"
+      [ "$(json "$flat/member.GENERATED.json" 'st.packs.declared[0].config.mode')" = fleet ] || fail "dashboard 2: the member file kept the old config"
+      step "dashboard 2: tasks flat --check exits 1 once the declaration moves and 0 after --write"
+
+      cn_member check world > "$work/world.out" 2>&1 || fail "dashboard 3: check world: $(cat "$work/world.out")"
+      local_desc=$member/.claudinite/local/packs/acme/dashboard.json
+      cp "$local_desc" "$work/dashboard.json"
+      sed 's/"repo": \["widgets", "shipped"\]/"repo": ["widgets", "ghost"]/' "$work/dashboard.json" > "$local_desc"
+      if cn_member check world > "$work/world.out" 2>&1; then fail "dashboard 3: an undeclared id passed: $(cat "$work/world.out")"; fi
+      grep -F 'descriptor-usable' "$work/world.out" | grep -F '.claudinite/local/packs/acme/dashboard.json' | grep -qF 'selects widget id(s) it does not declare: ghost' \
+        || fail "dashboard 3: no descriptor-usable finding: $(cat "$work/world.out")"
+      cp "$local_desc" "$member/.claudinite/shared/packs/claudinite-dashboard/dashboard.json"
+      cp "$work/dashboard.json" "$local_desc"
+      cn_member check world > "$work/world.out" 2>&1 || fail "dashboard 3: a broken mount descriptor fired: $(cat "$work/world.out")"
+      step "dashboard 3: check world passes; an undeclared id in the local descriptor blocks on descriptor-usable; the same file in the mount is silent"
+
+      cn_member dashboard descriptor .claudinite/local/packs/acme/dashboard.json > "$work/desc.out" 2>&1 || fail "dashboard 4: a good descriptor: $(cat "$work/desc.out")"
+      grep -qx '.claudinite/local/packs/acme/dashboard.json: ok' "$work/desc.out" || fail "dashboard 4: $(cat "$work/desc.out")"
+      if cn_member dashboard descriptor --json .claudinite/shared/packs/claudinite-dashboard/dashboard.json > "$work/desc.out" 2>&1; then fail "dashboard 4: a broken descriptor exited 0"; fi
+      [ "$(json "$work/desc.out" 'st[0].pack+" "+st[0].repo.join(",")+" "+st[0].problems.map(p=>p.what).join("|")')" = 'claudinite-dashboard widgets selects widget id(s) it does not declare: ghost' ] \
+        || fail "dashboard 4: the verdict: $(cat "$work/desc.out")"
+      step "dashboard 4: cn dashboard descriptor says ok over a good descriptor and exits 1 with the JSON verdict over the broken one"
+
+      fleet_rig dashboard-manager "$work/dashboard-fleet"
+      sh release/dashboard-fixture.sh manager "$member" "$version" || fail "dashboard: manager fixture"
+      (cd "$member" && git add -A && git -c user.name=rehearse -c user.email=r@x -c commit.gpgsign=false commit -q -m dashboard \
+        && git remote add origin "$origin" && git -c push.negotiate=false push -q origin main) || fail "dashboard: manager git setup"
+      roster=$member/.claudinite/fleet/roster.GENERATED.json
+      fleet_cn roster || fail "dashboard 5: roster: $(cat "$work/fleet.out" "$work/fleet.err")"
+      [ "$(json "$roster" 'st.owner+" "+st.members.length+" "+st.members.find(m=>m.repo==="acme/manager").scope')" = "acme 9 home" ] \
+        || fail "dashboard 5: the roster file: $(cat "$roster" 2>&1)"
+      [ "$(json "$roster" 'st.members.find(m=>m.repo==="acme/current").freshness.state+" "+st.members.find(m=>m.repo==="acme/nodemember").shape')" = "fresh node" ] \
+        || fail "dashboard 5: the roster's verdicts: $(cat "$roster")"
+      rm "$roster"
+      actions_env
+      licctl '{"plan":"personal"}'
+      execute() { (cd "$member" && GITHUB_TOKEN=rehearsal-token CLAUDINITE_SECRETS="{\"FLEET_GITHUB_TOKEN\":\"rehearsal-token\"}" .claudinite/bin/cn execute loop) > "$work/exec.out" 2>&1; }
+      item() { gh_count 'Math.max(0,...st.issues.filter(i=>i.title==="'"$1"'").map(i=>i.number))'; }
+      labels_of() { gh_count 'st.issues.find(i=>i.number==='"$1"').labels.join(" ")'; }
+      roster_item="[claudinite-work] claudinite-fleet-sheepdog/fleet-roster"
+      cn_member work create claudinite-fleet-sheepdog/fleet-roster --qualifier artifact > "$work/create.out" 2>&1 || fail "dashboard 5: work create: $(cat "$work/create.out")"
+      n=$(item "$roster_item artifact")
+      ctl /_stub/dispatch '{"conclusion":"success"}'
+      execute || fail "dashboard 5: execute: $(cat "$work/exec.out")"
+      case " $(labels_of "$n") " in *" task:status:done "*|*" task:status:needs-human-approval "*) ;; *) fail "dashboard 5: #$n is $(labels_of "$n"): $(cat "$work/exec.out")" ;; esac
+      [ "$(gh_count 'st.pulls.length')" = 1 ] || fail "dashboard 5: $(gh_count 'st.pulls.length') pull requests: $(cat "$work/exec.out")"
+      head_ref=$(gh_count 'st.pulls[0].head')
+      case $head_ref in claudinite/claudinite-fleet-sheepdog/fleet-roster/*) ;; *) fail "dashboard 5: the PR is from $head_ref" ;; esac
+      [ "$(gh_count 'st.pulls[0].state')" = closed ] || fail "dashboard 5: PR #$(gh_count 'st.pulls[0].number') did not land: $(cat "$work/exec.out")"
+      head_sha=$(gh_count 'st.pulls[0].head_sha')
+      msg=$(git --git-dir "$origin" log -1 --format=%B "$head_sha")
+      case $msg in *"Claudinite-Task: claudinite-fleet-sheepdog/fleet-roster"*"Claudinite-Automerge-Policy: fleet-roster-artifact"*) ;; *) fail "dashboard 5: the PR head's trailers: $msg" ;; esac
+      [ "$(git --git-dir "$origin" diff --name-only "$head_sha^" "$head_sha")" = .claudinite/fleet/roster.GENERATED.json ] \
+        || fail "dashboard 5: the PR touches $(git --git-dir "$origin" diff --name-only "$head_sha^" "$head_sha")"
+      git --git-dir "$origin" show main:.claudinite/fleet/roster.GENERATED.json > /dev/null 2>&1 || fail "dashboard 5: main holds no roster"
+      [ -z "$(cd "$member" && git status --porcelain)" ] || fail "dashboard 5: the executor left the checkout changed: $(cd "$member" && git status --porcelain)"
+      main_sha=$(git --git-dir "$origin" rev-parse main)
+      cn_member work create claudinite-fleet-sheepdog/fleet-roster --qualifier again > "$work/create.out" 2>&1 || fail "dashboard 5: work create: $(cat "$work/create.out")"
+      n=$(item "$roster_item again")
+      execute || fail "dashboard 5: second execute: $(cat "$work/exec.out")"
+      case " $(labels_of "$n") " in *" task:status:done "*|*" task:status:needs-human-approval "*) ;; *) fail "dashboard 5: the second #$n is $(labels_of "$n"): $(cat "$work/exec.out")" ;; esac
+      [ "$(gh_count 'st.pulls.length')" = 1 ] || fail "dashboard 5: a second run opened another pull request: $(cat "$work/exec.out")"
+      [ "$(git --git-dir "$origin" rev-parse main)" = "$main_sha" ] || fail "dashboard 5: a second run moved main"
+      [ -z "$(cd "$member" && git status --porcelain)" ] || fail "dashboard 5: the second run left the checkout changed: $(cd "$member" && git status --porcelain)"
+      step "dashboard 5: cn fleet roster wrote one verdict per repository, the manager's as home; a fleet-roster item landed it on one PR under fleet-roster-artifact; the second run wrote nothing"
+
+      fleet_catalog dashboard
+      bt='`'
+      fleet_cn add-packs --scan-for-needed-packs=true --repos=all-covered-members || fail "dashboard 6: add-packs: $(cat "$work/fleet.out" "$work/fleet.err")"
+      expect_line 'catalog: 2 pack(s), 0 on stable and 2 on canary' "dashboard 6"
+      gh_count 'st.fleet["acme/behind"].find(i=>i.title.startsWith("'"$suspected"'")).body' | grep -qF "${bt}hello-asks${bt}" \
+        || fail "dashboard 6: the canary member was not measured on canary: $(member_issues behind) $(cat "$work/fleet.out")"
+      CLAUDINITE_FLEET_MIN_PACKS=3
+      if fleet_cn add-packs --scan-for-needed-packs=true --repos=all-covered-members; then fail "dashboard 6: a catalog under the floor swept"; fi
+      grep -qF "only 2 pack(s) in the shelf's catalog across both channels" "$work/fleet.err" || fail "dashboard 6: the floor's refusal: $(cat "$work/fleet.err")"
+      CLAUDINITE_FLEET_MIN_PACKS=2
+      step "dashboard 6: on a stable manager, add-packs measured canary acme/behind against the canary catalog, counted both channels, and the floor counts both"
       ;;
   esac
 done
