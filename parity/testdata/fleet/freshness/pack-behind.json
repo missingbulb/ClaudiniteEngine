@@ -19,5 +19,10 @@
   "expect": {
     "detail": "behind canon by node v61001.1 → v61002.2",
     "state": "behind"
+  },
+  "divergence": "record-94",
+  "cn": {
+    "state": "behind",
+    "detail": "behind the published versions by node 61001.1 → 61002.2"
   }
 }

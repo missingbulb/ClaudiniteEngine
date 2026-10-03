@@ -38,5 +38,28 @@
       "unhealthy": [],
       "unknown": []
     }
+  },
+  "divergence": "record-94",
+  "cn": {
+    "coverage": {
+      "covered": [
+        "acme/claudinite"
+      ],
+      "dormant": [],
+      "uncovered": [],
+      "ignored": [],
+      "skipped": [],
+      "unknown": []
+    },
+    "freshness": {
+      "fresh": [],
+      "unhealthy": [],
+      "dormant": [],
+      "ignored": [],
+      "outOfScope": [],
+      "unknown": [
+        "acme/claudinite — not measured"
+      ]
+    }
   }
 }

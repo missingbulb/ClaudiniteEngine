@@ -17,5 +17,10 @@
   "expect": {
     "detail": "behind canon by engine v61001.1 → v61002.1",
     "state": "behind"
+  },
+  "divergence": "record-94",
+  "cn": {
+    "state": "behind",
+    "detail": "behind the published versions by engine 61001.1.0 → 61002.1.0"
   }
 }

@@ -28,5 +28,20 @@
   "expect": {
     "members": [],
     "owner": "acme"
+  },
+  "divergence": "record-94",
+  "cn": {
+    "owner": "acme",
+    "members": [
+      {
+        "repo": "acme/claudinite",
+        "defaultBranch": "main",
+        "activePacks": [],
+        "packConfigs": {},
+        "localPacksChanged": false,
+        "schedulesItself": false,
+        "stamp": null
+      }
+    ]
   }
 }

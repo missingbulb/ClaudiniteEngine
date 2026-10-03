@@ -18,5 +18,12 @@
     "exclude": [],
     "owner": "acme",
     "packSeeds": []
+  },
+  "divergence": "record-94",
+  "cn": {
+    "exclude": [],
+    "note": "[cn] fleet: canonRepo is not read; current is judged against the published engine and pack versions",
+    "owner": "acme",
+    "packSeeds": []
   }
 }

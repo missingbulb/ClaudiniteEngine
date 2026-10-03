@@ -13,5 +13,10 @@
   "expect": {
     "detail": ".claudinite-settings.json carries no engineVersion and no pack versions — the repo declares packs but has never been vendored",
     "state": "no-stamp"
+  },
+  "divergence": "record-95",
+  "cn": {
+    "state": "no-stamp",
+    "detail": ".claudinite/settings.yaml carries no readable engine pin and no declared pack holds a manifest version — the repo declares packs but has never been vendored"
   }
 }

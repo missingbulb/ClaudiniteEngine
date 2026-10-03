@@ -137,6 +137,18 @@ commands:
   pack new <name> [--belongs TEXT] [--excludes TEXT] [--repo DIR]
                  scaffold the local pack a repo's own lessons land in,
                  and declare it as local/<name>
+  fleet roster [--repo DIR] [--api URL]
+                 a fleet manager's sweep: one fleet-adoption issue per
+                 uncovered repo and the coverage and freshness report;
+                 needs FLEET_GITHUB_TOKEN; exit 1 on any unknown
+  fleet update [--repo DIR] [--api URL]
+                 dispatch every covered member's update and follow each
+                 to an outcome; REPOS, DRY_RUN, INCLUDE_DORMANT and
+                 FOLLOW_MINUTES ride CLAUDINITE_CONTEXT
+  fleet judge <owner/name> [--json] [--repo DIR] [--api URL]
+                 one repository's shape, dormancy and freshness
+  fleet token [--sweep S] [--json]
+                 what FLEET_GITHUB_TOKEN must be granted
 `
 
 // secretScanPlant is set only by the secret scan's own test build, to prove
@@ -276,6 +288,8 @@ func dispatch(args []string, stdin io.Reader, stdout, stderr io.Writer, start ti
 		return cmdProvenance(args[1:], stdin, stdout, stderr)
 	case "pack":
 		return cmdPack(args[1:], stdout)
+	case "fleet":
+		return cmdFleet(args[1:], stdout, stderr, start)
 	}
 	return report.New(report.Usage, fmt.Sprintf("unknown command %q", args[0]))
 }

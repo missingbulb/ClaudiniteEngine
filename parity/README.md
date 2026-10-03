@@ -14,6 +14,7 @@ fixture format is at the top of its test file.
 | verify answers | `testdata/answered/<rule>/<case>.json` | `testdata/shims/answered.mjs`: the rule's `run` over `nodeFiles` | `cn verify` over `cnShape` with `cnFiles` laid over it |
 | settings | `testdata/settings/<name>/`: a declaration and the tree it sits in | `testdata/shims/settings.mjs`: the reader, the registry and `legacy-shape-in-use` | `cn settings import`, then `cn verify` over the imported member |
 | growth | `testdata/growth/<core>/<name>.json` | `testdata/shims/growth.mjs`: `capture-log.mjs` and `prune-logs.mjs` | `cn growth decide <core> --world` |
+| fleet | `testdata/fleet/<core>/<name>.json` | `testdata/shims/fleet.mjs`: the sheepdog's modules over a fake `gh` built from the fixture's `calls` table, and the tasks pack's fleet signal reader | `cn fleet decide <core> --world` |
 | from-node | real Node trees in `CLAUDINITE_PARITY_TREES`, moved in `lifecycle/adopt`'s `TestFromNodeOverRealMembers` | none: no Node answer exists for a `cn` tree | `cn init --from-node` over a copy, then `cn verify`: only `node-leftovers`, `local-pack-shape` and the shelf's legacy minimums |
 
 A fixture's `expect` is always the Node engine's answer, written by
@@ -82,3 +83,18 @@ Settings face divergences: 4 of 19 fixtures.
 | 73 | served-by-updates | Node errs on `servedBy`; cn has one update mechanism, so the import drops it |
 | 79 | local-js-rules | cn runs no JavaScript check; verify breaks on each one in a local pack |
 | 80 | renamed-ids-config | Node's reader lets the last entry for an id replace the config wholesale, losing basics' own; the import does what Node's barriers-absorbed record writes, nesting barriers' config under `config.barriers` and merging |
+
+The fleet slice added the `fleet` face: the token grant, the manager's
+config, dormancy, dispatch classes, the update's scope, freshness, the
+roster's views, the four reports, the adoption issues' convergence, the
+follow loop and the signal reader. cn has no canon repo: current is what
+each member's own update would move it to, and a repo once named canon is
+judged as any other.
+
+Fleet face divergences: 18 of 67 fixtures.
+
+| Row | Fixtures | Why |
+| --- | --- | --- |
+| 94 | config/canon-repo, freshness/engine-behind, freshness/fresh, freshness/non-version-skipped, freshness/pack-behind, freshness/pack-canon-lacks, freshness/packs-only-stamp, reports/freshness-full, reports/update-dry-run, reports/update-live, reports/update-nothing-dispatched, reports/verdict-not-current, scope/canon, signal/canon-skipped, views/canon | there is no canon: freshness is judged against the published engine and pack versions a member's own update reads, and a repo Node set aside as canon is measured like any member |
+| 95 | freshness/no-stamp | a cn member's held versions are its engine pin and its vendored manifests, so the no-stamp detail names `.claudinite/settings.*` |
+| 98 | adoption/create-refused, adoption/open-new | the adoption issue asks for `cn init` and names `.claudinite/settings.*` |

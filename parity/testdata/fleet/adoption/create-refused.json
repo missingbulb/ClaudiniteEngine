@@ -23,13 +23,34 @@
     "calls": [
       [
         "GET",
-        "/repos/acme/manager/issues?labels=fleet-adoption\u0026state=all\u0026per_page=100\u0026page=1"
+        "/repos/acme/manager/issues?labels=fleet-adoption&state=all&per_page=100&page=1"
       ],
       [
         "POST",
         "/repos/acme/manager/issues",
         {
           "body": "`acme/u` exists under this account but does not mount Claudinite (no tracked\n`.claudinite/` signal on its default branch) and is not on the exclude list.\n\nPick one:\n\n- **Adopt it** — run the adoption in a session on that repo (ask for \"adopt Claudinite\";\n  the `adopt-claudinite` skill drives `bootstrap.md`). This is a human-initiated step by\n  design: adoption is the one thing a repo cannot do for itself, because the scheduler\n  that would run it is what adoption installs. Nothing will do it on your behalf.\n- **Keep it out** — add `acme/u` to the claudinite-fleet-sheepdog pack entry's `config.exclude` in this\n  (claudinite-fleet-sheepdog) repo's `.claudinite-settings.json`, with a reason.\n\nThis issue is converged by the daily fleet-roster task: it closes itself once the\nrepo is covered (`completed`) or opted out (`not planned`), and a close without either\ngets reopened while the repo stays uncovered.",
+          "labels": [
+            "fleet-adoption"
+          ],
+          "title": "Adopt acme/u into the Claudinite fleet"
+        }
+      ]
+    ],
+    "error": "creating adoption issue for acme/u returned 410"
+  },
+  "divergence": "record-98",
+  "cn": {
+    "calls": [
+      [
+        "GET",
+        "/repos/acme/manager/issues?labels=fleet-adoption&state=all&per_page=100&page=1"
+      ],
+      [
+        "POST",
+        "/repos/acme/manager/issues",
+        {
+          "body": "`acme/u` exists under this account but does not mount Claudinite (no tracked\n`.claudinite/settings.*` on its default branch) and is not on the exclude list.\n\nPick one:\n\n- **Adopt it** — run the adoption in a session on that repo (ask for \"adopt Claudinite\";\n  the `adopt-claudinite` skill runs `cn init`). This is a human-initiated step by\n  design: adoption is the one thing a repo cannot do for itself, because the scheduler\n  that would run it is what adoption installs. Nothing will do it on your behalf.\n- **Keep it out** — add `acme/u` to the claudinite-fleet-sheepdog pack entry's `config.exclude` in this\n  (claudinite-fleet-sheepdog) repo's `.claudinite/settings.*`, with a reason.\n\nThis issue is converged by the daily fleet-roster task: it closes itself once the\nrepo is covered (`completed`) or opted out (`not planned`), and a close without either\ngets reopened while the repo stays uncovered.",
           "labels": [
             "fleet-adoption"
           ],

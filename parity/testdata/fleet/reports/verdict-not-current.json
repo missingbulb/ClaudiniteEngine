@@ -36,5 +36,7 @@
       "failed": []
     }
   },
-  "expect": "1 of 3 dispatched member(s) did not reach canon's versions (acme/c: never-started) — reported above, and this run fails rather than counting the dispatch as the outcome"
+  "expect": "1 of 3 dispatched member(s) did not reach canon's versions (acme/c: never-started) — reported above, and this run fails rather than counting the dispatch as the outcome",
+  "divergence": "record-94",
+  "cn": "1 of 3 dispatched member(s) did not reach the published versions (acme/c: never-started) — reported above, and this run fails rather than counting the dispatch as the outcome"
 }
