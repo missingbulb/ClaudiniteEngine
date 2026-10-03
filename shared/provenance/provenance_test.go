@@ -389,6 +389,21 @@ func TestConvertedOnly(t *testing.T) {
 // A folded pack's checks are Go under checks/, some registered through a
 // helper, some engine built-ins; each names its element's file, a check
 // the Node engine named <pack>/<id> keeping <pack>-<id>.md (#71).
+// isolateEngineChecks gives one test an empty engine-check registry and
+// puts the shared one back when it ends.
+func isolateEngineChecks(t *testing.T) {
+	t.Helper()
+	engineMu.Lock()
+	saved := engineChecks
+	engineChecks = map[string][]string{}
+	engineMu.Unlock()
+	t.Cleanup(func() {
+		engineMu.Lock()
+		engineChecks = saved
+		engineMu.Unlock()
+	})
+}
+
 func TestGoAndEngineChecksAreCarriers(t *testing.T) {
 	io := mapIO{
 		"packs/acme/pack.json":                         "{\"version\": \"1\"}\n",
@@ -404,6 +419,7 @@ func TestGoAndEngineChecksAreCarriers(t *testing.T) {
 		"packs/acme/provenance/closure-check.md":       born,
 		"packs/acme/provenance/engine-check.md":        born,
 	}
+	isolateEngineChecks(t)
 	RegisterEngineCheck("acme", "engine-check")
 	RegisterEngineCheck("other", "not-acmes")
 	a := AuditPack("packs/acme", io)
