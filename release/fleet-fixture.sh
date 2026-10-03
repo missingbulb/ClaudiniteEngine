@@ -96,7 +96,7 @@ mkdir -p "$work/fleet/uncovered"
 printf '# uncovered\n' > "$work/fleet/uncovered/README.md"
 member ignored "$version"; scheduler ignored
 mkdir -p "$work/fleet/nodemember"
-printf '{\n  "packs": ["basics"],\n  "claudinite": {"updated": "2026-01-01T00:00:00Z", "ref": "v1"}\n}\n' > "$work/fleet/nodemember/.claudinite-settings.json"
+printf '{\n  "engineVersion": "61001.1",\n  "packs": [{"id": "basics", "version": "3.0"}]\n}\n' > "$work/fleet/nodemember/.claudinite-settings.json"
 scheduler nodemember
 member forked "$version"; scheduler forked
 

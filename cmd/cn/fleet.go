@@ -281,7 +281,7 @@ func fleetLicense(root string, log io.Writer) (on bool, state, notice string) {
 		if r.Key == nil {
 			return false, license.StateDegraded + ": " + string(r.Cause), license.NoticeFor(nil, r.Cause, r.Detail, r.Link)
 		}
-		return license.Gate(r.Key, false).On(license.SurfaceFleet), r.Key.State, license.NoticeFor(r.Key, "", "", "")
+		return license.Gate(r.Key, false).On(license.SurfaceFleet), r.Key.State, fleetNotice(r.Key)
 	}
 	session := os.Getenv("CLAUDE_CODE_SESSION_ID")
 	if session == "" {
@@ -292,7 +292,20 @@ func fleetLicense(root string, log io.Writer) (on bool, state, notice string) {
 		return false, license.StateDegraded + ": no embedded roots", "[cn] license: no embedded roots"
 	}
 	s := e.Hook(root, session)
-	return s.Gates.On(license.SurfaceFleet) || s.Verdict.NoFile, stateName(s.Verdict), s.Notice
+	n := s.Notice
+	if n == "" && s.Verdict.Key != nil {
+		n = fleetNotice(s.Verdict.Key)
+	}
+	return s.Gates.On(license.SurfaceFleet) || s.Verdict.NoFile, stateName(s.Verdict), n
+}
+
+// fleetNotice is the key's own notice, or, for a key in good standing
+// whose plan does not list fleet, what to tell the person.
+func fleetNotice(k *license.KeyPayload) string {
+	if n := license.NoticeFor(k, "", "", ""); n != "" {
+		return n
+	}
+	return fmt.Sprintf("[cn] fleet: %s's %s plan does not include fleet sweeps; tell the person that someone who manages %s's plan can move it to one that does", k.OwnerLogin, k.Plan, k.OwnerLogin)
 }
 
 // emit prints the report and appends it to the step summary.

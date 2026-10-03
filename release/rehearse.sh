@@ -1786,15 +1786,15 @@ YAML
       fleet_cn roster || fail "fleet 1: roster: $(cat "$work/fleet.out" "$work/fleet.err")"
       expect_line '| 4 | 1 | 1 | 1 | 1 | 0 |' 1
       expect_line '| 1 | 1 | 1 | 0 | 1 | 1 | 1 | 2 | 0 |' 1
-      [ "$(adoption)" = "Adopt Claudinite in acme/uncovered" ] || fail "fleet 1: adoption issues $(adoption)"
-      grep -q '^\[cn\] fleet roster ok 5/8 ' "$work/fleet.err" || fail "fleet 1: breadcrumb: $(cat "$work/fleet.err")"
+      [ "$(adoption)" = "Adopt acme/uncovered into the Claudinite fleet" ] || fail "fleet 1: adoption issues $(adoption)"
+      grep -q '^\[cn\] fleet roster ok 5/9 ' "$work/fleet.err" || fail "fleet 1: breadcrumb: $(cat "$work/fleet.err")"
       step "fleet 1: the roster opened one adoption issue, for acme/uncovered; covered 4, dormant 1, ignored 1, skipped 1; fresh, behind, no scheduler and node 1 each"
 
       before=$(gh_count 'st.calls.filter(c=>/^(POST|PATCH) /.test(c)||c.startsWith("issue")).length')
       issues=$(gh_count 'st.issues.length')
       fleet_cn roster || fail "fleet 2: roster: $(cat "$work/fleet.out" "$work/fleet.err")"
       [ "$(gh_count 'st.issues.length')" = "$issues" ] || fail "fleet 2: a second roster filed an issue: $(gh_state)"
-      [ "$(adoption)" = "Adopt Claudinite in acme/uncovered" ] || fail "fleet 2: adoption issues $(adoption)"
+      [ "$(adoption)" = "Adopt acme/uncovered into the Claudinite fleet" ] || fail "fleet 2: adoption issues $(adoption)"
       [ "$before" = "$(gh_count 'st.calls.filter(c=>/^(POST|PATCH) /.test(c)||c.startsWith("issue")).length')" ] || fail "fleet 2: a second roster wrote"
       step "fleet 2: a second roster wrote nothing"
 
@@ -1815,13 +1815,14 @@ YAML
       step "fleet 4: a dry run would fire current, behind, noscheduler and nodemember, skipped dormant and ignored by name, and dispatched nothing"
 
       ctl /_stub/advance "{\"repo\":\"acme/behind\",\"files\":{\".claudinite/settings.yaml\":\"engine:\\n  package: \\\"$package\\\"\\n  version: \\\"$version\\\"\\n  manifest: \\\"$pin\\\"\\n\"}}"
-      ctl /_stub/advance '{"repo":"acme/nodemember","files":{".claudinite-settings.json":"{\"packs\": [\"basics\"], \"claudinite\": {\"updated\": \"2026-10-03T00:00:00Z\", \"ref\": \"v2\"}}\n"}}'
+      ctl /_stub/advance '{"repo":"acme/nodemember","files":{".claudinite-settings.json":"{\"engineVersion\": \"61002.1\", \"packs\": [{\"id\": \"basics\", \"version\": \"3.0\"}]}\n"}}'
       if CLAUDINITE_CONTEXT='FOLLOW_MINUTES=0.05' fleet_cn update; then fail "fleet 5: a failed dispatch passed: $(cat "$work/fleet.out")"; fi
       expect_line "[${bt}acme/behind${bt}]" 5
       grep -A1 -F '**Updated during this run**' "$work/fleet.out" | grep -qF 'acme/behind' || fail "fleet 5: behind not updated: $(cat "$work/fleet.out")"
       grep -A1 -F '**Already current**' "$work/fleet.out" | grep -qF 'acme/current' || fail "fleet 5: current not already current: $(cat "$work/fleet.out")"
+      grep -A1 -F '**Moved during this run**' "$work/fleet.out" | grep -qF 'acme/nodemember' || fail "fleet 5: nodemember not moved: $(cat "$work/fleet.out")"
       expect_line "${bt}acme/noscheduler${bt} — **no-scheduler**" 5
-      grep -q '^\[cn\] fleet update error 3/4 ' "$work/fleet.err" || fail "fleet 5: breadcrumb: $(cat "$work/fleet.err")"
+      grep -q '^\[cn\] fleet update error 3/3 ' "$work/fleet.err" || fail "fleet 5: breadcrumb: $(cat "$work/fleet.out" "$work/fleet.err")"
       [ "$(gh_count 'st.dispatches.filter(d=>d.repo&&d.inputs.wake==="update").length')" = 3 ] || fail "fleet 5: dispatches $(gh_state)"
       step "fleet 5: live, behind updated, current already current, nodemember moved, noscheduler's dispatch failed; exit 1"
 
@@ -1833,7 +1834,11 @@ YAML
       grep -q '^claudinite-needs-human: action — ' "$work/fleet.err" || fail "fleet 6: no action marker: $(cat "$work/fleet.err")"
       [ "$(member_calls)" = "$calls" ] || fail "fleet 6: a degraded key reached a member"
       licctl '{"state":"ok"}'
-      step "fleet 6: under a degraded Actions key the sweep said why, parked action and reached no member"
+      if fleet_cn roster; then fail "fleet 6: a public plan swept"; fi
+      grep -q "^claudinite-needs-human: action — \[cn\] fleet: acme's public plan does not include fleet sweeps" "$work/fleet.err" || fail "fleet 6: no plan notice: $(cat "$work/fleet.err")"
+      [ "$(member_calls)" = "$calls" ] || fail "fleet 6: a public plan reached a member"
+      licctl '{"plan":"personal"}'
+      step "fleet 6: under a degraded Actions key, and a public plan's, the sweep said why, parked action and reached no member"
 
       execute() { (cd "$member" && GITHUB_TOKEN=rehearsal-token .claudinite/bin/cn execute loop) > "$work/exec.out" 2>&1; }
       item() { gh_count 'Math.max(0,...st.issues.filter(i=>i.title==="'"$1"'").map(i=>i.number))'; }
