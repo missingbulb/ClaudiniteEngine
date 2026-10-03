@@ -1,25 +1,25 @@
 #!/bin/sh
 # Writes the rehearsal's fleet under WORK: the manager MANAGER (a member
 # release/member-fixture.sh already wrote) declares claudinite-fleet-sheepdog
-# over owner acme with acme/ignored excluded, its fleet-roster and
+# over owner acme with acme/ignored excluded, its packs needing engine VERSION, its fleet-roster and
 # fleet-update tasks as the pack declares them, and claudinite-tasks; and
 # one tree per member under WORK/fleet/, each served by release/ghstub as
 # acme/<name>:
 #
-#   current      pinned to VERSION, with its scheduler
+#   current      pinned to LATEST, with its scheduler
 #   behind       pinned to BEHIND, with its scheduler
-#   noscheduler  pinned to VERSION, no scheduler workflow
-#   dormant      pinned to VERSION, claudinite-tasks dormant
+#   noscheduler  pinned to LATEST, no scheduler workflow
+#   dormant      pinned to LATEST, claudinite-tasks dormant
 #   uncovered    no declaration
-#   ignored      pinned to VERSION, on the exclude list
+#   ignored      pinned to LATEST, on the exclude list
 #   nodemember   a Node engine declaration, with its scheduler
-#   forked       pinned to VERSION, served as a fork
+#   forked       pinned to LATEST, served as a fork
 #
-# It prints the ghstub --repo flags, one per line.
-# usage: release/fleet-fixture.sh WORK MANAGER VERSION BEHIND INTEGRITY PACKAGE
+# Every pin names manifest INTEGRITY. It prints the ghstub --repo flags, one per line.
+# usage: release/fleet-fixture.sh WORK MANAGER VERSION LATEST BEHIND INTEGRITY PACKAGE
 set -eu
-[ $# -eq 6 ] || { echo "usage: release/fleet-fixture.sh WORK MANAGER VERSION BEHIND INTEGRITY PACKAGE" >&2; exit 2; }
-work=$1 manager=$2 version=$3 behind=$4 integrity=$5 package=$6
+[ $# -eq 7 ] || { echo "usage: release/fleet-fixture.sh WORK MANAGER VERSION LATEST BEHIND INTEGRITY PACKAGE" >&2; exit 2; }
+work=$1 manager=$2 version=$3 latest=$4 behind=$5 integrity=$6 package=$7
 
 for p in claudinite-fleet-sheepdog claudinite-tasks; do
   mkdir -p "$manager/.claudinite/shared/packs/$p"
@@ -81,10 +81,10 @@ scheduler() {
   printf 'name: claudinite-scheduler\n' > "$work/fleet/$1/.github/workflows/claudinite-scheduler.yml"
 }
 
-member current "$version"; scheduler current
+member current "$latest"; scheduler current
 member behind "$behind"; scheduler behind
-member noscheduler "$version"
-member dormant "$version"; scheduler dormant
+member noscheduler "$latest"
+member dormant "$latest"; scheduler dormant
 cat >> "$work/fleet/dormant/.claudinite/settings.yaml" <<'YAML'
 packs:
   declared:
@@ -94,11 +94,11 @@ packs:
 YAML
 mkdir -p "$work/fleet/uncovered"
 printf '# uncovered\n' > "$work/fleet/uncovered/README.md"
-member ignored "$version"; scheduler ignored
+member ignored "$latest"; scheduler ignored
 mkdir -p "$work/fleet/nodemember"
 printf '{\n  "engineVersion": "61001.1",\n  "packs": [{"id": "basics", "version": "3.0"}]\n}\n' > "$work/fleet/nodemember/.claudinite-settings.json"
 scheduler nodemember
-member forked "$version"; scheduler forked
+member forked "$latest"; scheduler forked
 
 for m in current behind noscheduler dormant uncovered ignored nodemember; do
   printf -- '--repo\nacme/%s=%s\n' "$m" "$work/fleet/$m"

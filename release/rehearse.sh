@@ -1760,8 +1760,12 @@ YAML
     fleet)
       step "fleet: a manager declaring claudinite-fleet-sheepdog over eight acme repositories, ghstub and licstub"
       warm_member fleet
+      # The newest release the registry serves: earlier modes may have
+      # published $next.
+      latest=$version latest_pin=$pin
+      if [ -f "$dist2/manifest.integrity" ]; then latest=$next latest_pin=$(cat "$dist2/manifest.integrity"); fi
       behind=$(printf '%s\n' "$version" | awk -F. '{ print $1 - 1 "." $2 "." $3 }')
-      flags=$(sh release/fleet-fixture.sh "$work" "$member" "$version" "$behind" "$pin" "$package") || fail "fleet: fixture"
+      flags=$(sh release/fleet-fixture.sh "$work" "$member" "$version" "$latest" "$behind" "$latest_pin" "$package") || fail "fleet: fixture"
       origin=$work/fleet-origin.git
       git init -q --bare -b main "$origin"
       (cd "$member" && git init -q -b main && git add -A && git -c user.name=rehearse -c user.email=r@x -c commit.gpgsign=false commit -q -m adopt) \
@@ -1774,6 +1778,9 @@ YAML
       IFS=$oldifs
       start_ghstub "$origin" "$@" --repo acme/manager
       start_licstub
+      # Steps 1 to 5 sweep from a desktop; an earlier mode's Actions
+      # identity would name a stub that is gone.
+      unset ACTIONS_ID_TOKEN_REQUEST_URL ACTIONS_ID_TOKEN_REQUEST_TOKEN GITHUB_REPOSITORY_ID GITHUB_REPOSITORY_OWNER_ID GITHUB_REPOSITORY_OWNER
       cat "$work/ca.pem" "$work/gh-ca.pem" "$work/lic-ca.pem" > "$work/cas.pem"
       SSL_CERT_FILE=$work/cas.pem CURL_CA_BUNDLE=$work/cas.pem
       GITHUB_REPOSITORY=acme/manager CLAUDINITE_GITHUB_API=$gh FLEET_GITHUB_TOKEN=rehearsal-token CLAUDINITE_FLEET_POLL_MS=50
@@ -1814,7 +1821,7 @@ YAML
       [ "$(gh_count 'st.dispatches.filter(d=>d.repo).length')" = 0 ] || fail "fleet 4: a dry run dispatched"
       step "fleet 4: a dry run would fire current, behind, noscheduler and nodemember, skipped dormant and ignored by name, and dispatched nothing"
 
-      ctl /_stub/advance "{\"repo\":\"acme/behind\",\"files\":{\".claudinite/settings.yaml\":\"engine:\\n  package: \\\"$package\\\"\\n  version: \\\"$version\\\"\\n  manifest: \\\"$pin\\\"\\n\"}}"
+      ctl /_stub/advance "{\"repo\":\"acme/behind\",\"files\":{\".claudinite/settings.yaml\":\"engine:\\n  package: \\\"$package\\\"\\n  version: \\\"$latest\\\"\\n  manifest: \\\"$latest_pin\\\"\\n\"}}"
       ctl /_stub/advance '{"repo":"acme/nodemember","files":{".claudinite-settings.json":"{\"engineVersion\": \"61002.1\", \"packs\": [{\"id\": \"basics\", \"version\": \"3.0\"}]}\n"}}'
       if CLAUDINITE_CONTEXT='FOLLOW_MINUTES=0.05' fleet_cn update; then fail "fleet 5: a failed dispatch passed: $(cat "$work/fleet.out")"; fi
       expect_line "[${bt}acme/behind${bt}]" 5
