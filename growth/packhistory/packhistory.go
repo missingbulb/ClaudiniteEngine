@@ -91,7 +91,8 @@ func IsShipping(p string) bool {
 	if len(parts) > 3 && droppedAtRoot[parts[2]] {
 		return false
 	}
-	return !(parts[2] == "checks" && len(parts) == 4 && !strings.Contains(parts[3], "/") && strings.HasSuffix(parts[3], "_test.go"))
+	checkTest := parts[2] == "checks" && len(parts) == 4 && !strings.Contains(parts[3], "/") && strings.HasSuffix(parts[3], "_test.go")
+	return !checkTest
 }
 
 var (

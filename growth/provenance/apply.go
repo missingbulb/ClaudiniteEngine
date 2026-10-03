@@ -153,7 +153,8 @@ func Apply(io WriteIO, pack, text string, backfill bool) Applied {
 			kinds, firstKind = []string{prov.DeclinedKind}, ""
 		}
 		exists := io.Exists(file)
-		if !exists && !f.declined && !(backfill && f.entries[0].Kind == "born") {
+		opens := backfill && f.entries[0].Kind == "born"
+		if !exists && !f.declined && !opens {
 			what := f.element + ": " + file + " does not exist"
 			if backfill {
 				what += ", and the batch does not open with born"

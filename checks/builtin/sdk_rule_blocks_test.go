@@ -1,4 +1,4 @@
-package provenance
+package builtin
 
 import (
 	"os"
@@ -7,9 +7,10 @@ import (
 	"testing"
 
 	"github.com/missingbulb/ClaudiniteEngine/checksdk"
+	prov "github.com/missingbulb/ClaudiniteEngine/shared/provenance"
 )
 
-// checksdk.RuleBlocks is this package's RuleBlocks (bold bullets only) as
+// checksdk.RuleBlocks is shared/provenance's RuleBlocks (bold bullets only) as
 // a pack check reads it from the SDK's pure half, which cannot import the
 // engine: the two agree on every block's lines, marker and trigger, over
 // fixtures selecting each branch and every prose file of the frozen
@@ -37,7 +38,7 @@ func TestSDKRuleBlocksAgree(t *testing.T) {
 		}
 	}
 	for _, text := range texts {
-		want := RuleBlocks(text, false)
+		want := prov.RuleBlocks(text, false)
 		got := checksdk.RuleBlocks(text)
 		if len(got) != len(want) {
 			t.Errorf("%d blocks, the engine reads %d:\n%s", len(got), len(want), firstLine(text))
