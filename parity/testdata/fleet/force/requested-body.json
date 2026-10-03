@@ -1,0 +1,92 @@
+{
+  "input": {
+    "fn": "requestedBody",
+    "packs": [
+      {
+        "id": "node",
+        "ruleRoutingGuidance": {
+          "belongs": "Node.js projects"
+        },
+        "relevanceDetector": {
+          "about": "a package.json",
+          "paths": {
+            "source": "(^|/)package\\.json$",
+            "flags": ""
+          }
+        }
+      },
+      {
+        "id": "firebase",
+        "ruleRoutingGuidance": {
+          "belongs": "Firebase projects"
+        },
+        "relevanceDetector": {
+          "about": "a firebase.json",
+          "paths": {
+            "source": "^firebase\\.json$",
+            "flags": ""
+          }
+        }
+      },
+      {
+        "id": "jwt",
+        "relevanceDetector": {
+          "about": "a JWT library",
+          "paths": {
+            "source": "\\.(js|mjs)$",
+            "flags": ""
+          },
+          "text": [
+            {
+              "source": "jsonwebtoken",
+              "flags": ""
+            }
+          ],
+          "search": [
+            "jsonwebtoken"
+          ]
+        }
+      },
+      {
+        "id": "asks",
+        "questions": [
+          {
+            "id": "goals",
+            "prompt": "What should it prove?"
+          },
+          {
+            "id": "store",
+            "prompt": "Where is the store?"
+          }
+        ],
+        "relevanceDetector": null
+      },
+      {
+        "id": "basics",
+        "relevanceDetector": null
+      }
+    ],
+    "args": {
+      "addPacks": [
+        "node",
+        "asks"
+      ],
+      "packConfig": {
+        "node": {
+          "repo": "o/n",
+          "a": {
+            "b": "c"
+          }
+        }
+      },
+      "packAnswers": {
+        "asks": {
+          "goals": "prove it",
+          "store": "n/a"
+        }
+      },
+      "enforcer": "acme/manager"
+    }
+  },
+  "expect": "This repo is to declare the packs below. **Not a fingerprint's suspicion**: the fleet\nowner requested it by hand (via `acme/manager`), with the configuration and the adoption-interview\nanswers already decided. Nothing has been written to this repo — the adoption is this\nrepo's own adopt-requested-packs task's job, and its scheduler has been fired.\n\n## Packs to add\n\n- **`node`** — Node.js projects\n- **`asks`**\n\n## The declaration entries to write\n\nMerge these verbatim into `.claudinite-settings.json`'s `packs` (into an entry the repo\nalready carries where one exists — never replacing a config it already chose):\n\n```json\n[\n  {\n    \"id\": \"node\",\n    \"config\": {\n      \"repo\": \"o/n\",\n      \"a\": {\n        \"b\": \"c\"\n      }\n    }\n  },\n  {\n    \"id\": \"asks\",\n    \"answers\": {\n      \"goals\": \"prove it\",\n      \"store\": \"n/a\"\n    }\n  }\n]\n```\n\nThe `answers` are the owner's answers to those packs' adoption interviews, recorded\nverbatim as adopt-pack requires. **Every** question these packs ask is answered above —\nthe forced fleet run refuses to file this issue otherwise — so nothing here is left to\nguess.\n\nConverged by the fleet's add-missing-packs sweep: it closes this `completed` once the\ndeclaration carries the packs."
+}

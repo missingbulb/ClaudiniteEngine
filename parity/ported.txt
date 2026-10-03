@@ -11,3 +11,4 @@ google-identity
 claudinite-lifecycle
 claudinite-growth
 claudinite-tasks
+claudinite-fleet-sheepdog

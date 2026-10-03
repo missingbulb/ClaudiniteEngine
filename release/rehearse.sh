@@ -64,7 +64,12 @@
 #            action marker, cn fleet update's dry run and live run follow each
 #            member to its outcome, a degraded Actions key reaches no member,
 #            and a fleet-roster item parks without FLEET_GITHUB_TOKEN and runs
-#            to done with it.
+#            to done with it; then, over a local pack source's signed
+#            catalog, cn fleet add-packs files a suspected list, writes
+#            nothing on a second run, refuses an unanswered force and files
+#            the requested list, cn fleet pack-seeds splices a seed into one
+#            member, and cn check world blocks on a seed the manager runs
+#            differently.
 #
 # The update, packs, adopt, tasks, license and growth modes give every member a GitHub-shaped
 # origin (url.<bare>.insteadOf), as the session's key request reads it.
@@ -1863,6 +1868,80 @@ YAML
       CLAUDINITE_SECRETS="{\"FLEET_GITHUB_TOKEN\":\"$saved\"}" execute || fail "fleet 7: execute: $(cat "$work/exec.out")"
       case " $(labels_of "$n") " in *" task:status:done "*) ;; *) fail "fleet 7: #$n with the secret is $(labels_of "$n"): $(cat "$work/exec.out")" ;; esac
       step "fleet 7: a fleet-roster item parked needs-human-action naming FLEET_GITHUB_TOKEN without it, and ran cn fleet roster to done with it in CLAUDINITE_SECRETS"
+
+      # Steps 8 to 13 read the shelf's catalog from a local pack source:
+      # hello and hello-asks, each with a fingerprint, on the canary channel
+      # the manager declares.
+      src=$work/fleetsrc
+      sh release/packs-fixture.sh "$src" --min-engine "$version" > "$work/fixture.out" 2>&1 || fail "fleet 8: fixture: $(cat "$work/fixture.out")"
+      sh release/packs-fixture.sh "$src" --publish-pack hello-asks > "$work/fixture.out" 2>&1 || fail "fleet 8: fixture hello-asks: $(cat "$work/fixture.out")"
+      [ -x "$work/cdnstub" ] || go build -o "$work/cdnstub" ./release/cdnstub
+      "$work/cdnstub" --repo "$src/cdn.git" --ready "$work/fleet-cdn-ready" --ca-out "$work/fleet-cdn-ca.pem" --log "$work/fleet-cdn.log" &
+      cdn_pids="$cdn_pids $!"
+      tries=0
+      until [ -f "$work/fleet-cdn-ready" ]; do
+        tries=$((tries + 1))
+        [ "$tries" -le 100 ] || fail "cdnstub did not start"
+        sleep 0.1
+      done
+      cat "$work/fleet-cdn-ca.pem" >> "$work/cas.pem"
+      CLAUDINITE_PACKS_CDN=$(cat "$work/fleet-cdn-ready") CLAUDINITE_PACKS_REPO=$src/mirror.git FLEET_GITHUB_TOKEN=$saved CLAUDINITE_FLEET_MIN_PACKS=2
+      export CLAUDINITE_PACKS_CDN CLAUDINITE_PACKS_REPO FLEET_GITHUB_TOKEN CLAUDINITE_FLEET_MIN_PACKS
+      member_issues() { gh_count 'st.fleet["acme/'"$1"'"].filter(i=>i.state==="open").map(i=>i.number+" "+i.title+" ["+i.labels.join(" ")+"]").join("\n")'; }
+      member_writes() { gh_count 'st.calls.filter(c=>/^member \S+ (POST|PATCH|PUT|DELETE) \/(issues|contents)/.test(c)).length'; }
+      suspected="Add packs: suspected"
+
+      fleet_cn add-packs --scan-for-needed-packs=true --repos=all-covered-members || fail "fleet 8: add-packs: $(cat "$work/fleet.out" "$work/fleet.err")"
+      expect_line 'catalog: 2 pack(s) on the canary channel' 8
+      member_issues behind | grep -qF "$suspected" || fail "fleet 8: no suspected issue in acme/behind: $(member_issues behind) $(cat "$work/fleet.out")"
+      member_issues behind | grep -qF 'task:origin:ad-hoc' || fail "fleet 8: the suspected issue carries no mark: $(member_issues behind)"
+      gh_count 'st.fleet["acme/behind"][0].body' | grep -qF "${bt}hello${bt}" || fail "fleet 8: the suspected list names no hello: $(gh_count 'st.fleet["acme/behind"][0].body')"
+      gh_count 'st.fleet["acme/behind"][0].body' | grep -qF "${bt}hello-asks${bt}" || fail "fleet 8: the suspected list names no hello-asks: $(gh_count 'st.fleet["acme/behind"][0].body')"
+      grep -F '**Fitted:**' "$work/fleet.out" | grep -qF 'acme/current' || fail "fleet 8: acme/current not fitted: $(cat "$work/fleet.out")"
+      [ "$(gh_count 'st.calls.filter(c=>c.startsWith("member acme/dormant ")&&c.includes("/git/trees/")).length')" = 0 ] || fail "fleet 8: the dormant member was swept"
+      grep -q '^\[cn\] fleet add-packs ok 1/' "$work/fleet.err" || fail "fleet 8: breadcrumb: $(cat "$work/fleet.err")"
+      step "fleet 8: a scheduled add-packs filed the marked suspected list in acme/behind (hello, hello-asks), fitted acme/current, read 2 packs from the catalog and left the dormant member alone"
+
+      writes=$(member_writes)
+      fleet_cn add-packs --scan-for-needed-packs=true --repos=all-covered-members || fail "fleet 9: add-packs: $(cat "$work/fleet.out" "$work/fleet.err")"
+      [ "$(member_writes)" = "$writes" ] || fail "fleet 9: an unchanged list was written again ($writes before): $(gh_count 'st.calls.filter(c=>c.startsWith("member ")&&!c.includes(" GET ")).join("; ")')"
+      [ "$(member_issues behind | grep -cF "$suspected")" = 1 ] || fail "fleet 9: $(member_issues behind)"
+      step "fleet 9: the same scan again wrote no issue or file into any member (its label ensure answers already-exists)"
+
+      calls=$(member_calls)
+      if CLAUDINITE_CONTEXT='SCAN_FOR_NEEDED_PACKS=false,REPOS=behind,ADD_PACKS=hello-asks' fleet_cn add-packs; then fail "fleet 10: an unanswered force passed: $(cat "$work/fleet.out")"; fi
+      grep -qF 'hello-asks.goals' "$work/fleet.err" || fail "fleet 10: the refusal names no question: $(cat "$work/fleet.err")"
+      grep -q '^\[cn\] fleet add-packs refused ' "$work/fleet.err" || fail "fleet 10: breadcrumb: $(cat "$work/fleet.err")"
+      [ "$(member_calls)" = "$calls" ] || fail "fleet 10: a refused force reached a member"
+      step "fleet 10: a force of hello-asks with its question unanswered was refused before any call to a member"
+
+      suspect=$(gh_count 'st.fleet["acme/behind"].find(i=>i.title.startsWith("'"$suspected"'")).number')
+      CLAUDINITE_CONTEXT='SCAN_FOR_NEEDED_PACKS=false,REPOS=behind,ADD_PACKS=hello-asks,PACK_ANSWER_1=hello-asks.goals=that adoption reaches a member' fleet_cn add-packs \
+        || fail "fleet 11: add-packs: $(cat "$work/fleet.out" "$work/fleet.err")"
+      requested=$(gh_count 'st.fleet["acme/behind"].find(i=>i.state==="open"&&i.title.startsWith("Add packs: requested")).body')
+      printf '%s\n' "$requested" | grep -qF "Blocked-by: #$suspect" || fail "fleet 11: the requested list is not Blocked-by #$suspect: $requested"
+      printf '%s\n' "$requested" | grep -qF '"hello-asks"' || fail "fleet 11: the requested list names no hello-asks: $requested"
+      printf '%s\n' "$requested" | grep -qF 'that adoption reaches a member' || fail "fleet 11: the requested list carries no answer: $requested"
+      step "fleet 11: with the answer, the force filed the requested list in acme/behind, Blocked-by the suspected one"
+
+      cp "$work/fleet/current/.claudinite/settings.yaml" "$work/current-settings.before"
+      fleet_cn pack-seeds || fail "fleet 12: pack-seeds: $(cat "$work/fleet.out" "$work/fleet.err")"
+      grep -qF 'greeting: "hi"' "$work/fleet/current/.claudinite/settings.yaml" || fail "fleet 12: acme/current not seeded: $(cat "$work/fleet/current/.claudinite/settings.yaml")"
+      if diff "$work/current-settings.before" "$work/fleet/current/.claudinite/settings.yaml" | grep -q '^<'; then
+        fail "fleet 12: the seed rewrote acme/current outside its packs block: $(diff "$work/current-settings.before" "$work/fleet/current/.claudinite/settings.yaml")"
+      fi
+      grep -A2 -F '**Waiting on their next update' "$work/fleet.out" | grep -qF 'acme/behind' || fail "fleet 12: acme/behind not waiting on its mount: $(cat "$work/fleet.out")"
+      grep -F 'acme/nodemember' "$work/fleet.out" | grep -qi 'move' || fail "fleet 12: acme/nodemember not waiting on its move: $(cat "$work/fleet.out")"
+      [ "$(gh_count 'st.calls.filter(c=>c.startsWith("put ")).length')" = 1 ] || fail "fleet 12: puts $(gh_count 'st.calls.filter(c=>c.startsWith("put ")).join(";")')"
+      grep -q '^\[cn\] fleet pack-seeds ok 1/' "$work/fleet.err" || fail "fleet 12: breadcrumb: $(cat "$work/fleet.err")"
+      step "fleet 12: pack-seeds wrote hello {greeting: hi} into acme/current's packs block; acme/behind waits on its mount, acme/nodemember on its move"
+
+      mkdir -p "$member/.claudinite/shared/packs/hello"
+      cp "$work/fleet/current/.claudinite/shared/packs/hello/pack.json" "$member/.claudinite/shared/packs/hello/pack.json"
+      printf '    - id: hello\n      config:\n        greeting: "hello"\n' >> "$member/.claudinite/settings.yaml"
+      if cn_member check world > "$work/world.out" 2>&1; then fail "fleet 13: a disagreeing seed passed: $(cat "$work/world.out")"; fi
+      grep -q 'fleet-pack-seed-agrees' "$work/world.out" || fail "fleet 13: no fleet-pack-seed-agrees finding: $(cat "$work/world.out")"
+      step "fleet 13: cn check world in the manager, its own hello entry disagreeing with the seed, blocks on fleet-pack-seed-agrees"
       ;;
   esac
 done

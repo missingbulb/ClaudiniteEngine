@@ -25,6 +25,14 @@
             "closed_at": "2026-09-10T00:00:00Z"
           }
         ]
+      },
+      "PATCH /repos/acme/manager/issues/5": {
+        "status": 200,
+        "json": {}
+      },
+      "POST /repos/acme/manager/issues/5/comments": {
+        "status": 201,
+        "json": {}
       }
     }
   },
@@ -35,7 +43,7 @@
     "calls": [
       [
         "GET",
-        "/repos/acme/manager/issues?labels=fleet-adoption\u0026state=all\u0026per_page=100\u0026page=1"
+        "/repos/acme/manager/issues?labels=fleet-adoption&state=all&per_page=100&page=1"
       ],
       [
         "PATCH",

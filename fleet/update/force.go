@@ -59,6 +59,8 @@ type Row struct {
 	FullName string `json:"fullName"`
 	State    string `json:"state"`
 	Detail   string `json:"detail"`
+	// Grant says the token's grant explains the row's failure.
+	Grant bool `json:"-"`
 }
 
 // ClassifyScope is why r is out of this dispatch before its tree is read,
@@ -68,13 +70,13 @@ func ClassifyScope(r fleet.Repo, cfg fleet.Config, filter Filter) *Row {
 	full := r.Lower()
 	switch {
 	case r.Archived:
-		return &Row{full, "out-of-scope", "archived"}
+		return &Row{FullName: full, State: "out-of-scope", Detail: "archived"}
 	case r.Fork:
-		return &Row{full, "out-of-scope", "a fork"}
+		return &Row{FullName: full, State: "out-of-scope", Detail: "a fork"}
 	case cfg.Excluded(full):
-		return &Row{full, "excluded", "on the claudinite-fleet-sheepdog config's exclude list"}
+		return &Row{FullName: full, State: "excluded", Detail: "on the claudinite-fleet-sheepdog config's exclude list"}
 	case filter != nil && !filter.Has(full):
-		return &Row{full, "filtered-out", "not in this run's REPOS filter"}
+		return &Row{FullName: full, State: "filtered-out", Detail: "not in this run's REPOS filter"}
 	}
 	return nil
 }
@@ -108,19 +110,19 @@ func Force(gh fleet.GH, repos []fleet.Repo, cfg fleet.Config, shelf fleet.Shelf,
 		full := r.Lower()
 		m, err := fleet.ReadMember(gh, r.FullName, r.Branch())
 		if err != nil {
-			failed = append(failed, Row{full, "error", "could not read its declaration: " + err.Error()})
+			failed = append(failed, Row{FullName: full, State: "error", Detail: "could not read its declaration: " + err.Error(), Grant: fleet.IsGrant(err)})
 			continue
 		}
 		if !m.Covered() {
-			skipped = append(skipped, Row{full, "uncovered", "no tracked declaration — adoption is the census's business, and there is nothing there to update"})
+			skipped = append(skipped, Row{FullName: full, State: "uncovered", Detail: "no tracked declaration — adoption is the census's business, and there is nothing there to update"})
 			continue
 		}
 		if m.Dormant && !o.IncludeDormant {
-			skipped = append(skipped, Row{full, "dormant", "self-declared dormant — pass INCLUDE_DORMANT=true to force it anyway"})
+			skipped = append(skipped, Row{FullName: full, State: "dormant", Detail: "self-declared dormant — pass INCLUDE_DORMANT=true to force it anyway"})
 			continue
 		}
 		if o.DryRun {
-			fired = append(fired, Fired{Row: Row{full, "would-fire", fmt.Sprintf("would dispatch %s@%s to wake %s", fleet.Scheduler, r.Branch(), ForcedTask)}, Repo: r})
+			fired = append(fired, Fired{Row: Row{FullName: full, State: "would-fire", Detail: fmt.Sprintf("would dispatch %s@%s to wake %s", fleet.Scheduler, r.Branch(), ForcedTask)}, Repo: r})
 			continue
 		}
 		f := Fired{Repo: r, Node: m.Shape == fleet.ShapeNode}
@@ -135,10 +137,10 @@ func Force(gh fleet.GH, repos []fleet.Repo, cfg fleet.Config, shelf fleet.Shelf,
 			d = fleet.Dispatch{State: "error", Detail: err.Error()}
 		}
 		if d.State != "fired" {
-			failed = append(failed, Row{full, d.State, d.Detail})
+			failed = append(failed, Row{FullName: full, State: d.State, Detail: d.Detail, Grant: d.State == "no-permission"})
 			continue
 		}
-		f.Row = Row{full, d.State, d.Detail}
+		f.Row = Row{FullName: full, State: d.State, Detail: d.Detail}
 		fired = append(fired, f)
 	}
 	return fired, skipped, failed

@@ -1,0 +1,22 @@
+{
+  "input": {
+    "fn": "withSeeds",
+    "text": "[1, 2]",
+    "seeds": [
+      {
+        "id": "p"
+      }
+    ],
+    "cn": {
+      "format": "json",
+      "text": "[1, 2]\n"
+    }
+  },
+  "expect": {
+    "error": "the declaration is not a JSON object"
+  },
+  "divergence": "record-101",
+  "cn": {
+    "error": ".claudinite/settings.json must hold an object"
+  }
+}

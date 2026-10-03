@@ -1,0 +1,126 @@
+{
+  "input": {
+    "cases": [
+      {
+        "argv": [
+          "--scan-for-needed-packs=true",
+          "--repos=all-covered-members"
+        ],
+        "params": {
+          "REPOS": "A",
+          "ADD_PACKS": "p",
+          "PACK_CONFIG": "p.a=1",
+          "PACK_CONFIG_2": "p.a=2"
+        }
+      },
+      {
+        "argv": [
+          "--scan-for-needed-packs=true",
+          "--repos=all-covered-members"
+        ],
+        "params": {
+          "REPOS": "A",
+          "ADD_PACKS": "p",
+          "PACK_CONFIG": "p.a=1",
+          "PACK_CONFIG_2": "p.a.b=2"
+        }
+      },
+      {
+        "argv": [
+          "--scan-for-needed-packs=true",
+          "--repos=all-covered-members"
+        ],
+        "params": {
+          "REPOS": "A",
+          "ADD_PACKS": "p",
+          "PACK_CONFIG": "p=1"
+        }
+      },
+      {
+        "argv": [
+          "--scan-for-needed-packs=true",
+          "--repos=all-covered-members"
+        ],
+        "params": {
+          "REPOS": "A",
+          "ADD_PACKS": "p",
+          "PACK_CONFIG": "p.=1"
+        }
+      },
+      {
+        "argv": [
+          "--scan-for-needed-packs=true",
+          "--repos=all-covered-members"
+        ],
+        "params": {
+          "REPOS": "A",
+          "ADD_PACKS": "p",
+          "PACK_CONFIG": ".a=1"
+        }
+      },
+      {
+        "argv": [
+          "--scan-for-needed-packs=true",
+          "--repos=all-covered-members"
+        ],
+        "params": {
+          "REPOS": "A",
+          "ADD_PACKS": "p",
+          "PACK_CONFIG": "p.a="
+        }
+      },
+      {
+        "argv": [
+          "--scan-for-needed-packs=true",
+          "--repos=all-covered-members"
+        ],
+        "params": {
+          "REPOS": "A",
+          "ADD_PACKS": "p",
+          "PACK_CONFIG": "p.a.b=1",
+          "PACK_CONFIG_2": "p.a.c=2=3"
+        }
+      }
+    ]
+  },
+  "expect": [
+    {
+      "error": "PACK_CONFIG entries conflict on `p.a`"
+    },
+    {
+      "error": "PACK_CONFIG entries conflict on `p.a.b`"
+    },
+    {
+      "error": "PACK_CONFIG entry `p=1` names no pack — expected `<pack-id>.<key>=<value>`"
+    },
+    {
+      "error": "PACK_CONFIG entry `p.=1` names no pack — expected `<pack-id>.<key>=<value>`"
+    },
+    {
+      "error": "PACK_CONFIG entry `.a=1` names no pack — expected `<pack-id>.<key>=<value>`"
+    },
+    {
+      "error": "PACK_CONFIG entry `p.a=` has an empty value"
+    },
+    {
+      "addPacks": [
+        "p"
+      ],
+      "allMembers": false,
+      "forced": true,
+      "packAnswers": {},
+      "packConfig": {
+        "p": {
+          "a": {
+            "b": "1",
+            "c": "2=3"
+          }
+        }
+      },
+      "repos": [
+        "A"
+      ],
+      "scan": true
+    }
+  ]
+}

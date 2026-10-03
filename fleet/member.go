@@ -239,19 +239,25 @@ func SortRepos(rs []Repo) {
 
 // Scopes a repository can fall under before anything is read of it.
 const (
-	ScopeHome     = "home"
-	ScopeArchived = "archived"
-	ScopeFork     = "fork"
-	ScopeExcluded = "excluded"
-	ScopeIn       = "in"
+	ScopeHome = "home"
+	// ScopeOutOfOwner is a repository some other account owns: the fleet
+	// reaches no further than its owner.
+	ScopeOutOfOwner = "out-of-owner"
+	ScopeArchived   = "archived"
+	ScopeFork       = "fork"
+	ScopeExcluded   = "excluded"
+	ScopeIn         = "in"
 )
 
 // Scope is where r stands before its tree is read: the manager itself,
-// archived, a fork, excluded, or in. There is no canon row.
+// another owner's, archived, a fork, excluded, or in. There is no canon
+// row.
 func Scope(r Repo, home string, c Config) string {
 	switch {
 	case r.Lower() == strings.ToLower(home):
 		return ScopeHome
+	case !c.Owns(r.Lower()):
+		return ScopeOutOfOwner
 	case r.Archived:
 		return ScopeArchived
 	case r.Fork:

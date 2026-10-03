@@ -45,6 +45,12 @@ func parseBag(raw string) map[string]string {
 	return out
 }
 
+// Secret is one secret as a code-work would receive it: the job's
+// CLAUDINITE_SECRETS bag first, then the env.
+func Secret(name string, env map[string]string) (string, bool) {
+	return secretValue(name, env, parseBag(env[SecretsBagEnv]))
+}
+
 func secretValue(name string, env, bag map[string]string) (string, bool) {
 	if name == SecretsBagEnv {
 		return "", false

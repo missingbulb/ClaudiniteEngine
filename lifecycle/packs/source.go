@@ -380,3 +380,128 @@ func Sources(httpClient *http.Client) (CDN, *Branch) {
 	}
 	return CDN{Base: base, HTTP: httpClient, MaxBytes: defaultMaxCDN}, &Branch{Repo: repo}
 }
+
+// Catalog paths, beside the pack directories on both sources.
+const (
+	CatalogFile    = "catalog.json"
+	CatalogSigFile = "catalog.sig.json"
+)
+
+// CatalogSource is a source that also serves the shelf's catalog.
+type CatalogSource interface {
+	Source
+	// Catalog returns catalog.json and catalog.sig.json bytes.
+	Catalog() (catalog, sig []byte, err error)
+}
+
+// Catalog reads the pair.
+func (c CDN) Catalog() ([]byte, []byte, error) {
+	cat, err := c.get(CatalogFile)
+	if err != nil {
+		return nil, nil, err
+	}
+	sig, err := c.get(CatalogSigFile)
+	if err != nil {
+		return nil, nil, err
+	}
+	return cat, sig, nil
+}
+
+// Catalog reads the pair.
+func (b *Branch) Catalog() ([]byte, []byte, error) {
+	cat, err := b.show(CatalogFile)
+	if err != nil {
+		return nil, nil, err
+	}
+	sig, err := b.show(CatalogSigFile)
+	if err != nil {
+		return nil, nil, err
+	}
+	return cat, sig, nil
+}
+
+// VerifiedCatalog is a catalog whose signature, format and serial checked
+// out, and the source whose copy it is.
+type VerifiedCatalog struct {
+	Catalog packindex.Catalog
+	From    string
+	KeyID   string
+}
+
+// VerifiedCatalog reads the shelf's catalog from every source that serves
+// one, under the rule VerifiedIndex keeps for an index: a pair that does
+// not verify refuses the read, a later source older than an earlier one
+// is a *SourcesDisagree, and the highest serial is used.
+func (r *Reader) VerifiedCatalog() (VerifiedCatalog, error) {
+	var best *VerifiedCatalog
+	var unreachable, answered []string
+	var serials []SourceSerial
+	disagree := false
+	for _, src := range r.Sources {
+		cs, ok := src.(CatalogSource)
+		if !ok {
+			continue
+		}
+		v, err := r.catalogFrom(cs)
+		var u errUnreachable
+		if errors.As(err, &u) {
+			unreachable = append(unreachable, src.Name()+": "+u.Error())
+			continue
+		}
+		if err != nil {
+			return VerifiedCatalog{}, fmt.Errorf("pack catalog from %s refused: %w", src.Name(), err)
+		}
+		if len(r.AcceptedKeys) > 0 && !slices.Contains(r.AcceptedKeys, v.KeyID) {
+			return VerifiedCatalog{}, fmt.Errorf("pack catalog from %s refused: signed by key %s, which the license key does not list", src.Name(), v.KeyID)
+		}
+		if best != nil && v.Catalog.Serial < best.Catalog.Serial {
+			disagree = true
+		}
+		serials = append(serials, SourceSerial{src.Name(), v.Catalog.Serial})
+		answered = append(answered, fmt.Sprintf("%s serial %d", src.Name(), v.Catalog.Serial))
+		if best == nil || v.Catalog.Serial > best.Catalog.Serial {
+			vv := v
+			best = &vv
+		}
+	}
+	for _, u := range unreachable {
+		r.logf("catalog unreachable from %s", u)
+	}
+	if best == nil {
+		return VerifiedCatalog{}, fmt.Errorf("pack catalog: no source answered (%s)", strings.Join(unreachable, "; "))
+	}
+	if disagree {
+		return VerifiedCatalog{}, &SourcesDisagree{Serials: serials}
+	}
+	r.logf("catalog serial %d from %s (read: %s)", best.Catalog.Serial, best.From, strings.Join(answered, ", "))
+	return *best, nil
+}
+
+// catalogFrom reads one source's pair and verifies it, asking once more
+// when it does not verify, since the writer rewrites the two files one
+// after the other.
+func (r *Reader) catalogFrom(src CatalogSource) (VerifiedCatalog, error) {
+	var lastErr error
+	for attempt := 0; attempt < 2; attempt++ {
+		cat, sigRaw, err := src.Catalog()
+		if err != nil {
+			return VerifiedCatalog{}, errUnreachable{err}
+		}
+		var s sign.SignedPackCatalog
+		if err := json.Unmarshal(sigRaw, &s); err != nil {
+			lastErr = fmt.Errorf("%s: %w", CatalogSigFile, err)
+			continue
+		}
+		body, err := sign.VerifyPackCatalog(s, cat, r.Roots, r.Now())
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		c, err := packindex.DecodeCatalog(cat)
+		if err != nil {
+			return VerifiedCatalog{}, err
+		}
+		return VerifiedCatalog{Catalog: c, From: src.Name(), KeyID: body.KeyID}, nil
+	}
+	return VerifiedCatalog{}, lastErr
+}

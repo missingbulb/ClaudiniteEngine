@@ -9,5 +9,9 @@
     "belongs": "nothing but the pack chassis probe: proving that a declared pack's rules, skills and Go checks reach a member",
     "excludes": "every real rule, skill or check — the pack that owns its subject"
   },
+  "relevanceDetector": {
+    "about": "a hello.json (at the repo root or one directory down)",
+    "paths": "^([^/]+/)?hello\\.json$"
+  },
   "pitch": "The chassis probe. It carries rules, skills, declared and Go checks, a guard and a judge so a member can see, end to end, that a declared pack's rules load into the session, its skills are mounted and forced where they apply, and its checks run at every hook and in CI. It does nothing useful otherwise and belongs only on repos that test Claudinite itself."
 }

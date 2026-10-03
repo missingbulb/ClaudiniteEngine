@@ -129,7 +129,7 @@ func nodeDeclaration(decl any, sm *SignalMember) {
 // commit that cannot be read contributes nothing.
 func localPacksChanged(gh GH, repo, branch, since string) bool {
 	for page := 1; ; page++ {
-		r, err := gh.Get(fmt.Sprintf("/repos/%s/commits?sha=%s&since=%s&per_page=100&page=%d", repo, url.QueryEscape(branch), since, page))
+		r, err := gh.Get(fmt.Sprintf("/repos/%s/commits?sha=%s&since=%s&per_page=100&page=%d", repo, url.QueryEscape(branch), url.QueryEscape(since), page))
 		var list []struct {
 			SHA string `json:"sha"`
 		}

@@ -145,10 +145,20 @@ commands:
                  dispatch every covered member's update and follow each
                  to an outcome; REPOS, DRY_RUN, INCLUDE_DORMANT and
                  FOLLOW_MINUTES ride CLAUDINITE_CONTEXT
+  fleet add-packs --scan-for-needed-packs=B --repos=R [--repo DIR] [--api URL]
+                 fingerprint members against the shelf's catalog and place
+                 a marked add-packs work list where a pack is suspected;
+                 a forced run's ADD_PACKS, PACK_CONFIG and PACK_ANSWER ride
+                 CLAUDINITE_CONTEXT and are refused whole on any problem
+  fleet pack-seeds [--repo DIR] [--api URL]
+                 write the manager's packSeeds into each cn member's
+                 settings file, nothing outside packs touched
   fleet judge <owner/name> [--json] [--repo DIR] [--api URL]
                  one repository's shape, dormancy and freshness
   fleet token [--sweep S] [--json]
                  what FLEET_GITHUB_TOKEN must be granted
+  fleet protocol [--json]
+                 the add-packs work-list constants
 `
 
 // secretScanPlant is set only by the secret scan's own test build, to prove

@@ -28,5 +28,11 @@
     "belongs": "nothing but the adoption probe: proving that a pack's questions, seeds, handover and task secrets reach a member at adoption",
     "excludes": "every real rule, skill or check — the pack that owns its subject"
   },
+  "relevanceDetector": {
+    "about": "a greeting.txt asking for hello-asks",
+    "paths": "^greeting\\.txt$",
+    "text": {"source": "\\bhello-asks\\b", "flags": "i"},
+    "search": ["hello-asks"]
+  },
   "pitch": "The adoption probe. It asks one question, seeds one file, hands over one step and declares one task secret, so a rehearsal can see cn init and cn adopt carry each through. It belongs only on repos that test Claudinite itself."
 }

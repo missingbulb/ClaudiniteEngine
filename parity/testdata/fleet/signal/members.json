@@ -111,6 +111,29 @@
       "GET /repos/acme/delta/commits?sha=main&since=2026-10-01T00:00:00Z&per_page=100&page=1": {
         "status": 403,
         "json": null
+      },
+      "GET /repos/acme/alpha/commits?sha=main&since=2026-10-01T00%3A00%3A00Z&per_page=100&page=1": {
+        "status": 200,
+        "json": [
+          {
+            "sha": "c1"
+          },
+          {
+            "sha": "c2"
+          }
+        ]
+      },
+      "GET /repos/acme/beta/commits?sha=trunk&since=2026-10-01T00%3A00%3A00Z&per_page=100&page=1": {
+        "status": 200,
+        "json": [
+          {
+            "sha": "b1"
+          }
+        ]
+      },
+      "GET /repos/acme/delta/commits?sha=main&since=2026-10-01T00%3A00%3A00Z&per_page=100&page=1": {
+        "status": 403,
+        "json": null
       }
     }
   },

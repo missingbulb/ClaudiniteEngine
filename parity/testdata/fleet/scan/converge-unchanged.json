@@ -1,0 +1,56 @@
+{
+  "input": {
+    "fn": "convergeSuspected",
+    "fullName": "acme/a",
+    "fits": [
+      "node"
+    ],
+    "body": "the list",
+    "calls": {
+      "GET /repos/acme/a/issues?labels=add-packs&state=all&per_page=100&page=1": {
+        "status": 200,
+        "json": [
+          {
+            "number": 4,
+            "title": "Add packs: suspected from this repo’s shape",
+            "state": "open",
+            "labels": [
+              {
+                "name": "add-packs"
+              },
+              {
+                "name": "task:origin:ad-hoc"
+              }
+            ],
+            "body": "Task: claudinite-lifecycle/adopt-requested-packs\n\nthe list"
+          }
+        ]
+      },
+      "POST /repos/acme/a/labels": {
+        "status": 422,
+        "json": {}
+      }
+    }
+  },
+  "expect": {
+    "calls": [
+      [
+        "GET",
+        "/repos/acme/a/issues?labels=add-packs&state=all&per_page=100&page=1"
+      ],
+      [
+        "POST",
+        "/repos/acme/a/labels",
+        {
+          "color": "bfd4f2",
+          "description": "Claudinite queue: asked for by a person — their own issue, adopted as the work item itself",
+          "name": "task:origin:ad-hoc"
+        }
+      ]
+    ],
+    "result": {
+      "action": null,
+      "openWork": true
+    }
+  }
+}

@@ -19,7 +19,8 @@
 // no rehearsal builds. Every publish and revoke bumps the serial; --serial
 // rewrites it, as an index that regressed would read. --pack names another
 // fixture pack (hello-asks), which has the one label "source": its folder
-// as it is, at its pack.json version and requires.
+// as it is, at its pack.json version and requires. Every index written
+// rewrites catalog.json and catalog.sig.json at the tree's root.
 package main
 
 import (
@@ -283,7 +284,10 @@ func writeIndex(tree string, ix Index, key, cert string) error {
 	if err := os.WriteFile(filepath.Join(dir, "index.json"), raw, 0o644); err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(dir, "index.sig.json"), append(sig, '\n'), 0o644)
+	if err := os.WriteFile(filepath.Join(dir, "index.sig.json"), append(sig, '\n'), 0o644); err != nil {
+		return err
+	}
+	return writeCatalog(tree, priv, c)
 }
 
 // source is a fixture pack other than hello as its folder is, its

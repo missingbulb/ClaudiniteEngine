@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/missingbulb/ClaudiniteEngine/shared/githubapi"
+	"github.com/missingbulb/ClaudiniteEngine/shared/workitem"
 )
 
 // Response is one call's status and body, null for none.
@@ -42,13 +43,14 @@ func NewGH(base, token string) GH {
 // Get is a GET.
 func (gh GH) Get(path string) (Response, error) { return gh("GET", path, nil) }
 
-// GrantError is a refusal the token's grant explains: the item parks
-// action (a person adds a scope), never failure.
+// GrantError is a refusal the token's grant explains: a person adds a
+// scope. The sweep prints the action marker for it, which the executor's
+// park comment names as the worker's own verdict.
 type GrantError struct{ Msg string }
 
 func (e *GrantError) Error() string { return e.Msg }
 
-// Triage is the needs-human lane a grant error parks in.
+// Triage is the marker's kind for a grant error.
 const Triage = "action"
 
 // IsGrant reports whether err is a grant error.
@@ -88,6 +90,23 @@ func Paged(gh GH, path string) ([]json.RawMessage, error) {
 	}
 }
 
+// Expect is one write that must answer want: a 403 is a grant error
+// carrying the hint for path, any other status an error naming it.
+func Expect(gh GH, method, path string, body any, want int) (Response, error) {
+	r, err := gh(method, path, body)
+	if err != nil {
+		return r, err
+	}
+	if r.Status == want {
+		return r, nil
+	}
+	msg := fmt.Sprintf("%s %s returned %d", method, path, r.Status)
+	if r.Status == 403 {
+		return r, &GrantError{msg + ForbiddenHint(path)}
+	}
+	return r, errors.New(msg)
+}
+
 // EnsureLabel creates a label in repo; 422 is "already exists".
 func EnsureLabel(gh GH, repo, name, color, description string) error {
 	r, err := gh("POST", "/repos/"+repo+"/labels", map[string]string{"name": name, "color": color, "description": description})
@@ -102,12 +121,14 @@ func EnsureLabel(gh GH, repo, name, color, description string) error {
 
 // Issue is an issue as a labelled listing returns it.
 type Issue struct {
-	Number      int             `json:"number"`
-	Title       string          `json:"title"`
-	State       string          `json:"state"`
-	StateReason *string         `json:"state_reason"`
-	ClosedAt    *string         `json:"closed_at"`
-	PullRequest json.RawMessage `json:"pull_request"`
+	Number      int                `json:"number"`
+	Title       string             `json:"title"`
+	Body        string             `json:"body"`
+	Labels      workitem.LabelList `json:"labels"`
+	State       string             `json:"state"`
+	StateReason *string            `json:"state_reason"`
+	ClosedAt    *string            `json:"closed_at"`
+	PullRequest json.RawMessage    `json:"pull_request"`
 }
 
 // LabeledIssues is every issue ever carrying label in repo, open and
@@ -214,6 +235,55 @@ func ListDir(gh GH, repo, path string) ([]DirEntry, bool, error) {
 		return nil, false, errors.New(msg)
 	}
 	return entries, true, nil
+}
+
+// PutFile writes one file to repo's default branch, guarded by the blob
+// sha its read returned (empty for a new file): the one function under
+// fleet/ that writes into a member's tree. A 409 is the file moving under
+// the sweep, so this run does not write it and the next re-reads; a 403
+// or 404 is the token's grant.
+func PutFile(gh GH, repo, path, text, sha, message string) error {
+	body := map[string]string{"message": message, "content": base64.StdEncoding.EncodeToString([]byte(text))}
+	if sha != "" {
+		body["sha"] = sha
+	}
+	r, err := gh("PUT", contentsPath(repo, path), body)
+	if err != nil {
+		return err
+	}
+	var msg struct {
+		Message *string `json:"message"`
+	}
+	_ = json.Unmarshal(r.JSON, &msg)
+	why := "no message"
+	if msg.Message != nil {
+		why = *msg.Message
+	}
+	switch r.Status {
+	case 200, 201:
+		return nil
+	case 409:
+		return fmt.Errorf("%s:%s changed under the sweep (409) — not written this run", repo, path)
+	case 403, 404:
+		return &GrantError{fmt.Sprintf("writing %s:%s returned %d%s (%s)", repo, path, r.Status, ForbiddenHint("/repos/"+repo+"/contents/"), why)}
+	}
+	return fmt.Errorf("writing %s:%s returned %d (%s)", repo, path, r.Status, why)
+}
+
+// EncodeURIComponent is JavaScript's encodeURIComponent: every byte but
+// A-Z a-z 0-9 - _ . ! ~ * ' ( ) percent-encoded, as a label's name goes
+// into a path segment.
+func EncodeURIComponent(s string) string {
+	var b strings.Builder
+	for _, c := range []byte(s) {
+		switch {
+		case c >= 'A' && c <= 'Z', c >= 'a' && c <= 'z', c >= '0' && c <= '9', strings.IndexByte("-_.!~*'()", c) >= 0:
+			b.WriteByte(c)
+		default:
+			fmt.Fprintf(&b, "%%%02X", c)
+		}
+	}
+	return b.String()
 }
 
 // Scheduler is the member-side workflow every fan-out fires.

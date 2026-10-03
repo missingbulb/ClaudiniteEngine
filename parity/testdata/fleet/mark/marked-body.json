@@ -1,0 +1,33 @@
+{
+  "input": {
+    "fn": "markedBody",
+    "cases": [
+      {
+        "body": "new list"
+      },
+      {
+        "body": "new list",
+        "blockedBy": 7
+      },
+      {
+        "body": "  new list  ",
+        "existing": {
+          "body": "Task: claudinite-lifecycle/adopt-requested-packs\n\nold\n\n<!-- claudinite-item -->\nPolicy: x\nContext:\n- a\n<!-- /claudinite-item -->\n"
+        }
+      },
+      {
+        "body": "new list",
+        "existing": {
+          "body": "no block here"
+        },
+        "blockedBy": 3
+      }
+    ]
+  },
+  "expect": [
+    "Task: claudinite-lifecycle/adopt-requested-packs\n\nnew list",
+    "Task: claudinite-lifecycle/adopt-requested-packs\nBlocked-by: #7\n\nnew list",
+    "Task: claudinite-lifecycle/adopt-requested-packs\n\nnew list\n\n<!-- claudinite-item -->\nPolicy: x\nContext:\n- a\n<!-- /claudinite-item -->\n",
+    "Task: claudinite-lifecycle/adopt-requested-packs\nBlocked-by: #3\n\nnew list"
+  ]
+}

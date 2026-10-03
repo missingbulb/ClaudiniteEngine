@@ -1,0 +1,63 @@
+{
+  "input": {
+    "fn": "remote",
+    "repo": "acme/a",
+    "ref": "main",
+    "tracked": [
+      "package.json",
+      "src/a.js",
+      "src/b.mjs",
+      "README.md",
+      "web/package.json"
+    ],
+    "truncated": false,
+    "budget": 24,
+    "packs": [
+      {
+        "id": "jwt",
+        "relevanceDetector": {
+          "about": "a JWT library",
+          "paths": {
+            "source": "\\.(js|mjs)$",
+            "flags": ""
+          },
+          "text": [
+            {
+              "source": "jsonwebtoken",
+              "flags": ""
+            }
+          ],
+          "search": [
+            "jsonwebtoken"
+          ]
+        }
+      }
+    ],
+    "calls": {
+      "GET /repos/acme/a/contents/src/a.js?ref=main": {
+        "status": 200,
+        "json": {
+          "content": "aW1wb3J0IHggZnJvbSAibG9kYXNoIg=="
+        }
+      }
+    }
+  },
+  "expect": {
+    "calls": [
+      [
+        "GET",
+        "/repos/acme/a/contents/src/a.js?ref=main"
+      ],
+      [
+        "GET",
+        "/repos/acme/a/contents/src/b.mjs?ref=main"
+      ]
+    ],
+    "verdicts": {
+      "jwt": {
+        "verdict": false,
+        "why": null
+      }
+    }
+  }
+}

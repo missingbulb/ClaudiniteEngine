@@ -1,0 +1,12 @@
+{
+  "rules": "@../shared/packs/claudinite-fleet-sheepdog/RULES.md\n@../shared/packs/python/RULES.md\n",
+  "mounts": [
+    "configuring-the-fleet",
+    "python-optional-deps"
+  ],
+  "world": [],
+  "work": [],
+  "only": [
+    "fleet-pack-seed-agrees"
+  ]
+}

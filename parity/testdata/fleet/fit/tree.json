@@ -1,0 +1,44 @@
+{
+  "input": {
+    "fn": "tree",
+    "repo": "acme/a",
+    "ref": "feature/x",
+    "calls": {
+      "GET /repos/acme/a/git/trees/feature%2Fx?recursive=1": {
+        "status": 200,
+        "json": {
+          "truncated": true,
+          "tree": [
+            {
+              "path": "a",
+              "type": "blob"
+            },
+            {
+              "path": "d",
+              "type": "tree"
+            },
+            {
+              "path": "d/b",
+              "type": "blob"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "expect": {
+    "calls": [
+      [
+        "GET",
+        "/repos/acme/a/git/trees/feature%2Fx?recursive=1"
+      ]
+    ],
+    "result": {
+      "tracked": [
+        "a",
+        "d/b"
+      ],
+      "truncated": true
+    }
+  }
+}

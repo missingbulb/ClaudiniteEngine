@@ -233,3 +233,27 @@ func TestVerifyPackIndexAcceptsAnExtraField(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// A catalog is signed by a packs key under its own domain: neither an
+// index's signature nor a catalog's verifies as the other's.
+func TestSignedPackCatalog(t *testing.T) {
+	c := mustIssue(t, UsePacks, t0, t0.AddDate(0, 0, 30))
+	roots := []ed25519.PublicKey{pub(root)}
+	cat := []byte(`{"v":1,"serial":3,"packs":[]}` + "\n")
+	if b, err := VerifyPackCatalog(SignPackCatalog(subj, c, cat), cat, roots, t0); err != nil || b.Use != UsePacks {
+		t.Fatalf("%v %+v", err, b)
+	}
+	if PackCatalogDomain != "claudinite-packcatalog-v1\n" {
+		t.Errorf("the catalog domain is %q; ClaudinitePacks' tools/sign/sign.mjs signs under claudinite-packcatalog-v1", PackCatalogDomain)
+	}
+	if _, err := VerifyPackCatalog(SignPackIndex(subj, c, cat), cat, roots, t0); err == nil {
+		t.Error("a catalog signed under the pack index domain verified")
+	}
+	if _, err := VerifyPackIndex(SignPackCatalog(subj, c, cat), cat, roots, t0); err == nil {
+		t.Error("an index signed under the catalog domain verified")
+	}
+	mc := mustIssue(t, UseManifest, t0, t0.AddDate(0, 0, 30))
+	if _, err := VerifyPackCatalog(SignPackCatalog(subj, mc, cat), cat, roots, t0); err == nil {
+		t.Error("a manifest-use certificate signed a catalog")
+	}
+}

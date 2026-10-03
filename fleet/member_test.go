@@ -215,3 +215,33 @@ func TestACnMemberSignalsItsPacksAndItsScheduler(t *testing.T) {
 		t.Errorf("%+v", m)
 	}
 }
+
+// A repository outside the fleet's owner is out of scope before its tree
+// is read, so judging one reads nothing of it.
+func TestARepositoryOutsideTheOwnerIsJudgedWithoutAnyRead(t *testing.T) {
+	w := &world{}
+	r := fleet.Repo{Name: "x", FullName: "Other/x"}
+	r.Owner.Login = "Other"
+	v := fleet.JudgeRepo(w.gh, r, "acme/manager", fleet.Config{Owner: "acme"}, nil)
+	if v.Scope != fleet.ScopeOutOfOwner || len(w.calls) != 0 {
+		t.Fatalf("scope %q after %v", v.Scope, w.calls)
+	}
+}
+
+// An offset instant carries a "+", which a query reads as a space: the
+// window's since is escaped.
+func TestTheSignalWindowIsEscapedInTheCommitsQuery(t *testing.T) {
+	w := &world{
+		files: map[string]string{".claudinite/settings.json": `{"packs": {"declared": ["basics"]}}`},
+		raw: map[string]fleet.Response{"/user/repos?affiliation=owner&per_page=100&page=1": {Status: 200,
+			JSON: json.RawMessage(`[{"name":"m","full_name":"acme/m","owner":{"login":"acme"},"default_branch":"main"}]`)}},
+	}
+	fleet.ReadFleet(w.gh, "acme", "2026-10-01T00:00:00+03:00")
+	want := "GET /repos/acme/m/commits?sha=main&since=2026-10-01T00%3A00%3A00%2B03%3A00&per_page=100&page=1"
+	for _, c := range w.calls {
+		if c == want {
+			return
+		}
+	}
+	t.Fatalf("no %q among %v", want, w.calls)
+}

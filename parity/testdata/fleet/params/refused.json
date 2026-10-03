@@ -1,0 +1,104 @@
+{
+  "input": {
+    "cases": [
+      {
+        "argv": [
+          "--scan-for-needed-packs=true",
+          "--repos=all-covered-members"
+        ],
+        "params": {
+          "REPOS": "all-covered-members Alpha"
+        }
+      },
+      {
+        "argv": [
+          "--scan-for-needed-packs=true",
+          "--repos=all-covered-members"
+        ],
+        "params": {
+          "ADD_PACKS": "p"
+        }
+      },
+      {
+        "argv": [
+          "--scan-for-needed-packs=true",
+          "--repos=all-covered-members"
+        ],
+        "params": {
+          "REPOS": "Alpha",
+          "ADD_PACKS": "p",
+          "PACK_CONFIG": "q.a=1"
+        }
+      },
+      {
+        "argv": [
+          "--scan-for-needed-packs=true",
+          "--repos=all-covered-members"
+        ],
+        "params": {
+          "REPOS": "Alpha",
+          "PACK_ANSWER": "q.a=1"
+        }
+      },
+      {
+        "argv": [
+          "--scan-for-needed-packs=true",
+          "--repos=all-covered-members"
+        ],
+        "params": {
+          "SCAN_FOR_NEEDED_PACKS": "false",
+          "REPOS": "Alpha"
+        }
+      },
+      {
+        "argv": [
+          "--scan-for-needed-packs=true",
+          "--repos=all-covered-members"
+        ],
+        "params": {
+          "SCAN_FOR_NEEDED_PACKS": "yes",
+          "REPOS": "Alpha"
+        }
+      },
+      {
+        "argv": [
+          "--scan-for-needed-packs",
+          "--repos=a"
+        ],
+        "params": {}
+      },
+      {
+        "argv": [
+          "--Bad=1"
+        ],
+        "params": {}
+      }
+    ]
+  },
+  "expect": [
+    {
+      "error": "repos mixes `all-covered-members` with explicit names (all-covered-members, Alpha) — send one or the other"
+    },
+    {
+      "error": "forcing packs onto `all-covered-members` is refused — name the repos explicitly (a mass addition is bounded by the list a human typed, never by a keyword)"
+    },
+    {
+      "error": "config/answers were sent for `q`, which is not in ADD_PACKS (p) — nothing would apply them ({\"a\":\"1\"})"
+    },
+    {
+      "error": "config/answers were sent for `q`, which is not in ADD_PACKS (empty) — nothing would apply them ({\"a\":\"1\"})"
+    },
+    {
+      "error": "this run would do nothing: scan_for_needed_packs is false and no packs were named. Send `ADD_PACKS=<pack-id> …` to force an addition, or `SCAN_FOR_NEEDED_PACKS=true` to sweep."
+    },
+    {
+      "error": "scan_for_needed_packs must be exactly `true` or `false` (got `yes`)"
+    },
+    {
+      "error": "unrecognised code_work argument `--scan-for-needed-packs` — expected `--<name>=<value>`"
+    },
+    {
+      "error": "unrecognised code_work argument `--Bad=1` — expected `--<name>=<value>`"
+    }
+  ]
+}
