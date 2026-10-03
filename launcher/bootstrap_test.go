@@ -103,6 +103,9 @@ func TestBootstrapRunsCnInitFromTheNpxPackage(t *testing.T) {
 	if code != 1 || !strings.Contains(errOut, "hello") || !strings.Contains(errOut, "no source answered") {
 		t.Fatalf("exit %d\n%s\n%s", code, out, errOut)
 	}
+	if strings.Contains(errOut, "parameter not set") {
+		t.Errorf("the launcher read an unset variable:\n%s", errOut)
+	}
 	for _, f := range []string{hostBin, "manifest.json", "manifest.sig.json"} {
 		if _, err := os.Stat(filepath.Join(m.vdir(), f)); err != nil {
 			t.Errorf("not cached: %s", f)
