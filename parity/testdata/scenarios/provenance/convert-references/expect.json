@@ -1,0 +1,24 @@
+{
+  "runs": [
+    {
+      "exit": 0,
+      "stdout": ".claudinite/local/packs/acme/provenance/shipping-release.md: born entry from references.md (RULES-1)\n.claudinite/local/packs/acme/provenance/naming-gadget.md: born entry from references.md (RULES-2)\n.claudinite/local/packs/acme/references.md:6: RULES-9 cited by no rule - dropped\n.claudinite/local/packs/acme/references.md:7: guide-1 cited by no guideline - dropped\n.claudinite/local/packs/acme/provenance/flow.md: born entry from references.md (flow-1)\n.claudinite/local/packs/acme/provenance/acme-task.md: not written - the file's last entry is dated 2026-07-02; an entry is appended in date order\n.claudinite/local/packs/acme/references.md:10: task:nope names no task the pack carries - dropped\n.claudinite/local/packs/acme/references.md:11: check:nope names no check the pack carries - dropped\n.claudinite/local/packs/acme/references.md:12: weird is not a RULES-n, \u003cskill\u003e-n, check:\u003cid\u003e or task:\u003cid\u003e key - dropped\n.claudinite/local/packs/acme/references.md: converted and deleted\n",
+      "stderr": ""
+    }
+  ],
+  "branch": null,
+  "files": {
+    ".claudinite/local/packs/acme/RULES.md": "# acme\n\n- **Writing a widget** — keep it small and name it for what it does. (writing-widget)\n- **Shipping a release**: tag it first. (shipping-release)\n- **Naming a gadget** — after what it does, not how. (naming-gadget)\n",
+    ".claudinite/local/packs/acme/pack.json": "{\n  \"version\": \"1\",\n  \"ruleRoutingGuidance\": {\n    \"belongs\": \"widgets\",\n    \"excludes\": \"everything else\"\n  }\n}\n",
+    ".claudinite/local/packs/acme/provenance/_pack.md": "## 2026-07-01 · born · the pack\n- **Source:** #10\n- **Reason:** needed one\n- **Mechanism:** prose rule in RULES.md\n",
+    ".claudinite/local/packs/acme/provenance/acme-task.md": "## 2026-07-02 · born · first written\n- **Source:** #10\n- **Reason:** needed one\n- **Mechanism:** prose rule in RULES.md\n",
+    ".claudinite/local/packs/acme/provenance/flow.md": "## 2026-07-01 · born · converted from references.md (flow-1)\n- **Reason:** the first step mattered.\n- **Mechanism:** a step of the flow skill, a workflow\n- **Retire when:** Reaffirm yearly.\n",
+    ".claudinite/local/packs/acme/provenance/guide.md": "## 2026-07-02 · born · first written\n- **Source:** #10\n- **Reason:** needed one\n- **Mechanism:** prose rule in RULES.md\n",
+    ".claudinite/local/packs/acme/provenance/naming-gadget.md": "## 2026-07-01 · born · converted from references.md (RULES-2)\n- **Reason:** Gadgets were named for libraries. The second line joins.\n- **Mechanism:** prose\n",
+    ".claudinite/local/packs/acme/provenance/shipping-release.md": "## 2026-07-01 · born · converted from references.md (RULES-1)\n- **Reason:** Shipped untagged twice, see [the log](../docs/log.md).\n- **Mechanism:** prose\n- **Retire when:** Retire when tags are automatic.\n",
+    ".claudinite/local/packs/acme/provenance/writing-widget.md": "## 2026-07-02 · born · first written\n- **Source:** #10\n- **Reason:** needed one\n- **Mechanism:** prose rule in RULES.md\n",
+    ".claudinite/local/packs/acme/skills/flow/SKILL.md": "---\nname: flow\ndescription: A workflow. Use when flowing.\nmetadata:\n  body: workflow\n---\n\n# flow\n\n1. Do the first step. (1)\n2. Do the second step.\n",
+    ".claudinite/local/packs/acme/skills/guide/SKILL.md": "---\nname: guide\ndescription: Guidance for gadgets. Use when building one.\nmetadata:\n  body: guidelines\n---\n\n# guide\n\n- **Doing the first thing** — do it well.\n- **Doing the second thing** — do it better.\n",
+    ".claudinite/local/packs/acme/tasks/acme-task/task.json": "{\n  \"id\": \"acme-task\",\n  \"description\": \"d\",\n  \"trigger\": \"request\",\n  \"expected_outcome\": \"no_code_changes\"\n}\n"
+  }
+}

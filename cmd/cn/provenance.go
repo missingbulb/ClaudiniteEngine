@@ -9,7 +9,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/shared/report"
 )
 
-// cmdProvenance is `cn provenance`, the member's provenance verbs over the
+// cmdProvenance is `cn provenance`, the provenance verbs over the
 // repository --repo names, else CLAUDE_PROJECT_DIR, else the working
 // directory.
 func cmdProvenance(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
