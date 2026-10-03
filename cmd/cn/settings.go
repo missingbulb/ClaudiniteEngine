@@ -8,15 +8,19 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/missingbulb/ClaudiniteEngine/shared/packset"
+	"github.com/missingbulb/ClaudiniteEngine/lifecycle/adopt"
 	"github.com/missingbulb/ClaudiniteEngine/shared/report"
 	"github.com/missingbulb/ClaudiniteEngine/shared/settings"
 	"github.com/missingbulb/ClaudiniteEngine/shared/settings/node"
+	"github.com/missingbulb/ClaudiniteEngine/shared/version"
 )
 
 func cmdSettings(args []string, stdout io.Writer) error {
+	if len(args) > 0 && args[0] == "answer" {
+		return cmdSettingsAnswer(args[1:], stdout)
+	}
 	if len(args) == 0 || args[0] != "import" {
-		return report.New(report.Usage, "settings takes import")
+		return report.New(report.Usage, "settings takes import or answer")
 	}
 	fs := flag.NewFlagSet("settings import", flag.ContinueOnError)
 	repo := fs.String("repo", ".", "")
@@ -33,7 +37,7 @@ func cmdSettings(args []string, stdout io.Writer) error {
 	if err != nil {
 		return report.Wrap(report.IO, "settings import", err)
 	}
-	decl, rep, err := node.Read(raw, localTree(*repo))
+	decl, rep, err := node.Read(raw, adopt.LocalTree(*repo))
 	if err != nil {
 		return report.Wrap(report.IO, "settings import", err)
 	}
@@ -84,6 +88,28 @@ func cmdSettings(args []string, stdout io.Writer) error {
 	return writeKeepingMode(path, out)
 }
 
+// cmdSettingsAnswer is cn settings answer <pack>/<question> <text>.
+func cmdSettingsAnswer(args []string, stdout io.Writer) error {
+	var pos []string
+	for len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+		pos, args = append(pos, args[0]), args[1:]
+	}
+	fs := flag.NewFlagSet("settings answer", flag.ContinueOnError)
+	repo := fs.String("repo", ".", "")
+	if err := flags(fs, args); err != nil {
+		return err
+	}
+	if len(pos) != 2 {
+		return report.New(report.Usage, "settings answer takes <pack>/<question> <text>")
+	}
+	file, err := adopt.Answer(*repo, version.Version(), pos[0], pos[1])
+	if err != nil {
+		return report.Wrap(report.Verify, "settings answer", err)
+	}
+	fmt.Fprintf(stdout, "answered %s in %s\n", pos[0], file)
+	return nil
+}
+
 func writeKeepingMode(path string, raw []byte) error {
 	mode := os.FileMode(0o644)
 	if st, err := os.Stat(path); err == nil {
@@ -95,13 +121,3 @@ func writeKeepingMode(path string, raw []byte) error {
 	return nil
 }
 
-// localTree answers the import's question about the member's own packs.
-type localTree string
-
-func (t localTree) HasLocal(name string) bool {
-	if strings.ContainsAny(name, `/\`) || name == "." || name == ".." {
-		return false
-	}
-	st, err := os.Stat(filepath.Join(string(t), filepath.FromSlash(packset.LocalDir), name))
-	return err == nil && st.IsDir()
-}

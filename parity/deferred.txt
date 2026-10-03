@@ -5,12 +5,6 @@
 # differential refuses a subtraction of a ported pack's rule that neither
 # names, and a line naming a rule the frozen shelf does not carry.
 
-# claudinite-lifecycle
-seeded-file-stale adoption
-skills-index-current adoption
-interview-answer-stale adoption
-adoption-answers-pending adoption
-
 # claudinite-dashboard
 descriptor-usable dashboard
 

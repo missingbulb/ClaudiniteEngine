@@ -1,0 +1,9 @@
+name: ci
+on: [pull_request]
+jobs:
+  checks:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: World checks
+        run: node .claudinite/shared/engine/checks/check_the_world.mjs

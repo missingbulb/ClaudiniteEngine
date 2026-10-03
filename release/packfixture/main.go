@@ -5,6 +5,7 @@
 // commits the result.
 //
 //	packfixture --tree DIR --src DIR --key K --cert C --min-engine V --publish vN
+//	packfixture --tree DIR --src DIR --key K --cert C --min-engine V --pack ID --publish source
 //	packfixture --tree DIR --key K --cert C --revoke vN
 //	packfixture --tree DIR --key K --cert C --serial N
 //	packfixture --tree DIR --flip-sig
@@ -16,7 +17,9 @@
 // GitHub actions; v3 (1.5) adds a check that finds on every repo; v4
 // (1.6) drops it again; v5 (1.7) needs an engine
 // no rehearsal builds. Every publish and revoke bumps the serial; --serial
-// rewrites it, as an index that regressed would read.
+// rewrites it, as an index that regressed would read. --pack names another
+// fixture pack (hello-asks), which has the one label "source": its folder
+// as it is, at its pack.json version and requires.
 package main
 
 import (
@@ -40,8 +43,11 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/shared/sign"
 )
 
-// Pack is the fixture's one pack.
+// Pack is the fixture pack the labels describe.
 const Pack = "hello"
+
+// SourceLabel publishes any other fixture pack as its folder is.
+const SourceLabel = "source"
 
 // Labels maps a rehearsal label to its pack version.
 var Labels = map[string]string{"v1": "1.0", "v2": "1.4", "v3": "1.5", "v4": "1.6", "v5": "1.7"}
@@ -229,10 +235,10 @@ type Index struct {
 	Versions []Entry `json:"versions"`
 }
 
-func readIndex(tree string) (Index, error) {
-	raw, err := os.ReadFile(filepath.Join(tree, Pack, "index.json"))
+func readIndex(tree, pack string) (Index, error) {
+	raw, err := os.ReadFile(filepath.Join(tree, pack, "index.json"))
 	if os.IsNotExist(err) {
-		return Index{V: 1, Pack: Pack}, nil
+		return Index{V: 1, Pack: pack}, nil
 	}
 	if err != nil {
 		return Index{}, err
@@ -244,6 +250,7 @@ func readIndex(tree string) (Index, error) {
 // writeIndex writes index.json as ClaudinitePacks serializes it and signs
 // it.
 func writeIndex(tree string, ix Index, key, cert string) error {
+	pack := ix.Pack
 	raw, err := json.MarshalIndent(ix, "", "  ")
 	if err != nil {
 		return err
@@ -269,7 +276,7 @@ func writeIndex(tree string, ix Index, key, cert string) error {
 	if err != nil {
 		return err
 	}
-	dir := filepath.Join(tree, Pack)
+	dir := filepath.Join(tree, pack)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
@@ -279,43 +286,73 @@ func writeIndex(tree string, ix Index, key, cert string) error {
 	return os.WriteFile(filepath.Join(dir, "index.sig.json"), append(sig, '\n'), 0o644)
 }
 
-func publish(tree, src, label, minEngine, key, cert string) error {
+// source is a fixture pack other than hello as its folder is, its
+// minimum engine the rehearsal's.
+func source(files map[string]File, minEngine string) (map[string]File, string) {
+	out := map[string]File{}
+	for n, f := range files {
+		out[n] = f
+	}
+	pj := minField.ReplaceAllString(string(out["pack.json"].Data), `"minEngineVersion": "`+minEngine+`"`)
+	out["pack.json"] = File{Data: []byte(pj)}
+	var v struct {
+		Version string `json:"version"`
+	}
+	_ = json.Unmarshal([]byte(pj), &v)
+	return out, v.Version
+}
+
+func publish(tree, src, pack, label, minEngine, key, cert string) error {
 	files, err := ReadPack(src)
 	if err != nil {
 		return err
 	}
-	files, err = Variant(files, label, minEngine)
-	if err != nil {
-		return err
+	var ver string
+	switch {
+	case pack == Pack:
+		if files, err = Variant(files, label, minEngine); err != nil {
+			return err
+		}
+		ver = Labels[label]
+	case label == SourceLabel:
+		files, ver = source(files, minEngine)
+		if ver == "" {
+			return fmt.Errorf("%s/pack.json names no version", pack)
+		}
+	default:
+		return fmt.Errorf("pack %s publishes the label %q only", pack, SourceLabel)
 	}
 	archive, err := Archive(files)
 	if err != nil {
 		return err
 	}
-	ix, err := readIndex(tree)
+	ix, err := readIndex(tree, pack)
 	if err != nil {
 		return err
 	}
-	ver := Labels[label]
 	for _, e := range ix.Versions {
 		if e.Version == ver {
-			return fmt.Errorf("%s %s is already published", Pack, ver)
+			return fmt.Errorf("%s %s is already published", pack, ver)
 		}
 	}
-	if err := os.MkdirAll(filepath.Join(tree, Pack), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(tree, pack), 0o755); err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(tree, Pack, ver+".tar.gz"), archive, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(tree, pack, ver+".tar.gz"), archive, 0o644); err != nil {
 		return err
 	}
 	sum := sha256.Sum256(archive)
 	var pj struct {
-		MinEngineVersion string `json:"minEngineVersion"`
+		MinEngineVersion string   `json:"minEngineVersion"`
+		Requires         []string `json:"requires"`
 	}
 	_ = json.Unmarshal(files["pack.json"].Data, &pj)
+	if pj.Requires == nil {
+		pj.Requires = []string{}
+	}
 	ix.Serial++
 	ix.Versions = append(ix.Versions, Entry{Version: ver, SHA256: hex.EncodeToString(sum[:]), Size: len(archive),
-		MinEngineVersion: pj.MinEngineVersion, Requires: []string{}, Channel: "canary",
+		MinEngineVersion: pj.MinEngineVersion, Requires: pj.Requires, Channel: "canary",
 		PublishedAt: "2026-10-01T00:00:00Z", SourceCommit: strings.Repeat("0", 40)})
 	return writeIndex(tree, ix, key, cert)
 }
@@ -331,6 +368,7 @@ func run(args []string) error {
 	revoke := fs.String("revoke", "", "")
 	serial := fs.Int("serial", 0, "")
 	flip := fs.Bool("flip-sig", false, "")
+	pack := fs.String("pack", Pack, "")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -342,9 +380,9 @@ func run(args []string) error {
 		if *src == "" || *minEngine == "" || *key == "" || *cert == "" {
 			return fmt.Errorf("--publish needs --src, --min-engine, --key and --cert")
 		}
-		return publish(*tree, *src, *pub, *minEngine, *key, *cert)
+		return publish(*tree, *src, *pack, *pub, *minEngine, *key, *cert)
 	case *revoke != "":
-		ix, err := readIndex(*tree)
+		ix, err := readIndex(*tree, *pack)
 		if err != nil {
 			return err
 		}
@@ -360,14 +398,14 @@ func run(args []string) error {
 		ix.Serial++
 		return writeIndex(*tree, ix, *key, *cert)
 	case *serial > 0:
-		ix, err := readIndex(*tree)
+		ix, err := readIndex(*tree, *pack)
 		if err != nil {
 			return err
 		}
 		ix.Serial = *serial
 		return writeIndex(*tree, ix, *key, *cert)
 	case *flip:
-		p := filepath.Join(*tree, Pack, "index.sig.json")
+		p := filepath.Join(*tree, *pack, "index.sig.json")
 		raw, err := os.ReadFile(p)
 		if err != nil {
 			return err

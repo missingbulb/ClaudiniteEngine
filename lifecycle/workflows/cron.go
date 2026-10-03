@@ -48,6 +48,7 @@ func ForRepo(fullName string) map[string][]byte {
 var (
 	cronLine    = regexp.MustCompile(`(?m)^    - cron: "(\d{1,2}) (\d{1,2}),(\d{1,2}) \* \* \*"$`)
 	stampedLine = regexp.MustCompile(`^ {10}([A-Z][A-Z0-9_]*): \$\{\{ secrets\.([A-Z][A-Z0-9_]*) \}\}$`)
+	secretWord  = regexp.MustCompile(`^[A-Z][A-Z0-9_]*$`)
 )
 
 // isSchedulerCron is a cron this engine's hash could have written: a

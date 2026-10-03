@@ -1,0 +1,6 @@
+{
+  "ruleRoutingGuidance": {
+    "belongs": "this scenario's own skills",
+    "excludes": "everything else"
+  }
+}

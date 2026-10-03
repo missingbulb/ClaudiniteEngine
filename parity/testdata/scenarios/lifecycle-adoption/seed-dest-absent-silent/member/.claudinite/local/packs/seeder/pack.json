@@ -1,0 +1,12 @@
+{
+  "ruleRoutingGuidance": {
+    "belongs": "x",
+    "excludes": "y"
+  },
+  "seedOps": [
+    {
+      "template": "templates/seeded.yml",
+      "dest": "seeded.yml"
+    }
+  ]
+}

@@ -96,6 +96,10 @@ type File struct {
 	Cause       Cause      `json:"cause,omitempty"`
 	CauseDetail string     `json:"cause_detail,omitempty"`
 	Link        string     `json:"link,omitempty"`
+	// Checkout and Portal are the links a refusal named (where a plan is
+	// picked or managed), "" when it named none.
+	Checkout string `json:"checkout_url,omitempty"`
+	Portal   string `json:"portal_url,omitempty"`
 	// Noticed is the last notice a hook passed on, so it is not repeated.
 	Noticed string `json:"noticed,omitempty"`
 	// RenewAttempts counts the renewals started since a key last landed.

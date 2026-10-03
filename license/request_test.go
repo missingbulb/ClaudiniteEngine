@@ -777,7 +777,16 @@ func TestDesktopRefusalNamesTheReason(t *testing.T) {
 	r := desktopRig(t)
 	r.w.refuse = &licenseapi.Refusal{Status: 403, Reason: "refused-private"}
 	r.start()
-	if f := r.file(); f.Cause != "refused-private" {
+	if f := r.file(); f.Cause != "refused-private" || f.Checkout != "" {
+		t.Fatalf("%+v", f)
+	}
+}
+
+func TestDesktopRefusalKeepsTheCheckout(t *testing.T) {
+	r := desktopRig(t)
+	r.w.refuse = &licenseapi.Refusal{Status: 403, Reason: "no-plan", CheckoutURL: "https://polar.sh/c/x", PortalURL: "https://polar.sh/p"}
+	r.start()
+	if f := r.file(); f.Cause != "no-plan" || f.Checkout != "https://polar.sh/c/x" || f.Portal != "https://polar.sh/p" || f.Link != InstallURL {
 		t.Fatalf("%+v", f)
 	}
 }

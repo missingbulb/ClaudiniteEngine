@@ -1,0 +1,16 @@
+{
+  "rules": "@../shared/packs/claudinite-lifecycle/RULES.md\n@../shared/packs/product-wiki/RULES.md\n",
+  "mounts": [
+    "adopt-claudinite",
+    "adopt-pack",
+    "explore-link",
+    "writing-wiki-pages"
+  ],
+  "world": [
+    "interview-answer-stale (settings) advise"
+  ],
+  "work": [],
+  "only": [
+    "interview-answer-stale"
+  ]
+}

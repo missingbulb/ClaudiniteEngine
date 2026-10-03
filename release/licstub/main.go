@@ -355,7 +355,11 @@ func (s *stub) sessionKey(w http.ResponseWriter, bearer string, body []byte) {
 		return
 	}
 	if why := s.cfg.Refuse["desktop"]; why != "" {
-		refuse(w, http.StatusForbidden, why)
+		body := map[string]string{"refused": why}
+		if s.cfg.CheckoutURL != "" {
+			body["checkout_url"] = s.cfg.CheckoutURL
+		}
+		reply(w, http.StatusForbidden, body)
 		return
 	}
 	var user struct {
@@ -584,7 +588,7 @@ func main() {
 	states := flag.String("states", "", "a JSON file holding the release block every key carries")
 	features := flag.String("features", "", "comma-separated features (default the plan's)")
 	seats := flag.String("seats", "", "PAID,COUNTED,HEADROOM")
-	flag.StringVar(&cfg.CheckoutURL, "checkout-url", "", "the keys' checkout_url")
+	flag.StringVar(&cfg.CheckoutURL, "checkout-url", "", "the keys' checkout_url, and a desktop refusal's")
 	flag.BoolVar(&cfg.WrongNonce, "wrong-nonce", false, "sign session keys with a nonce that is not the request's")
 	flag.Parse()
 	raw, err := os.ReadFile(*rootKey)

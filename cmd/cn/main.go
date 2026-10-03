@@ -49,11 +49,21 @@ commands:
                  passes over it; needs GITHUB_TOKEN
   update land --pr N --sha SHA [--repo DIR]
                  merge update PR N (engine or packs), whose CI passed on SHA
-  init --packs ID[,ID] [--channel stable|canary] [--package PKG] [--repo DIR]
+  init --packs ID[,ID] [--answer PACK/Q=TEXT]... [--channel stable|canary]
+                 [--package PKG] [--repo DIR]
                  adopt a repo: pin the newest allowed engine, write the
-                 member files and vendor the packs and what they require
-  adopt ID [--repo DIR]
-                 declare and vendor one more pack on an adopted repo
+                 member files, vendor the packs and what they require,
+                 seed and stamp for them; ends on the QUESTIONS, HANDOVER
+                 and NEXT blocks
+  init --from-node [--channel stable|canary] [--package PKG] [--repo DIR]
+                 move a Node member: pin, import .claudinite-settings.json,
+                 vendor its canon packs again, replace the Node hooks and
+                 write the workflows; deletes no member file
+  adopt ID[,ID] [--answer PACK/Q=TEXT]... [--repo DIR]
+                 declare and vendor more packs on an adopted repo, every
+                 id resolved before any write; ends as init does
+  settings answer PACK/QUESTION TEXT [--repo DIR]
+                 record a person's answer to a pack's adoption question
   settings import [--from FILE] [--stdout] [--repo DIR]
                  read the Node engine's .claudinite-settings.json into the
                  pinned .claudinite/settings.* as its packs and checks

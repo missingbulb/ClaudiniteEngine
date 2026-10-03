@@ -1,6 +1,7 @@
 package packset
 
 import (
+	"encoding/json"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -111,4 +112,46 @@ func TestLoadNotLoaded(t *testing.T) {
 	if tokens(s) != "needs" {
 		t.Errorf("loaded %s; a pack whose requires is undeclared loads, as in the Node engine", tokens(s))
 	}
+}
+
+// A malformed adoption declaration is the pack's load fault, as the Node
+// engine's discovery reported it; a well-formed one is typed.
+func TestAdoptionKeysAreValidatedAtLoad(t *testing.T) {
+	repo := member(t, "    - asks\n    - local/bad\n    - local/seeds\n")
+	write(t, filepath.Join(Tree(repo, "asks"), "pack.json"), `{"version": "1.0", "questions": [{"id": "goals", "prompt": "What for?", "distill": "config.goals"}],
+		"adoptionHandover": [{"step": "Flip it", "breaks": "nothing ships", "done": "it ships"}]}`)
+	write(t, filepath.Join(repo, LocalDir, "bad", "pack.json"), `{"questions": [{"id": "a", "prompt": "x"}, {"id": "a", "prompt": "y"}]}`)
+	write(t, filepath.Join(repo, LocalDir, "seeds", "pack.json"), `{"seedOps": [{"template": "t.yml", "dest": ".claudinite/shared/x"}]}`)
+	s, err := Load(repo, "0.0.0", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tokens(s) != "asks" {
+		t.Fatalf("loaded %s; not loaded:\n%s", tokens(s), notLoaded(s))
+	}
+	m := s.Packs[0].Manifest
+	if len(m.Questions) != 1 || m.Questions[0] != (Question{"goals", "What for?", "config.goals"}) || len(m.Handover) != 1 || m.Handover[0].Done != "it ships" {
+		t.Errorf("manifest %+v", m)
+	}
+	nl := notLoaded(s)
+	if !strings.Contains(nl, `questions names id "a" twice`) || !strings.Contains(nl, "under .claudinite/shared/") {
+		t.Errorf("not loaded:\n%s", nl)
+	}
+	for _, bad := range []string{`[{"template": "../x", "dest": "y"}]`, `[{"template": "x", "dest": "/etc/y"}]`, `[{"template": "x"}]`} {
+		if _, err := readSeedOps(mustJSON(t, bad)); err == nil {
+			t.Errorf("seedOps %s read", bad)
+		}
+	}
+	if _, err := readHandover(mustJSON(t, `[{"step": "x", "breaks": "y"}]`)); err == nil {
+		t.Error("a handover step without done read")
+	}
+}
+
+func mustJSON(t *testing.T, s string) any {
+	t.Helper()
+	var v any
+	if err := json.Unmarshal([]byte(s), &v); err != nil {
+		t.Fatal(err)
+	}
+	return v
 }

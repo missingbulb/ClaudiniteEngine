@@ -1,0 +1,13 @@
+{
+  "id": "hello-asks-token",
+  "description": "The adoption probe's task: declares HELLO_TOKEN so adoption stamps it into the executor workflow; a request item runs it.",
+  "trigger": "request",
+  "expected_outcome": "fresh_pr",
+  "automerge": "nothing",
+  "agent_model": "none",
+  "code_worker_mjs": "worker.mjs",
+  "code_work_timeout": 60,
+  "code_work_required_secrets": [
+    "HELLO_TOKEN"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "ruleRoutingGuidance": {
+    "belongs": "x",
+    "excludes": "y"
+  },
+  "questions": [
+    {
+      "id": 5,
+      "prompt": "no string id"
+    }
+  ]
+}

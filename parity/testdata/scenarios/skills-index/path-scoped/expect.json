@@ -1,0 +1,12 @@
+{
+  "rules": "",
+  "skills": "\u003c!-- GENERATED — do not hand-edit; every update rewrites it. Edit a skill's SKILL.md frontmatter. --\u003e\n# Skills mounted here, and what loads each one\n\nA skill loads when the session's activity matches its description. A skill that names files\nunder `force-load-on-file-edits-paths` is also forced for them: a file tool aimed there is held\nby the PreToolUse guard until the skill is loaded (the Skill tool, or a Read of its SKILL.md),\nand an edit made another way is caught at Stop.\n\n## Before editing these files\n\n| Files | Skill | Pack | Loads when |\n|---|---|---|---|\n| `.claudinite/settings.yaml` | `alpha-scoped` | mine | Guards the settings. |\n| `.github/workflows/`, `docs/*.md` | `zeta-scoped` | mine | Guards the workflow files. |\n\n## By activity\n\n| Skill | Pack | Loads when |\n|---|---|---|\n| `a-free` | mine | Also by activity. |\n| `beta-free` | mine | Loads by activity alone. |\n",
+  "mounts": [
+    "a-free",
+    "alpha-scoped",
+    "beta-free",
+    "zeta-scoped"
+  ],
+  "world": [],
+  "work": []
+}

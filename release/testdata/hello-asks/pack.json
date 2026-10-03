@@ -1,0 +1,32 @@
+{
+  "version": "1.0",
+  "minEngineVersion": "61001.1.0",
+  "requires": [
+    "hello"
+  ],
+  "questions": [
+    {
+      "id": "goals",
+      "prompt": "What should the hello probe prove on this repo?",
+      "distill": "one line naming the behaviour the probe stands for"
+    }
+  ],
+  "seedOps": [
+    {
+      "template": "templates/hello-asks.md",
+      "dest": "docs/hello-asks.md"
+    }
+  ],
+  "adoptionHandover": [
+    {
+      "step": "Add the Actions secret HELLO_TOKEN (any value)",
+      "breaks": "the hello-asks-token task parks needs-human-action naming the secret",
+      "done": "an executor run of hello-asks-token reads the secret"
+    }
+  ],
+  "ruleRoutingGuidance": {
+    "belongs": "nothing but the adoption probe: proving that a pack's questions, seeds, handover and task secrets reach a member at adoption",
+    "excludes": "every real rule, skill or check — the pack that owns its subject"
+  },
+  "pitch": "The adoption probe. It asks one question, seeds one file, hands over one step and declares one task secret, so a rehearsal can see cn init and cn adopt carry each through. It belongs only on repos that test Claudinite itself."
+}

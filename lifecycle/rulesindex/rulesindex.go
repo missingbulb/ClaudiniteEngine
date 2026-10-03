@@ -125,7 +125,7 @@ func Write(repo, engine string) (bool, error) {
 	return true, os.WriteFile(path, []byte(want), 0o644)
 }
 
-// Converge writes the index and the flat declarations beside it,
+// Converge writes the index, the skills index and the flat declarations beside it,
 // returning the paths written: the same pack set produces both, so every
 // writer of one writes the other.
 func Converge(repo, engine string) ([]string, error) {
@@ -136,6 +136,12 @@ func Converge(repo, engine string) ([]string, error) {
 	}
 	if changed {
 		written = append(written, File)
+	}
+	if changed, err = WriteSkills(repo, engine); err != nil {
+		return written, err
+	}
+	if changed {
+		written = append(written, SkillsFile)
 	}
 	s, err := packset.Load(repo, engine, false)
 	if err != nil {

@@ -1,0 +1,84 @@
+# A thin wrapper: every decision lives in the engine modules named in the `run:`
+# lines below, which converge nightly — this file does not, so it must not grow
+# logic. The cron is a placeholder; bootstrap and the wiring converge rewrite it
+# to this repo's hashed minute and its own two anchor hours.
+name: Claudinite scheduler
+
+on:
+  schedule:
+    - cron: '26 4,16 * * *'
+  workflow_dispatch:
+    inputs:
+      wake:
+        description: 'Task ids to run now (`pack/task` or a bare task name, space-separated) — wakes each one’s standing item regardless of its anchor'
+        required: false
+        type: string
+
+concurrency:
+  group: claudinite-scheduler-run
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+  actions: write
+
+jobs:
+  scheduler-run:
+    runs-on: ubuntu-latest
+    outputs:
+      pickable: ${{ steps.run.outputs.pickable }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - name: Instantiate, ready and reclaim work items
+        id: run
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          CLAUDINITE_WAKE: ${{ inputs.wake }}
+          CLAUDINITE_TASKS_SUSPEND_ALL: ${{ vars.CLAUDINITE_TASKS_SUSPEND_ALL }}
+        run: node .claudinite/shared/packs/claudinite-tasks/src/schedule/run.mjs
+
+  drain:
+    needs: scheduler-run
+    # An older member workflow maps no such output, and an empty string is not
+    # 'true' — so a stale copy keeps dispatching, the previous behavior and safe.
+    if: needs.scheduler-run.outputs.pickable == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - name: Start an executor for what this run readied
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node .claudinite/shared/packs/claudinite-tasks/src/schedule/drain-dispatch.mjs
+
+  report-failure:
+    needs: [scheduler-run, drain]
+    # Explicit results rather than `failure()`: `drain` is skipped on a quiet
+    # tick, and a bare status function makes this job's fate turn on how the
+    # platform propagates a skipped dependency.
+    if: >-
+      always()
+      && (needs.scheduler-run.result == 'failure' || needs.drain.result == 'failure')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - name: Escalate the failed run to a human-visible issue
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node .claudinite/shared/packs/claudinite-tasks/src/recover/workflow-failure.mjs

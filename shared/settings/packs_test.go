@@ -97,7 +97,7 @@ func TestParseFileReadsTheNodeShapes(t *testing.T) {
 		t.Fatal(err)
 	}
 	e := p.Packs.Entries[0]
-	if !reflect.DeepEqual(e.Via, []any{"basics"}) || !reflect.DeepEqual(e.Answers, map[string]any{"store": "o/r"}) {
+	if !reflect.DeepEqual(e.Via, []any{"basics"}) || !reflect.DeepEqual(e.Answers, map[string]string{"store": "o/r"}) {
 		t.Errorf("via %v, answers %v", e.Via, e.Answers)
 	}
 	rules, _, _ := p.Effective()
@@ -218,10 +218,6 @@ func TestAddDeclaredRefuses(t *testing.T) {
 	}
 	if _, err := AddDeclared([]byte(packsSamples[YAML]), YAML, "Bad"); err == nil {
 		t.Error("added a malformed id")
-	}
-	obj := "packs:\n  declared:\n    - id: hello\n      rules: {x: advise}\n"
-	if _, err := AddDeclared([]byte(obj), YAML, "new-pack"); err == nil || !strings.Contains(err.Error(), "by hand") {
-		t.Errorf("edited beside an object entry: %v", err)
 	}
 }
 

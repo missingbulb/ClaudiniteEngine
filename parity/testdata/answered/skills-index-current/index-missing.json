@@ -1,0 +1,13 @@
+{
+  "nodeFiles": {
+    ".claudinite-settings.json": "{\"packs\":[\"basics\"]}\n",
+    ".claudinite/shared/packs/basics/RULES.md": "# basics\n",
+    ".claudinite/shared/packs/basics/skills/demo/SKILL.md": "---\nname: demo\ndescription: A skill a declared pack bundles.\n---\n\n# demo\n"
+  },
+  "cnShape": "v9-skills-index",
+  "cnFiles": {
+    ".claudinite/flat/claudinite-skills.GENERATED.md": null
+  },
+  "answeredBy": "skills-index-current",
+  "nodeFires": true
+}

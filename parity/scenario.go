@@ -18,6 +18,9 @@ import (
 // A scenario is a directory:
 //
 //	settings.json  the Node engine's declaration (.claudinite-settings.json)
+//	base-settings.json  the declaration as main holds it, when the change
+//	               moves it: the settings file is then committed on main
+//	               and again, as settings.json, on branch change
 //	member/        the repo's committed files on main
 //	change/        files laid over member/ and committed on branch change
 //	change-message the change commit's message (default "change")
@@ -35,13 +38,19 @@ import (
 type Scenario struct {
 	Group, Name, Dir string
 	Node             map[string]any
-	Expect           Expect
+	// Base is base-settings.json, nil when the change leaves the
+	// declaration alone.
+	Base   map[string]any
+	Expect Expect
 }
 
 // Expect is what each engine must answer; a missing field is not asserted
 // against the expectation, only between the engines.
 type Expect struct {
-	Rules  *string   `json:"rules,omitempty"`
+	Rules *string `json:"rules,omitempty"`
+	// Skills is the skills index; recorded only where the scenario asks
+	// for it by carrying the key.
+	Skills *string   `json:"skills,omitempty"`
 	Mounts []string  `json:"mounts"`
 	World  *[]string `json:"world,omitempty"`
 	Work   *[]string `json:"work,omitempty"`
@@ -192,6 +201,11 @@ func loadScenario(group, name, dir string) (Scenario, error) {
 	if err := json.Unmarshal(raw, &s.Node); err != nil {
 		return s, fmt.Errorf("%s/%s settings.json: %w", group, name, err)
 	}
+	if raw, err := os.ReadFile(filepath.Join(dir, "base-settings.json")); err == nil {
+		if err := json.Unmarshal(raw, &s.Base); err != nil {
+			return s, fmt.Errorf("%s/%s base-settings.json: %w", group, name, err)
+		}
+	}
 	raw, err = os.ReadFile(filepath.Join(dir, "expect.json"))
 	if err != nil {
 		return s, err
@@ -230,25 +244,38 @@ func (s Scenario) Materialize(parent, canonPacks string, e Engine) (string, erro
 			return "", err
 		}
 	}
-	settings, err := e.Settings(dir, s.Node)
+	first := s.Node
+	if s.Base != nil {
+		first = s.Base
+	}
+	settings, err := e.Settings(dir, first)
 	if err != nil {
 		return "", err
 	}
 	if err := gitDo(dir, "init", "-q", "-b", "main"); err != nil {
 		return "", err
 	}
-	if err := appendFile(filepath.Join(dir, ".git/info/exclude"), "/"+settings+"\n"); err != nil {
-		return "", err
+	if s.Base == nil {
+		if err := appendFile(filepath.Join(dir, ".git/info/exclude"), "/"+settings+"\n"); err != nil {
+			return "", err
+		}
 	}
 	if err := commitAll(dir, "base"); err != nil {
 		return "", err
 	}
-	if exists(filepath.Join(s.Dir, "change")) {
+	if exists(filepath.Join(s.Dir, "change")) || s.Base != nil {
 		if err := gitDo(dir, "checkout", "-q", "-b", "change"); err != nil {
 			return "", err
 		}
-		if err := copyTree(filepath.Join(s.Dir, "change"), dir); err != nil {
-			return "", err
+		if s.Base != nil {
+			if _, err := e.Settings(dir, s.Node); err != nil {
+				return "", err
+			}
+		}
+		if exists(filepath.Join(s.Dir, "change")) {
+			if err := copyTree(filepath.Join(s.Dir, "change"), dir); err != nil {
+				return "", err
+			}
 		}
 		msg := "change"
 		if b, err := os.ReadFile(filepath.Join(s.Dir, "change-message")); err == nil {
@@ -259,7 +286,7 @@ func (s Scenario) Materialize(parent, canonPacks string, e Engine) (string, erro
 		}
 	}
 	if exists(filepath.Join(s.Dir, "merge")) {
-		if !exists(filepath.Join(s.Dir, "change")) {
+		if !exists(filepath.Join(s.Dir, "change")) && s.Base == nil {
 			if err := gitDo(dir, "checkout", "-q", "-b", "change"); err != nil {
 				return "", err
 			}

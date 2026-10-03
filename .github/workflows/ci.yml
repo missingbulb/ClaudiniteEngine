@@ -64,6 +64,11 @@ jobs:
           CLAUDINITE_PARITY_TREES: ${{ github.workspace }}/claudinite-frozen:${{ github.workspace }}/parity/testdata/trees/planted
           CLAUDINITE_PACKS_TREE: ${{ github.workspace }}/claudinitepacks
           CLAUDINITE_CN: ${{ runner.temp }}/cn
+      # cn init --from-node over a copy of each Node member tree, its canon packs from the pinned checkout.
+      - run: go test ./lifecycle/adopt -run TestFromNodeOverRealMembers -v
+        env:
+          CLAUDINITE_PARITY_TREES: ${{ github.workspace }}/claudinite-frozen
+          CLAUDINITE_PACKS_TREE: ${{ github.workspace }}/claudinitepacks
       # The ported packs' Go tests and cn check --pack fixtures, against this cn, until
       # ClaudinitePacks pins a published one (#2).
       - run: sh tools/checks/test.sh

@@ -1,0 +1,11 @@
+{
+  "packs": [
+    "claudinite-lifecycle",
+    {
+      "id": "local/asks",
+      "answers": {
+        "gone": "x"
+      }
+    }
+  ]
+}

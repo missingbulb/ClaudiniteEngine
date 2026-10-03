@@ -1,0 +1,6 @@
+{
+  "packs": [
+    "jwt",
+    "local/mine"
+  ]
+}

@@ -110,6 +110,27 @@ func TestARefusalIsTyped(t *testing.T) {
 	}
 }
 
+// A refusal's checkout and portal links are read when they are https
+// URLs and dropped otherwise, so a malformed body never yields a link.
+func TestARefusalCarriesItsLinks(t *testing.T) {
+	for body, want := range map[string][2]string{
+		`{"refused": "no-plan", "checkout_url": "https://polar.sh/c/x", "portal_url": "https://polar.sh/p"}`: {"https://polar.sh/c/x", "https://polar.sh/p"},
+		`{"refused": "no-plan", "checkout_url": "http://polar.sh/c/x", "portal_url": 7}`:                     {"", ""},
+		`{"refused": "no-plan"}`: {"", ""},
+	} {
+		var log []seen
+		c := server(t, &log, func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = io.WriteString(w, body)
+		})
+		_, err := c.ActionsKey("jwt", "1.1.0")
+		var ref *Refusal
+		if !errors.As(err, &ref) || ref.Reason != "no-plan" || ref.CheckoutURL != want[0] || ref.PortalURL != want[1] {
+			t.Errorf("%s: %+v", body, ref)
+		}
+	}
+}
+
 func TestAnUnreachableServerIsNotARefusal(t *testing.T) {
 	c := &Client{Base: "https://127.0.0.1:1", HTTP: &http.Client{Timeout: time.Second}}
 	_, err := c.ActionsKey("jwt", "1.1.0")

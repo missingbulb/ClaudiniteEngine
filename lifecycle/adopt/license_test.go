@@ -24,16 +24,15 @@ func TestInitWritesThePlanTheKeyNames(t *testing.T) {
 	if l, err := settings.ReadLicense(raw, settings.YAML); err != nil || l.Plan != "public" {
 		t.Errorf("plan %+v %v\n%s", l, err, raw)
 	}
-	lines := strings.Split(strings.TrimSpace(out.String()), "\n")
-	if last := strings.TrimSpace(lines[len(lines)-1]); last != "plan: public" {
-		t.Errorf("last line %q\n%s", last, out)
+	if !strings.Contains(out.String(), "\nplan: public\n") || strings.Contains(out.String(), "Install the Claudinite GitHub App") {
+		t.Errorf("want the plan line and no install row:\n%s", out)
 	}
 	if strings.Contains(out.String(), "arrives with a later engine") {
 		t.Error("the checklist still defers the App link")
 	}
 }
 
-func TestInitWithNoKeyEndsOnTheInstallLink(t *testing.T) {
+func TestInitWithNoKeyHandsOverTheInstall(t *testing.T) {
 	repo := t.TempDir()
 	in, out := input(t, repo, "hello")
 	in.Key = func(string) KeyGrant {
@@ -50,8 +49,22 @@ func TestInitWithNoKeyEndsOnTheInstallLink(t *testing.T) {
 	if !strings.Contains(s, "https://github.com/apps/claudinite/installations/new") || !strings.Contains(s, "sessions run degraded") {
 		t.Errorf("output:\n%s", s)
 	}
-	lines := strings.Split(s, "\n")
-	if !strings.Contains(lines[len(lines)-1]+lines[len(lines)-2], "installations/new") {
-		t.Errorf("the link is not at the end:\n%s", s)
+	if !strings.Contains(s, "  [ ] (cn) Install the Claudinite GitHub App on this account: https://github.com/apps/claudinite/installations/new\n") {
+		t.Errorf("no install row in HANDOVER:\n%s", s)
+	}
+}
+
+func TestInitWithNoPlanHandsOverTheCheckout(t *testing.T) {
+	repo := t.TempDir()
+	in, out := input(t, repo, "hello")
+	in.Key = func(string) KeyGrant {
+		return KeyGrant{Reason: "no-plan", Link: InstallURL, Checkout: "https://checkout.example/c"}
+	}
+	if err := Init(in); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	s := out.String()
+	if !strings.Contains(s, "  [ ] (cn) Pick a plan for this private repo: https://checkout.example/c\n") || strings.Contains(s, "Install the Claudinite") {
+		t.Errorf("want the plan row in place of the install row:\n%s", s)
 	}
 }

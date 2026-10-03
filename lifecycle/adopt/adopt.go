@@ -2,8 +2,9 @@
 // declaration and the first vendoring. Init adopts a repo from nothing:
 // it picks the newest allowed engine version, fetches and verifies it and
 // runs its selftest, reads and verifies every declared pack (plus what
-// they require), and only when every read succeeded writes the files. No
-// adoption questions or seed operations run yet (phase 6).
+// they require), and only when every read succeeded writes the files; it
+// then records any answers given, seeds and stamps for the new packs and
+// prints what is left: the questions, the human steps and the next one.
 package adopt
 
 import (
@@ -22,9 +23,12 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/lifecycle/update"
 	"github.com/missingbulb/ClaudiniteEngine/lifecycle/verify"
 	"github.com/missingbulb/ClaudiniteEngine/lifecycle/workflows"
+	"github.com/missingbulb/ClaudiniteEngine/shared/interview"
 	"github.com/missingbulb/ClaudiniteEngine/shared/packindex"
 	"github.com/missingbulb/ClaudiniteEngine/shared/packset"
 	"github.com/missingbulb/ClaudiniteEngine/shared/settings"
+	"github.com/missingbulb/ClaudiniteEngine/shared/settings/node"
+	"github.com/missingbulb/ClaudiniteEngine/shared/workitem"
 )
 
 // DefaultPackage is the engine package a pin names when it names none.
@@ -45,6 +49,8 @@ type Input struct {
 	Reader  update.PackReader
 	Timeout time.Duration
 	Out     io.Writer
+	// Answers are recorded once the packs are declared.
+	Answers []AnswerFlag
 	// Key makes init's one key request for the repo, in the foreground
 	// within the cut; nil makes none.
 	Key func(repo string) KeyGrant
@@ -56,6 +62,9 @@ type KeyGrant struct {
 	Plan   string
 	Reason string
 	Link   string
+	// Checkout is the plan checkout a no-plan or refused-private refusal
+	// carried, "" when none came.
+	Checkout string
 }
 
 // vendored is one pack chosen and read, ready to unpack.
@@ -134,46 +143,17 @@ func Init(in Input) error {
 	if _, err := os.Stat(filepath.Join(in.Repo, ".claudinite", "launch")); err == nil {
 		return errors.New(".claudinite/launch already exists: this repo is adopted")
 	}
-	if in.Channel == "" {
-		in.Channel = settings.ChannelStable
-	}
-	if in.Channel != settings.ChannelStable && in.Channel != settings.ChannelCanary {
-		return fmt.Errorf("channel %q: want stable or canary", in.Channel)
-	}
-	if in.Package == "" {
-		in.Package = DefaultPackage
-	}
-	if in.Package != "@claudinite/cli" && in.Package != "@claudinite/cli-rc" {
-		return fmt.Errorf("package %q: want @claudinite/cli or @claudinite/cli-rc", in.Package)
+	if _, err := os.Stat(filepath.Join(in.Repo, node.File)); err == nil {
+		return fmt.Errorf("%s exists: this repo runs the Node engine; cn init --from-node moves it", node.File)
 	}
 	if err := checkIDs(in.Packs); err != nil {
 		return err
 	}
-
-	p, err := in.Fetch.Registry.Packument(in.Package)
-	if err != nil {
-		return fmt.Errorf("%s from %s: %w", in.Package, in.Fetch.Registry.Registry, err)
-	}
-	c := update.Candidate("0.0.0", p, update.StatesFromPackument(p))
-	if c.Version == "" {
-		return fmt.Errorf("%s on %s has no version that is not deprecated, held or revoked", in.Package, in.Fetch.Registry.Registry)
-	}
-	fi := in.Fetch
-	fi.Package, fi.Version, fi.Packument = in.Package, c.Version, p
-	got, err := update.Fetch(fi)
+	got, err := pickEngine(&in)
 	if err != nil {
 		return err
 	}
-	if len(got.Launcher) == 0 {
-		return fmt.Errorf("%s %s carries no launcher (package/launch)", in.Package, c.Version)
-	}
-	self, err := update.Selftest(got.Binary, c.Version, "", in.Timeout)
-	if err != nil {
-		return err
-	}
-	fmt.Fprintf(in.Out, "engine: %s %s (manifest %s, key %s)\n", in.Package, c.Version, got.Integrity, got.KeyID)
-	fmt.Fprint(in.Out, self)
-	chosen, err := resolve(in.Reader, in.Packs, nil, in.Channel, c.Version, in.Out)
+	chosen, err := resolve(in.Reader, in.Packs, nil, in.Channel, got.Version, in.Out)
 	if err != nil {
 		return err
 	}
@@ -196,11 +176,7 @@ func Init(in Input) error {
 	if err != nil {
 		return err
 	}
-	files := []struct {
-		rel  string
-		data []byte
-		mode os.FileMode
-	}{
+	files := []memberFile{
 		{".claudinite/launch", got.Launcher, 0o755},
 		{".claudinite/settings.yaml", cfg.Bytes(), 0o644},
 		{".claudinite/.gitignore", []byte("bin/\n"), 0o644},
@@ -213,23 +189,10 @@ func Init(in Input) error {
 	}
 	tmpl := workflows.ForRepo(name)
 	for _, n := range workflows.Names {
-		files = append(files, struct {
-			rel  string
-			data []byte
-			mode os.FileMode
-		}{".github/workflows/" + n, tmpl[n], 0o644})
+		files = append(files, memberFile{".github/workflows/" + n, tmpl[n], 0o644})
 	}
-	for _, f := range files {
-		p := filepath.Join(in.Repo, filepath.FromSlash(f.rel))
-		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
-			return err
-		}
-		if err := os.WriteFile(p, f.data, f.mode); err != nil {
-			return err
-		}
-		if err := os.Chmod(p, f.mode); err != nil {
-			return err
-		}
+	if err := writeFiles(in.Repo, files); err != nil {
+		return err
 	}
 	for _, v := range chosen {
 		if err := packs.Unpack(v.archive, packset.Tree(in.Repo, v.id)); err != nil {
@@ -255,21 +218,104 @@ func Init(in Input) error {
 		if err := os.WriteFile(p, moved, 0o644); err != nil {
 			return err
 		}
+		fmt.Fprintf(in.Out, "plan: %s\n", g.Plan)
 	}
-	fmt.Fprintf(in.Out, `
-Adopted. Next:
-  1. Commit everything above and open a pull request; a person merges it, since it adds workflows.
-  2. In the repository's Settings > Actions > General, allow GitHub Actions to create and approve pull requests, so the nightly update can open its PRs.
-`)
-	if g.Plan != "" {
-		fmt.Fprintf(in.Out, "  3. The Claudinite App answered with this repo's license key; the settings file now names its plan.\nplan: %s\n", g.Plan)
-		return nil
+	return finish(finishInput{Repo: in.Repo, Engine: got.Version, Newly: ids, Answers: in.Answers, Core: true, Key: g, Out: in.Out})
+}
+
+// pickEngine settles in's channel and package, then picks, fetches and
+// selftests the newest allowed engine, printing what it chose.
+func pickEngine(in *Input) (update.Fetched, error) {
+	if in.Channel == "" {
+		in.Channel = settings.ChannelStable
 	}
-	link := g.Link
-	if link == "" {
-		link = InstallURL
+	if in.Channel != settings.ChannelStable && in.Channel != settings.ChannelCanary {
+		return update.Fetched{}, fmt.Errorf("channel %q: want stable or canary", in.Channel)
 	}
-	fmt.Fprintf(in.Out, "  3. No license key came (%s): the Claudinite GitHub App is not installed on this repo or not reachable, and sessions run degraded until an owner installs it:\n     %s\n", g.Reason, link)
+	if in.Package == "" {
+		in.Package = DefaultPackage
+	}
+	if in.Package != "@claudinite/cli" && in.Package != "@claudinite/cli-rc" {
+		return update.Fetched{}, fmt.Errorf("package %q: want @claudinite/cli or @claudinite/cli-rc", in.Package)
+	}
+	p, err := in.Fetch.Registry.Packument(in.Package)
+	if err != nil {
+		return update.Fetched{}, fmt.Errorf("%s from %s: %w", in.Package, in.Fetch.Registry.Registry, err)
+	}
+	c := update.Candidate("0.0.0", p, update.StatesFromPackument(p))
+	if c.Version == "" {
+		return update.Fetched{}, fmt.Errorf("%s on %s has no version that is not deprecated, held or revoked", in.Package, in.Fetch.Registry.Registry)
+	}
+	fi := in.Fetch
+	fi.Package, fi.Version, fi.Packument = in.Package, c.Version, p
+	got, err := update.Fetch(fi)
+	if err != nil {
+		return update.Fetched{}, err
+	}
+	if len(got.Launcher) == 0 {
+		return update.Fetched{}, fmt.Errorf("%s %s carries no launcher (package/launch)", in.Package, c.Version)
+	}
+	self, err := update.Selftest(got.Binary, c.Version, "", in.Timeout)
+	if err != nil {
+		return update.Fetched{}, err
+	}
+	fmt.Fprintf(in.Out, "engine: %s %s (manifest %s, key %s)\n", in.Package, c.Version, got.Integrity, got.KeyID)
+	fmt.Fprint(in.Out, self)
+	return got, nil
+}
+
+// finishInput is the tail init and adopt share once the packs are
+// vendored and declared.
+type finishInput struct {
+	Repo, Engine string
+	// Newly are the packs this run vendored, in the order it chose them.
+	Newly   []string
+	Answers []AnswerFlag
+	// Core adds the core HANDOVER rows; Key is the key request's answer.
+	Core bool
+	Key  KeyGrant
+	// First are NEXT's steps before the commit's.
+	First []string
+	// Seed writes the new packs' seedOps; a move seeds nothing.
+	NoSeed bool
+	Out    io.Writer
+}
+
+// finish records the answers, seeds and stamps for the new packs, and
+// prints QUESTIONS, HANDOVER and NEXT.
+func finish(in finishInput) error {
+	if err := applyAnswers(in.Repo, in.Engine, in.Answers, in.Out); err != nil {
+		return err
+	}
+	if !in.NoSeed {
+		if err := seedAll(in.Repo, in.Newly, in.Out); err != nil {
+			return err
+		}
+	}
+	set, err := packset.Load(in.Repo, in.Engine, false)
+	if err != nil {
+		return err
+	}
+	newly := map[string]bool{}
+	for _, id := range in.Newly {
+		newly[id] = true
+	}
+	if err := stampExecutor(in.Repo, packSecrets(set, newly), in.Out); err != nil {
+		return err
+	}
+	var packs []packset.Pack
+	for _, id := range in.Newly {
+		for _, p := range set.Packs {
+			if p.Kind == packset.Canon && p.ID == id {
+				packs = append(packs, p)
+			}
+		}
+	}
+	pending, _ := interview.State(set)
+	steps := Handover(HandoverInput{Core: in.Core, Key: in.Key, Tasks: newly[workitem.TasksPackID], Newly: packs})
+	writeQuestions(in.Out, pending)
+	writeHandover(in.Out, steps)
+	writeNext(in.Out, NextInput{First: in.First, Routine: newly[workitem.TasksPackID], Handover: len(steps) > 0})
 	return nil
 }
 
@@ -283,6 +329,16 @@ const InstallURL = "https://github.com/apps/claudinite/installations/new"
 // cn does not own survive (re-serialized, the one Claude Code file cn
 // init rewrites).
 func mergeHooks(path string) ([]byte, error) {
+	obj, err := readClaudeSettings(path)
+	if err != nil {
+		return nil, err
+	}
+	return mergeHooksInto(obj)
+}
+
+// readClaudeSettings is .claude/settings.json as an object, empty when
+// the file is absent.
+func readClaudeSettings(path string) (map[string]any, error) {
 	obj := map[string]any{}
 	if raw, err := os.ReadFile(path); err == nil {
 		if err := json.Unmarshal(raw, &obj); err != nil {
@@ -291,6 +347,12 @@ func mergeHooks(path string) ([]byte, error) {
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return nil, err
 	}
+	return obj, nil
+}
+
+// mergeHooksInto adds the six wirings to obj where missing and serializes
+// it.
+func mergeHooksInto(obj map[string]any) ([]byte, error) {
 	hooks, _ := obj["hooks"].(map[string]any)
 	if hooks == nil {
 		if _, present := obj["hooks"]; present {
@@ -332,10 +394,11 @@ func mergeHooks(path string) ([]byte, error) {
 
 // AdoptInput is one cn adopt.
 type AdoptInput struct {
-	Repo   string
-	ID     string
-	Reader update.PackReader
-	Out    io.Writer
+	Repo    string
+	IDs     []string
+	Answers []AnswerFlag
+	Reader  update.PackReader
+	Out     io.Writer
 }
 
 // SkillsIgnore keeps the skills SessionStart mounts out of git.
@@ -355,12 +418,13 @@ func ensureSkillsIgnore(repo string) error {
 	return os.WriteFile(path, []byte(skillsIgnoreBody), 0o644)
 }
 
-// Adopt declares one more pack on an adopted repo, with what it requires,
-// and vendors them for the pinned engine; it regenerates the rules index
-// and writes what a member adopted before them lacks: the CLAUDE.md
-// import and the skills ignore. Skills mount at the next SessionStart.
+// Adopt declares more packs on an adopted repo, with what they require,
+// and vendors them for the pinned engine once every one resolved; it
+// regenerates the indexes, writes what a member adopted before them lacks
+// (the CLAUDE.md import, the skills ignore), and ends as init does for
+// what it added. Skills mount at the next SessionStart.
 func Adopt(in AdoptInput) error {
-	if err := checkIDs([]string{in.ID}); err != nil {
+	if err := checkIDs(in.IDs); err != nil {
 		return err
 	}
 	path, f, err := settings.Find(in.Repo)
@@ -383,17 +447,21 @@ func Adopt(in AdoptInput) error {
 	for _, id := range declared.Declared {
 		held[id] = true
 	}
-	if held[in.ID] {
-		return fmt.Errorf("pack %s is already declared", in.ID)
+	for _, id := range in.IDs {
+		if held[id] {
+			return fmt.Errorf("pack %s is already declared", id)
+		}
 	}
-	chosen, err := resolve(in.Reader, []string{in.ID}, held, declared.Channel, pin.Version, in.Out)
+	chosen, err := resolve(in.Reader, in.IDs, held, declared.Channel, pin.Version, in.Out)
 	if err != nil {
 		return err
 	}
+	var ids []string
 	for _, v := range chosen {
 		if raw, err = settings.AddDeclared(raw, f, v.id); err != nil {
 			return err
 		}
+		ids = append(ids, v.id)
 	}
 	for _, v := range chosen {
 		if err := packs.Unpack(v.archive, packset.Tree(in.Repo, v.id)); err != nil {
@@ -401,7 +469,7 @@ func Adopt(in AdoptInput) error {
 		}
 		fmt.Fprintf(in.Out, "pack: %s %s\n", v.id, v.entry.Version)
 	}
-	if err := os.WriteFile(path, raw, 0o644); err != nil {
+	if err := writeKeepingMode(path, raw); err != nil {
 		return err
 	}
 	if _, err := rulesindex.Converge(in.Repo, pin.Version); err != nil {
@@ -413,6 +481,6 @@ func Adopt(in AdoptInput) error {
 	if err := ensureSkillsIgnore(in.Repo); err != nil {
 		return err
 	}
-	fmt.Fprintf(in.Out, "Declared in %s; commit it with %s/, %s, %s and %s and open a pull request.\n", settings.RelPath(f), packset.Dir, rulesindex.File, rulesindex.ClaudeMD, SkillsIgnore)
-	return nil
+	fmt.Fprintf(in.Out, "Declared in %s.\n", settings.RelPath(f))
+	return finish(finishInput{Repo: in.Repo, Engine: pin.Version, Newly: ids, Answers: in.Answers, Out: in.Out})
 }

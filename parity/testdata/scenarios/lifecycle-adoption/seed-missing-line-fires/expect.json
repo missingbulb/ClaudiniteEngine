@@ -1,0 +1,14 @@
+{
+  "rules": "@../shared/packs/claudinite-lifecycle/RULES.md\n",
+  "mounts": [
+    "adopt-claudinite",
+    "adopt-pack"
+  ],
+  "world": [
+    "seeded-file-stale seeded.yml advise"
+  ],
+  "work": [],
+  "only": [
+    "seeded-file-stale"
+  ]
+}

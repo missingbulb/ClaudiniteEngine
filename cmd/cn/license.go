@@ -437,7 +437,11 @@ func initKey(stderr io.Writer) func(repo string) adopt.KeyGrant {
 			case v.Key != nil:
 				return adopt.KeyGrant{Plan: string(v.Key.Plan)}
 			case f != nil && f.State == license.StateDegraded && f.Cause != "":
-				return adopt.KeyGrant{Reason: string(f.Cause), Link: license.LinkFor(f.Cause)}
+				g := adopt.KeyGrant{Reason: string(f.Cause), Link: license.LinkFor(f.Cause)}
+				if f.Cause == "no-plan" || f.Cause == license.CauseRefusedPrivate {
+					g.Checkout = f.Checkout
+				}
+				return g
 			case time.Since(start) >= license.Cut:
 				c := license.CauseAppNotInstalled
 				if f != nil && !f.Dispatched {

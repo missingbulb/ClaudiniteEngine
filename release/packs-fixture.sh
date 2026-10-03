@@ -9,6 +9,7 @@
 #
 #   release/packs-fixture.sh DIR --min-engine VERSION      first call: v1
 #   release/packs-fixture.sh DIR --publish vN | --revoke vN ...
+#   release/packs-fixture.sh DIR --publish-pack ID              release/testdata/ID as it is
 #   release/packs-fixture.sh DIR --serial N --mirror-only  rewrite the serial, mirror only
 #   release/packs-fixture.sh DIR --flip-sig                flip one byte of index.sig.json
 #
@@ -16,7 +17,7 @@
 set -eu
 here=$(cd "$(dirname "$0")/.." && pwd)
 fail() { echo "packs-fixture: $*" >&2; exit 1; }
-[ $# -ge 1 ] || fail "usage: release/packs-fixture.sh DIR [--min-engine V] [--publish vN] [--revoke vN] [--serial N] [--mirror-only] [--flip-sig]"
+[ $# -ge 1 ] || fail "usage: release/packs-fixture.sh DIR [--min-engine V] [--publish vN] [--publish-pack ID] [--revoke vN] [--serial N] [--mirror-only] [--flip-sig]"
 mkdir -p "$1"
 dir=$(cd "$1" && pwd)
 shift
@@ -51,6 +52,13 @@ while [ $# -gt 0 ]; do
       "$tools/packfixture" --tree "$tree" --src "$here/release/testdata/hello" --min-engine "$(cat "$dir/min-engine")" $key "$1" "$2" \
         || fail "$1 $2"
       msg="$msg $1 $2"
+      shift 2 ;;
+    --publish-pack)
+      [ -n "${2:-}" ] || fail "--publish-pack takes a pack id"
+      # shellcheck disable=SC2086 # $key is two flag pairs
+      "$tools/packfixture" --tree "$tree" --src "$here/release/testdata/$2" --min-engine "$(cat "$dir/min-engine")" $key --pack "$2" --publish source \
+        || fail "--publish-pack $2"
+      msg="$msg publish $2"
       shift 2 ;;
     --serial)
       [ -n "${2:-}" ] || fail "--serial takes a number"

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -53,6 +54,30 @@ type Manifest struct {
 	// Retired are the retired keys a local or temp pack's manifest still
 	// carries, in RetiredKeys order; the reader ignores them.
 	Retired []string
+	// Questions are the adoption questions the pack asks.
+	Questions []Question
+	// SeedOps are the files adoption writes once, when absent.
+	SeedOps []SeedOp
+	// Handover are the steps only a person can do after adoption.
+	Handover []HandoverStep
+}
+
+// Question is one adoption question: a stable id the answer is recorded
+// under, the prompt asked, and how the answer becomes config.
+type Question struct {
+	ID, Prompt, Distill string
+}
+
+// SeedOp is one file adoption writes when it is absent and the repo owns
+// from then on: Template inside the pack, Dest in the repo.
+type SeedOp struct {
+	Template, Dest string
+}
+
+// HandoverStep is a step only a person can perform: what to do, what
+// breaks while it is undone, and what shows it is done.
+type HandoverStep struct {
+	Step, Breaks, Done string
 }
 
 // RetiredKeys are the Node manifest spec's retired fields, which a local
@@ -211,7 +236,91 @@ func parseManifestOf(name string, raw []byte, own bool) (Manifest, error) {
 		m.SkillsSet = true
 		m.Skills = stringList(s)
 	}
+	if m.Questions, err = readQuestions(obj["questions"]); err != nil {
+		return Manifest{}, fmt.Errorf("%s: %w", name, err)
+	}
+	if m.SeedOps, err = readSeedOps(obj["seedOps"]); err != nil {
+		return Manifest{}, fmt.Errorf("%s: %w", name, err)
+	}
+	if m.Handover, err = readHandover(obj["adoptionHandover"]); err != nil {
+		return Manifest{}, fmt.Errorf("%s: %w", name, err)
+	}
 	return m, nil
+}
+
+// readQuestions validates questions as the Node engine's packQuestions
+// did at discovery: each an object with a non-empty string id and prompt,
+// ids unique, distill text when present.
+func readQuestions(v any) ([]Question, error) {
+	list, _ := v.([]any)
+	var out []Question
+	seen := map[string]bool{}
+	for i, e := range list {
+		o, _ := e.(map[string]any)
+		id, _ := o["id"].(string)
+		prompt, _ := o["prompt"].(string)
+		distill, isText := o["distill"].(string)
+		switch {
+		case o == nil || id == "" || prompt == "":
+			return nil, fmt.Errorf("questions[%d] needs a non-empty string id and prompt", i)
+		case o["distill"] != nil && !isText:
+			return nil, fmt.Errorf("questions[%d].distill must be text", i)
+		case seen[id]:
+			return nil, fmt.Errorf("questions names id %q twice; ids are unique within a pack", id)
+		}
+		seen[id] = true
+		out = append(out, Question{ID: id, Prompt: prompt, Distill: distill})
+	}
+	return out, nil
+}
+
+// readSeedOps validates seedOps: a template inside the pack and a dest
+// inside the repo, never under the vendored tree.
+func readSeedOps(v any) ([]SeedOp, error) {
+	list, _ := v.([]any)
+	var out []SeedOp
+	for i, e := range list {
+		o, _ := e.(map[string]any)
+		tmpl, _ := o["template"].(string)
+		dest, _ := o["dest"].(string)
+		switch {
+		case o == nil || tmpl == "" || dest == "":
+			return nil, fmt.Errorf("seedOps[%d] needs a template and a dest", i)
+		case !inside(tmpl):
+			return nil, fmt.Errorf("seedOps[%d].template %q is not a path inside the pack", i, tmpl)
+		case !inside(dest):
+			return nil, fmt.Errorf("seedOps[%d].dest %q is not a path inside the repo", i, dest)
+		case dest == ".claudinite/shared" || strings.HasPrefix(dest, ".claudinite/shared/"):
+			return nil, fmt.Errorf("seedOps[%d].dest %q is under .claudinite/shared/, which the engine regenerates", i, dest)
+		}
+		out = append(out, SeedOp{Template: tmpl, Dest: dest})
+	}
+	return out, nil
+}
+
+// inside reports whether p is a clean relative slash path that stays
+// where it starts.
+func inside(p string) bool {
+	return !strings.HasPrefix(p, "/") && !strings.Contains(p, "\\") && path.Clean(p) == p && p != "." && p != ".." && !strings.HasPrefix(p, "../")
+}
+
+// readHandover validates adoptionHandover: each step names all three
+// parts, or it is not one.
+func readHandover(v any) ([]HandoverStep, error) {
+	list, _ := v.([]any)
+	var out []HandoverStep
+	for i, e := range list {
+		o, _ := e.(map[string]any)
+		var parts [3]string
+		for k, key := range []string{"step", "breaks", "done"} {
+			parts[k], _ = o[key].(string)
+			if strings.TrimSpace(parts[k]) == "" {
+				return nil, fmt.Errorf("adoptionHandover[%d] needs a non-empty %s", i, key)
+			}
+		}
+		out = append(out, HandoverStep{Step: parts[0], Breaks: parts[1], Done: parts[2]})
+	}
+	return out, nil
 }
 
 func stringList(v any) []string {

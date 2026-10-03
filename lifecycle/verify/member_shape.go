@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/missingbulb/ClaudiniteEngine/shared/descriptor"
@@ -139,6 +140,22 @@ func checkNodeLeftovers(in Input) []findings.Finding {
 		rel := ".claudinite/" + name
 		if _, ok := read(in, rel); ok {
 			out = append(out, dep("node-leftovers", rel, "an index at its path from before .claudinite/flat/, which nothing writes any more; delete it"))
+		}
+	}
+	workflows, _ := filepath.Glob(filepath.Join(in.Repo, ".github", "workflows", "*.y*ml"))
+	sort.Strings(workflows)
+	for _, w := range workflows {
+		rel := ".github/workflows/" + filepath.Base(w)
+		if text, ok := read(in, rel); ok && strings.Contains(string(text), ".claudinite/shared/engine/checks/") {
+			out = append(out, dep("node-leftovers", rel, "a step runs the Node engine's checks under .claudinite/shared/engine/checks/, which the move removes; the move pull request drops the step (claudinite-ci.yml runs cn check world)"))
+		}
+	}
+	if text, ok := read(in, ".gitignore"); ok {
+		for _, l := range strings.Split(string(text), "\n") {
+			if strings.HasPrefix(strings.TrimSpace(l), "/.claudinite-hooks.log") {
+				out = append(out, dep("node-leftovers", ".gitignore", "ignores the Node engine's hook log ("+strings.TrimSpace(l)+"), which cn never writes; the move pull request drops the line"))
+				break
+			}
 		}
 	}
 	return out
