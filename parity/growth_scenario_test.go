@@ -67,10 +67,10 @@ type GrowthCase struct {
 	// the last one uncommitted.
 	Commits []GrowthCommit    `json:"commits,omitempty"`
 	Working map[string]string `json:"working,omitempty"`
-	// Remote is the origin URL the repo names, which nothing fetches.
-	Remote string `json:"remote,omitempty"`
 	Stdin   string            `json:"stdin,omitempty"`
 	Why     string            `json:"why,omitempty"`
+	// Remote is the origin URL the repo names, which nothing fetches.
+	Remote string `json:"remote,omitempty"`
 }
 
 // GrowthCommit is one commit of a provenance scenario's repo.
