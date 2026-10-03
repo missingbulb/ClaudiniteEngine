@@ -133,12 +133,21 @@ commands:
   provenance append <pack> <element> [--kind K] [--date D] [--changed]
                  [--backfill] < entry.md
   provenance history <pack> <element>
+  provenance apply <pack> <brief.md> [--backfill]
+  provenance convert-references <pack>|--all
+  provenance reduce <file> [--public]
                  a pack's provenance: markers and empty files, the audit
                  (exit 1 on a fault), one entry appended, one element's
-                 raw evidence; <pack> is an id, a path or local/<name>
+                 raw evidence, an edited brief's entries, a references.md
+                 converted, a file reduced for the canon; <pack> is an
+                 id, a path or local/<name>
   pack new <name> [--belongs TEXT] [--excludes TEXT] [--repo DIR]
                  scaffold the local pack a repo's own lessons land in,
                  and declare it as local/<name>
+  pack history [<id>...] [--ref REF] [--json] [--repo DIR]
+                 a canon shelf's version walk at REF (HEAD): each pack's
+                 last version move, the shipping files changed since and
+                 the pull requests each version carried
   fleet roster [--repo DIR] [--api URL]
                  a fleet manager's sweep: one fleet-adoption issue per
                  uncovered repo and the coverage and freshness report;

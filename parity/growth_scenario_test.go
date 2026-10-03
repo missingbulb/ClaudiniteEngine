@@ -574,36 +574,44 @@ func treeFiles(root string) (map[string]string, error) {
 	return out, err
 }
 
+// growthRepo lays a provenance-shaped case's commits, each dated by its
+// position, and its working files over the last.
+func growthRepo(t *testing.T, c GrowthCase) (growthWorld, string, []string) {
+	t.Helper()
+	w := newGrowthWorld(t, GrowthCase{Origin: "none"})
+	repo := filepath.Join(w.root, "repo")
+	if err := os.MkdirAll(repo, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	env := w.env(c)
+	if _, err := gitIn(repo, env, "init", "-q"); err != nil {
+		t.Fatal(err)
+	}
+	for i, cm := range c.Commits {
+		if err := writeFiles(repo, cm.Files); err != nil {
+			t.Fatal(err)
+		}
+		for _, rm := range cm.Remove {
+			if err := os.RemoveAll(filepath.Join(repo, rm)); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if _, err := gitIn(repo, env, "add", "-A"); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := gitIn(repo, growthCommitEnv(env, i), "commit", "-q", "--allow-empty", "-m", cm.Message); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := writeFiles(repo, c.Working); err != nil {
+		t.Fatal(err)
+	}
+	return w, repo, env
+}
+
 func TestParityProvenance(t *testing.T) {
 	runGrowthFace(t, "provenance", func(t *testing.T, dir string, c GrowthCase, e Engine) GrowthExpect {
-		w := newGrowthWorld(t, GrowthCase{Origin: "none"})
-		repo := filepath.Join(w.root, "repo")
-		if err := os.MkdirAll(repo, 0o755); err != nil {
-			t.Fatal(err)
-		}
-		env := w.env(c)
-		if _, err := gitIn(repo, env, "init", "-q"); err != nil {
-			t.Fatal(err)
-		}
-		for i, cm := range c.Commits {
-			if err := writeFiles(repo, cm.Files); err != nil {
-				t.Fatal(err)
-			}
-			for _, rm := range cm.Remove {
-				if err := os.RemoveAll(filepath.Join(repo, rm)); err != nil {
-					t.Fatal(err)
-				}
-			}
-			if _, err := gitIn(repo, env, "add", "-A"); err != nil {
-				t.Fatal(err)
-			}
-			if _, err := gitIn(repo, growthCommitEnv(env, i), "commit", "-q", "--allow-empty", "-m", cm.Message); err != nil {
-				t.Fatal(err)
-			}
-		}
-		if err := writeFiles(repo, c.Working); err != nil {
-			t.Fatal(err)
-		}
+		w, repo, env := growthRepo(t, c)
 		args := c.Steps[0].Args
 		var r GrowthRun
 		var err error
@@ -621,5 +629,31 @@ func TestParityProvenance(t *testing.T) {
 			t.Fatal(err)
 		}
 		return GrowthExpect{Runs: []GrowthRun{w.cleanRun(r)}, Files: files}
+	})
+}
+
+// TestParityPackHistory is the canon shelf's version walk: Node's
+// pack-versions.mjs through a shim, cn's `pack history`, over a repo
+// whose commits move versions and ship files between the moves.
+func TestParityPackHistory(t *testing.T) {
+	runGrowthFace(t, "pack-history", func(t *testing.T, dir string, c GrowthCase, e Engine) GrowthExpect {
+		w, repo, env := growthRepo(t, c)
+		args := c.Steps[0].Args
+		var r GrowthRun
+		var err error
+		switch e := e.(type) {
+		case Node:
+			shim, aerr := filepath.Abs(filepath.Join("testdata", "shims", "pack-history.mjs"))
+			if aerr != nil {
+				t.Fatal(aerr)
+			}
+			r, err = runEnv(repo, append(env, nodeEnv+"="+e.Root), c.Stdin, "node", append([]string{shim}, args...)...)
+		case Cn:
+			r, err = runEnv(repo, env, c.Stdin, e.Binary, append([]string{"pack", "history"}, args...)...)
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		return GrowthExpect{Runs: []GrowthRun{w.cleanRun(r)}}
 	})
 }
