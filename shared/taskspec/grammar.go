@@ -345,6 +345,12 @@ func ArgumentProblem(t TermSpec, ref Ref) *Problem {
 	return nil
 }
 
+// adoptedTerms are built-ins the engine took over from a pack's own
+// preconditions.mjs: a pack version from before the move still exports the
+// term, and the engine judges it and ignores the export.
+// @legacy-tolerance advisory:none retire:#60
+var adoptedTerms = map[string]bool{LogPastRetention: true}
+
 // ValidatePreconditions is everything about an expression decidable
 // without signals: the grammar, the names, their arguments, and a
 // task-local term shadowing a built-in.
@@ -352,6 +358,9 @@ func ValidatePreconditions(pre any, task Terms) []Problem {
 	var problems []Problem
 	builtins := strings.Join(BuiltinTerms.Names(), ", ")
 	for _, t := range task {
+		if adoptedTerms[t.Name] {
+			continue
+		}
 		if _, ok := BuiltinTerms.Get(t.Name); ok {
 			problems = append(problems, Problem{`the task's preconditions.mjs redefines the built-in term "` + t.Name + `"`,
 				"rename the task-local term — the term namespace is flat, and the built-ins are: " + builtins})
