@@ -1,0 +1,29 @@
+{
+  "input": {
+    "pack": "acme-pack",
+    "text": "{\n  \"$schema\": \"../claudinite-dashboard/dashboard-descriptor.schema.json\",\n  \"widgets\": [\n    {\n      \"id\": \"stars\",\n      \"kind\": \"stat\",\n      \"label\": \"stars\",\n      \"noun\": \"stars\",\n      \"glyph\": \"★\",\n      \"source\": \"repo-stars\"\n    }\n  ],\n  \"repo\": [\n    \"stars\"\n  ],\n  \"fleet\": {\n    \"member\": \"stars\"\n  }\n}"
+  },
+  "expect": {
+    "fault": null,
+    "fleet": {
+      "deployment": [],
+      "member": "stars"
+    },
+    "pack": "acme-pack",
+    "problems": [],
+    "repo": [
+      "stars"
+    ],
+    "widgets": [
+      {
+        "glyph": "★",
+        "id": "stars",
+        "kind": "stat",
+        "known": true,
+        "label": "stars",
+        "noun": "stars",
+        "source": "repo-stars"
+      }
+    ]
+  }
+}

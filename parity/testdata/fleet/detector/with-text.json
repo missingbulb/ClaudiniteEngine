@@ -1,0 +1,20 @@
+{
+  "input": {
+    "detector": {
+      "about": "a GitHub Actions workflow",
+      "paths": {
+        "source": "^\\.github/workflows/.+\\.ya?ml$",
+        "flags": "i"
+      },
+      "text": [
+        {
+          "source": "on:"
+        }
+      ],
+      "search": [
+        "on:"
+      ]
+    }
+  },
+  "expect": []
+}

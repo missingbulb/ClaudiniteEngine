@@ -1,0 +1,16 @@
+{
+  "input": {
+    "detector": {
+      "zeta": 1,
+      "about": "x",
+      "alpha": 2,
+      "paths": {
+        "source": "a"
+      }
+    }
+  },
+  "expect": [
+    "relevanceDetector declares \"zeta\", which is not one of about, paths, text, search",
+    "relevanceDetector declares \"alpha\", which is not one of about, paths, text, search"
+  ]
+}

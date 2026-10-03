@@ -1,0 +1,27 @@
+{
+  "input": {
+    "pack": "acme-pack",
+    "text": "{\n  \"widgets\": [\n    {\n      \"id\": \"a\",\n      \"kind\": \"stat\",\n      \"label\": \"first\"\n    },\n    {\n      \"id\": \"a\",\n      \"kind\": \"event\",\n      \"label\": \"second\"\n    }\n  ]\n}"
+  },
+  "expect": {
+    "fault": null,
+    "fleet": {
+      "deployment": [],
+      "member": null
+    },
+    "pack": "acme-pack",
+    "problems": [],
+    "repo": [],
+    "widgets": [
+      {
+        "glyph": null,
+        "id": "a",
+        "kind": "stat",
+        "known": true,
+        "label": "first",
+        "noun": "",
+        "source": "generated"
+      }
+    ]
+  }
+}

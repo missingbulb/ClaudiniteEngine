@@ -1,0 +1,25 @@
+{
+  "input": {
+    "detector": {
+      "about": "",
+      "paths": 7,
+      "text": [
+        {
+          "source": "b",
+          "flags": "g"
+        },
+        3
+      ],
+      "search": [],
+      "extra": true
+    }
+  },
+  "expect": [
+    "relevanceDetector declares \"extra\", which is not one of about, paths, text, search",
+    "relevanceDetector.about names what is found, in words",
+    "relevanceDetector.paths is a RegExp over tracked paths",
+    "relevanceDetector.text is a RegExp or a list of them",
+    "a relevanceDetector pattern carries the g or y flag, which makes .test stateful",
+    "relevanceDetector.search lists the code-search terms that find every file relevanceDetector.text matches"
+  ]
+}

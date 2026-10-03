@@ -1,0 +1,19 @@
+{
+  "input": {
+    "pack": "acme-pack",
+    "text": "{\n  \"widgets\": [\n    {\"id\": \"a\" \"kind\": \"stat\"}\n  ]\n}\n"
+  },
+  "expect": {
+    "fault": "its dashboard.json is not valid JSON — Expected ',' or '}' after property value in JSON at position 32 (line 3 column 16)",
+    "fleet": null,
+    "pack": "acme-pack",
+    "problems": [
+      {
+        "fix": "make it satisfy packs/claudinite-dashboard/dashboard-descriptor.schema.json — at minimum a \"widgets\" array whose entries each carry an \"id\" and a \"kind\" from stat, event, window, list",
+        "what": "the dashboard reader rejects it: its dashboard.json is not valid JSON — Expected ',' or '}' after property value in JSON at position 32 (line 3 column 16)"
+      }
+    ],
+    "repo": null,
+    "widgets": null
+  }
+}

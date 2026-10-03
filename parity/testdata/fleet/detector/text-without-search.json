@@ -1,0 +1,18 @@
+{
+  "input": {
+    "detector": {
+      "about": "x",
+      "paths": {
+        "source": "a"
+      },
+      "text": [
+        {
+          "source": "b"
+        }
+      ]
+    }
+  },
+  "expect": [
+    "relevanceDetector.search lists the code-search terms that find every file relevanceDetector.text matches"
+  ]
+}
