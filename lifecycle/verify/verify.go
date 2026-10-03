@@ -26,6 +26,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/shared/descriptor"
 	"github.com/missingbulb/ClaudiniteEngine/shared/findings"
 	"github.com/missingbulb/ClaudiniteEngine/shared/packset"
+	"github.com/missingbulb/ClaudiniteEngine/shared/provenance"
 	"github.com/missingbulb/ClaudiniteEngine/shared/settings"
 	"github.com/missingbulb/ClaudiniteEngine/shared/settings/node"
 	"github.com/missingbulb/ClaudiniteEngine/shared/version"
@@ -85,6 +86,15 @@ var rules = []rule{
 	{"claude-md-import", checkClaudeMDImport},
 	{"local-pack-shape", checkLocalPackShape},
 	{"node-leftovers", checkNodeLeftovers},
+}
+
+// Verify's rules are claudinite-lifecycle's checks, folded into the
+// engine: each names that pack's element of its id where the pack keeps
+// one.
+func init() {
+	for _, r := range rules {
+		provenance.RegisterEngineCheck("claudinite-lifecycle", r.id)
+	}
 }
 
 // RuleIDs lists the registered rules, sorted.

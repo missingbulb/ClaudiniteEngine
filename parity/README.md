@@ -49,6 +49,14 @@ version, where Node read none below a date-anchored one.
 
 ## Divergences
 
+Scenarios face divergences: 1 of 282 fixtures.
+
+A coded scenario whose `cn` world findings differ on purpose carries
+`"divergence": "record-<row>"` and `cn`'s findings as `"cnWorld"`, its
+`world` staying the Node engine's: `coded-claudinite-canon-curation/pack-no-enforcement-narration-fires`
+is record row 124 (a pack's Go checks name its own rules, which the
+Node engine, reading `.mjs` alone, never saw).
+
 Growth face divergences: 0 of 57 fixtures.
 
 Dashboard face divergences: 0 of 48 fixtures.

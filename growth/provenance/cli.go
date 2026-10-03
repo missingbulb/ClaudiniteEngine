@@ -152,7 +152,11 @@ func Check(io WriteIO, git gitcmd.Repo, packs []string) ([]string, int) {
 			}
 		}
 		for _, ch := range c.Checks {
-			name(prov.ElementID(ch.ID), "check "+ch.ID)
+			if ch.File == prov.EngineCarrierFile {
+				name(prov.ElementOf(ch), "engine check "+ch.ID)
+				continue
+			}
+			name(prov.ElementOf(ch), "check "+ch.ID)
 		}
 		for _, t := range c.Tasks {
 			name(t.ID, "task "+t.ID)
@@ -371,7 +375,7 @@ func Changed(io WriteIO, git gitcmd.Repo, pack string) []string {
 	}
 	for _, c := range now.Checks {
 		if changed[c.File] {
-			out[prov.ElementID(c.ID)] = true
+			out[prov.ElementOf(c)] = true
 		}
 	}
 	for _, t := range now.Tasks {
@@ -452,7 +456,7 @@ func History(io WriteIO, git gitcmd.Repo, pack, element string) []string {
 		}
 	}
 	for _, ch := range c.Checks {
-		if prov.ElementID(ch.ID) == element {
+		if prov.ElementOf(ch) == element {
 			add(ch.File)
 		}
 	}

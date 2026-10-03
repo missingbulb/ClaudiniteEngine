@@ -26,7 +26,8 @@ const (
 )
 
 func record(s Scenario, a Answer) error {
-	x := Expect{Rules: &a.Rules, Mounts: names(a.Mounts), Only: s.Expect.Only, LoaderOnly: s.Expect.LoaderOnly, Why: s.Expect.Why}
+	x := Expect{Rules: &a.Rules, Mounts: names(a.Mounts), Only: s.Expect.Only, LoaderOnly: s.Expect.LoaderOnly, Why: s.Expect.Why,
+		Divergence: s.Expect.Divergence, CnWorld: s.Expect.CnWorld}
 	if s.Expect.Skills != nil {
 		x.Skills = &a.Skills
 	}
@@ -198,6 +199,15 @@ func check(t *testing.T, s Scenario, e string, a Answer) {
 		e = "node (a scenario that fails on the Node engine is a wrong scenario, not a cn bug)"
 	}
 	x := s.Expect
+	if (x.Divergence == "") != (x.CnWorld == nil) || x.Divergence != "" && !divergenceForm.MatchString(x.Divergence) {
+		t.Fatalf("%s/%s: a divergence names its record-<row> and carries cnWorld, both or neither", s.Group, s.Name)
+	}
+	if x.Divergence != "" && strings.HasPrefix(e, "cn") {
+		if reflect.DeepEqual(*x.CnWorld, *x.World) {
+			t.Errorf("%s/%s is marked %s but cn's world is the Node answer: drop the divergence", s.Group, s.Name, x.Divergence)
+		}
+		x.World = x.CnWorld
+	}
 	if strings.HasSuffix(s.Name, "fires") && !a.fired() {
 		t.Errorf("%s: a fires scenario found nothing", e)
 	}
@@ -230,7 +240,9 @@ func check(t *testing.T, s Scenario, e string, a Answer) {
 	}
 }
 
-func agree(t *testing.T, a, b Answer) {
+// agree holds the two engines' answers equal; a scenario marking a
+// divergence has had each engine's world findings held to its own answer.
+func agree(t *testing.T, s Scenario, a, b Answer) {
 	t.Helper()
 	if a.Rules != b.Rules {
 		t.Errorf("rules index differs:\nnode:\n%s\ncn:\n%s", a.Rules, b.Rules)
@@ -261,6 +273,9 @@ func agree(t *testing.T, a, b Answer) {
 		name string
 		x, y []Finding
 	}{{"world", a.World, b.World}, {"work", a.Work, b.Work}} {
+		if sc.name == "world" && s.Expect.Divergence != "" {
+			continue
+		}
 		onlyNode, onlyCn, _ := diff(sc.x, sc.y)
 		for _, f := range onlyNode {
 			t.Errorf("%s: only node: %s", sc.name, f)
@@ -312,7 +327,7 @@ func TestParity(t *testing.T) {
 				t.Logf("parity %s/%s %s: world %d, work %d, mounts %d, hook calls %d", s.Group, s.Name, e.Name(), len(a.World), len(a.Work), len(a.Mounts), hooks)
 			}
 			if len(answers) == 2 {
-				agree(t, answers[0], answers[1])
+				agree(t, s, answers[0], answers[1])
 			}
 		})
 	}

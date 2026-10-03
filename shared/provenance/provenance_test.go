@@ -385,3 +385,43 @@ func TestConvertedOnly(t *testing.T) {
 		t.Errorf("files %+v", files)
 	}
 }
+
+// A folded pack's checks are Go under checks/, some registered through a
+// helper, some engine built-ins; each names its element's file, a check
+// the Node engine named <pack>/<id> keeping <pack>-<id>.md (#71).
+func TestGoAndEngineChecksAreCarriers(t *testing.T) {
+	io := mapIO{
+		"packs/acme/pack.json":                         "{\"version\": \"1\"}\n",
+		"packs/acme/checks/literal.go":                 "package checks\n\nfunc init() {\n\tchecksdk.Register(checksdk.Check{\n\t\tID: \"flat-check\",\n\t})\n}\n",
+		"packs/acme/checks/lib.go":                     "package checks\n\nfunc register(id, why string) {\n\tchecksdk.Register(checksdk.Check{ID: id, Why: why})\n}\n",
+		"packs/acme/checks/calls.go":                   "package checks\n\nfunc init() {\n\tregister(\"helper-check\", \"why\")\n\tregister(\"prefixed-check\", \"why\")\n}\n",
+		"packs/acme/checks/closure.go":                 "package checks\n\nfunc init() {\n\treg := func(id string) { checksdk.Register(checksdk.Check{ID: id}) }\n\treg(\"closure-check\")\n}\n",
+		"packs/acme/checks/calls_test.go":              "package checks\n\nvar _ = checksdk.Check{ID: \"test-check\"}\n",
+		"packs/acme/provenance/_pack.md":               born,
+		"packs/acme/provenance/flat-check.md":          born,
+		"packs/acme/provenance/helper-check.md":        born,
+		"packs/acme/provenance/acme-prefixed-check.md": born,
+		"packs/acme/provenance/closure-check.md":       born,
+		"packs/acme/provenance/engine-check.md":        born,
+	}
+	RegisterEngineCheck("acme", "engine-check")
+	RegisterEngineCheck("other", "not-acmes")
+	a := AuditPack("packs/acme", io)
+	if len(a.Unnamed) != 0 || len(a.Dangling) != 0 {
+		t.Errorf("unnamed %v, dangling %v", a.Unnamed, a.Dangling)
+	}
+	got := map[string]string{}
+	for _, c := range a.Carriers.Checks {
+		got[c.ID] = ElementOf(c) + " " + c.File
+	}
+	want := map[string]string{
+		"flat-check":     "flat-check packs/acme/checks/literal.go",
+		"helper-check":   "helper-check packs/acme/checks/calls.go",
+		"prefixed-check": "acme-prefixed-check packs/acme/checks/calls.go",
+		"closure-check":  "closure-check packs/acme/checks/closure.go",
+		"engine-check":   "engine-check " + EngineCarrierFile,
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("checks %v, want %v", got, want)
+	}
+}

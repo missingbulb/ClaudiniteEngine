@@ -5,6 +5,7 @@ import (
 
 	"github.com/missingbulb/ClaudiniteEngine/checks/declared"
 	"github.com/missingbulb/ClaudiniteEngine/shared/findings"
+	"github.com/missingbulb/ClaudiniteEngine/shared/provenance"
 	"github.com/missingbulb/ClaudiniteEngine/shared/transcript"
 )
 
@@ -16,6 +17,7 @@ var all []declared.Builtin
 func register(b *declared.Builtin, run func(*declared.Ctx, *transcript.Session) []findings.Finding) {
 	b.Run = run
 	all = append(all, *b)
+	provenance.RegisterEngineCheck(b.Pack, b.ID)
 }
 
 // All are the engine's own checks of the folded packs, by id, each
