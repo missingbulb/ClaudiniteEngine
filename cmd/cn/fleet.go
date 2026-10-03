@@ -25,6 +25,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/shared/report"
 	"github.com/missingbulb/ClaudiniteEngine/shared/settings"
 	"github.com/missingbulb/ClaudiniteEngine/tasks/execute"
+	"github.com/missingbulb/ClaudiniteEngine/tasks/world"
 )
 
 func cmdFleet(args []string, stdout, stderr io.Writer, start time.Time) error {
@@ -362,6 +363,21 @@ func fleetRoster(args []string, stdout, stderr io.Writer, start time.Time) error
 		return s.failed(err)
 	}
 	emit(stdout, roster.RenderCoverage(s.cfg.Owner, s.home, cov, actions)+"\n\n"+roster.RenderFreshness(s.cfg.Owner, s.home, fresh))
+	clock, err := world.Env(os.Getenv).Clock()
+	if err != nil {
+		s.crumb("roster", "error", covered, total)
+		return s.failed(err)
+	}
+	wrote, err := roster.WriteArtifact(s.root, s.cfg.Owner, roster.Verdicts(r), clock.Now().UTC().Format(time.RFC3339))
+	if err != nil {
+		s.crumb("roster", "error", covered, total)
+		return s.failed(err)
+	}
+	if wrote {
+		fmt.Fprintf(stderr, "[cn] fleet roster: wrote %s\n", roster.RosterFile)
+	} else {
+		fmt.Fprintf(stderr, "[cn] fleet roster: %s unchanged\n", roster.RosterFile)
+	}
 	if unknown := roster.Unknowns(cov, fresh); len(unknown) > 0 {
 		s.crumb("roster", "unknown", covered, total)
 		msg := roster.UnknownError(len(unknown))

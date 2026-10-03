@@ -1,0 +1,199 @@
+package execute
+
+import (
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/missingbulb/ClaudiniteEngine/shared/gitcmd"
+	"github.com/missingbulb/ClaudiniteEngine/shared/taskspec"
+	"github.com/missingbulb/ClaudiniteEngine/shared/workitem"
+	"github.com/missingbulb/ClaudiniteEngine/tasks/runner"
+)
+
+const rosterPath = ".claudinite/fleet/roster.GENERATED.json"
+
+// checkout is a clone of a bare origin whose main holds one commit.
+func checkout(t *testing.T) (root, origin string) {
+	t.Helper()
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("no git")
+	}
+	dir := t.TempDir()
+	origin, root = filepath.Join(dir, "origin.git"), filepath.Join(dir, "root")
+	sh := func(d string, args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = d
+		cmd.Env = append(os.Environ(), "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t", "GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	sh(dir, "init", "--quiet", "--bare", "--initial-branch=main", origin)
+	sh(dir, "clone", "--quiet", origin, root)
+	_ = os.WriteFile(filepath.Join(root, "README.md"), []byte("r\n"), 0o644)
+	sh(root, "add", "README.md")
+	sh(root, "commit", "--quiet", "-m", "first")
+	sh(root, "push", "--quiet", "origin", "HEAD:main")
+	return root, origin
+}
+
+func remoteFile(t *testing.T, origin, ref, path string) string {
+	t.Helper()
+	out, err := exec.Command("git", "--git-dir", origin, "show", ref+":"+path).Output()
+	if err != nil {
+		t.Fatalf("%s has no %s: %v", ref, path, err)
+	}
+	return string(out)
+}
+
+func remoteMessage(t *testing.T, origin, ref string) string {
+	t.Helper()
+	out, err := exec.Command("git", "--git-dir", origin, "log", "-1", "--format=%B", ref).Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(out)
+}
+
+func deliveringWorker(t *testing.T, root string, gh *sdkWorld) CodeWorker {
+	w := worker(t)
+	w.Place.Root = root
+	git := gitcmd.Repo{Dir: root}
+	w.SDK = func(task taskspec.Task, _ workitem.Issue) *SDK {
+		return &SDK{Pack: task.Pack, Task: task.ID, Granted: []string{"openPr"}, Git: git.Run, GitHub: gh, DefaultBranch: "main", Log: func(string) {}}
+	}
+	return w
+}
+
+func clean(t *testing.T, root string) {
+	t.Helper()
+	out, err := exec.Command("git", "-C", root, "status", "--porcelain", "--untracked-files=all").Output()
+	if err != nil || len(out) != 0 {
+		t.Errorf("the checkout was left changed: %q %v", out, err)
+	}
+}
+
+const writeRoster = `mkdir -p "$CLAUDINITE_REPO_ROOT/.claudinite/fleet" && printf '%s\n' "$ROSTER" > "$CLAUDINITE_REPO_ROOT/` + rosterPath + `"`
+
+// A shell code_work's tree change under an outcome that opens a pull
+// request is committed with the task's trailers, pushed to the target
+// branch and opened there; amended, it reaches the same pull request; and
+// the checkout is put back each time.
+func TestAShellCodeWorksTreeChangeIsDelivered(t *testing.T) {
+	root, origin := checkout(t)
+	gh := newSDKWorld(t)
+	w := deliveringWorker(t, root, gh)
+	tk := shellTask(t, writeRoster, map[string]any{"expected_outcome": "amend_existing_or_create_new_pr", "automerge": []any{"fleet-roster-artifact"}})
+	branch := "claudinite/acme-pack/a/2026-10-03-x"
+
+	w.Env["ROSTER"] = "one"
+	res := w.Run(tk, Work{Item: workitem.Issue{Number: 4}, Target: Target{Mode: ModeFresh, Branch: branch}})
+	if !res.OK || res.DeliveredPR == 0 || res.Branch != branch {
+		t.Fatalf("%+v", res)
+	}
+	if got := remoteFile(t, origin, branch, rosterPath); got != "one\n" {
+		t.Errorf("pushed %q", got)
+	}
+	msg := remoteMessage(t, origin, branch)
+	for _, want := range []string{"acme-pack/a: code-work for #4", rosterPath, "Claudinite-Task: acme-pack/a", "Claudinite-Automerge-Policy: fleet-roster-artifact"} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("the commit lacks %q:\n%s", want, msg)
+		}
+	}
+	clean(t, root)
+
+	w.Env["ROSTER"] = "two"
+	again := w.Run(tk, Work{Item: workitem.Issue{Number: 5}, Target: Target{Mode: ModeAmend, Branch: branch, PR: res.DeliveredPR}})
+	if !again.OK || again.DeliveredPR != res.DeliveredPR {
+		t.Fatalf("the amend reached %+v, not #%d", again, res.DeliveredPR)
+	}
+	if got := remoteFile(t, origin, branch, rosterPath); got != "two\n" {
+		t.Errorf("amended %q", got)
+	}
+	if pulls, _ := gh.repo.PullsPage("open", "", "", 1); len(pulls) != 1 {
+		t.Errorf("%d pull requests, want the one amended", len(pulls))
+	}
+	clean(t, root)
+
+	// A run that leaves nothing new delivers nothing.
+	w.Env["ROSTER"] = "two"
+	tk = shellTask(t, "true", map[string]any{"expected_outcome": "amend_existing_or_create_new_pr"})
+	if res := w.Run(tk, Work{Item: workitem.Issue{Number: 6}, Target: Target{Mode: ModeFresh, Branch: "claudinite/acme-pack/a/other"}}); !res.OK || res.DeliveredPR != 0 {
+		t.Errorf("a run with no change delivered %+v", res)
+	}
+}
+
+// An outcome that opens no pull request delivers nothing, and the
+// change stays where the code-work left it.
+func TestAShellCodeWorkWithNoTargetDeliversNothing(t *testing.T) {
+	root, _ := checkout(t)
+	gh := newSDKWorld(t)
+	w := deliveringWorker(t, root, gh)
+	w.Env["ROSTER"] = "one"
+	res := w.Run(shellTask(t, writeRoster, nil), Work{Item: workitem.Issue{Number: 4}, Target: Target{Mode: ModeNone}})
+	if !res.OK || res.DeliveredPR != 0 {
+		t.Fatalf("%+v", res)
+	}
+	if _, err := os.Stat(filepath.Join(root, rosterPath)); err != nil {
+		t.Error("the change was removed")
+	}
+}
+
+// A module worker that delivers the same file through the SDK and a shell
+// code_work whose change the executor delivers reach the same pull
+// request.
+func TestAModuleWorkerAndAShellCodeWorkReachTheSamePR(t *testing.T) {
+	if _, err := exec.LookPath("node"); err != nil {
+		t.Skip("no node")
+	}
+	root, origin := checkout(t)
+	dir, err := runner.Unpack(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	gh := newSDKWorld(t)
+	w := deliveringWorker(t, root, gh)
+	w.Runner = runner.Runner{Dir: dir, Engine: "0.0.0-test"}
+	branch := "claudinite/acme-pack/a/2026-10-03-y"
+	mod := loopTask("a", map[string]any{"agent_model": "none", "code_worker_mjs": "worker.mjs", "code_work_timeout": 30,
+		"expected_outcome": "amend_existing_or_create_new_pr", "automerge": []any{"fleet-roster-artifact"}})
+	mod.Dir = t.TempDir()
+	_ = os.WriteFile(filepath.Join(mod.Dir, "worker.mjs"), []byte(`import { mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { git, github, commitMessage } from '@claudinite/sdk';
+const must = async (...args) => { const r = await git(...args); if (r.code !== 0) throw new Error(args[0] + ': ' + r.stderr); return r.stdout; };
+export async function worker(params) {
+  const root = process.env.CLAUDINITE_REPO_ROOT;
+  mkdirSync(join(root, '.claudinite/fleet'), { recursive: true });
+  writeFileSync(join(root, '`+rosterPath+`'), 'one\n');
+  await must('add', '`+rosterPath+`');
+  await must('commit', '--quiet', '-m', commitMessage('Roster'));
+  await must('push', '--quiet', '--force', 'origin', 'HEAD:refs/heads/' + params.target.branch);
+  await must('reset', '--quiet', '--hard', 'HEAD~1');
+  await github.openPr({ title: 'Roster', body: 'b', head: params.target.branch });
+}
+`), 0o644)
+	first := w.Run(mod, Work{Item: workitem.Issue{Number: 4}, Target: Target{Mode: ModeFresh, Branch: branch}})
+	if !first.OK || first.DeliveredPR == 0 {
+		t.Fatalf("the module worker: %+v", first)
+	}
+	if !strings.Contains(remoteMessage(t, origin, branch), "Claudinite-Task: acme-pack/a") {
+		t.Error("the module worker's commit lacks the task trailer")
+	}
+	clean(t, root)
+
+	w.Env["ROSTER"] = "two"
+	sh := shellTask(t, writeRoster, map[string]any{"expected_outcome": "amend_existing_or_create_new_pr", "automerge": []any{"fleet-roster-artifact"}})
+	second := w.Run(sh, Work{Item: workitem.Issue{Number: 5}, Target: Target{Mode: ModeAmend, Branch: branch, PR: first.DeliveredPR}})
+	if !second.OK || second.DeliveredPR != first.DeliveredPR || second.Branch != first.Branch {
+		t.Fatalf("the shell code_work reached %+v, the module worker %+v", second, first)
+	}
+	if got := remoteFile(t, origin, branch, rosterPath); got != "two\n" {
+		t.Errorf("the branch holds %q", got)
+	}
+	clean(t, root)
+}

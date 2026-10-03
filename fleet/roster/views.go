@@ -31,6 +31,9 @@ type Entry struct {
 	FreshnessError   string           `json:"freshnessError"`
 	// Grant says an error above is the token's grant.
 	Grant bool `json:"-"`
+	// Verdict is the same reads judged as `cn fleet judge` would, the
+	// roster artifact's row.
+	Verdict fleet.Verdict `json:"-"`
 }
 
 // Coverage is the coverage question's buckets; every repository but the

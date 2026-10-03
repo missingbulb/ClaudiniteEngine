@@ -18,16 +18,20 @@ func Build(gh fleet.GH, repos []fleet.Repo, home string, cfg fleet.Config, shelf
 	return roster
 }
 
-// Measure fills one in-scope entry's facts.
+// Measure fills one in-scope entry's facts, and its verdict from the
+// same reads.
 func Measure(gh fleet.GH, r fleet.Repo, scope string, shelf fleet.Shelf, e Entry) Entry {
 	if scope != fleet.ScopeIn {
+		e.Verdict = fleet.Judge(r, scope, fleet.Member{}, nil, nil, nil, nil)
 		return e
 	}
 	m, err := fleet.ReadMember(gh, r.FullName, r.Branch())
 	if err != nil {
 		e.DeclarationError, e.Grant = err.Error(), fleet.IsGrant(err)
+		e.Verdict = fleet.Judge(r, scope, m, err, nil, nil, nil)
 		return e
 	}
+	e.Verdict = fleet.Judge(r, scope, m, nil, nil, nil, nil)
 	if !m.Covered() {
 		return e
 	}
@@ -46,8 +50,12 @@ func Measure(gh fleet.GH, r fleet.Repo, scope string, shelf fleet.Shelf, e Entry
 		if in, err = fleet.Measure(m, has, shelf); err == nil {
 			f := fleet.Classify(in)
 			e.Freshness = &f
+			e.Verdict = fleet.Judge(r, scope, m, nil, &has, &in, nil)
 			return e
 		}
+		e.Verdict = fleet.Judge(r, scope, m, nil, &has, nil, err)
+	} else {
+		e.Verdict = fleet.Judge(r, scope, m, nil, nil, nil, err)
 	}
 	e.FreshnessError, e.Grant = err.Error(), fleet.IsGrant(err)
 	return e
