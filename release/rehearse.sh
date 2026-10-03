@@ -1619,7 +1619,13 @@ GO
       session_start d1 > /dev/null || fail "license 7: SessionStart"
       wait_field d1 state landed 5
       [ "$(field d1 path)" = desktop ] || fail "license 7: landed by $(field d1 path)"
-      [ -n "$(find "$store/keys" -name '*.json')" ] || fail "license 7: no key cached"
+      # The key is cached just after the state file records it landed.
+      tries=0
+      until [ -n "$(find "$store/keys" -name '*.json' 2>/dev/null)" ]; do
+        tries=$((tries + 1))
+        [ "$tries" -le 50 ] || fail "license 7: no key cached"
+        sleep 0.1
+      done
       licctl '{"down":true}'
       session_start d2 > /dev/null || fail "license 7: SessionStart"
       wait_field d2 state landed 5
