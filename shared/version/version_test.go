@@ -1,6 +1,7 @@
 package version
 
 import (
+	"errors"
 	"testing"
 	"time"
 )
@@ -81,21 +82,12 @@ func TestDevBuildDefaults(t *testing.T) {
 }
 
 func TestParseMinEngineVersion(t *testing.T) {
-	legacy, err := ParseMinEngineVersion("60928.1")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !legacy.Legacy() {
-		t.Error("60928.1 is not marked legacy")
-	}
-	for _, pin := range []string{"1.1.0", "60928.1.0", "0.0.0", "99999.9.0"} {
-		if !legacy.Satisfies(pin) {
-			t.Errorf("60928.1 does not satisfy %s", pin)
-		}
+	if _, err := ParseMinEngineVersion("60928.1"); !errors.Is(err, ErrNodeEngine) {
+		t.Errorf("60928.1: %v, want ErrNodeEngine", err)
 	}
 	cur, err := ParseMinEngineVersion("60928.1.0")
-	if err != nil || cur.Legacy() {
-		t.Fatalf("60928.1.0: %v legacy=%v", err, cur.Legacy())
+	if err != nil {
+		t.Fatalf("60928.1.0: %v", err)
 	}
 	for pin, want := range map[string]bool{"60928.1.0": true, "60928.2.0": true, "60929.1.0": true, "60928.0.0": false, "1.1.0": false, "bad": false} {
 		if got := cur.Satisfies(pin); got != want {
@@ -103,8 +95,8 @@ func TestParseMinEngineVersion(t *testing.T) {
 		}
 	}
 	for _, bad := range []string{"60928", "60928.1.0.0", "", "60928.01", "v60928.1", "60928.1.x"} {
-		if _, err := ParseMinEngineVersion(bad); err == nil {
-			t.Errorf("%q parsed", bad)
+		if _, err := ParseMinEngineVersion(bad); err == nil || errors.Is(err, ErrNodeEngine) {
+			t.Errorf("%q: %v", bad, err)
 		}
 	}
 }

@@ -36,6 +36,17 @@ cases: the branch's files, bytes and commit subjects),
 `provenance/mark-local-prefix`, record row 90 (cn resolves `local/<name>`,
 which Node's tool refused).
 
+Phase 7 added `scenarios/provenance/*`'s maintainer verbs (thirteen more,
+46 in all: `reduce`, `apply`, `convert-references`) and
+`scenarios/pack-history/*` (three: the shelf, one pack, an earlier ref),
+where Node's `pack-versions.mjs` answers through `shims/pack-history.mjs`
+in `cn pack history --json`'s shape, and `scenarios/promote-scope/*`
+(four: inside the roots, outside, a second root from config, no merge
+base), Node's rule through `shims/promote-scope.mjs` against `--base`. The fixtures keep to what both read:
+cn drops a pack's `test/`, `docs/` and `checks/*_test.go` as the vendored
+set does, where Node dropped only `*.test.mjs`, and reads any dotted pack
+version, where Node read none below a date-anchored one.
+
 ## Divergences
 
 Growth face divergences: 0 of 57 fixtures.
@@ -66,7 +77,8 @@ Update face divergences: 19 of 40 fixtures.
 | Row | Fixtures | Why |
 | --- | --- | --- |
 | 8 | plan/downgrade-refused | a pin only moves forward: the plan keeps the newer held version |
-| 12 | plan/min-engine-blocks, plan/two-part-min-engine | a minimum engine is `<day>.<n>.<patch>`; the two-part Node form is any engine |
+| 12 | plan/min-engine-blocks | a minimum engine is `<day>.<n>.<patch>` |
+| 120 | plan/two-part-min-engine | a two-part minimum names a Node engine version, which no cn release meets: the plan blocks it |
 | 32 | gap/unstamped, gap/old-engine, gap/mid-engine, applystage/record-asks, applystage/withheld, applystage/test-visible, terminal/apply-stage | no update migrates member files and none runs an agent stage |
 | 39 | convergescope/mount-wiring | a pack PR carries the packs, the flat files and the CLAUDE.md import, never hook settings |
 | 41 | convergescope/stamp-only, convergescope/checkout | the declaration is `.claudinite/settings.*`, whose bookkeeping edit is the engine pin |

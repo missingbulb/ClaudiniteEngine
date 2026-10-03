@@ -1,0 +1,14 @@
+{
+  "rules": "@../shared/packs/host-page/RULES.md\n",
+  "mounts": [],
+  "world": [
+    "synthetic-input-events-bubble src/a.js:1 block",
+    "synthetic-input-events-bubble src/a.js:2 block",
+    "synthetic-input-events-bubble src/a.js:3 block",
+    "synthetic-input-events-bubble src/fire.mjs:3 block"
+  ],
+  "work": [],
+  "only": [
+    "synthetic-input-events-bubble"
+  ]
+}

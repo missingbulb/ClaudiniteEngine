@@ -1,0 +1,12 @@
+{
+  "rules": "@../shared/packs/chrome-extension/RULES.md\n",
+  "mounts": [
+    "chrome-store-releases",
+    "extension-host-permissions"
+  ],
+  "world": [],
+  "work": [],
+  "only": [
+    "version-bumped"
+  ]
+}

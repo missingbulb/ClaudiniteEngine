@@ -1,0 +1,14 @@
+{
+  "rules": "@../shared/packs/leaflet/RULES.md\n",
+  "mounts": [],
+  "world": [
+    "asset-integrity docs/map.HTM:1 block",
+    "asset-integrity index.html:3 block",
+    "asset-integrity index.html:4 block",
+    "asset-integrity index.html:5 block"
+  ],
+  "work": [],
+  "only": [
+    "asset-integrity"
+  ]
+}

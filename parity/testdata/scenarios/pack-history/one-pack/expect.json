@@ -1,0 +1,10 @@
+{
+  "runs": [
+    {
+      "exit": 0,
+      "stdout": "[\n  {\n    \"id\": \"acme\",\n    \"manifest\": \"packs/acme/pack.json\",\n    \"version\": \"61001.2\",\n    \"record\": \"packs/acme/provenance/VERSIONS.md\",\n    \"missing\": [\n      \"61001.2\"\n    ],\n    \"lastBump\": {\n      \"sha\": \"92a4926ddff804162a32165c5a75471bf0154c3c\",\n      \"version\": \"61001.2\",\n      \"date\": \"2026-07-04\"\n    },\n    \"shippingSince\": [\n      \"packs/acme/RULES.md\"\n    ],\n    \"versions\": [\n      {\n        \"version\": \"61001.1\",\n        \"date\": \"2026-07-01\",\n        \"commits\": [\n          {\n            \"sha\": \"aa2bda7adaefb45f5b54e4d3f0e0141e9c25bce8\",\n            \"subject\": \"acme and beta are born (#1)\",\n            \"pr\": 1\n          }\n        ]\n      },\n      {\n        \"version\": \"61001.2\",\n        \"date\": \"2026-07-04\",\n        \"commits\": [\n          {\n            \"sha\": \"2d23af6de1e8169b10da1b461215632d879b5d0d\",\n            \"subject\": \"acme: a rule (#2)\",\n            \"pr\": 2\n          },\n          {\n            \"sha\": \"92a4926ddff804162a32165c5a75471bf0154c3c\",\n            \"subject\": \"acme 61001.2: a skill | and a pipe (#4)\",\n            \"pr\": 4\n          }\n        ]\n      }\n    ]\n  }\n]\n",
+      "stderr": ""
+    }
+  ],
+  "branch": null
+}

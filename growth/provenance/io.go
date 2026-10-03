@@ -117,3 +117,6 @@ func (o *Overlay) Write(p, text string) error {
 	o.written[p] = text
 	return nil
 }
+
+// Remove deletes p.
+func (c Checkout) Remove(p string) error { return os.Remove(c.abs(p)) }

@@ -1,0 +1,14 @@
+{
+  "rules": "@../shared/packs/claudinite-canon-curation/RULES.md\n",
+  "mounts": [
+    "extract-packs-from-a-project",
+    "writing-claudinite-skills"
+  ],
+  "world": [
+    "pack-version-log-ordered packs/acme-pack/provenance/VERSIONS.md:8 block"
+  ],
+  "work": [],
+  "only": [
+    "pack-version-log-ordered"
+  ]
+}

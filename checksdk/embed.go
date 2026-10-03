@@ -9,7 +9,7 @@ import (
 // claudinite.com/checksdk for the checks build and for a pack repo's
 // tests. This file is not part of that copy.
 //
-//go:embed checksdk.go fake.go markdown.go pipe.go repo.go scan.go session.go text.go
+//go:embed checksdk.go fake.go markdown.go pipe.go repo.go rules.go scan.go session.go text.go
 var sdk embed.FS
 
 // Sources maps each SDK file's name to its content.

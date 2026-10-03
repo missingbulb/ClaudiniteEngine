@@ -136,3 +136,31 @@ func TestSettingsAnswer(t *testing.T) {
 		}
 	}
 }
+
+// settings config prints a declared entry's config as JSON, null for an
+// entry that carries none, and refuses a pack the settings do not declare.
+func TestSettingsConfigPrintsTheEntrysConfig(t *testing.T) {
+	dir, _ := importMember(t, devPin+"packs:\n  declared:\n    - id: claude-code-web-users-support\n      config:\n        repo: \"acme/store\"\n        nested: {a: [1, two]}\n    - basics\n    - local/mine\n", 0o644)
+	for _, c := range []struct {
+		pack, out string
+		code      int
+	}{
+		{"claude-code-web-users-support", `{"nested":{"a":[1,"two"]},"repo":"acme/store"}` + "\n", 0},
+		{"basics", "null\n", 0},
+		{"local/mine", "null\n", 0},
+		{"mine", "", 1},
+	} {
+		out, errOut, code := runInProc([]string{"settings", "config", c.pack, "--repo", dir}, "")
+		if out != c.out || code != c.code {
+			t.Errorf("settings config %s = %q (exit %d, %s), want %q exit %d", c.pack, out, code, errOut, c.out, c.code)
+		}
+	}
+}
+
+func TestSessionUserPackRefusesWhereThePackIsNotDeclared(t *testing.T) {
+	dir, _ := importMember(t, devPin+"packs:\n  declared:\n    - basics\n", 0o644)
+	_, errOut, code := runInProc([]string{"session", "user-pack", "--repo", dir}, "")
+	if code != 1 || !strings.Contains(errOut, "does not declare claude-code-web-users-support") {
+		t.Errorf("exit %d: %s", code, errOut)
+	}
+}

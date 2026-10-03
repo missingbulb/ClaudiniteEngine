@@ -1,0 +1,27 @@
+{
+  "commits": [
+    {
+      "message": "marked",
+      "files": {
+        ".claudinite/local/packs/acme/pack.json": "{\n  \"version\": \"1\",\n  \"ruleRoutingGuidance\": {\n    \"belongs\": \"widgets\",\n    \"excludes\": \"everything else\"\n  }\n}\n",
+        ".claudinite/local/packs/acme/RULES.md": "# acme\n\n- **Writing a widget** — keep it small and name it for what it does. (writing-widget)\n- **Shipping a release**: tag it first. (1)\n- **Naming a gadget** — after what it does, not how. (2, 3)\n",
+        ".claudinite/local/packs/acme/skills/guide/SKILL.md": "---\nname: guide\ndescription: Guidance for gadgets. Use when building one.\nmetadata:\n  body: guidelines\n---\n\n# guide\n\n- **Doing the first thing** — do it well.\n- **Doing the second thing** — do it better.\n",
+        ".claudinite/local/packs/acme/tasks/acme-task/task.json": "{\n  \"id\": \"acme-task\",\n  \"description\": \"d\",\n  \"trigger\": \"request\",\n  \"expected_outcome\": \"no_code_changes\"\n}\n",
+        ".claudinite/local/packs/acme/provenance/_pack.md": "## 2026-07-01 · born · the pack\n- **Source:** #10\n- **Reason:** needed one\n- **Mechanism:** prose rule in RULES.md\n",
+        ".claudinite/local/packs/acme/provenance/writing-widget.md": "## 2026-07-02 · born · first written\n- **Source:** #10\n- **Reason:** needed one\n- **Mechanism:** prose rule in RULES.md\n",
+        ".claudinite/local/packs/acme/provenance/guide.md": "## 2026-07-02 · born · first written\n- **Source:** #10\n- **Reason:** needed one\n- **Mechanism:** prose rule in RULES.md\n",
+        ".claudinite/local/packs/acme/provenance/acme-task.md": "## 2026-07-02 · born · first written\n- **Source:** #10\n- **Reason:** needed one\n- **Mechanism:** prose rule in RULES.md\n",
+        ".claudinite/local/packs/acme/skills/flow/SKILL.md": "---\nname: flow\ndescription: A workflow. Use when flowing.\nmetadata:\n  body: workflow\n---\n\n# flow\n\n1. Do the first step. (1)\n2. Do the second step.\n",
+        ".claudinite/local/packs/acme/references.md": "# References\n\n- **(RULES-1)** Shipped untagged twice, see [the log](docs/log.md). Retire when tags are automatic.\n- **(RULES-2)** Gadgets were named for libraries.\n  The second line joins.\n- **(RULES-9)** cited by nothing.\n- **(guide-1)** a guideline nobody numbered.\n- **(flow-1)** the first step mattered. Reaffirm yearly.\n- **(task:acme-task)** the task exists.\n- **(task:nope)** no such task.\n- **(check:nope)** no such check.\n- **(weird)** not a key.\n"
+      }
+    }
+  ],
+  "steps": [
+    {
+      "args": [
+        "convert-references",
+        "acme"
+      ]
+    }
+  ]
+}

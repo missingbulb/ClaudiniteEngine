@@ -189,10 +189,10 @@ func TestRules(t *testing.T) {
 		}, []string{"pack-min-engine"}, nil},
 		{"pack with two-part minimum", func(t *testing.T, d string) {
 			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "60928.1"}`)
-		}, nil, []string{"min-engine-version-legacy"}},
+		}, nil, []string{"pack-min-engine"}},
 		{"pack with malformed minimum", func(t *testing.T, d string) {
 			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "soon"}`)
-		}, []string{"min-engine-version-legacy"}, nil},
+		}, []string{"pack-min-engine"}, nil},
 		{"pack.yaml", func(t *testing.T, d string) {
 			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "60930.1.0"}`)
 			write(t, d, ".claudinite/shared/packs/acme-pack/pack.yaml", "version: 1\n")
@@ -441,6 +441,8 @@ func declare(t *testing.T, dir, id, manifest string) {
 	}
 }
 
+// A pack vendored while the shelf still named the Node engine's two-part
+// version is a deprecation the update clears, never a break.
 func TestTwoPartMinEngineShapeRaisesOnlyItsDeprecation(t *testing.T) {
 	fs := Verify(Input{Repo: filepath.Join(shapes, "v3-two-part-min-engine"), Launcher: launcherBytes(t), Shipped: shippedHashes(t)})
 	if findings.AnyBreak(fs) {
@@ -448,12 +450,12 @@ func TestTwoPartMinEngineShapeRaisesOnlyItsDeprecation(t *testing.T) {
 	}
 	var legacy int
 	for _, f := range fs {
-		if f.ID == "min-engine-version-legacy" && f.Class == findings.Deprecation && f.Path == ".claudinite/shared/packs/acme-pack/pack.json" {
+		if f.ID == "pack-min-engine" && f.Class == findings.Deprecation && f.Path == ".claudinite/shared/packs/acme-pack/pack.json" {
 			legacy++
 		}
 	}
 	if legacy != 1 {
-		t.Errorf("want one min-engine-version-legacy deprecation: %v", fs)
+		t.Errorf("want one pack-min-engine deprecation: %v", fs)
 	}
 }
 
@@ -478,8 +480,8 @@ func TestAShippedLauncherIsAccepted(t *testing.T) {
 	}
 }
 
-func TestPackManifestLegacyMinEngineVersion(t *testing.T) {
-	if fs := PackManifest(".claudinite/shared/packs/basics/pack.json", "60928.1"); len(fs) != 1 || fs[0].Class != findings.Deprecation || fs[0].ID != "min-engine-version-legacy" {
+func TestPackManifestMinEngineVersion(t *testing.T) {
+	if fs := PackManifest(".claudinite/shared/packs/basics/pack.json", "60928.1"); len(fs) != 1 || fs[0].Class != findings.Deprecation || fs[0].ID != "pack-min-engine" || !strings.Contains(fs[0].Sentence, "Node engine") {
 		t.Errorf("two-part: %v", fs)
 	}
 	if fs := PackManifest("p/pack.json", "60928.1.0"); len(fs) != 0 {

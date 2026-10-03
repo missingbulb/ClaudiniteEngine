@@ -158,7 +158,7 @@ func TestMeasureIsWhatTheMembersOwnUpdateWouldDecide(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := shelf{engine: "61002.1.0", index: map[string]packindex.Index{"basics": {Pack: "basics",
-		Versions: []packindex.Entry{{Version: "3.2.0", Channel: "stable", MinEngineVersion: "60000.1"}}}}}
+		Versions: []packindex.Entry{{Version: "3.2.0", Channel: "stable", MinEngineVersion: "0.0.0"}}}}}
 	in, err := fleet.Measure(m, true, s)
 	if err != nil {
 		t.Fatal(err)

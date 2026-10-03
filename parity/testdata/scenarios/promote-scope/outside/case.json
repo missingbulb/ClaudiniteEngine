@@ -1,0 +1,35 @@
+{
+  "commits": [
+    {
+      "message": "base",
+      "files": {
+        ".claudinite-settings.json": "{\n  \"packs\": [\n    {\n      \"id\": \"claudinite-canon-curation\"\n    }\n  ]\n}\n",
+        ".claudinite/settings.yaml": "packs:\n  declared:\n    - id: claudinite-canon-curation\n",
+        "packs/acme/RULES.md": "# acme\n",
+        "README.md": "r\n",
+        "docs/old.md": "o\n"
+      }
+    },
+    {
+      "message": "the promote branch",
+      "files": {
+        "packs/acme/RULES.md": "# acme, promoted\n",
+        "README.md": "r2\n"
+      },
+      "remove": [
+        "docs/old.md"
+      ]
+    }
+  ],
+  "steps": [
+    {
+      "args": [
+        "--base",
+        "HEAD~1"
+      ]
+    }
+  ],
+  "working": {
+    "tools/x.mjs": "x\n"
+  }
+}

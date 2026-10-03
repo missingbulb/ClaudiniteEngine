@@ -1,0 +1,13 @@
+{
+  "nodeFiles": {
+    ".claudinite-settings.json": "{\"packs\":[\"claudinite-canon-curation\"]}\n",
+    "packs/acme-pack/pack.mjs": "import { pathToFileURL } from 'node:url';\nexport default { id: 'acme-pack', version: '61001.1' };\nif (import.meta.url === pathToFileURL(process.argv[1]).href) {\n  await main();\n}\n"
+  },
+  "cnShape": "v9-skills-index",
+  "cnFiles": {
+    "packs/acme-pack/pack.json": "{\"version\": \"61001.1\"}\n"
+  },
+  "answeredBy": "pack-declared",
+  "nodeFires": true,
+  "divergence": "record-117"
+}

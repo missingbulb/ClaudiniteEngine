@@ -64,6 +64,10 @@ commands:
                  id resolved before any write; ends as init does
   settings answer PACK/QUESTION TEXT [--repo DIR]
                  record a person's answer to a pack's adoption question
+  settings config <pack> [--repo DIR]
+                 a declared pack entry's config as JSON (null where it
+                 carries none), for a pack's own script; exit 1 when the
+                 pack is not declared
   settings import [--from FILE] [--stdout] [--repo DIR]
                  read the Node engine's .claudinite-settings.json into the
                  pinned .claudinite/settings.* as its packs and checks
@@ -125,6 +129,11 @@ commands:
                  [--branch NAME] [--repo DIR]
                  push the session's transcript, scrubbed, as a delta onto
                  the conversation-logs branch; session-end runs it too
+  growth promote-scope --base REF [--repo DIR]
+                 the promote pull request's gate: every path the branch
+                 touches since its merge base with REF lies under the
+                 canon's corpus roots (packs/ and the canon-curation
+                 entry's write_paths); exit 1 names each stray path
   growth prune [--branch NAME] [--repo DIR]
                  remove the captures past the repo's retention_days in one
                  commit; the logs-prune task's code-work
@@ -133,12 +142,26 @@ commands:
   provenance append <pack> <element> [--kind K] [--date D] [--changed]
                  [--backfill] < entry.md
   provenance history <pack> <element>
+  provenance apply <pack> <brief.md> [--backfill]
+  provenance convert-references <pack>|--all
+  provenance reduce <file> [--public]
                  a pack's provenance: markers and empty files, the audit
                  (exit 1 on a fault), one entry appended, one element's
-                 raw evidence; <pack> is an id, a path or local/<name>
+                 raw evidence, an edited brief's entries, a references.md
+                 converted, a file reduced for the canon; <pack> is an
+                 id, a path or local/<name>
+  session user-pack [--repo DIR]
+                 the SessionStart step where claude-code-web-users-support
+                 is declared, run by hand: the person's own pack copied
+                 from the store into .claudinite/temp/packs/current_user
+                 (or the placeholder), and its one line
   pack new <name> [--belongs TEXT] [--excludes TEXT] [--repo DIR]
                  scaffold the local pack a repo's own lessons land in,
                  and declare it as local/<name>
+  pack history [<id>...] [--ref REF] [--json] [--repo DIR]
+                 a canon shelf's version walk at REF (HEAD): each pack's
+                 last version move, the shipping files changed since and
+                 the pull requests each version carried
   fleet roster [--repo DIR] [--api URL]
                  a fleet manager's sweep: one fleet-adoption issue per
                  uncovered repo and the coverage and freshness report;
@@ -171,7 +194,7 @@ commands:
 var secretScanPlant string
 
 // runHook is a variable so a test can make a hook panic.
-var runHook = hooks.Handler{Checks: hookChecks{}, Guards: hookGuards{}, License: hookLicense{}, Index: hookIndex{}, Growth: hookGrowth{}}.Run
+var runHook = hooks.Handler{Checks: hookChecks{}, Guards: hookGuards{}, License: hookLicense{}, Index: hookIndex{}, Growth: hookGrowth{}, UserPack: hookUserPack{}}.Run
 
 func main() {
 	if len(os.Args) == 3 && os.Args[1] == "hook" && perCallEvents[os.Args[2]] {
@@ -303,6 +326,8 @@ func dispatch(args []string, stdin io.Reader, stdout, stderr io.Writer, start ti
 		return cmdProvenance(args[1:], stdin, stdout, stderr)
 	case "pack":
 		return cmdPack(args[1:], stdout)
+	case "session":
+		return cmdSession(args[1:], stdout)
 	case "fleet":
 		return cmdFleet(args[1:], stdout, stderr, start)
 	case "dashboard":

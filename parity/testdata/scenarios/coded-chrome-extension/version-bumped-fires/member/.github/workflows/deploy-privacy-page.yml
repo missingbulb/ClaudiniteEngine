@@ -1,0 +1,4 @@
+name: "Privacy (reusable)"
+on:
+  workflow_call:
+jobs: {}

@@ -1,0 +1,15 @@
+{
+  "rules": "@../shared/packs/chrome-extension/RULES.md\n",
+  "mounts": [
+    "chrome-store-releases",
+    "extension-host-permissions"
+  ],
+  "world": [
+    "declarative-content-set-icon sw.js:3 block",
+    "declarative-content-set-icon sw.js:5 block"
+  ],
+  "work": [],
+  "only": [
+    "declarative-content-set-icon"
+  ]
+}

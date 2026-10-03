@@ -1,0 +1,7 @@
+name: x
+on: push
+jobs:
+  a:
+    runs-on: ubuntu-latest
+    steps:
+      - run: npx wrangler@4 pages deploy site

@@ -1,0 +1,14 @@
+{
+  "rules": "@../shared/packs/web-speech/RULES.md\n",
+  "mounts": [
+    "web-speech-io"
+  ],
+  "world": [
+    "mic-capture-released lib/b.ts:1 block",
+    "mic-capture-released src/a.js:3 block"
+  ],
+  "work": [],
+  "only": [
+    "mic-capture-released"
+  ]
+}

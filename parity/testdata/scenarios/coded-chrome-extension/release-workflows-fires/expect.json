@@ -1,0 +1,18 @@
+{
+  "rules": "@../shared/packs/chrome-extension/RULES.md\n",
+  "mounts": [
+    "chrome-store-releases",
+    "extension-host-permissions"
+  ],
+  "world": [
+    "release-workflows .github/actions/report-failure/action.yml block",
+    "release-workflows .github/workflows/chrome-extension-release.yml block",
+    "release-workflows .github/workflows/chrome-extension-release.yml block",
+    "release-workflows .github/workflows/chrome-extension-release.yml block",
+    "release-workflows .github/workflows/deploy-privacy-page.yml block"
+  ],
+  "work": [],
+  "only": [
+    "release-workflows"
+  ]
+}

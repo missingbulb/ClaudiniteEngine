@@ -69,8 +69,10 @@ func TestDeferredFileParses(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if d["pack-discovery-entry-await"] == "" {
-		t.Error("deferred.txt does not name pack-discovery-entry-await")
+	for _, id := range []string{"pack-no-enforcement-narration", "skill-no-enforcement-narration", "skill-usage-declared", "pack-version-log-ordered", "pack-discovery-entry-await"} {
+		if d[id] != "" {
+			t.Errorf("deferred.txt still defers %s, which the canon-curation slice ported or answered", id)
+		}
 	}
 	if d["descriptor-usable"] != "" {
 		t.Error("deferred.txt still defers descriptor-usable, which the dashboard slice ported as a built-in")
@@ -89,7 +91,7 @@ func TestDeferredFileParses(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, id := range []string{"conformance-workflow", "conformance-work-scope", "legacy-shape-in-use", "rules-index-current", "skills-index-current"} {
+	for _, id := range []string{"conformance-workflow", "conformance-work-scope", "legacy-shape-in-use", "rules-index-current", "skills-index-current", "pack-discovery-entry-await"} {
 		if e[id] != "answered" {
 			t.Errorf("%s is not answered: %q", id, e[id])
 		}

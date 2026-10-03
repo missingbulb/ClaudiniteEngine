@@ -1,0 +1,14 @@
+{
+  "rules": "@../shared/packs/cloudflare-site/RULES.md\n",
+  "mounts": [
+    "releasing-a-cloudflare-site"
+  ],
+  "world": [
+    "beacon-token-is-not-committed site/a.js:2 block",
+    "beacon-token-is-not-committed site/index.html:1 block"
+  ],
+  "work": [],
+  "only": [
+    "beacon-token-is-not-committed"
+  ]
+}

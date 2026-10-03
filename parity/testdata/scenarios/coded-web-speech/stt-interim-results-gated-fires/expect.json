@@ -1,0 +1,14 @@
+{
+  "rules": "@../shared/packs/web-speech/RULES.md\n",
+  "mounts": [
+    "web-speech-io"
+  ],
+  "world": [
+    "stt-interim-results-gated src/a.js:3 block",
+    "stt-interim-results-gated src/b.mjs:1 block"
+  ],
+  "work": [],
+  "only": [
+    "stt-interim-results-gated"
+  ]
+}

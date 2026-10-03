@@ -1,0 +1,8 @@
+name: x
+on: push
+jobs:
+  a:
+    runs-on: ubuntu-latest
+    steps:
+      # - uses: actions/deploy-pages@v4
+      - run: node --test

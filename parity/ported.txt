@@ -13,3 +13,12 @@ claudinite-growth
 claudinite-tasks
 claudinite-fleet-sheepdog
 claudinite-dashboard
+chrome-extension
+cloudflare-site
+github-pages
+host-page
+leaflet
+macos
+web-speech
+claude-code-web-users-support
+claudinite-canon-curation

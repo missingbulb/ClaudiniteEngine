@@ -1,0 +1,14 @@
+{
+  "rules": "@../shared/packs/github-pages/RULES.md\n",
+  "mounts": [
+    "github-pages-pipeline"
+  ],
+  "world": [
+    "site-config .github/site.config block",
+    "site-config .github/site.config block"
+  ],
+  "work": [],
+  "only": [
+    "site-config"
+  ]
+}

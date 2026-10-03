@@ -1,0 +1,11 @@
+{
+  "rules": "@../shared/packs/github-pages/RULES.md\n",
+  "mounts": [
+    "github-pages-pipeline"
+  ],
+  "world": [],
+  "work": [],
+  "only": [
+    "deploy-workflow"
+  ]
+}

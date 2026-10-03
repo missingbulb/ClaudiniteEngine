@@ -1,0 +1,16 @@
+name: Release
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+jobs:
+  create-package:
+    uses: ./.github/workflows/chrome-extension-create-package.yml
+  publish:
+    steps: []
+  daily:
+    uses: ./.github/workflows/chrome-extension-daily-release.yml
+  bump:
+    uses: ./.github/workflows/chrome-extension-bump-version.yml

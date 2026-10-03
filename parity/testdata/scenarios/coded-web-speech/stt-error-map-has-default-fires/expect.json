@@ -1,0 +1,14 @@
+{
+  "rules": "@../shared/packs/web-speech/RULES.md\n",
+  "mounts": [
+    "web-speech-io"
+  ],
+  "world": [
+    "stt-error-map-has-default src/a.js:2 block",
+    "stt-error-map-has-default src/a.js:9 block"
+  ],
+  "work": [],
+  "only": [
+    "stt-error-map-has-default"
+  ]
+}

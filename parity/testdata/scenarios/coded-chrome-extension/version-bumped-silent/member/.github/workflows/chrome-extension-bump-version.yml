@@ -1,0 +1,4 @@
+name: "Bump (reusable)"
+on:
+  workflow_call:
+jobs: {}

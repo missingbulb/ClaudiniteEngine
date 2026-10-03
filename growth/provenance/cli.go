@@ -1,14 +1,16 @@
-// Package provenance is the member's provenance verbs over the
-// convention's reader (shared/provenance): mark a pack onto it, append an
-// entry, check a pack, and read one element's history. The promotion and
-// backfill verbs a canon maintainer runs (reduce, brief, apply,
-// convert-references) are not here.
+// Package provenance is the provenance verbs over the convention's reader
+// (shared/provenance): mark a pack onto it, append an entry, check a
+// pack, read one element's history, apply an edited brief, convert a
+// retired references doc, and reduce a file for promotion across a
+// repository boundary.
 package provenance
 
 import (
 	"fmt"
 	"io"
+	"os"
 	"path"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
@@ -558,10 +560,12 @@ const Usage = `usage: cn provenance <command> …
   check <pack>|--all                     what each file is named by, and every fault
   append <pack> <element> [--kind K] [--date D] [--changed] [--backfill] < entry.md
   history <pack> <element>               one element's raw evidence from git, VERSIONS.md and the README
+  apply <pack> <brief.md> [--backfill]   every entry fence of an edited brief, as one batch
+  convert-references <pack>|--all        a references.md turned into entries, then deleted
+  reduce <file> [--public]               a provenance file as it may cross into the canon
   --backfill                             the backfill's lane: entries dated in the past, written in
                                          date order over the file, creating one the marking pass
-                                         could not. every other caller appends, and only at the end
-reduce, brief, apply and convert-references are the canon maintainer's verbs, not a member's`
+                                         could not. every other caller appends, and only at the end`
 
 // Main runs one verb over the repository at root, Node's sentences on
 // stdout and stderr, and returns the exit code: 1 for a fault or a
@@ -676,6 +680,84 @@ func Main(args []string, root string, stdin io.Reader, stdout, stderr io.Writer)
 		out := make([]string, len(written))
 		for i, f := range written {
 			out[i] = f + ": appended"
+		}
+		print(out)
+		return 0
+	case "reduce":
+		file := ""
+		if len(positional) > 0 {
+			file = positional[0]
+		}
+		text, ok := io.Read(file)
+		if file == "" || !ok {
+			fmt.Fprintln(stderr, "reduce needs a file")
+			return 2
+		}
+		fmt.Fprint(stdout, ReduceFile(text, flags["--public"]))
+		return 0
+	case "convert-references":
+		packs := packsFor()
+		if packs == nil {
+			return 2
+		}
+		var lines []string
+		for _, p := range packs {
+			lines = append(lines, ConvertReferences(p, io, ReferenceDates(git, p+"/"+ReferencesDoc), Today())...)
+		}
+		if len(lines) == 0 {
+			lines = []string{"no references.md to convert"}
+		}
+		print(lines)
+		return 0
+	case "apply":
+		packs := packsFor()
+		if packs == nil {
+			return 2
+		}
+		if len(positional) < 2 {
+			fmt.Fprintln(stderr, "apply needs the brief file")
+			return 2
+		}
+		brief := positional[1]
+		if !filepath.IsAbs(brief) {
+			brief = filepath.Join(root, brief)
+		}
+		raw, err := os.ReadFile(brief)
+		if err != nil {
+			fmt.Fprintln(stderr, "provenance: "+err.Error())
+			return 1
+		}
+		backfill := flags["--backfill"]
+		a := Apply(io, packs[0], string(raw), backfill)
+		if len(a.Problems) > 0 {
+			fmt.Fprintln(stderr, strings.Join(a.Problems, "\n"))
+			return 1
+		}
+		verb := "appended"
+		if backfill {
+			verb = "written in date order"
+		}
+		out := []string{"nothing to append"}
+		if len(a.Written) > 0 {
+			out = out[:0]
+			for _, f := range a.Written {
+				out = append(out, f+": "+verb)
+			}
+		}
+		if len(a.Created) > 0 {
+			out = append(out, "created: "+strings.Join(a.Created, ", "))
+		}
+		if len(a.Superseded) > 0 {
+			out = append(out, "the conversion's placeholder replaced by the batch's born: "+strings.Join(a.Superseded, "; "))
+		}
+		if len(a.Skipped) > 0 {
+			var once []string
+			for _, s := range a.Skipped {
+				if !has(once, s) {
+					once = append(once, s)
+				}
+			}
+			out = append(out, "already in its file, skipped: "+strings.Join(once, ", "))
 		}
 		print(out)
 		return 0

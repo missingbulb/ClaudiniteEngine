@@ -93,19 +93,31 @@ type RulesIndex interface {
 	HasRules(repo, engine string) bool
 }
 
+// UserPack is SessionStart's first step: where the user-pack pack is
+// declared, the person's own pack copied into the session's temp pack
+// root before the pack set is read. It returns its one line, "" where the
+// pack is not declared; it never fails the hook.
+type UserPack interface {
+	Prepare(repo string) string
+}
+
 // MissingImport is SessionStart's line for a member whose CLAUDE.md does
 // not import the rules index, which leaves the session with no pack rules.
 const MissingImport = `[cn] rules not loaded: CLAUDE.md does not import .claudinite/flat/claudinite-rules.GENERATED.md; add the line "@.claudinite/flat/claudinite-rules.GENERATED.md"`
 
 // Handler answers hook events. A nil Checks runs no coded checks; a nil
 // Guards judges no call; a nil License gates nothing; a nil Index writes
-// no rules index; a nil Growth captures nothing.
+// no rules index; a nil Growth captures nothing; a nil UserPack copies
+// nothing.
 type Handler struct {
 	Checks  Checks
 	Guards  Guards
 	License License
 	Index   RulesIndex
 	Growth  Growth
+	// UserPack copies the person's pack in at SessionStart; nil copies
+	// nothing.
+	UserPack UserPack
 	// ProjectDir overrides where the repo is found.
 	ProjectDir string
 	// Engine overrides this engine's version, for tests.
@@ -195,10 +207,17 @@ func sessionKey(id string) string {
 }
 
 func (h Handler) sessionStart(repo, sessionID string, outcome breadcrumb.Outcome, stdout io.Writer, start time.Time) error {
+	personal := ""
+	if h.UserPack != nil {
+		personal = h.UserPack.Prepare(repo)
+	}
 	ctx := assemble(repo, h.engine())
 	var b strings.Builder
 	b.WriteString(HelloRule())
 	b.WriteString("\n")
+	if personal != "" {
+		b.WriteString(personal + "\n")
+	}
 	for _, l := range ctx.notes {
 		b.WriteString(l + "\n")
 	}

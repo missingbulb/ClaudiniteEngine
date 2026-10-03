@@ -121,6 +121,7 @@ const (
 	ReasonRevoked       = "revoked"
 	ReasonCanary        = "canary"
 	ReasonEngine        = "not for this engine"
+	ReasonNodeEngine    = "names a Node engine version"
 	ReasonNotNewer      = "not newer"
 	ReasonNoReplacement = "revoked, no replacement published"
 )
@@ -155,6 +156,8 @@ func Select(ix Index, w Want) Choice {
 			reason = ReasonRevoked
 		case e.Channel == Canary && w.Channel != Canary:
 			reason = ReasonCanary
+		case nodeEngine(e.MinEngineVersion):
+			reason = ReasonNodeEngine
 		case !engineMeets(e.MinEngineVersion, w.Engine):
 			reason = ReasonEngine
 		case w.Held != "" && !newer(e.Version, w.Held):
@@ -186,6 +189,11 @@ func Select(ix Index, w Want) Choice {
 		}
 	}
 	return c
+}
+
+func nodeEngine(minEngine string) bool {
+	_, err := version.ParseMinEngineVersion(minEngine)
+	return errors.Is(err, version.ErrNodeEngine)
 }
 
 func engineMeets(minEngine, pin string) bool {

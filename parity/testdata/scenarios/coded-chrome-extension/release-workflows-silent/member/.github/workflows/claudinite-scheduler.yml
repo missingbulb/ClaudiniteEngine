@@ -1,0 +1,4 @@
+name: Claudinite scheduler
+on:
+  schedule:
+    - cron: '24 * * * *'

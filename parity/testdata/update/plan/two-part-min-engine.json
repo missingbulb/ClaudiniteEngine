@@ -27,13 +27,13 @@
       "to": "61003.1"
     }
   ],
-  "divergence": "record-12",
+  "divergence": "record-120",
   "cn": [
     {
       "id": "acme-pack",
       "from": "61002.1",
       "to": "61003.1",
-      "blocked": null,
+      "blocked": "pack \"acme-pack\" version 61003.1 names the Node engine version 61003.1 as its floor, which no cn release meets",
       "records": []
     }
   ]

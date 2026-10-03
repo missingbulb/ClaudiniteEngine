@@ -106,3 +106,18 @@ claudinite-tasks/worldRules record-5
 # row 112):
 claudinite-dashboard/tasks/deploy-oauth-exchange/task.json record-5
 claudinite-dashboard/tasks/publish-pages/task.json record-112
+# Engine chunk 17: the last eight packs' checks in Go. Their task
+# declarations lost $schema with ClaudinitePacks#20 (record row 5); a Node
+# check id carrying a slash is its last segment in cn, and the pack's text
+# names it so (record row 121):
+chrome-extension/tasks/store-release/task.json record-5
+chrome-extension/skills/chrome-store-releases/SKILL.md record-121
+cloudflare-site/tasks/site-release/task.json record-5
+github-pages/tasks/site-release/task.json record-5
+github-pages/skills/github-pages-pipeline/SKILL.md record-121
+# The canon-curation slice: its task declarations and declared checks
+# moved with ClaudinitePacks#20 (record row 5) and its manifest names the
+# cn floor and the actions its workers call (record row 120):
+claudinite-canon-curation/tasks record-5
+claudinite-canon-curation/declared-checks.json record-5
+claudinite-canon-curation/pack.json record-120

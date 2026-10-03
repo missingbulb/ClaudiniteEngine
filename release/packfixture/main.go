@@ -16,7 +16,7 @@
 // skill, its judge, its SDK probes, its tasks, its merge rules and its
 // GitHub actions; v3 (1.5) adds a check that finds on every repo; v4
 // (1.6) drops it again; v5 (1.7) needs an engine
-// no rehearsal builds. Every publish and revoke bumps the serial; --serial
+// no rehearsal builds; v6 (1.8) names a Node engine version as its floor. Every publish and revoke bumps the serial; --serial
 // rewrites it, as an index that regressed would read. --pack names another
 // fixture pack (hello-asks), which has the one label "source": its folder
 // as it is, at its pack.json version and requires. Every index written
@@ -51,10 +51,13 @@ const Pack = "hello"
 const SourceLabel = "source"
 
 // Labels maps a rehearsal label to its pack version.
-var Labels = map[string]string{"v1": "1.0", "v2": "1.4", "v3": "1.5", "v4": "1.6", "v5": "1.7"}
+var Labels = map[string]string{"v1": "1.0", "v2": "1.4", "v3": "1.5", "v4": "1.6", "v5": "1.7", "v6": "1.8"}
 
-// unreachableEngine is v5's minEngineVersion.
-const unreachableEngine = "99999.0.0"
+// unreachableEngine is v5's minEngineVersion, nodeEngine v6's.
+const (
+	unreachableEngine = "99999.0.0"
+	nodeEngine        = "60928.1"
+)
 
 // dropped are the folders tools/vendor leaves out at a pack's root; it
 // also leaves out the Go tests beside a pack's checks (checks/*_test.go).
@@ -161,14 +164,17 @@ const declaredChecks = "declared-checks.json"
 func Variant(src map[string]File, label, minEngine string) (map[string]File, error) {
 	ver, ok := Labels[label]
 	if !ok {
-		return nil, fmt.Errorf("unknown label %q (v1..v5)", label)
+		return nil, fmt.Errorf("unknown label %q (v1..v6)", label)
 	}
 	out := map[string]File{}
 	for n, f := range src {
 		out[n] = f
 	}
-	if label == "v5" {
+	switch label {
+	case "v5":
 		minEngine = unreachableEngine
+	case "v6":
+		minEngine = nodeEngine
 	}
 	pj := string(out["pack.json"].Data)
 	pj = versionField.ReplaceAllString(pj, `"version": "`+ver+`"`)
