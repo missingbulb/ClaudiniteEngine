@@ -1,13 +1,16 @@
 #!/bin/sh
 # Writes the rehearsal's fleet under WORK: the manager MANAGER (a member
 # release/member-fixture.sh already wrote) declares claudinite-fleet-sheepdog
-# over owner acme with acme/ignored excluded, its packs needing engine VERSION, its fleet-roster and
-# fleet-update tasks as the pack declares them, and claudinite-tasks; and
+# over owner acme with acme/ignored excluded and the hello pack seeded
+# with {greeting: hi}, on the canary channel, its packs needing engine
+# VERSION, its fleet-roster and fleet-update tasks as the pack declares
+# them, and claudinite-tasks; and
 # one tree per member under WORK/fleet/, each served by release/ghstub as
 # acme/<name>:
 #
-#   current      pinned to LATEST, with its scheduler
-#   behind       pinned to BEHIND, with its scheduler
+#   current      pinned to LATEST, with its scheduler, its mount carrying hello
+#   behind       pinned to BEHIND, with its scheduler, a hello.json and a
+#                greeting.txt asking for hello-asks
 #   noscheduler  pinned to LATEST, no scheduler workflow
 #   dormant      pinned to LATEST, claudinite-tasks dormant
 #   uncovered    no declaration
@@ -53,12 +56,17 @@ cat > "$tasks/fleet-update/task.json" <<'JSON'
 JSON
 cat >> "$manager/.claudinite/settings.yaml" <<'YAML'
 packs:
+  channel: "canary"
   declared:
     - id: claudinite-fleet-sheepdog
       config:
         owner: "acme"
         exclude:
           - "acme/ignored"
+        packSeeds:
+          - id: "hello"
+            config:
+              greeting: "hi"
     - id: claudinite-tasks
       config:
         disabledTasks:
@@ -82,7 +90,11 @@ scheduler() {
 }
 
 member current "$latest"; scheduler current
+mkdir -p "$work/fleet/current/.claudinite/shared/packs/hello"
+printf '{\n  "version": "1.0",\n  "minEngineVersion": "%s"\n}\n' "$version" > "$work/fleet/current/.claudinite/shared/packs/hello/pack.json"
 member behind "$behind"; scheduler behind
+printf '{}\n' > "$work/fleet/behind/hello.json"
+printf 'please add hello-asks\n' > "$work/fleet/behind/greeting.txt"
 member noscheduler "$latest"
 member dormant "$latest"; scheduler dormant
 cat >> "$work/fleet/dormant/.claudinite/settings.yaml" <<'YAML'

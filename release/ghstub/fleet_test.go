@@ -145,3 +145,64 @@ func TestADispatchCanStartNoRunAndADeniedMemberAnswers403(t *testing.T) {
 		t.Errorf("a wrong token listed repos: %d", status)
 	}
 }
+
+// A member's issues are its own: an issue filed there, labelled and
+// edited, is not the manager's, and the state lists it under the member.
+func TestAFleetMemberKeepsItsOwnIssues(t *testing.T) {
+	c, srv := startFleet(t, "acme/a="+t.TempDir())
+	if status, _, err := c.Raw("POST", "/repos/acme/a/labels", map[string]string{"name": "add-packs", "color": "0E8A16"}); err != nil || status != 201 {
+		t.Fatalf("label: %d %v", status, err)
+	}
+	status, raw, err := c.Raw("POST", "/repos/acme/a/issues", map[string]any{"title": "t", "body": "b", "labels": []string{"add-packs"}})
+	if err != nil || status != 201 {
+		t.Fatalf("create: %d %s %v", status, raw, err)
+	}
+	if status, _, _ := c.Raw("PATCH", "/repos/acme/a/issues/1", map[string]string{"body": "b2"}); status != 200 {
+		t.Fatalf("edit: %d", status)
+	}
+	status, raw, _ = c.Raw("GET", "/repos/acme/a/issues?labels=add-packs&state=all&per_page=100&page=1", nil)
+	if status != 200 || !strings.Contains(string(raw), `"b2"`) {
+		t.Fatalf("list: %d %s", status, raw)
+	}
+	resp, err := srv.Client().Get(srv.URL + "/_stub/state")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	var st stubState
+	if err := json.NewDecoder(resp.Body).Decode(&st); err != nil {
+		t.Fatal(err)
+	}
+	if len(st.Issues) != 0 || len(st.Fleet["acme/a"]) != 1 || st.Fleet["acme/a"][0].Body != "b2" {
+		t.Fatalf("manager %v, member %v", st.Issues, st.Fleet)
+	}
+}
+
+// A Contents PUT lands in the member's directory when its sha is the
+// file's as it stands, and is refused 409 when the file moved.
+func TestAFleetMemberTakesAShaGuardedWrite(t *testing.T) {
+	dir := t.TempDir()
+	write(t, dir, ".claudinite/settings.yaml", "engine: {}\n")
+	c, _ := startFleet(t, "acme/a="+dir)
+	_, raw, _ := c.Raw("GET", "/repos/acme/a/contents/.claudinite/settings.yaml", nil)
+	var f struct{ SHA string }
+	_ = json.Unmarshal(raw, &f)
+	put := func(sha string) int {
+		status, _, _ := c.Raw("PUT", "/repos/acme/a/contents/.claudinite/settings.yaml",
+			map[string]string{"message": "m", "content": "cGFja3M6IHt9Cg==", "sha": sha})
+		return status
+	}
+	if got := put("stale"); got != 409 {
+		t.Errorf("a stale sha answered %d", got)
+	}
+	if got := put(f.SHA); got != 200 {
+		t.Errorf("the read's sha answered %d", got)
+	}
+	if b, _ := os.ReadFile(filepath.Join(dir, ".claudinite/settings.yaml")); string(b) != "packs: {}\n" {
+		t.Errorf("file reads %q", b)
+	}
+	status, raw, _ := c.Raw("GET", "/repos/acme/a/git/trees/main?recursive=1", nil)
+	if status != 200 || !strings.Contains(string(raw), `".claudinite/settings.yaml"`) {
+		t.Errorf("tree: %d %s", status, raw)
+	}
+}

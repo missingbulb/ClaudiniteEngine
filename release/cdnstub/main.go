@@ -3,6 +3,7 @@
 // rehearsal's packs mode:
 //
 //	/packs/<id>/<file>  ->  <file> of <id>/ on the branch, read fresh per request
+//	/packs/<file>       ->  catalog.json or catalog.sig.json at the branch's root
 //
 // --repo is the git repository (a bare one works) and --branch the branch,
 // "vendored" by default. It writes its base URL to --ready once listening,
@@ -27,7 +28,10 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/release/stubtls"
 )
 
-var objectPath = regexp.MustCompile(`^/packs/([a-z0-9][a-z0-9-]*)/([A-Za-z0-9][A-Za-z0-9._-]*)$`)
+var (
+	objectPath  = regexp.MustCompile(`^/packs/([a-z0-9][a-z0-9-]*)/([A-Za-z0-9][A-Za-z0-9._-]*)$`)
+	catalogPath = regexp.MustCompile(`^/packs/(catalog\.json|catalog\.sig\.json)$`)
+)
 
 func main() {
 	repo := flag.String("repo", "", "git repository holding the branch")
@@ -68,12 +72,16 @@ func main() {
 			http.Error(w, "down", http.StatusServiceUnavailable)
 			return
 		}
-		m := objectPath.FindStringSubmatch(r.URL.EscapedPath())
-		if m == nil {
+		var rel string
+		if m := objectPath.FindStringSubmatch(r.URL.EscapedPath()); m != nil {
+			rel = m[1] + "/" + m[2]
+		} else if m := catalogPath.FindStringSubmatch(r.URL.EscapedPath()); m != nil {
+			rel = m[1]
+		} else {
 			http.NotFound(w, r)
 			return
 		}
-		out, err := exec.Command("git", "--git-dir", *repo, "show", *branch+":"+m[1]+"/"+m[2]).Output()
+		out, err := exec.Command("git", "--git-dir", *repo, "show", *branch+":"+rel).Output()
 		if err != nil {
 			http.NotFound(w, r)
 			return

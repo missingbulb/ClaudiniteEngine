@@ -105,6 +105,8 @@ type stubState struct {
 	Fires      []fire     `json:"fires"`
 	Agent      []agentRun `json:"agent"`
 	Armed      []string   `json:"armed"`
+	// Fleet is each member's issues, by owner/name.
+	Fleet map[string][]issue `json:"fleet"`
 }
 
 type stub struct {
@@ -336,6 +338,23 @@ func (s *stub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		reply(w, 200, s.wire(p))
 	case r.Method == http.MethodPut && mergePath.MatchString(path):
 		s.merge(w, s.find(num(mergePath)), str("sha"), str("commit_title"), str("commit_message"), str("merge_method"))
+	default:
+		if s.serveIssues(w, r, path, body) || s.serveTasks(w, r, path, body) {
+			return
+		}
+		fail(w, http.StatusNotFound, "ghstub does not answer "+r.Method+" "+path)
+	}
+}
+
+// serveIssues answers the issue writes on s.gh, the manager's store or,
+// swapped in by serveFleet, a member's.
+func (s *stub) serveIssues(w http.ResponseWriter, r *http.Request, path string, body map[string]any) bool {
+	str := func(k string) string { v, _ := body[k].(string); return v }
+	num := func(re *regexp.Regexp) int {
+		n, _ := strconv.Atoi(re.FindStringSubmatch(path)[1])
+		return n
+	}
+	switch {
 	case r.Method == http.MethodPost && labelsPath.MatchString(path):
 		n := num(labelsPath)
 		var labels []string
@@ -349,7 +368,7 @@ func (s *stub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		for _, l := range labels {
 			if err := s.gh.AddLabel(n, l); err != nil {
 				fail(w, http.StatusNotFound, "Not Found")
-				return
+				return true
 			}
 		}
 		s.calls = append(s.calls, fmt.Sprintf("label %d %s", n, strings.Join(labels, ",")))
@@ -359,7 +378,7 @@ func (s *stub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		id, err := s.gh.Comment(n, str("body"))
 		if err != nil {
 			fail(w, http.StatusNotFound, "Not Found")
-			return
+			return true
 		}
 		s.calls = append(s.calls, fmt.Sprintf("comment %d", n))
 		reply(w, http.StatusCreated, map[string]any{"id": id})
@@ -379,7 +398,7 @@ func (s *stub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		n := num(issuePath)
 		if _, ok := s.gh.Get(n); !ok {
 			fail(w, http.StatusNotFound, "Not Found")
-			return
+			return true
 		}
 		if v, ok := body["body"].(string); ok {
 			_ = s.gh.SetIssueBody(n, v)
@@ -397,11 +416,24 @@ func (s *stub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		rec, _ := s.gh.Get(n)
 		reply(w, 200, wireIssue(rec))
 	default:
-		if s.serveTasks(w, r, path, body) {
-			return
-		}
-		fail(w, http.StatusNotFound, "ghstub does not answer "+r.Method+" "+path)
+		return false
 	}
+	return true
+}
+
+func wireIssues(gh *sim.GitHub) []issue {
+	out := []issue{}
+	for _, is := range gh.All() {
+		if is.PullRequest {
+			continue
+		}
+		v := issue{Number: is.Number, Title: is.Title, Body: is.Body, Labels: append([]string{}, is.Labels...), State: is.State, StateReason: is.StateReason, Comments: []string{}}
+		for _, c := range is.Comments {
+			v.Comments = append(v.Comments, c.Body)
+		}
+		out = append(out, v)
+	}
+	return out
 }
 
 // merge squashes the PR's head onto its base in origin, refusing a closed
@@ -478,15 +510,10 @@ func (s *stub) control(w http.ResponseWriter, r *http.Request, str func(string) 
 			s.wire(p)
 			st.Pulls = append(st.Pulls, *p)
 		}
-		for _, is := range s.gh.All() {
-			if is.PullRequest {
-				continue
-			}
-			v := issue{Number: is.Number, Title: is.Title, Body: is.Body, Labels: append([]string{}, is.Labels...), State: is.State, StateReason: is.StateReason, Comments: []string{}}
-			for _, c := range is.Comments {
-				v.Comments = append(v.Comments, c.Body)
-			}
-			st.Issues = append(st.Issues, v)
+		st.Issues = wireIssues(s.gh)
+		st.Fleet = map[string][]issue{}
+		for _, m := range s.fleet {
+			st.Fleet[m.full] = wireIssues(m.gh)
 		}
 		reply(w, 200, st)
 	case "/_stub/routine", "/_stub/converge":

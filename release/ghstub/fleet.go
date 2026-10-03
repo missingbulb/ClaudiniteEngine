@@ -1,7 +1,9 @@
 package main
 
 import (
+	"crypto/sha1"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 	"os"
@@ -10,6 +12,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/missingbulb/ClaudiniteEngine/tasks/sim"
 )
 
 // A fleet member is a repository the fleet token reaches beside the
@@ -25,6 +29,8 @@ import (
 //	                    member, or on its contents under path, answers 403;
 //	                    "deny": false lifts it
 //
+// A member keeps its own issues and labels, answered by the manager's
+// routes over its store, and takes a sha-guarded Contents PUT into DIR.
 // Every call on a member is logged in the state's calls as "member
 // <owner/name> <METHOD> <path>".
 type fleetMember struct {
@@ -35,6 +41,7 @@ type fleetMember struct {
 	noRun          bool
 	pending        map[string]string
 	runs           []string
+	gh             *sim.GitHub
 }
 
 // repos is --repo, repeatable: a bare owner/name is the manager, an
@@ -56,7 +63,8 @@ func (r *repos) Set(v string) error {
 		return nil
 	}
 	parts := strings.Split(rest, ";")
-	m := &fleetMember{full: full, dir: parts[0]}
+	m := &fleetMember{full: full, dir: parts[0], gh: sim.NewGitHub(sim.NewClock(time.Now()))}
+	m.gh.Repo = full
 	for _, p := range parts[1:] {
 		switch p {
 		case "archived":
@@ -75,6 +83,7 @@ var (
 	memberContents   = regexp.MustCompile(`^/contents/(.+)$`)
 	memberDispatches = regexp.MustCompile(`^/actions/workflows/([^/]+)/dispatches$`)
 	memberRuns       = regexp.MustCompile(`^/actions/workflows/([^/]+)/runs$`)
+	memberTree       = regexp.MustCompile(`^/git/trees/([^/]+)$`)
 )
 
 func (s *stub) member(full string) *fleetMember {
@@ -136,6 +145,18 @@ func (s *stub) serveFleet(w http.ResponseWriter, r *http.Request, body map[strin
 		reply(w, 200, wireRepo(m.full, m.archived, m.fork))
 	case r.Method == http.MethodGet && memberContents.MatchString(sub):
 		m.contents(w, memberContents.FindStringSubmatch(sub)[1])
+	case r.Method == http.MethodPut && memberContents.MatchString(sub):
+		s.putMember(w, m, memberContents.FindStringSubmatch(sub)[1], body)
+	case r.Method == http.MethodGet && memberTree.MatchString(sub):
+		m.tree(w)
+	case strings.HasPrefix(sub, "/issues") || strings.HasPrefix(sub, "/labels"):
+		home := s.gh
+		s.gh = m.gh
+		handled := s.serveIssues(w, r, sub, body) || s.serveTasks(w, r, sub, body)
+		s.gh = home
+		if !handled {
+			fail(w, http.StatusNotFound, "Not Found")
+		}
 	case r.Method == http.MethodPost && memberDispatches.MatchString(sub):
 		s.dispatchMember(w, body, m, memberDispatches.FindStringSubmatch(sub)[1])
 	case r.Method == http.MethodGet && memberRuns.MatchString(sub):
@@ -185,9 +206,83 @@ func (m *fleetMember) contents(w http.ResponseWriter, rel string) {
 			fail(w, http.StatusNotFound, "Not Found")
 			return
 		}
-		reply(w, 200, map[string]string{"name": filepath.Base(rel), "path": rel, "sha": fmt.Sprintf("%x", len(raw)),
+		reply(w, 200, map[string]string{"name": filepath.Base(rel), "path": rel, "sha": blobSHA(raw),
 			"content": base64.StdEncoding.EncodeToString(raw), "encoding": "base64"})
 	}
+}
+
+// blobSHA is a file's git blob id, the sha a contents read answers and a
+// write is guarded by.
+func blobSHA(raw []byte) string {
+	h := sha1.New()
+	fmt.Fprintf(h, "blob %d\x00", len(raw))
+	h.Write(raw)
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+// putMember is a Contents PUT on a member's default branch: the file is
+// written into DIR when the sha matches the file as it stands (none for a
+// new file), else 409, as GitHub refuses a write over a moved file.
+func (s *stub) putMember(w http.ResponseWriter, m *fleetMember, rel string, body map[string]any) {
+	p := filepath.Join(m.dir, filepath.FromSlash(rel))
+	if !strings.HasPrefix(p, filepath.Clean(m.dir)+string(filepath.Separator)) {
+		fail(w, http.StatusNotFound, "Not Found")
+		return
+	}
+	sha, _ := body["sha"].(string)
+	current := ""
+	if raw, err := os.ReadFile(p); err == nil {
+		current = blobSHA(raw)
+	}
+	if sha != current {
+		fail(w, http.StatusConflict, fmt.Sprintf("%s does not match %s", rel, sha))
+		return
+	}
+	content, _ := body["content"].(string)
+	raw, err := base64.StdEncoding.DecodeString(content)
+	if err != nil {
+		fail(w, http.StatusUnprocessableEntity, "content is not base64")
+		return
+	}
+	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if err := os.WriteFile(p, raw, 0o644); err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	message, _ := body["message"].(string)
+	s.calls = append(s.calls, fmt.Sprintf("put %s %s %s", m.full, rel, message))
+	status := http.StatusOK
+	if current == "" {
+		status = http.StatusCreated
+	}
+	reply(w, status, map[string]any{"content": map[string]string{"path": rel, "sha": blobSHA(raw)}})
+}
+
+// tree is the member's recursive tree listing: every file under DIR but
+// .git, as blobs.
+func (m *fleetMember) tree(w http.ResponseWriter) {
+	out := []map[string]any{}
+	root := filepath.Clean(m.dir)
+	_ = filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
+		if err != nil || p == root {
+			return nil
+		}
+		rel := filepath.ToSlash(strings.TrimPrefix(p, root+string(filepath.Separator)))
+		if d.IsDir() {
+			if d.Name() == ".git" {
+				return filepath.SkipDir
+			}
+			out = append(out, map[string]any{"path": rel, "type": "tree"})
+			return nil
+		}
+		raw, _ := os.ReadFile(p)
+		out = append(out, map[string]any{"path": rel, "type": "blob", "sha": blobSHA(raw), "size": len(raw)})
+		return nil
+	})
+	reply(w, 200, map[string]any{"sha": "main", "tree": out, "truncated": false})
 }
 
 // dispatchMember is a member's scheduler dispatch: 404 where the tree has
