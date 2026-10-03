@@ -29,7 +29,7 @@ import (
 
 func cmdFleet(args []string, stdout, stderr io.Writer, start time.Time) error {
 	if len(args) == 0 {
-		return report.New(report.Usage, "fleet takes roster, update, judge, token or decide")
+		return report.New(report.Usage, "fleet takes roster, update, add-packs, pack-seeds, judge, token, protocol or decide")
 	}
 	switch args[0] {
 	case "roster":
@@ -40,6 +40,12 @@ func cmdFleet(args []string, stdout, stderr io.Writer, start time.Time) error {
 		return fleetJudge(args[1:], stdout, stderr, start)
 	case "token":
 		return fleetToken(args[1:], stdout)
+	case "protocol":
+		return fleetProtocol(args[1:], stdout)
+	case "add-packs":
+		return fleetAddPacks(args[1:], stdout, stderr, start)
+	case "pack-seeds":
+		return fleetPackSeeds(args[1:], stdout, stderr, start)
 	case "decide":
 		return fleetDecide(args[1:], stdout)
 	}
@@ -107,6 +113,7 @@ type sweep struct {
 	root   string
 	cfg    fleet.Config
 	shelf  fleet.Shelf
+	packs  *packs.Reader
 	stderr io.Writer
 	start  time.Time
 	closer func()
@@ -174,12 +181,12 @@ func openSweep(name, event, sweepID, missingDetail, repo, api string, stderr io.
 		api = githubapi.DefaultBase
 	}
 	s.gh = fleet.NewGH(api, token)
-	shelf, closer, err := fleetShelf(stderr)
+	shelf, reader, closer, err := fleetShelf(stderr)
 	if err != nil {
 		s.crumb(event, "error", 0, 0)
 		return nil, report.Wrap(report.IO, name, err)
 	}
-	s.shelf, s.closer = fleet.Memo(shelf), closer
+	s.shelf, s.packs, s.closer = fleet.Memo(shelf), reader, closer
 	return s, nil
 }
 
@@ -256,17 +263,17 @@ func (s shelfReader) Index(id string) (packindex.Index, bool, error) {
 	return v.Index, true, nil
 }
 
-func fleetShelf(log io.Writer) (fleet.Shelf, func(), error) {
+func fleetShelf(log io.Writer) (fleet.Shelf, *packs.Reader, func(), error) {
 	reg, err := npmreg.FromEnv()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	roots, err := license.Roots()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	r, closer := packReader(roots, log)
-	return shelfReader{npm: reg, packs: r}, closer, nil
+	return shelfReader{npm: reg, packs: r}, r, closer, nil
 }
 
 // fleetLicense is the fleet surface under the key cn update reads: the

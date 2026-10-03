@@ -209,9 +209,15 @@ func (n Node) Mounts(dir string) (map[string]string, error) {
 
 var nodeHeader = regexp.MustCompile(`^\[(BLOCKING|ADVISORY)\] (\S+)  (.*)$`)
 
+// parseLoc splits a finding's location. A line in the declaration is
+// dropped: the two engines write it in different formats, so the same
+// line number names a different line in each.
 func parseLoc(loc string) (string, int) {
 	if i := strings.LastIndex(loc, ":"); i > 0 {
 		if n, err := strconv.Atoi(loc[i+1:]); err == nil {
+			if normPath(loc[:i]) == SettingsPath {
+				return loc[:i], 0
+			}
 			return loc[:i], n
 		}
 	}

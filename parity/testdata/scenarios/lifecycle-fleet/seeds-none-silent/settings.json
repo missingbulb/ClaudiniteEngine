@@ -1,0 +1,18 @@
+{
+  "packs": [
+    "claudinite-tasks",
+    {
+      "id": "claudinite-fleet-sheepdog",
+      "config": {
+        "owner": "acme",
+        "packSeeds": []
+      }
+    },
+    {
+      "id": "python",
+      "config": {
+        "repo": "acme/x"
+      }
+    }
+  ]
+}

@@ -8,9 +8,6 @@
 # claudinite-dashboard
 descriptor-usable dashboard
 
-# claudinite-fleet-sheepdog
-fleet-pack-seed-agrees fleet
-
 # claudinite-canon-curation
 pack-no-enforcement-narration #24
 skill-no-enforcement-narration #24
