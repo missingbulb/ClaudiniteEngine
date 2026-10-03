@@ -119,6 +119,24 @@ commands:
   workflows diff [--repo DIR]
                  the patch that brings a member's workflows to this
                  version's templates; empty when they match
+  growth capture (--pr N | --issue N) [--transcript PATH] [--session ID]
+                 [--branch NAME] [--repo DIR]
+                 push the session's transcript, scrubbed, as a delta onto
+                 the conversation-logs branch; session-end runs it too
+  growth prune [--branch NAME] [--repo DIR]
+                 remove the captures past the repo's retention_days in one
+                 commit; the logs-prune task's code-work
+  provenance mark <pack>|--all [--dry-run]
+  provenance check <pack>|--all
+  provenance append <pack> <element> [--kind K] [--date D] [--changed]
+                 [--backfill] < entry.md
+  provenance history <pack> <element>
+                 a pack's provenance: markers and empty files, the audit
+                 (exit 1 on a fault), one entry appended, one element's
+                 raw evidence; <pack> is an id, a path or local/<name>
+  pack new <name> [--belongs TEXT] [--excludes TEXT] [--repo DIR]
+                 scaffold the local pack a repo's own lessons land in,
+                 and declare it as local/<name>
 `
 
 // secretScanPlant is set only by the secret scan's own test build, to prove

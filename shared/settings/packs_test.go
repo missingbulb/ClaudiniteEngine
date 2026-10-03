@@ -212,6 +212,25 @@ func TestAddDeclared(t *testing.T) {
 	}
 }
 
+func TestAddDeclaredTakesALocalPack(t *testing.T) {
+	for f, s := range packsSamples {
+		got, err := AddDeclared([]byte(s), f, "local/acme-pack")
+		if err != nil {
+			t.Fatalf("%s: %v", f, err)
+		}
+		p, err := ReadPacks(got, f)
+		if err != nil || len(p.Local) != 1 || p.Local[0] != "acme-pack" {
+			t.Errorf("%s: re-read %+v %v", f, p, err)
+		}
+		if _, err := AddDeclared(got, f, "local/acme-pack"); err == nil {
+			t.Errorf("%s: declared local/acme-pack twice", f)
+		}
+	}
+	if _, err := AddDeclared([]byte(packsSamples[YAML]), YAML, "local/"); err == nil {
+		t.Error("added a local token with no name")
+	}
+}
+
 func TestAddDeclaredRefuses(t *testing.T) {
 	if _, err := AddDeclared([]byte(packsSamples[YAML]), YAML, "hello"); err == nil {
 		t.Error("added an id already declared")
