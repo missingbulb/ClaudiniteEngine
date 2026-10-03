@@ -97,10 +97,18 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "22"
+      # The rehearsal's release: built with the development roots and signed with the
+      # development keys (testkeys/), which release/rehearse.sh's every key chains to.
       - run: release/build.sh
         env:
           VERSION: "1.1.0"
+          REHEARSAL: "1"
+          BUILD_TAGS: devroots
       - run: release/sign.sh
+        env:
+          RELEASE_KEY: testkeys/release.key
+          RELEASE_CERT: testkeys/release.cert.json
+          ROOTS: license/devroots
       - run: sha256sum -c dist/SHA256SUMS
       - run: release/smoke.sh
       - run: release/repro.sh

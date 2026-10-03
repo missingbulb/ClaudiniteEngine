@@ -16,7 +16,7 @@
 #            rehearsal_break tag), holds back on a red main, skips held and
 #            revoked versions, files the revoked pin's issue, and runs as the
 #            engine/update task the scheduler files and the executor drains. Every dist is signed with the development
-#            keys, as the updater checks signatures.
+#            keys (testkeys/), as the updater checks signatures.
 #   packs    a fresh repo adopts the hello pack through the npx bootstrap
 #            from a local pack source (release/packs-fixture.sh, served by
 #            release/cdnstub and read as the vendored branch), its session
@@ -106,7 +106,9 @@
 # UPDATE_STEPS=4 stops the update mode after the landing and the session on
 # the landed version (release/hop.sh); the default, 11, runs every step.
 #
-# Needs go, node, curl, git and a release from release/build.sh.
+# Needs go, node, curl, git and a release from release/build.sh built with
+# REHEARSAL=1 BUILD_TAGS=devroots: every key, certificate and signature here
+# chains to the development root (testkeys/), which only such a build trusts.
 set -eu
 cd "$(dirname "$0")/.."
 root=$(pwd)
@@ -139,6 +141,15 @@ update_steps=${UPDATE_STEPS:-11}
 case $update_steps in 4|11) ;; *) fail "UPDATE_STEPS must be 4 or 11, not $update_steps" ;; esac
 
 [ -f "$DIST/manifest.integrity" ] || fail "no release in $DIST; run release/build.sh first"
+devroot=$(cat license/devroots/root.pub)
+for b in "$DIST"/bin/*/*; do
+  grep -qF "$devroot" "$b" || fail "$b does not trust the development root; build $DIST with REHEARSAL=1 BUILD_TAGS=devroots"
+done
+# rehearsal_sign DIST: signs DIST with the development release key.
+rehearsal_sign() {
+  DIST=$1 RELEASE_KEY=$root/testkeys/release.key RELEASE_CERT=$root/testkeys/release.cert.json ROOTS=$root/license/devroots \
+    sh release/sign.sh > "$work/sign.out" 2>&1 || fail "signing $1: $(cat "$work/sign.out")"
+}
 DIST=$DIST sh release/smoke.sh
 version=$(sed -n 's/^  "version": "\(.*\)",$/\1/p' "$DIST/manifest.json")
 pin=$(cat "$DIST/manifest.integrity")
@@ -187,7 +198,7 @@ dist3build=$work/dist3-build
 case " $modes " in
   *" current "*|*" update "*|*" license "*)
     step "building $next into dist2/ from the same source"
-    DIST=$dist2 VERSION=$next PACKAGE=$package sh release/build.sh > "$work/build2.out" || fail "build of $next: $(cat "$work/build2.out")"
+    DIST=$dist2 VERSION=$next PACKAGE=$package REHEARSAL=1 BUILD_TAGS=devroots sh release/build.sh > "$work/build2.out" || fail "build of $next: $(cat "$work/build2.out")"
     ;;
   *) mkdir -p "$dist2/tarballs" ;;
 esac
@@ -196,14 +207,14 @@ case " $modes " in
   *" update "*)
     if [ "$update_steps" -ge 5 ]; then
       step "building $third into dist3/ with verify broken (rehearsal_break)"
-      DIST=$dist3build VERSION=$third PACKAGE=$package REHEARSAL=1 BUILD_TAGS=rehearsal_break sh release/build.sh > "$work/build3.out" \
+      DIST=$dist3build VERSION=$third PACKAGE=$package REHEARSAL=1 BUILD_TAGS=devroots,rehearsal_break sh release/build.sh > "$work/build3.out" \
         || fail "build of $third: $(cat "$work/build3.out")"
-      DIST=$dist3build sh release/sign.sh > "$work/sign.out" 2>&1 || fail "signing $third: $(cat "$work/sign.out")"
+      rehearsal_sign "$dist3build"
     fi
-    DIST=$dist2 sh release/sign.sh > "$work/sign.out" 2>&1 || fail "signing $dist2: $(cat "$work/sign.out")"
+    rehearsal_sign "$dist2"
     ;;
   *" license "*)
-    DIST=$dist2 sh release/sign.sh > "$work/sign.out" 2>&1 || fail "signing $dist2: $(cat "$work/sign.out")"
+    rehearsal_sign "$dist2"
     ;;
 esac
 case " $modes " in
@@ -211,7 +222,7 @@ case " $modes " in
     # The caller's dist stays as it was: sign a copy.
     dist1=$work/dist1
     cp -R "$DIST" "$dist1"
-    DIST=$dist1 sh release/sign.sh > "$work/sign.out" 2>&1 || fail "signing $dist1: $(cat "$work/sign.out")"
+    rehearsal_sign "$dist1"
     ;;
 esac
 # live-packs runs alone, so dist2's slot is free for the build it needs
@@ -314,7 +325,7 @@ start_licstub() {
   [ -x "$work/licstub" ] || go build -o "$work/licstub" ./release/licstub
   [ -n "$lic_pid" ] && kill "$lic_pid" 2>/dev/null
   rm -f "$work/lic-ready"
-  "$work/licstub" --root-key keys/dev/root.key --gh-ready "$work/gh-ready" --gh-ca "$work/gh-ca.pem" \
+  "$work/licstub" --root-key testkeys/root.key --gh-ready "$work/gh-ready" --gh-ca "$work/gh-ca.pem" \
     --ready "$work/lic-ready" --ca-out "$work/lic-ca.pem" &
   lic_pid=$!
   tries=0

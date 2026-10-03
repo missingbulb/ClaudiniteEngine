@@ -40,7 +40,7 @@ func scan(t *testing.T, dir string) (string, error) {
 }
 
 func TestSecretScan(t *testing.T) {
-	devKey, err := os.ReadFile("../keys/dev/release.key")
+	devKey, err := os.ReadFile("../testkeys/release.key")
 	if err != nil {
 		t.Fatal(err)
 	}

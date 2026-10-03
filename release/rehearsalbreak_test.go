@@ -17,11 +17,11 @@ func gobuild(t *testing.T, out string, env ...string) (string, error) {
 	return string(o), err
 }
 
-// The rehearsal_break tag exists for the rehearsal's update mode only: a
-// release build refuses it, and any other tag.
+// The rehearsal_break and devroots tags exist for the rehearsal only: a
+// release build refuses them, and any other tag.
 func TestTheRehearsalBreakTagIsRehearsalOnly(t *testing.T) {
 	out := filepath.Join(t.TempDir(), "cn")
-	for _, env := range [][]string{{"BUILD_TAGS=rehearsal_break"}, {"REHEARSAL=1", "BUILD_TAGS=other"}, {"REHEARSAL=1", "BUILD_TAGS=rehearsal_break,other"}} {
+	for _, env := range [][]string{{"BUILD_TAGS=rehearsal_break"}, {"BUILD_TAGS=devroots"}, {"BUILD_TAGS=devroots,rehearsal_break"}, {"REHEARSAL=1", "BUILD_TAGS=other"}, {"REHEARSAL=1", "BUILD_TAGS=devroots,other"}, {"REHEARSAL=1", "BUILD_TAGS=rehearsal_break,other"}} {
 		if o, err := gobuild(t, out, env...); err == nil || !strings.Contains(o, "BUILD_TAGS") {
 			t.Errorf("%v: built\n%s", env, o)
 		}
@@ -29,7 +29,7 @@ func TestTheRehearsalBreakTagIsRehearsalOnly(t *testing.T) {
 	if _, err := os.Stat(out); err == nil {
 		t.Fatal("a refused build left a binary")
 	}
-	if o, err := gobuild(t, out, "REHEARSAL=1", "BUILD_TAGS=rehearsal_break"); err != nil {
+	if o, err := gobuild(t, out, "REHEARSAL=1", "BUILD_TAGS=devroots,rehearsal_break"); err != nil {
 		t.Fatalf("%v\n%s", err, o)
 	}
 	corpus, _ := filepath.Abs("../lifecycle/verify/testdata/shapes/v1-yaml")

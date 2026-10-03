@@ -22,7 +22,7 @@ const src = "../testdata/hello"
 // root, as release/packs-fixture.sh does with cn-keys.
 func packsKey(t *testing.T) (string, string, []ed25519.PublicKey) {
 	t.Helper()
-	raw, err := os.ReadFile("../../keys/dev/root.key")
+	raw, err := os.ReadFile("../../testkeys/root.key")
 	if err != nil {
 		t.Fatal(err)
 	}

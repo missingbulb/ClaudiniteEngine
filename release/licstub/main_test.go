@@ -22,7 +22,7 @@ import (
 
 func devRoot(t *testing.T) ed25519.PrivateKey {
 	t.Helper()
-	raw, err := os.ReadFile("../../keys/dev/root.key")
+	raw, err := os.ReadFile("../../testkeys/root.key")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,14 +84,11 @@ func actionsClaims(edit map[string]any) map[string]any {
 	return c
 }
 
-// Every key licstub signs verifies with the roots a development build
-// embeds, binds to what it was asked for, and carries the chunk-3 fields
-// it was told to.
+// Every key licstub signs verifies with the development root that
+// certifies it, binds to what it was asked for, and carries the chunk-3
+// fields it was told to.
 func TestEveryKeyItSignsVerifies(t *testing.T) {
-	roots, err := license.Roots()
-	if err != nil {
-		t.Fatal(err)
-	}
+	roots := []ed25519.PublicKey{devRoot(t).Public().(ed25519.PublicKey)}
 	for _, cfg := range []config{
 		{},
 		{State: "grace", Seats: &license.Seats{Paid: 1, Counted: 3}, CheckoutURL: "https://polar.sh/c/acme"},

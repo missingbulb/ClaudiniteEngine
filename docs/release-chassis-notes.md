@@ -12,9 +12,10 @@ one binds a later chunk.
    `release/manifest write`, never with a generic JSON encoder.
 3. **Release key secrets** are named `CN_RELEASE_KEY` and `CN_RELEASE_CERT` in a `release`
    environment, written there by the key-ceremony workflow (`cmd/cn-keys/README.md`). `release/sign.sh` (split out of
-   `release/build.sh` in #8) reads them through `RELEASE_KEY` and `RELEASE_CERT` file paths and
-   falls back to `keys/dev/` with a warning while that folder exists. The dev release
-   certificate expires on 2027-10-01.
+   `release/build.sh` in #8) reads them through `RELEASE_KEY` and `RELEASE_CERT` file paths, both
+   required, and verifies the signature against `ROOTS` (default `license/roots`). The tests and
+   the rehearsal sign with the development keys in `testkeys/` against `license/devroots/`; the
+   dev release certificate expires on 2027-10-01.
 4. **Launcher exit codes for a refusal** (configuration or hash failure): at SessionStart, a
    `Claudinite refused to run its engine: <reason>: stop and ask the person before continuing.`
    line on stdout and exit 0; in any other hook, exit 2, which blocks; in Actions or for a plain

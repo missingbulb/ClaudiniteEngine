@@ -4,8 +4,10 @@
 # manifest in a job that runs no candidate code, publishes it to
 # @claudinite/cli-rc with trusted publishing, tags it, and smokes what the
 # registry serves. Whether the publish is real is derived every run
-# (release/publishmode.go): a dev signature, the dry_run input or a package
-# npm does not hold yet make it a dry run that tags nothing.
+# (release/publishmode.go): the dry_run input or a package npm does not
+# hold yet make it a dry run that tags nothing. The sign job signs only
+# with the release key of the environment release, certified by the root
+# license/roots holds.
 name: release
 
 on:
@@ -220,21 +222,15 @@ jobs:
           CN_RELEASE_KEY: ${{ secrets.CN_RELEASE_KEY }}
           CN_RELEASE_CERT: ${{ secrets.CN_RELEASE_CERT }}
         run: |
-          if [ -n "$CN_RELEASE_KEY" ] || [ -n "$CN_RELEASE_CERT" ]; then
-            if [ -z "$CN_RELEASE_KEY" ] || [ -z "$CN_RELEASE_CERT" ]; then
-              echo "::error::the release environment holds only one of CN_RELEASE_KEY and CN_RELEASE_CERT"
-              exit 1
-            fi
-            ( umask 077
-              printf '%s\n' "$CN_RELEASE_KEY" > "$RUNNER_TEMP/release.key"
-              printf '%s\n' "$CN_RELEASE_CERT" > "$RUNNER_TEMP/release.cert.json" )
-            RELEASE_KEY=$RUNNER_TEMP/release.key RELEASE_CERT=$RUNNER_TEMP/release.cert.json release/sign.sh
-            echo "signing=release" >> "$GITHUB_OUTPUT"
-          else
-            RELEASE_KEY='' RELEASE_CERT='' release/sign.sh
-            echo "::notice::signed with the development key; publish runs as a dry run (#5)"
-            echo "signing=dev" >> "$GITHUB_OUTPUT"
+          if [ -z "$CN_RELEASE_KEY" ] || [ -z "$CN_RELEASE_CERT" ]; then
+            echo "::error::the release environment must hold both CN_RELEASE_KEY and CN_RELEASE_CERT (cmd/cn-keys/README.md)"
+            exit 1
           fi
+          ( umask 077
+            printf '%s\n' "$CN_RELEASE_KEY" > "$RUNNER_TEMP/release.key"
+            printf '%s\n' "$CN_RELEASE_CERT" > "$RUNNER_TEMP/release.cert.json" )
+          RELEASE_KEY=$RUNNER_TEMP/release.key RELEASE_CERT=$RUNNER_TEMP/release.cert.json release/sign.sh
+          echo "signing=release" >> "$GITHUB_OUTPUT"
       - if: always()
         run: rm -f "$RUNNER_TEMP/release.key" "$RUNNER_TEMP/release.cert.json"
       - run: go run ./release/manifest verify --dist dist --roots license/roots

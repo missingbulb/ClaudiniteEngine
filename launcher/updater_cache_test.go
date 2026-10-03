@@ -1,6 +1,7 @@
 package launcher
 
 import (
+	"crypto/ed25519"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
@@ -11,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/missingbulb/ClaudiniteEngine/license"
 	"github.com/missingbulb/ClaudiniteEngine/lifecycle/update"
 	"github.com/missingbulb/ClaudiniteEngine/release/releasefiles"
 	"github.com/missingbulb/ClaudiniteEngine/shared/npmreg"
@@ -22,12 +22,12 @@ import (
 // key, to the release's channel tarball.
 func signRelease(t *testing.T, r release, pkg string) {
 	t.Helper()
-	key, err := sign.ParsePrivateKey(readFile(t, filepath.Join(repoRoot, "keys", "dev", "release.key")))
+	key, err := sign.ParsePrivateKey(readFile(t, filepath.Join(repoRoot, "testkeys", "release.key")))
 	if err != nil {
 		t.Fatal(err)
 	}
 	var cert sign.Certificate
-	if err := json.Unmarshal([]byte(readFile(t, filepath.Join(repoRoot, "keys", "dev", "release.cert.json"))), &cert); err != nil {
+	if err := json.Unmarshal([]byte(readFile(t, filepath.Join(repoRoot, "testkeys", "release.cert.json"))), &cert); err != nil {
 		t.Fatal(err)
 	}
 	sig, _ := json.Marshal(sign.SignManifest(key, cert, r.manifest))
@@ -67,9 +67,13 @@ func TestUpdaterPlacementNeedsNoDownload(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	roots, err := license.Roots()
-	if err != nil {
-		t.Fatal(err)
+	var roots []ed25519.PublicKey
+	for _, name := range []string{"root.pub", "standby.pub"} {
+		r, err := sign.ParsePublicKey(readFile(t, filepath.Join(repoRoot, "license", "devroots", name)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		roots = append(roots, r)
 	}
 	m := newMember(t, s)
 	got, err := update.Fetch(update.FetchInput{Registry: reg, Package: pkg, Version: testVersion, Packument: p, Roots: roots,

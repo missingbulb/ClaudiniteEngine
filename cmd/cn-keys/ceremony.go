@@ -49,9 +49,9 @@ var rootsToSwap = strings.ReplaceAll(`### Roots to swap
 Until these land, every Engine release, Packs publish and Licenses deploy fails verification:
 the working keys are certified by roots nothing trusts yet.
 
-- ClaudiniteEngine 'license/roots/root.pub' and 'license/roots/standby.pub'; remove 'keys/dev/'.
-- ClaudinitePacks 'keys/dev/roots/', the directory 'release-packs.yml' passes to '--roots'.
-- ClaudiniteLicenses 'keys/dev/': its 'roots/' and both development issuing keys, 'license-public' and 'license'.
+- ClaudiniteEngine 'license/roots/root.pub' and 'license/roots/standby.pub', and the key ids 'license/roots_real_test.go' pins.
+- ClaudinitePacks 'keys/roots/', the directory 'release-packs.yml' passes to '--roots'.
+- ClaudiniteLicenses 'packages/signing/roots/', the key Worker's 'TRUST_ROOTS'.
 `, "'", "`")
 
 // masker hides a secret value from the Actions log before anything could

@@ -51,7 +51,8 @@ func setup(m *testing.M) (int, error) {
 		{filepath.Join(tools, hostBin), "./cmd/cn", "-X " + pkg + ".version=" + testVersion},
 		{filepath.Join(tools, "regstub"), "./release/regstub", ""},
 	} {
-		cmd := exec.Command("go", "build", "-ldflags", b.ldflags, "-o", b.out, b.pkg)
+		// The development roots, which the tests' signatures chain to.
+		cmd := exec.Command("go", "build", "-tags", "devroots", "-ldflags", b.ldflags, "-o", b.out, b.pkg)
 		cmd.Dir = repoRoot
 		cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 		if out, err := cmd.CombinedOutput(); err != nil {

@@ -2,28 +2,24 @@
 # Signs the release in $DIST (default dist/) that release/build.sh wrote:
 # writes manifest.sig.json, copies it into the channel's npm package beside
 # manifest.json, re-packs that one tarball, rewrites SHA256SUMS, verifies
-# the signature against license/roots and prints the integrity string,
-# which signing leaves unchanged since the signature travels beside the
-# manifest, never inside it.
+# the signature against $ROOTS and prints the integrity string, which
+# signing leaves unchanged since the signature travels beside the manifest,
+# never inside it.
 #
 # RELEASE_KEY and RELEASE_CERT name the release key and its certificate.
-# Unset, they fall back to the development keys in $DEV_KEYS (default
-# keys/dev/) with a warning; once #5 removes those, both are required.
+# ROOTS (default license/roots, what a released cn trusts) names the roots
+# the signature must verify against; the tests and release/rehearse.sh,
+# which sign with testkeys/, set it to license/devroots.
 set -eu
 cd "$(dirname "$0")/.."
 root=$(pwd)
 DIST=${DIST:-dist}
 case $DIST in /*) ;; *) DIST=$root/$DIST ;; esac
-DEV_KEYS=${DEV_KEYS:-keys/dev}
+ROOTS=${ROOTS:-license/roots}
 
 if [ -z "${RELEASE_KEY:-}" ] || [ -z "${RELEASE_CERT:-}" ]; then
-  if [ ! -f "$DEV_KEYS/release.key" ] || [ ! -f "$DEV_KEYS/release.cert.json" ]; then
-    echo "sign: set RELEASE_KEY and RELEASE_CERT to the release key and its certificate; there are no development keys in $DEV_KEYS" >&2
-    exit 1
-  fi
-  RELEASE_KEY=$DEV_KEYS/release.key
-  RELEASE_CERT=$DEV_KEYS/release.cert.json
-  echo "sign: warning: signing with the development release key in $DEV_KEYS, which every launcher accepts until #5 replaces the embedded roots" >&2
+  echo "sign: set RELEASE_KEY and RELEASE_CERT to the release key and its certificate" >&2
+  exit 1
 fi
 
 [ -f "$DIST/manifest.json" ] || { echo "sign: no manifest.json in $DIST; run release/build.sh first" >&2; exit 1; }
@@ -47,7 +43,7 @@ version=$(sed -n 's/^  "version": "\(.*\)",$/\1/p' "$DIST/manifest.json")
 name=$(basename "$(dirname "$pkg")")
 rm -f "$DIST/tarballs/$name-$version.tgz"
 sh release/npmpack.sh "$pkg" "$DIST/tarballs"
-"$tools/manifest" verify --dist "$DIST" --roots license/roots >&2
+"$tools/manifest" verify --dist "$DIST" --roots "$ROOTS" >&2
 "$tools/manifest" sums --dist "$DIST"
 
 integrity=$("$tools/manifest" integrity "$pkg/manifest.json")
