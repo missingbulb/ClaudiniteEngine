@@ -1,0 +1,72 @@
+name: Deploy to GitHub Pages
+
+# THE ONE WORKFLOW of the github-pages pack, vendored into each Pages-served repo's
+# own .github/ because a Pages deploy is made of marketplace actions —
+# configure-pages, upload-pages-artifact, deploy-pages — which only a workflow job
+# can run, with the job's own OIDC token. Everything else about a release is the
+# pack's `site-release` task: it decides when a release is due, advances the
+# version where the public-website pack is declared, and dispatches THIS at the
+# exact commit to deploy. Dispatch only — no push trigger — so the task is the one
+# path to production and nothing deploys behind its back.
+#
+# The one `run:` line calls the pack's build script from the mount, so reading the
+# config, exporting the build variables and assembling the publish set change with
+# the pack and never with this file. It is copy-verbatim in every Pages repo.
+#
+# One-time owner setup in the calling repo: Settings → Pages → Source = "GitHub
+# Actions". Until that is set, deploy-pages fails and the release task parks
+# naming this run.
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "The commit to deploy"
+        required: true
+        type: string
+
+# Least privilege for a Pages deploy: read the repo, write Pages, mint the OIDC
+# token deploy-pages exchanges.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never run two Pages deploys at once; let an in-flight deploy finish.
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.ref }}
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      # `vars` structurally cannot carry a secret, which is the point: this feeds
+      # the step that produces the published artifact.
+      - name: Build and assemble the publish set
+        env:
+          REPO_VARS_JSON: ${{ toJSON(vars) }}
+        run: node .claudinite/shared/packs/github-pages/build-site.mjs
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - id: deployment
+        uses: actions/deploy-pages@v4

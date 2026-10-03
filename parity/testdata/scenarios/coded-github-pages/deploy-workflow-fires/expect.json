@@ -1,0 +1,16 @@
+{
+  "rules": "@../shared/packs/github-pages/RULES.md\n",
+  "mounts": [
+    "github-pages-pipeline"
+  ],
+  "world": [
+    "deploy-workflow .github/workflows/github-pages-deploy.yml block",
+    "deploy-workflow .github/workflows/github-pages-deploy.yml block",
+    "deploy-workflow .github/workflows/old.yml:10 block",
+    "deploy-workflow .github/workflows/old.yml:9 block"
+  ],
+  "work": [],
+  "only": [
+    "deploy-workflow"
+  ]
+}

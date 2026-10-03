@@ -1,0 +1,8 @@
+name: ci
+on: push
+jobs:
+  t:
+    runs-on: ubuntu-latest
+    steps:
+      # - uses: actions/deploy-pages@v4
+      - run: node --test

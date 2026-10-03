@@ -15,3 +15,4 @@ claudinite-fleet-sheepdog
 claudinite-dashboard
 chrome-extension
 cloudflare-site
+github-pages
