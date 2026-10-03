@@ -44,8 +44,13 @@ func packsKey(t *testing.T) (string, string, []ed25519.PublicKey) {
 
 func verified(t *testing.T, tree string, roots []ed25519.PublicKey) packindex.Index {
 	t.Helper()
-	raw, _ := os.ReadFile(filepath.Join(tree, "hello", "index.json"))
-	sigRaw, _ := os.ReadFile(filepath.Join(tree, "hello", "index.sig.json"))
+	return verifiedPack(t, tree, "hello", roots)
+}
+
+func verifiedPack(t *testing.T, tree, pack string, roots []ed25519.PublicKey) packindex.Index {
+	t.Helper()
+	raw, _ := os.ReadFile(filepath.Join(tree, pack, "index.json"))
+	sigRaw, _ := os.ReadFile(filepath.Join(tree, pack, "index.sig.json"))
 	var s sign.SignedPackIndex
 	if err := json.Unmarshal(sigRaw, &s); err != nil {
 		t.Fatal(err)
@@ -58,6 +63,34 @@ func verified(t *testing.T, tree string, roots []ed25519.PublicKey) packindex.In
 		t.Fatal(err)
 	}
 	return ix
+}
+
+// Another fixture pack publishes its folder as it is, at its own version
+// and requires, beside hello's index; hello's labels are not its.
+func TestAnotherPackPublishesItsSource(t *testing.T) {
+	key, cert, roots := packsKey(t)
+	tree := t.TempDir()
+	args := []string{"--tree", tree, "--src", "../testdata/hello-asks", "--key", key, "--cert", cert, "--min-engine", "1.1.0", "--pack", "hello-asks", "--publish"}
+	if err := run(append(args, "v2")); err == nil {
+		t.Error("hello-asks published a hello label")
+	}
+	if err := run(append(args, "source")); err != nil {
+		t.Fatal(err)
+	}
+	ix := verifiedPack(t, tree, "hello-asks", roots)
+	if ix.Pack != "hello-asks" || len(ix.Versions) != 1 || ix.Versions[0].Version != "1.0" || strings.Join(ix.Versions[0].Requires, ",") != "hello" || ix.Versions[0].MinEngineVersion != "1.1.0" {
+		t.Fatalf("%+v", ix)
+	}
+	a, _ := os.ReadFile(filepath.Join(tree, "hello-asks", "1.0.tar.gz"))
+	files, err := packs.ReadArchive(a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, n := range []string{"templates/hello-asks.md", "tasks/hello-asks-token/task.json", "RULES.md"} {
+		if _, ok := files[n]; !ok {
+			t.Errorf("the archive lacks %s", n)
+		}
+	}
 }
 
 func TestTheFixtureIndexVerifiesAndNamesItsArchives(t *testing.T) {

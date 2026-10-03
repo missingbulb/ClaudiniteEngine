@@ -1,6 +1,6 @@
 #!/bin/sh
 # The local Phase 1 to 4 gates, against the built release in $DIST
-# (default dist/) served by regstub, in six modes:
+# (default dist/) served by regstub, in eight modes:
 #
 #   fresh    the host's smoke leg (release/smoke-platform.sh) on a new member
 #   current  a member warm on this release moves its pin to the next ordinal
@@ -30,6 +30,12 @@
 #            off and accepts them; a local pack's Go check builds and
 #            finds, and hello 1.4's checks read the change and the pack's
 #            config through the SDK.
+#   adopt    the adoption flow over hello and the hello-asks probe: cn init
+#            ends on QUESTIONS and HANDOVER with the seed written and the
+#            task secret stamped, adoption-answers-pending blocks Stop until
+#            cn settings answer, cn adopt does the same for a pack added
+#            later, a no-plan refusal hands over the plan checkout, and cn
+#            init --from-node moves a Node-shaped member.
 #   tasks    a member on hello 1.4 with the three workflows runs the task
 #            queue against ghstub (its routine route and release/stub-
 #            agent.sh) and licstub: tasks list and the declaration check,
@@ -45,10 +51,10 @@
 #            desktop after cn login, and the Actions key in cn update engine
 #            with its release states, refusals and the plan correction PR.
 #
-# The update, packs, tasks and license modes give every member a GitHub-shaped
+# The update, packs, adopt, tasks and license modes give every member a GitHub-shaped
 # origin (url.<bare>.insteadOf), as the session's key request reads it.
 #
-#   release/rehearse.sh [--mode fresh|current|stale|update|packs|tasks|license]   (default: all seven)
+#   release/rehearse.sh [--mode fresh|current|stale|update|packs|adopt|tasks|license]   (default: all eight)
 #
 # UPDATE_STEPS=4 stops the update mode after the landing and the session on
 # the landed version (release/hop.sh); the default, 11, runs every step.
@@ -66,13 +72,13 @@ export GOCACHE
 fail() { echo "rehearse: FAIL: $*" >&2; exit 1; }
 step() { echo "rehearse: $*"; }
 
-usage="usage: release/rehearse.sh [--mode fresh|current|stale|update|packs|tasks|license]"
-modes="fresh current stale update packs tasks license"
+usage="usage: release/rehearse.sh [--mode fresh|current|stale|update|packs|adopt|tasks|license]"
+modes="fresh current stale update packs adopt tasks license"
 case $# in
   0) ;;
   2)
     [ "$1" = --mode ] || fail "$usage"
-    case $2 in fresh|current|stale|update|packs|tasks|license) modes=$2 ;; *) fail "unknown mode $2" ;; esac ;;
+    case $2 in fresh|current|stale|update|packs|adopt|tasks|license) modes=$2 ;; *) fail "unknown mode $2" ;; esac ;;
   *) fail "$usage" ;;
 esac
 
@@ -148,7 +154,7 @@ case " $modes " in
     ;;
 esac
 case " $modes " in
-  *" update "*|*" packs "*|*" tasks "*|*" license "*)
+  *" update "*|*" packs "*|*" adopt "*|*" tasks "*|*" license "*)
     # The caller's dist stays as it was: sign a copy.
     dist1=$work/dist1
     cp -R "$DIST" "$dist1"
@@ -552,14 +558,17 @@ for mode in $modes; do
           || fail "packs init: init exited non-zero: $(cat "$work/init.out")"
       }
       init_with_origin packs-init
-      [ "$(sed -n '$p' "$work/init.out")" = "plan: public" ] || fail "packs init: the checklist does not end on the plan: $(cat "$work/init.out")"
+      grep -qx "plan: public" "$work/init.out" || fail "packs init: init names no plan: $(cat "$work/init.out")"
+      if grep -q "Install the Claudinite GitHub App" "$work/init.out"; then fail "packs init: a key came and the handover still asks for the App: $(cat "$work/init.out")"; fi
+      sed -n '$p' "$work/init.out" | grep -q "^NEXT: " || fail "packs init: init does not end on NEXT: $(cat "$work/init.out")"
       grep -q '^  plan: "public"$' "$work/packs-init/.claudinite/settings.yaml" || fail "packs init: no plan block: $(cat "$work/packs-init/.claudinite/settings.yaml")"
       ctl /_stub/session '{"no_app":true}'
       init_with_origin packs-init-no-app
       ctl /_stub/session '{"no_app":false}'
-      sed -n '$p' "$work/init.out" | grep -q "installations/new" || fail "packs init: with no App the checklist does not end on the install link: $(cat "$work/init.out")"
+      grep -q '^  \[ \] (cn) Install the Claudinite GitHub App on this account: .*installations/new' "$work/init.out" \
+        || fail "packs init: with no App the handover has no install row: $(cat "$work/init.out")"
       if grep -q '^license:' "$work/packs-init-no-app/.claudinite/settings.yaml"; then fail "packs init: a plan block with no key"; fi
-      step "packs init: cn init writes the plan its key names, and ends on the install link with no App"
+      step "packs init: cn init writes the plan its key names, and hands over the App install with no App"
 
       out=$(session_start) || fail "packs 2: SessionStart exited non-zero"
       index=$member/.claudinite/flat/claudinite-rules.GENERATED.md
@@ -1207,6 +1216,151 @@ GO
       cn_member tasks flat --write > "$work/flat.out" 2>&1 || fail "tasks 10: tasks flat --write: $(cat "$work/flat.out")"
       cn_member check world > "$work/world.out" 2>&1 || fail "tasks 10: check world after tasks flat --write: $(cat "$work/world.out")"
       step "tasks 10: verify breaks without the executor; init writes three workflows and both flat files; flat-declarations-current tracks a task edit"
+      ;;
+    adopt)
+      step "adopt: a local pack source with hello 1.0 and hello-asks 1.0, the CDN stub, ghstub and licstub"
+      src=$work/adoptsrc
+      sh release/packs-fixture.sh "$src" --min-engine "$version" > "$work/fixture.out" 2>&1 || fail "adopt: fixture: $(cat "$work/fixture.out")"
+      sh release/packs-fixture.sh "$src" --publish-pack hello-asks > "$work/fixture.out" 2>&1 || fail "adopt: fixture hello-asks: $(cat "$work/fixture.out")"
+      [ -x "$work/cdnstub" ] || go build -o "$work/cdnstub" ./release/cdnstub
+      "$work/cdnstub" --repo "$src/cdn.git" --ready "$work/adopt-cdn-ready" --ca-out "$work/adopt-cdn-ca.pem" --log "$work/adopt-cdn.log" &
+      cdn_pids="$cdn_pids $!"
+      tries=0
+      until [ -f "$work/adopt-cdn-ready" ]; do
+        tries=$((tries + 1))
+        [ "$tries" -le 100 ] || fail "cdnstub did not start"
+        sleep 0.1
+      done
+      origin=$work/adopt-origin.git
+      git init -q --bare -b main "$origin"
+      start_ghstub "$origin"
+      start_licstub
+      cat "$work/ca.pem" "$work/gh-ca.pem" "$work/lic-ca.pem" "$work/adopt-cdn-ca.pem" > "$work/cas.pem"
+      SSL_CERT_FILE=$work/cas.pem CURL_CA_BUNDLE=$work/cas.pem
+      GITHUB_REPOSITORY=acme/member CLAUDINITE_GITHUB_API=$gh GH_TOKEN=rehearsal-token
+      CLAUDINITE_PACKS_CDN=$(cat "$work/adopt-cdn-ready") CLAUDINITE_PACKS_REPO=$src/mirror.git
+      export SSL_CERT_FILE CURL_CA_BUNDLE GITHUB_REPOSITORY CLAUDINITE_GITHUB_API GH_TOKEN CLAUDINITE_PACKS_CDN CLAUDINITE_PACKS_REPO
+      name=${package#@claudinite/}
+      npx=$work/adopt-npx/node_modules
+      mkdir -p "$npx/@claudinite" "$npx/.bin"
+      cp -R "$dist1/npm/$name/package" "$npx/$package"
+      chmod 0755 "$npx/$package/launch"
+      ln -s "../$package/launch" "$npx/.bin/cn"
+      HOME=$work/adopt-home XDG_CACHE_HOME=$work/adopt-cache
+      export HOME XDG_CACHE_HOME
+      mkdir -p "$HOME" "$XDG_CACHE_HOME"
+      # adopt_repo NAME: a new repo with one commit on main and a branch the
+      # adoption lands on, as a session's would be; sets member.
+      adopt_repo() {
+        member=$work/$1
+        mkdir -p "$member"
+        (cd "$member" && git init -q -b main && printf '# member\n' > README.md && git add README.md \
+          && git -c user.name=rehearse -c user.email=r@x -c commit.gpgsign=false commit -q -m base && git checkout -q -b adopt) \
+          || fail "adopt: git setup for $1"
+      }
+      # launch ARGS: the member's launcher, as a session runs cn.
+      launch() { (cd "$member" && sh .claudinite/launch "$@"); }
+      # lifecycle_standin: claudinite-lifecycle, whose built-ins the steps run,
+      # declared and standing in as its manifest alone, as nothing here
+      # publishes it.
+      lifecycle_standin() {
+        mkdir -p "$member/.claudinite/shared/packs/claudinite-lifecycle"
+        printf '{\n  "version": "1.0",\n  "minEngineVersion": "%s"\n}\n' "$version" > "$member/.claudinite/shared/packs/claudinite-lifecycle/pack.json"
+        awk '{ print } /^  declared:$/ { print "    - claudinite-lifecycle" }' "$member/.claudinite/settings.yaml" > "$work/settings.yaml" \
+          || fail "adopt: declaring claudinite-lifecycle"
+        mv "$work/settings.yaml" "$member/.claudinite/settings.yaml"
+        launch rules-index > /dev/null || fail "adopt: rules-index"
+      }
+      stop_hook() { (cd "$member" && printf '{"session_id":"rehearse","hook_event_name":"Stop","stop_hook_active":false}' | CLAUDE_PROJECT_DIR=$member sh -c "$(hook_command Stop)" 2>/dev/null); }
+      selftest_member() { launch selftest --repo "$member" > "$work/selftest.out" 2>&1 || fail "adopt $1: selftest --repo: $(cat "$work/selftest.out")"; }
+      # expect_blocks STEP FILE: the QUESTIONS, HANDOVER and NEXT blocks for
+      # hello-asks in an init or adopt output.
+      expect_blocks() {
+        grep -q '^QUESTIONS — 1 adoption question(s) unanswered' "$2" || fail "adopt $1: no QUESTIONS block: $(cat "$2")"
+        grep -q '^  hello-asks/goals: What should the hello probe prove on this repo?$' "$2" || fail "adopt $1: the question is not listed: $(cat "$2")"
+        grep -q '^seeded docs/hello-asks.md$' "$2" || fail "adopt $1: nothing seeded: $(cat "$2")"
+        grep -q '^stamped HELLO_TOKEN into .github/workflows/claudinite-executor.yml$' "$2" || fail "adopt $1: HELLO_TOKEN not stamped: $(cat "$2")"
+        grep -q '^  \[ \] (hello-asks) Add the Actions secret HELLO_TOKEN (any value)$' "$2" || fail "adopt $1: no handover row: $(cat "$2")"
+        sed -n '$p' "$2" | grep -q '^NEXT: ' || fail "adopt $1: does not end on NEXT: $(cat "$2")"
+        cmp -s "$member/docs/hello-asks.md" release/testdata/hello-asks/templates/hello-asks.md || fail "adopt $1: the seed is not the template"
+        grep -qF "          HELLO_TOKEN: \${{ secrets.HELLO_TOKEN }}" "$member/.github/workflows/claudinite-executor.yml" \
+          || fail "adopt $1: the executor carries no HELLO_TOKEN line: $(cat "$member/.github/workflows/claudinite-executor.yml")"
+      }
+
+      adopt_repo adopt-init
+      (cd "$member" && "$npx/.bin/cn" init --packs hello,hello-asks --channel canary --package "$package" --repo "$member") > "$work/init.out" 2>&1 \
+        || fail "adopt 1: init exited non-zero with questions pending: $(cat "$work/init.out")"
+      expect_blocks 1 "$work/init.out"
+      grep -q '^  \[ \] (cn) In the repository.s Settings > Actions > General' "$work/init.out" || fail "adopt 1: no Actions setting row: $(cat "$work/init.out")"
+      verify_out=$(launch verify) || fail "adopt 1: verify: $verify_out"
+      [ -z "$verify_out" ] || fail "adopt 1: verify reported: $verify_out"
+      selftest_member 1
+      step "adopt 1: cn init --packs hello,hello-asks exits 0 with QUESTIONS and HANDOVER, the seed written, HELLO_TOKEN stamped"
+
+      lifecycle_standin
+      # Work checks run under a key: the session's request needs the origin.
+      github_origin "$origin"
+      (cd "$member" && git -c push.negotiate=false push -q origin main) || fail "adopt 2: push"
+      session_start > /dev/null || fail "adopt 2: SessionStart"
+      out=$(stop_hook)
+      case $out in *'"decision":"block"'*adoption-answers-pending*) ;; *) fail "adopt 2: Stop did not block on the pending answer: $out" ;; esac
+      launch settings answer hello-asks/goals "n/a — none wanted" > "$work/answer.out" 2>&1 || fail "adopt 2: settings answer: $(cat "$work/answer.out")"
+      grep -q '^  declared:$' "$member/.claudinite/settings.yaml" || fail "adopt 2: the answer rewrote the settings: $(cat "$member/.claudinite/settings.yaml")"
+      grep -q 'n/a — none wanted' "$member/.claudinite/settings.yaml" || fail "adopt 2: no answer recorded: $(cat "$member/.claudinite/settings.yaml")"
+      out=$(stop_hook)
+      case $out in *adoption-answers-pending*) fail "adopt 2: Stop still blocks after the answer: $out" ;; esac
+      launch check world > "$work/world.out" 2>&1 || fail "adopt 2: check world: $(cat "$work/world.out")"
+      selftest_member 2
+      step "adopt 2: adoption-answers-pending blocks Stop until cn settings answer records it; check world is clean"
+
+      adopt_repo adopt-later
+      (cd "$member" && "$npx/.bin/cn" init --packs hello --channel canary --package "$package" --repo "$member") > "$work/init.out" 2>&1 \
+        || fail "adopt 3: init: $(cat "$work/init.out")"
+      if grep -q '^QUESTIONS' "$work/init.out"; then fail "adopt 3: hello asks nothing, yet: $(cat "$work/init.out")"; fi
+      launch adopt hello-asks > "$work/adopt.out" 2>&1 || fail "adopt 3: cn adopt: $(cat "$work/adopt.out")"
+      grep -q '^pack: hello-asks 1.0$' "$work/adopt.out" || fail "adopt 3: hello-asks not vendored: $(cat "$work/adopt.out")"
+      expect_blocks 3 "$work/adopt.out"
+      if launch adopt hello-asks > "$work/adopt.out" 2>&1; then fail "adopt 3: a second cn adopt hello-asks passed"; fi
+      verify_out=$(launch verify) || fail "adopt 3: verify: $verify_out"
+      [ -z "$verify_out" ] || fail "adopt 3: verify reported: $verify_out"
+      selftest_member 3
+      step "adopt 3: cn adopt hello-asks on a member holding hello seeds, stamps and prints the same blocks"
+
+      unset GH_TOKEN
+      (cd "$member" && sh .claudinite/launch login) > "$work/login.out" 2>&1 || fail "adopt 4: cn login: $(cat "$work/login.out")"
+      licctl '{"refuse":{"desktop":"no-plan"},"checkout_url":"https://checkout.example/c/acme"}'
+      dir=$work/adopt-no-plan
+      mkdir -p "$dir"
+      (cd "$dir" && git init -q -b main && git remote add origin https://github.com/acme/member.git \
+        && git config "url.$origin.insteadOf" https://github.com/acme/member.git) || fail "adopt 4: git setup"
+      (cd "$dir" && "$npx/.bin/cn" init --packs hello --channel canary --package "$package" --repo "$dir") > "$work/init.out" 2>&1 \
+        || fail "adopt 4: init: $(cat "$work/init.out")"
+      grep -q '^  \[ \] (cn) Pick a plan for this private repo: https://checkout.example/c/acme$' "$work/init.out" \
+        || fail "adopt 4: no checkout row: $(cat "$work/init.out")"
+      if grep -q '^license:' "$dir/.claudinite/settings.yaml"; then fail "adopt 4: a plan block with no key"; fi
+      licctl '{"refuse":{},"checkout_url":""}'
+      GH_TOKEN=rehearsal-token
+      export GH_TOKEN
+      member=$dir
+      selftest_member 4
+      step "adopt 4: cn init against a no-plan refusal hands over the plan checkout"
+
+      member=$work/adopt-node
+      cp -R lifecycle/adopt/testdata/node-member "$member"
+      printf '{\n  "packs": [\n    "hello",\n    "local/mine"\n  ]\n}\n' > "$member/.claudinite-settings.json"
+      printf '{}\n' > "$member/.claudinite/local/packs/mine/pack.json"
+      printf 'node_modules/\n' > "$member/.gitignore"
+      rm "$member/.github/workflows/ci.yml"
+      (cd "$member" && "$npx/.bin/cn" init --from-node --channel canary --package "$package" --repo "$member") > "$work/init.out" 2>&1 \
+        || fail "adopt 5: init --from-node: $(cat "$work/init.out")"
+      grep -q '^pack: hello 1.0$' "$work/init.out" || fail "adopt 5: hello not vendored: $(cat "$work/init.out")"
+      grep -q '^NEXT: git rm .claudinite-settings.json' "$work/init.out" || fail "adopt 5: NEXT does not start with the declaration's removal: $(cat "$work/init.out")"
+      [ ! -e "$member/.claudinite/shared/engine" ] || fail "adopt 5: the Node engine survived the move"
+      verify_out=$(launch verify) || fail "adopt 5: verify: $verify_out"
+      [ "$verify_out" = "deprecation node-leftovers .claudinite-settings.json: the Node engine's declaration, which cn no longer reads; the move pull request deletes it" ] \
+        || fail "adopt 5: verify reported: $verify_out"
+      selftest_member 5
+      step "adopt 5: cn init --from-node moves the Node-shaped fixture; verify names the declaration alone"
       ;;
     license)
       step "license: a public member on $version with a GitHub origin, ghstub and licstub"
