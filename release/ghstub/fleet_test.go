@@ -123,9 +123,23 @@ func TestADispatchCanStartNoRunAndADeniedMemberAnswers403(t *testing.T) {
 	if _, raw, _ := c.Raw("GET", "/repos/acme/a/actions/workflows/claudinite-scheduler.yml/runs", nil); !strings.Contains(string(raw), `"total_count":0`) {
 		t.Errorf("runs %s", raw)
 	}
+	control(t, srv, "/_stub/deny", map[string]any{"repo": "acme/a", "path": ".claudinite"})
+	if status, _, _ := c.Raw("GET", "/repos/acme/a/contents/.claudinite", nil); status != 403 {
+		t.Errorf("denied read answered %d", status)
+	}
+	if status, _, _ := c.Raw("GET", "/repos/acme/a/contents/.github", nil); status != 200 {
+		t.Errorf("a read outside the denied path answered %d", status)
+	}
 	control(t, srv, "/_stub/deny", map[string]any{"repo": "acme/a"})
 	if status, _, _ := c.Raw("GET", "/repos/acme/a/contents/.github", nil); status != 403 {
-		t.Errorf("denied read answered %d", status)
+		t.Errorf("a whole-member deny answered %d", status)
+	}
+	control(t, srv, "/_stub/deny", map[string]any{"repo": "acme/a", "deny": false})
+	if status, _, _ := c.Raw("GET", "/repos/acme/a/contents/.github", nil); status != 200 {
+		t.Errorf("a lifted deny answered %d", status)
+	}
+	if n := strings.Count(strings.Join(state(t, srv).Calls, "\n"), "member acme/a GET /contents/.github"); n != 3 {
+		t.Errorf("member calls logged %d times", n)
 	}
 	if status, _, _ := (&githubapi.Client{Base: c.Base, Token: "wrong", HTTP: c.HTTP}).Raw("GET", "/user/repos", nil); status != 401 {
 		t.Errorf("a wrong token listed repos: %d", status)

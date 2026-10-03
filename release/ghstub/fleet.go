@@ -21,11 +21,17 @@ import (
 //	                    writes the files into the member at its next
 //	                    scheduler dispatch, as its own update would land
 //	                    them; "run": false makes that dispatch start no run
-//	POST /_stub/deny    {"repo"}: every later read of the member answers 403
+//	POST /_stub/deny    {"repo", "path", "deny"}: every later call on the
+//	                    member, or on its contents under path, answers 403;
+//	                    "deny": false lifts it
+//
+// Every call on a member is logged in the state's calls as "member
+// <owner/name> <METHOD> <path>".
 type fleetMember struct {
 	full, dir      string
 	archived, fork bool
 	deny           bool
+	denyPrefix     string
 	noRun          bool
 	pending        map[string]string
 	runs           []string
@@ -116,14 +122,14 @@ func (s *stub) serveFleet(w http.ResponseWriter, r *http.Request, body map[strin
 		fail(w, http.StatusUnauthorized, "Bad credentials")
 		return true
 	}
-	if m.deny {
-		s.calls = append(s.calls, "denied "+m.full)
-		fail(w, http.StatusForbidden, "Resource not accessible by personal access token")
-		return true
-	}
 	sub := ""
 	if len(parts) == 3 {
 		sub = "/" + parts[2]
+	}
+	s.calls = append(s.calls, "member "+m.full+" "+r.Method+" "+sub)
+	if m.deny && (m.denyPrefix == "" || strings.HasPrefix(sub, "/contents/"+m.denyPrefix)) {
+		fail(w, http.StatusForbidden, "Resource not accessible by personal access token")
+		return true
 	}
 	switch {
 	case r.Method == http.MethodGet && sub == "":
@@ -236,7 +242,9 @@ func (s *stub) fleetControl(w http.ResponseWriter, path string, body map[string]
 		run, ok := body["run"].(bool)
 		m.noRun = ok && !run
 	case "/_stub/deny":
-		m.deny = true
+		deny, ok := body["deny"].(bool)
+		m.deny = !ok || deny
+		m.denyPrefix, _ = body["path"].(string)
 	}
 	reply(w, 200, map[string]string{})
 }
