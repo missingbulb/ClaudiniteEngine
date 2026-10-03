@@ -191,11 +191,11 @@ func TestPrepareClonesTheStore(t *testing.T) {
 	if r, _ := Prepare(repo, env(vars)); r.Copied || r.Line() != "[cn] personal pack: acme/store holds no pack at preferences/nobody/ for GitHub user nobody, or it could not be read - proceeding with default interaction behavior." {
 		t.Errorf("no directory: %q", r.Line())
 	}
-	if read(repo, PackDir+"/RULES.md") != Placeholder || read(repo, PackDir+"/pack.json") != "<absent>" {
-		t.Error("a miss keeps the pack an earlier session copied")
+	if read(repo, PackDir+"/RULES.md") != "- from the store\n" || read(repo, PackDir+"/pack.json") == "<absent>" {
+		t.Error("a miss replaced the pack an earlier session copied, which the Node step keeps")
 	}
 	vars["CLAUDINITE_USER_PACKS_CLONE_URL"] = "file://" + filepath.Join(t.TempDir(), "missing")
-	if r, _ := Prepare(repo, env(vars)); r.Copied || r.Err == nil || !strings.Contains(r.Line(), "(git clone: ") || read(repo, PackDir+"/RULES.md") != Placeholder {
+	if r, _ := Prepare(repo, env(vars)); r.Copied || r.Err == nil || !strings.Contains(r.Line(), "(git clone: ") || read(repo, PackDir+"/RULES.md") != "- from the store\n" {
 		t.Errorf("an unreachable store: %q", r.Line())
 	}
 }

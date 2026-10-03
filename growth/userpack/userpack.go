@@ -299,11 +299,12 @@ func writeFile(p string, data []byte) error {
 	return os.WriteFile(p, data, 0o644)
 }
 
-// leavePlaceholder leaves dest holding nothing but the placeholder, what
-// every miss converges on: a pack an earlier session in this container
-// copied is content nobody in this one chose.
+// leavePlaceholder writes the placeholder where dest holds no rules, and
+// otherwise leaves an earlier session's copy standing, as the Node step did.
 func leavePlaceholder(dest string) {
-	_ = os.RemoveAll(dest)
+	if _, err := os.Stat(filepath.Join(dest, "RULES.md")); err == nil {
+		return
+	}
 	_ = writeFile(filepath.Join(dest, "RULES.md"), []byte(Placeholder))
 }
 
@@ -352,10 +353,12 @@ func Copy(repo string, store *Store, declined, login string, getenv func(string)
 			continue
 		}
 		if bytes += len(data); bytes > MaxBytes {
+			_ = os.RemoveAll(dest)
 			leavePlaceholder(dest)
 			return false, nil
 		}
 		if werr := writeFile(filepath.Join(dest, filepath.FromSlash(rel)), data); werr != nil {
+			_ = os.RemoveAll(dest)
 			leavePlaceholder(dest)
 			return false, werr
 		}
