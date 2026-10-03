@@ -103,3 +103,11 @@ Fleet face divergences: 27 of 124 fixtures.
 | 98 | adoption/create-refused, adoption/open-new | the adoption issue asks for `cn init` and names `.claudinite/settings.*` |
 | 99 | scan/fit-summary, scan/fit-summary-scoped-clean, scan/suspected-body | the corpus is the shelf's signed catalog, not a canon clone, and the undecided fingerprints are settled by running them over the member's checkout rather than by a Node module the fleet no longer ships |
 | 101 | seeds/with-seeds, seeds/with-seeds-not-object | a seed is spliced into the member's settings file in its own format, comments and every byte outside `packs` kept, rather than round-tripped through two-space JSON |
+
+The 15b chunk also added `scenarios/lifecycle-fleet/*` (six cases:
+`fleet-pack-seed-agrees` over a seed that agrees, disagrees, is declared on
+one side only, is not declared, is malformed, or is absent), with no
+divergence. The settings file's line is not compared in a finding there:
+the two engines write the declaration in different formats, so the same
+entry sits on different lines. Porting the sheepdog lists its tasks under
+record row 93 and its skill under row 94 in `diverged.txt`.

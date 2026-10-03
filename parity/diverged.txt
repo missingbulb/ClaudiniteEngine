@@ -38,6 +38,11 @@ claudinite-growth/tasks/growth-extract/task.md record-87
 claudinite-growth/tasks/logs-prune record-87
 claudinite-growth/tasks/usage-review/read-live.mjs record-87
 claudinite-tasks/public/instructions.md record-87
+# Engine chunks 15a and 15b: the fleet sweeps are engine code, so the
+# sheepdog's tasks run cn fleet (record row 93), and its skill says no
+# canon repository is read (record row 94):
+claudinite-fleet-sheepdog/tasks record-93
+claudinite-fleet-sheepdog/skills/configuring-the-fleet/SKILL.md record-94
 # ClaudinitePacks#20 moved the task runner into the engine and its pack
 # workers onto @claudinite/sdk (record row 5):
 basics/tasks/ci-performance/github-api.mjs record-5
