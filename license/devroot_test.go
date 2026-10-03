@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"os"
 	"testing"
+
+	"github.com/missingbulb/ClaudiniteEngine/shared/sign"
 )
 
 // A stable release must never embed the development roots (devroots/).
@@ -12,17 +14,23 @@ func TestStableBuildDoesNotEmbedTheDevRoot(t *testing.T) {
 	if !stableBuild {
 		t.Skip("not a stable build")
 	}
+	roots, err := Roots()
+	if err != nil {
+		t.Fatal(err)
+	}
 	for _, name := range []string{"root", "standby"} {
-		embedded, err := rootFiles.ReadFile(rootDir + "/" + name + ".pub")
+		raw, err := os.ReadFile("devroots/" + name + ".pub")
 		if err != nil {
 			t.Fatal(err)
 		}
-		dev, err := os.ReadFile("devroots/" + name + ".pub")
+		dev, err := sign.ParsePublicKey(string(raw))
 		if err != nil {
 			t.Fatal(err)
 		}
-		if bytes.Equal(bytes.TrimSpace(embedded), bytes.TrimSpace(dev)) {
-			t.Errorf("the build embeds the development %s from license/devroots/", name)
+		for _, r := range roots {
+			if bytes.Equal(r, dev) {
+				t.Errorf("the build embeds the development %s from license/devroots/", name)
+			}
 		}
 	}
 }

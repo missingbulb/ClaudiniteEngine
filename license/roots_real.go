@@ -10,4 +10,4 @@ import "embed"
 //go:embed roots/root.pub roots/standby.pub
 var rootFiles embed.FS
 
-const rootDir = "roots"
+var rootDirs = []string{"roots"}

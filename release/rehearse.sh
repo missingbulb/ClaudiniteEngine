@@ -88,8 +88,8 @@
 #            claudinite-tasks, claudinite-growth, node, python and aws-sam on
 #            the canary channel adopts them through the npx bootstrap from
 #            the real pack CDN and ClaudinitePacks' vendored branch, each
-#            index verified against the development roots this release
-#            embeds; its session loads them, check world runs their declared
+#            index verified against the roots this release embeds (a
+#            devroots build trusts the ceremony's and the development roots); its session loads them, check world runs their declared
 #            and Go checks silent and a planted aws-sam violation fires; cn
 #            update packs is up to date from both sources, from the branch
 #            alone with the CDN unreachable, and skips naming both serials
@@ -106,9 +106,11 @@
 # UPDATE_STEPS=4 stops the update mode after the landing and the session on
 # the landed version (release/hop.sh); the default, 11, runs every step.
 #
-# Needs go, node, curl, git and a release from release/build.sh built with
-# REHEARSAL=1 BUILD_TAGS=devroots: every key, certificate and signature here
-# chains to the development root (testkeys/), which only such a build trusts.
+# Needs go, node, curl, git and a release from release/build.sh, ideally
+# built with REHEARSAL=1 BUILD_TAGS=devroots: every key, certificate and
+# signature here chains to the development root (testkeys/), which only such
+# a build trusts, beside the ceremony's roots the real pack shelf is signed
+# under. Any other release is rebuilt so first.
 set -eu
 cd "$(dirname "$0")/.."
 root=$(pwd)
@@ -141,10 +143,6 @@ update_steps=${UPDATE_STEPS:-11}
 case $update_steps in 4|11) ;; *) fail "UPDATE_STEPS must be 4 or 11, not $update_steps" ;; esac
 
 [ -f "$DIST/manifest.integrity" ] || fail "no release in $DIST; run release/build.sh first"
-devroot=$(cat license/devroots/root.pub)
-for b in "$DIST"/bin/*/*; do
-  grep -qF "$devroot" "$b" || fail "$b does not trust the development root; build $DIST with REHEARSAL=1 BUILD_TAGS=devroots"
-done
 # rehearsal_sign DIST: signs DIST with the development release key.
 rehearsal_sign() {
   DIST=$1 RELEASE_KEY=$root/testkeys/release.key RELEASE_CERT=$root/testkeys/release.cert.json ROOTS=$root/license/devroots \
@@ -187,6 +185,20 @@ cleanup() {
 }
 trap cleanup EXIT
 trap 'exit 1' HUP INT TERM
+
+# A release candidate trusts only the ceremony's roots, to which no key here
+# chains: rehearse its source rebuilt at its version and package with the
+# development roots, which differs from it only in the roots it embeds.
+devroot=$(cat license/devroots/root.pub)
+for b in "$DIST"/bin/*/*; do
+  grep -qF "$devroot" "$b" && continue
+  step "rebuilding $version with the development roots: $DIST trusts only the ceremony's"
+  DIST=$work/devroots-dist VERSION=$version PACKAGE=$package REHEARSAL=1 BUILD_TAGS=devroots sh release/build.sh > "$work/build-devroots.out" \
+    || fail "build of $version with the development roots: $(cat "$work/build-devroots.out")"
+  DIST=$work/devroots-dist
+  pin=$(cat "$DIST/manifest.integrity")
+  break
+done
 
 next=$(printf '%s\n' "$version" | awk -F. '{ print $1 "." $2 + 1 "." $3 }')
 third=$(printf '%s\n' "$version" | awk -F. '{ print $1 "." $2 + 2 "." $3 }')
@@ -235,8 +247,8 @@ case " $modes " in
     if [ "${version%%.*}" -lt "$day" ]; then
       live_version=$day.1.0 live_dist=$dist2
       step "live-packs: building $live_version into dist2/ from the same source, the shelf's floor being above $version"
-      DIST=$dist2 VERSION=$live_version PACKAGE=$package sh release/build.sh > "$work/build-live.out" || fail "build of $live_version: $(cat "$work/build-live.out")"
-      DIST=$dist2 sh release/sign.sh > "$work/sign.out" 2>&1 || fail "signing $live_version: $(cat "$work/sign.out")"
+      DIST=$dist2 VERSION=$live_version PACKAGE=$package REHEARSAL=1 BUILD_TAGS=devroots sh release/build.sh > "$work/build-live.out" || fail "build of $live_version: $(cat "$work/build-live.out")"
+      rehearsal_sign "$dist2"
     fi
     ;;
 esac
