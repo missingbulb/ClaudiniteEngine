@@ -126,3 +126,12 @@ untracked and shelf descriptor), with no divergence. Since no Node engine writes
 cn's repo in a scenario or a differential tree carries the one cn writes,
 kept out of git beside the settings file it states, and the flat
 comparison leaves it out of cn's side.
+
+The 16b chunk ported `claudinite-dashboard`, the thirteenth pack in
+`ported.txt`, and added no fixture: the dashboard face stays at 48 and the
+`lifecycle-dashboard` scenarios at six, with no divergence. The pack's two
+task declarations are listed in `diverged.txt`, `deploy-oauth-exchange`'s
+under record row 5 and `publish-pages`' under row 112, so cn's flat files
+read them at the frozen content. The pack's own suite holds its copies of
+the engine's predicates to `cn` (record row 110): 537 tests with
+`CLAUDINITE_CN` set, of which 10 skip without it.

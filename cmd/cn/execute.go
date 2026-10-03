@@ -201,7 +201,7 @@ func cmdExecuteLoop(args []string, stdout io.Writer, env world.Env) (err error) 
 	}
 	run := runner.Runner{Dir: unpacked, Engine: version.Version()}
 	branch := env.DefaultBranch()
-	jobEnv := envMap()
+	jobEnv := workStepEnv(envMap(), token)
 	tasksConfig := r.packConfig(workitem.TasksPackID)
 	delivery := land.DeliveryFor(tasksConfig)
 	endpoints, _ := tasksConfig[execute.EndpointsKey].(map[string]any)
@@ -334,4 +334,19 @@ func engineDir() string {
 		exe = real
 	}
 	return filepath.Dir(exe)
+}
+
+// workStepEnv is the job's environment as the work steps receive it: the job
+// token the executor's client took out of the process environment handed back
+// as GITHUB_TOKEN, the surface execute.TaskEnv documents every work step
+// writing through. The job's own map is left as it was.
+func workStepEnv(job map[string]string, token string) map[string]string {
+	out := make(map[string]string, len(job)+1)
+	for k, v := range job {
+		out[k] = v
+	}
+	if token != "" {
+		out["GITHUB_TOKEN"] = token
+	}
+	return out
 }

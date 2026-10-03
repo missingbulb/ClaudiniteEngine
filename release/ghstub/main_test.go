@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -158,5 +159,66 @@ func TestStubRefusesAWrongTokenOrRepo(t *testing.T) {
 	bad = &githubapi.Client{Base: c.Base, Repo: "acme/other", Token: c.Token, HTTP: c.HTTP}
 	if _, err := bad.OpenPulls(); err == nil || !strings.Contains(err.Error(), "404") {
 		t.Errorf("%v", err)
+	}
+}
+
+// The reads a deploy worker follows its own dispatch with, as the dashboard's
+// publish-pages makes them: the workflow's runs by event, with no sha to key
+// on, newest first; one run by id, carrying its URL; and the Pages setting.
+func TestStubFollowsADispatchedRunByEventAndID(t *testing.T) {
+	bare, _ := fixture(t)
+	_, srv := start(t, bare)
+	control(t, srv, "/_stub/run", map[string]string{"ref": "main", "conclusion": "success"})
+	control(t, srv, "/_stub/dispatch", map[string]string{"conclusion": "success"})
+	get := func(path string, v any) int {
+		t.Helper()
+		req := httptest.NewRequest("GET", srv.URL+"/repos/acme/member"+path, nil)
+		req.RequestURI = ""
+		req.Header.Set("Authorization", "Bearer tok")
+		resp, err := srv.Client().Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = resp.Body.Close() }()
+		if v != nil {
+			_ = json.NewDecoder(resp.Body).Decode(v)
+		}
+		return resp.StatusCode
+	}
+	post := httptest.NewRequest("POST", srv.URL+"/repos/acme/member/actions/workflows/claudinite-dashboard-pages.yml/dispatches", strings.NewReader(`{"ref":"main"}`))
+	post.RequestURI = ""
+	post.Header.Set("Authorization", "Bearer tok")
+	resp, err := srv.Client().Do(post)
+	if err != nil || resp.StatusCode != 204 {
+		t.Fatalf("dispatch: %v %v", err, resp)
+	}
+	_ = resp.Body.Close()
+
+	var listed struct {
+		Runs []run `json:"workflow_runs"`
+	}
+	if code := get("/actions/workflows/claudinite-dashboard-pages.yml/runs?event=workflow_dispatch&created=%3E%3D2026-01-01T00%3A00%3A00Z&per_page=5", &listed); code != 200 || len(listed.Runs) != 1 {
+		t.Fatalf("%d %+v", code, listed)
+	}
+	r := listed.Runs[0]
+	if r.Event != "workflow_dispatch" || r.HTMLURL == "" || !strings.HasSuffix(r.HTMLURL, "/acme/member/actions/runs/"+strconv.FormatInt(r.ID, 10)) {
+		t.Errorf("%+v", r)
+	}
+	var one run
+	if code := get("/actions/runs/"+strconv.FormatInt(r.ID, 10), &one); code != 200 || one != r {
+		t.Errorf("%d %+v, listed %+v", code, one, r)
+	}
+	if code := get("/actions/runs/999", nil); code != 404 {
+		t.Errorf("an unknown run answered %d", code)
+	}
+	if code := get("/pages", nil); code != 200 {
+		t.Errorf("pages answered %d", code)
+	}
+	// The contrast: without an event the listing still keys on head_sha alone.
+	var bySha struct {
+		Runs []run `json:"workflow_runs"`
+	}
+	if get("/actions/workflows/claudinite-dashboard-pages.yml/runs", &bySha); len(bySha.Runs) != 0 {
+		t.Errorf("a listing naming neither sha nor event answered %+v", bySha.Runs)
 	}
 }

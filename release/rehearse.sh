@@ -76,8 +76,11 @@
 #            local descriptor and silent on the mount's, cn dashboard
 #            descriptor; then the fleet fixture's manager declaring the
 #            dashboard: cn fleet roster's artifact, a fleet-roster item
-#            landing it under its policy and writing nothing again, and cn
-#            fleet add-packs measuring a canary member on a stable manager.
+#            landing it under its policy and writing nothing again, cn
+#            fleet add-packs measuring a canary member on a stable manager,
+#            and publish-pages building the real pack from
+#            CLAUDINITE_PACKS_TREE (a ClaudinitePacks checkout, which this
+#            mode requires) and following its deploy to success.
 #
 # The update, packs, adopt, tasks, license and growth modes give every member a GitHub-shaped
 # origin (url.<bare>.insteadOf), as the session's key request reads it.
@@ -2093,6 +2096,50 @@ YAML
       grep -qF "only 2 pack(s) in the shelf's catalog across both channels" "$work/fleet.err" || fail "dashboard 6: the floor's refusal: $(cat "$work/fleet.err")"
       CLAUDINITE_FLEET_MIN_PACKS=2
       step "dashboard 6: on a stable manager, add-packs measured canary acme/behind against the canary catalog, counted both channels, and the floor counts both"
+
+      # The real pack from the ClaudinitePacks checkout, its tests left behind as an
+      # archive leaves them, under the fixture's manifest granted the dispatch the
+      # real one grants: publish-pages builds the site on this cn manager and
+      # follows the deploy it dispatches to success.
+      if [ -z "${CLAUDINITE_PACKS_TREE:-}" ] || [ ! -d "$CLAUDINITE_PACKS_TREE/packs/claudinite-dashboard/src" ]; then
+        fail "dashboard 7: CLAUDINITE_PACKS_TREE names no ClaudinitePacks checkout carrying claudinite-dashboard"
+      fi
+      (cd "$member" && git -c push.negotiate=false pull -q --ff-only origin main) || fail "dashboard 7: catching up with the roster step 5 landed"
+      dash=$member/.claudinite/shared/packs/claudinite-dashboard
+      cp "$dash/pack.json" "$dash/dashboard.json" "$work/"
+      rm -rf "$dash"
+      mkdir -p "$dash"
+      (cd "$CLAUDINITE_PACKS_TREE/packs/claudinite-dashboard" && tar cf - --exclude=./test .) | (cd "$dash" && tar xf -) || fail "dashboard 7: copying the pack"
+      node -e 'const fs=require("fs");const m=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));m.githubActions=["dispatchWorkflow"];fs.writeFileSync(process.argv[2],JSON.stringify(m,null,2)+"\n")' \
+        "$work/pack.json" "$dash/pack.json" || fail "dashboard 7: the manifest"
+      cp "$work/dashboard.json" "$dash/dashboard.json"
+      cn_member tasks flat --write > "$work/flat.out" 2>&1 || fail "dashboard 7: tasks flat --write: $(cat "$work/flat.out")"
+      [ "$(json "$member/.claudinite/flat/member.GENERATED.json" 'JSON.stringify(st.packs.declared.find(e=>e.id==="claudinite-dashboard").config)')" = '{"mode":"fleet","owner":"acme"}' ] \
+        || fail "dashboard 7: the member file: $(cat "$member/.claudinite/flat/member.GENERATED.json")"
+      (cd "$member" && git add -A && git -c user.name=rehearse -c user.email=r@x -c commit.gpgsign=false commit -q -m "the dashboard pack" \
+        && git -c push.negotiate=false push -q origin main) || fail "dashboard 7: git"
+      GITHUB_API_URL=$gh NODE_EXTRA_CA_CERTS=$work/cas.pem
+      export GITHUB_API_URL NODE_EXTRA_CA_CERTS
+      ctl /_stub/dispatch '{"conclusion":"success"}'
+      cn_member work create claudinite-dashboard/publish-pages --qualifier rehearsal > "$work/create.out" 2>&1 || fail "dashboard 7: work create: $(cat "$work/create.out")"
+      n=$(item "[claudinite-work] claudinite-dashboard/publish-pages rehearsal")
+      execute || fail "dashboard 7: execute: $(cat "$work/exec.out")"
+      case " $(labels_of "$n") " in *" task:status:done "*) ;; *) fail "dashboard 7: #$n is $(labels_of "$n"): $(cat "$work/exec.out")" ;; esac
+      [ "$(gh_count 'st.dispatches.filter(d=>d.workflow==="claudinite-dashboard-pages.yml"&&d.ref==="main").length')" = 1 ] \
+        || fail "dashboard 7: the deploy dispatches: $(gh_state)"
+      [ "$(git --git-dir "$origin" ls-tree --name-only gh-pages | tr '\n' ' ')" = ".nojekyll deployed.json index.html packs " ] \
+        || fail "dashboard 7: the site's root: $(git --git-dir "$origin" ls-tree --name-only gh-pages 2>&1)"
+      [ "$(git --git-dir "$origin" ls-tree --name-only gh-pages:packs)" = claudinite-dashboard ] \
+        || fail "dashboard 7: the site carries $(git --git-dir "$origin" ls-tree --name-only gh-pages:packs | tr '\n' ' ')"
+      git --git-dir "$origin" cat-file -e gh-pages:packs/claudinite-dashboard/index.html || fail "dashboard 7: no page"
+      git --git-dir "$origin" cat-file -e gh-pages:packs/claudinite-dashboard/src/app.mjs || fail "dashboard 7: no modules"
+      git --git-dir "$origin" show gh-pages:packs/claudinite-dashboard/dashboard.config.json > "$work/site-config.json" || fail "dashboard 7: no config"
+      [ "$(json "$work/site-config.json" 'st.mode+" "+st.owner+" "+st.deploymentRepo')" = "fleet acme acme/manager" ] \
+        || fail "dashboard 7: the site's config: $(cat "$work/site-config.json")"
+      if git --git-dir "$origin" ls-tree -r --name-only gh-pages | grep -q -e '^engine/' -e '/test/'; then fail "dashboard 7: the site carries an engine or tests"; fi
+      [ -z "$(cd "$member" && git status --porcelain)" ] || fail "dashboard 7: the run left the checkout changed: $(cd "$member" && git status --porcelain)"
+      unset GITHUB_API_URL NODE_EXTRA_CA_CERTS
+      step "dashboard 7: publish-pages built the real pack on a cn manager, pushed index.html, the page's own modules and nothing else to gh-pages, and followed its deploy to success"
       ;;
   esac
 done
