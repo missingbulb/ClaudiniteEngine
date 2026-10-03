@@ -30,7 +30,7 @@ var alwaysOn = []Surface{SurfaceRules, SurfaceSkills, SurfaceGuards, SurfaceCICh
 
 // StubSurfaces are rows no command reads yet: a later phase wires their
 // callers to the gate rather than inventing one.
-var StubSurfaces = []Surface{SurfaceFleet}
+var StubSurfaces = []Surface{}
 
 // Gates is each surface on or off.
 type Gates map[Surface]bool

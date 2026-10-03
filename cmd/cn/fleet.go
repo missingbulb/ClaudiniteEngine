@@ -470,3 +470,30 @@ func fleetJudge(args []string, stdout, stderr io.Writer, start time.Time) error 
 	s.crumb("judge", breadcrumb.OK)
 	return nil
 }
+
+// fleetSignal is the collector's fleet reader when FLEET_GITHUB_TOKEN is
+// in the env, over the run's own repo owner; nil without it.
+func fleetSignal(repo string) func(sinceISO string) (any, error) {
+	token := os.Getenv(fleet.TokenEnv)
+	owner, _, ok := strings.Cut(repo, "/")
+	if token == "" || !ok {
+		return nil
+	}
+	api := os.Getenv("CLAUDINITE_GITHUB_API")
+	if api == "" {
+		api = githubapi.DefaultBase
+	}
+	gh := fleet.NewGH(api, token)
+	return func(since string) (any, error) {
+		s := fleet.ReadFleet(gh, owner, since)
+		if s.Error != "" {
+			return nil, errors.New(s.Error)
+		}
+		raw, err := json.Marshal(s)
+		if err != nil {
+			return nil, err
+		}
+		var v any
+		return v, json.Unmarshal(raw, &v)
+	}
+}

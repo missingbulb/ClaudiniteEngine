@@ -73,9 +73,9 @@ func TestOnlyTheSixNamesTurnAFeatureOn(t *testing.T) {
 	}
 }
 
-func TestOnlyFleetIsStillAStub(t *testing.T) {
-	if !slices.Equal(StubSurfaces, []Surface{SurfaceFleet}) {
-		t.Errorf("stubs %v: the tasks, forced-loading and in-session-growth rows have readers", StubSurfaces)
+func TestNoSurfaceIsAStub(t *testing.T) {
+	if len(StubSurfaces) != 0 {
+		t.Errorf("stubs %v: every row has a reader, fleet's being cn fleet", StubSurfaces)
 	}
 }
 
