@@ -78,12 +78,77 @@ func gitOK(git func(args ...string) (gitcmd.Ran, error), args ...string) (string
 	return ran.Stdout, nil
 }
 
+// coveredPaths are the paths a delivery commits: under a task's granular
+// automerge policy, those its allow terms cover file by file, naming
+// each one left out; otherwise all of them. Each committed path is named.
+func (c CodeWorker) coveredPaths(git func(args ...string) (gitcmd.Ran, error), t taskspec.Task, paths []string) []string {
+	policy := t.Decl["automerge"]
+	kept := paths
+	if mergepolicy.Normalize(policy).Kind == "rules" {
+		kept = nil
+		for _, p := range paths {
+			v := mergepolicy.Judge(policy, []mergepolicy.Entry{entryOf(git, c.Place.Root, p)}, c.Rules)
+			switch {
+			case len(v.Files) == 0:
+				// The policy itself is refused (an unknown rule), so
+				// nothing auto-merges and the pull request waits for a
+				// person: the path is committed for them to judge.
+				kept = append(kept, p)
+			case strings.HasPrefix(v.Files[0].Verdict, "covered:"):
+				kept = append(kept, p)
+			default:
+				c.Log("code-work changed " + p + ", which the policy " + mergepolicy.Expression(policy) + " does not cover (" + v.Files[0].Verdict + "); left out of the commit")
+			}
+		}
+	}
+	for _, p := range kept {
+		c.Log("code-work's change to commit: " + p)
+	}
+	return kept
+}
+
+// entryOf is path's change against the checkout's HEAD.
+func entryOf(git func(args ...string) (gitcmd.Ran, error), root, p string) mergepolicy.Entry {
+	e := mergepolicy.Entry{File: p}
+	if ran, err := git("show", "HEAD:"+p); err == nil && ran.Code == 0 {
+		before := ran.Stdout
+		e.Before = &before
+	}
+	if raw, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(p))); err == nil {
+		after := string(raw)
+		e.After = &after
+	}
+	return e
+}
+
+// symlinkAlong names the first symlink on rel's way down from root,
+// rel itself included, or "" when there is none.
+func symlinkAlong(root, rel string) string {
+	parts := strings.Split(rel, "/")
+	for i := range parts {
+		sub := strings.Join(parts[:i+1], "/")
+		fi, err := os.Lstat(filepath.Join(root, filepath.FromSlash(sub)))
+		if err != nil {
+			return ""
+		}
+		if fi.Mode()&os.ModeSymlink != 0 {
+			return sub
+		}
+	}
+	return ""
+}
+
 // deliverTree lands paths, read from the checkout at root, on target's
 // branch and answers the pull request it is on: none when the change
 // leaves the base branch's tree as it is.
 func deliverTree(sdk *SDK, root, base string, target Target, t taskspec.Task, item int, paths []string) (int, error) {
-	if target.Branch == "" || target.Branch == base {
-		return 0, fmt.Errorf("no branch of this task's own to deliver on (target %q)", target.Branch)
+	if target.Branch == "" || target.Branch == base || !strings.HasPrefix(target.Branch, BranchRoot+"/") || strings.HasPrefix(target.Branch, "refs/") {
+		return 0, fmt.Errorf("no branch of this task's own to deliver on (target %q, not under %s/)", target.Branch, BranchRoot)
+	}
+	for _, p := range paths {
+		if link := symlinkAlong(root, p); link != "" {
+			return 0, fmt.Errorf("code-work's change %s runs through the symlink %s, which is never delivered", p, link)
+		}
 	}
 	if sdk.GitHub == nil && target.PR == 0 {
 		return 0, errors.New("this run has no GitHub to open the pull request through")
@@ -106,6 +171,9 @@ func deliverTree(sdk *SDK, root, base string, target Target, t taskspec.Task, it
 	}
 	defer func() { _, _ = sdk.Git("worktree", "remove", "--force", tree) }()
 	for _, p := range paths {
+		if link := symlinkAlong(tree, p); link != "" {
+			return 0, fmt.Errorf("the base branch holds %s as a symlink, which a delivery never writes through", link)
+		}
 		src, dst := filepath.Join(root, filepath.FromSlash(p)), filepath.Join(tree, filepath.FromSlash(p))
 		raw, err := os.ReadFile(src)
 		switch {
@@ -154,7 +222,11 @@ func deliverTree(sdk *SDK, root, base string, target Target, t taskspec.Task, it
 			}
 		}
 	}
-	if _, err := gitOK(sdk.Git, "push", "--quiet", "--force", "origin", strings.TrimSpace(head)+":refs/heads/"+target.Branch); err != nil {
+	push := []string{"push", "--quiet", "--force", "origin", strings.TrimSpace(head) + ":refs/heads/" + target.Branch}
+	if why := pushRefusal(push, base); why != "" {
+		return 0, errors.New("the push is refused: " + why)
+	}
+	if _, err := gitOK(sdk.Git, push...); err != nil {
 		return 0, err
 	}
 	if target.PR != 0 {

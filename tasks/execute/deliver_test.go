@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/missingbulb/ClaudiniteEngine/shared/gitcmd"
+	"github.com/missingbulb/ClaudiniteEngine/shared/mergepolicy"
 	"github.com/missingbulb/ClaudiniteEngine/shared/taskspec"
 	"github.com/missingbulb/ClaudiniteEngine/shared/workitem"
 	"github.com/missingbulb/ClaudiniteEngine/tasks/runner"
@@ -231,6 +232,82 @@ export async function worker(params) {
 	}
 	if got := remoteFile(t, origin, branch, rosterPath); got != "two\n" {
 		t.Errorf("the branch holds %q", got)
+	}
+	clean(t, root)
+}
+
+// A shell code_work that fails leaves the shared checkout as it found it,
+// though it wrote its change before failing.
+func TestAFailedShellCodeWorkPutsTheCheckoutBack(t *testing.T) {
+	root, _ := checkout(t)
+	w := deliveringWorker(t, root, newSDKWorld(t))
+	w.Env["ROSTER"] = "one"
+	tk := shellTask(t, writeRoster+" && exit 1", map[string]any{"expected_outcome": "amend_existing_or_create_new_pr"})
+	if res := w.Run(tk, Work{Item: workitem.Issue{Number: 4}, Target: Target{Mode: ModeFresh, Branch: "claudinite/acme-pack/a/x"}}); res.OK {
+		t.Fatalf("%+v", res)
+	}
+	clean(t, root)
+}
+
+// The executor delivers only onto a branch under its own root, so an
+// amend target from a collaborator's pull request is never force-pushed.
+func TestAShellDeliveryRefusesABranchOutsideTheExecutorsRoot(t *testing.T) {
+	root, origin := checkout(t)
+	w := deliveringWorker(t, root, newSDKWorld(t))
+	w.Env["ROSTER"] = "one"
+	tk := shellTask(t, writeRoster, map[string]any{"expected_outcome": "amend_existing_or_create_new_pr"})
+	for _, branch := range []string{"feature/theirs", "claudinite", "refs/heads/main"} {
+		res := w.Run(tk, Work{Item: workitem.Issue{Number: 4}, Target: Target{Mode: ModeAmend, Branch: branch, PR: 9}})
+		if res.OK || res.DeliveredPR != 0 {
+			t.Errorf("%s: delivered %+v", branch, res)
+		}
+		if out, _ := exec.Command("git", "--git-dir", origin, "branch", "--list").Output(); strings.TrimSpace(string(out)) != "* main" && strings.TrimSpace(string(out)) != "main" {
+			t.Errorf("%s: origin holds %q", branch, out)
+		}
+		clean(t, root)
+	}
+}
+
+// Under a declared policy the commit carries only the paths its allow
+// terms cover; the rest are named and left out.
+func TestAShellDeliveryCommitsWhatThePolicyCovers(t *testing.T) {
+	root, origin := checkout(t)
+	var logged []string
+	w := deliveringWorker(t, root, newSDKWorld(t))
+	w.Log = func(s string) { logged = append(logged, s) }
+	w.Rules = mergepolicy.Compile([]mergepolicy.PackRules{{ID: "acme-pack", File: "merge-rules.json", Specs: []any{map[string]any{
+		"name": "acme-roster", "pathMatching": `/^\.claudinite\/fleet\/roster\.GENERATED\.json$/`, "changeKinds": []any{"added", "modified"}, "editShape": "any"}}}})
+	w.Env["ROSTER"] = "one"
+	branch := "claudinite/acme-pack/a/y"
+	tk := shellTask(t, writeRoster+` && echo stray > "$CLAUDINITE_REPO_ROOT/STRAY.md"`, map[string]any{"expected_outcome": "amend_existing_or_create_new_pr", "automerge": []any{"acme-roster"}})
+	res := w.Run(tk, Work{Item: workitem.Issue{Number: 4}, Target: Target{Mode: ModeFresh, Branch: branch}})
+	if !res.OK || res.DeliveredPR == 0 {
+		t.Fatalf("%+v", res)
+	}
+	out, _ := exec.Command("git", "--git-dir", origin, "diff", "--name-only", "main", branch).Output()
+	if string(out) != rosterPath+"\n" {
+		t.Errorf("the branch changes %q", out)
+	}
+	if !strings.Contains(strings.Join(logged, "\n"), "STRAY.md") {
+		t.Errorf("the left-out path is not named: %v", logged)
+	}
+	clean(t, root)
+}
+
+// A symlink in the change is refused, never followed out of the checkout.
+func TestAShellDeliveryRefusesASymlink(t *testing.T) {
+	root, origin := checkout(t)
+	secret := filepath.Join(t.TempDir(), "secret")
+	_ = os.WriteFile(secret, []byte("s3cret\n"), 0o644)
+	w := deliveringWorker(t, root, newSDKWorld(t))
+	w.Env["SECRET"] = secret
+	tk := shellTask(t, `mkdir -p "$CLAUDINITE_REPO_ROOT/.claudinite/fleet" && ln -s "$SECRET" "$CLAUDINITE_REPO_ROOT/`+rosterPath+`"`, map[string]any{"expected_outcome": "amend_existing_or_create_new_pr"})
+	res := w.Run(tk, Work{Item: workitem.Issue{Number: 4}, Target: Target{Mode: ModeFresh, Branch: "claudinite/acme-pack/a/z"}})
+	if res.OK || res.DeliveredPR != 0 || !strings.Contains(res.Detail, "symlink") {
+		t.Errorf("a symlink was delivered: %+v", res)
+	}
+	if out, _ := exec.Command("git", "--git-dir", origin, "branch", "--list", "claudinite/*").Output(); len(out) != 0 {
+		t.Errorf("pushed %q", out)
 	}
 	clean(t, root)
 }
