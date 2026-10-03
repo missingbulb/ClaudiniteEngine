@@ -152,9 +152,9 @@ func ParseParams(argv []string, params map[string]string) (Params, error) {
 	}
 	rawScan, ok := pick("scan-for-needed-packs", "SCAN_FOR_NEEDED_PACKS")
 	if !ok {
-		return Params{}, fmt.Errorf("scan_for_needed_packs was not sent. This parameter has no default: the weekly run " +
+		return Params{}, &Refusal{"scan_for_needed_packs was not sent. This parameter has no default: the weekly run " +
 			"sends `--scan-for-needed-packs=true` from task.json, and a forced run sends " +
-			"`--context \"SCAN_FOR_NEEDED_PACKS=false\"` when the item is created.")
+			"`--context \"SCAN_FOR_NEEDED_PACKS=false\"` when the item is created."}
 	}
 	scan, err := boolParam("scan_for_needed_packs", rawScan)
 	if err != nil {
@@ -163,9 +163,9 @@ func ParseParams(argv []string, params map[string]string) (Params, error) {
 	rawRepos, ok := pick("repos", "REPOS")
 	names := list(rawRepos)
 	if !ok || len(names) == 0 {
-		return Params{}, fmt.Errorf("repos was not sent. This parameter has no default: send `%s` for the whole "+
+		return Params{}, &Refusal{fmt.Sprintf("repos was not sent. This parameter has no default: send `%s` for the whole "+
 			"fleet (what the weekly run sends) or a space-separated list of repo names (bare `Name` or "+
-			"`owner/Name`). Space-separated, not comma-separated — the parameter bag splits keys on commas.", AllMembers)
+			"`owner/Name`). Space-separated, not comma-separated — the parameter bag splits keys on commas.", AllMembers)}
 	}
 	all := false
 	for _, n := range names {
@@ -187,8 +187,8 @@ func ParseParams(argv []string, params map[string]string) (Params, error) {
 		return Params{}, err
 	}
 	if !scan && len(addPacks) == 0 {
-		return Params{}, fmt.Errorf("this run would do nothing: scan_for_needed_packs is false and no packs were named. " +
-			"Send `ADD_PACKS=<pack-id> …` to force an addition, or `SCAN_FOR_NEEDED_PACKS=true` to sweep.")
+		return Params{}, &Refusal{"this run would do nothing: scan_for_needed_packs is false and no packs were named. " +
+			"Send `ADD_PACKS=<pack-id> …` to force an addition, or `SCAN_FOR_NEEDED_PACKS=true` to sweep."}
 	}
 	if len(addPacks) > 0 && all {
 		return Params{}, fmt.Errorf("forcing packs onto `%s` is refused — name the repos explicitly "+

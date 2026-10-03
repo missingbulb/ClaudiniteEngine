@@ -61,10 +61,10 @@ func TestAnAdoptionWriteTheAPIRefusedIsNotTaken(t *testing.T) {
 // The statuses GitHub answers a taken write with are taken.
 func TestAnAdoptionWriteTheAPITookIsAnAction(t *testing.T) {
 	gh := func(method, path string, _ any) (fleet.Response, error) {
-		switch {
-		case method == "GET":
+		switch method {
+		case "GET":
 			return fleet.Response{Status: 200, JSON: json.RawMessage(closedCompleted)}, nil
-		case method == "PATCH":
+		case "PATCH":
 			return fleet.Response{Status: 200, JSON: json.RawMessage(`{}`)}, nil
 		}
 		return fleet.Response{Status: 201, JSON: json.RawMessage(`{}`)}, nil

@@ -188,7 +188,7 @@ func member(gh fleet.GH, repo fleet.Repo, seeds []fleet.Seed, r *Report) error {
 	for _, s := range seeds {
 		e, declared := entryOf(m.Packs, s.ID)
 		vendored := false
-		if !(declared && (e.Config != nil || s.Config == nil)) {
+		if !declared || e.Config == nil && s.Config != nil {
 			if vendored, err = Vendored(gh, repo.FullName, s.ID); err != nil {
 				return err
 			}
