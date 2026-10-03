@@ -30,7 +30,7 @@ func fakeTarballs(t *testing.T, version string, names ...string) string {
 	return dist
 }
 
-var publishLine = regexp.MustCompile(`^dry-run: npm publish (\S+\.tgz) --access public --provenance false$`)
+var publishLine = regexp.MustCompile(`^dry-run: npm publish (\S+\.tgz) --access public --provenance false --tag latest$`)
 
 func publishLines(t *testing.T, out string) []string {
 	t.Helper()

@@ -94,7 +94,10 @@ token_refusal() {
 sort "$list" | while read -r _ name tgz; do
   # No provenance: the repository goes private, and npm attests only public
   # sources; the release key's manifest signature is what members verify.
-  line="npm publish $tgz --access public --provenance false"
+  # The tag is explicit: npm refuses to move latest implicitly onto a
+  # version semver sorts below the current one, and each channel is its own
+  # package, so latest is always this release.
+  line="npm publish $tgz --access public --provenance false --tag latest"
   if [ "$dry" = true ]; then
     echo "dry-run: $line"
     continue
