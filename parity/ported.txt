@@ -19,3 +19,4 @@ github-pages
 host-page
 leaflet
 macos
+web-speech

@@ -1,0 +1,16 @@
+{
+  "rules": "@../shared/packs/web-speech/RULES.md\n",
+  "mounts": [
+    "web-speech-io"
+  ],
+  "world": [
+    "mic-constraints-not-screen-capture src/a.js:2 block",
+    "mic-constraints-not-screen-capture src/a.js:2 block",
+    "mic-constraints-not-screen-capture src/a.js:6 block",
+    "mic-constraints-not-screen-capture src/a.js:8 block"
+  ],
+  "work": [],
+  "only": [
+    "mic-constraints-not-screen-capture"
+  ]
+}
