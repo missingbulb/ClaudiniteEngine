@@ -160,8 +160,10 @@ func TestTheFixtureIndexVerifiesAndNamesItsArchives(t *testing.T) {
 	if readme := string(mustVariant(t, "v1")["README.md"].Data); strings.Contains(readme, "Declared checks") || strings.Contains(readme, "Forced skill") || strings.Contains(readme, "**Judge**") || strings.Contains(readme, "SDK probes") || strings.Contains(readme, "**Tasks**") || !strings.Contains(readme, "**Skill**") {
 		t.Errorf("v1 README:\n%s", readme)
 	}
-	// v2 is the source itself: hello 1.4 as ClaudinitePacks publishes it.
+	// v2 is the source itself, as ClaudinitePacks publishes it, under
+	// v2's version.
 	source, _ := ReadPack(src)
+	source["RULES.md"] = File{Data: []byte(rulesHeading.ReplaceAllString(string(source["RULES.md"].Data), "# hello "+Labels["v2"]))}
 	for name, f := range mustVariant(t, "v2") {
 		if name != "pack.json" && string(source[name].Data) != string(f.Data) {
 			t.Errorf("v2 differs from the source in %s", name)
