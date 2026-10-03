@@ -129,6 +129,8 @@ type MinEngine struct{ v V }
 
 // ErrNodeEngine is a two-part minEngineVersion: the Node engine's own
 // version, which names no cn release.
+//
+// @legacy-tolerance advisory:pack-min-engine retire:#18
 var ErrNodeEngine = errors.New("names a Node engine version")
 
 // ParseMinEngineVersion reads a pack's minEngineVersion, <day>.<n>.<patch>

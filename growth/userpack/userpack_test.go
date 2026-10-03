@@ -199,3 +199,34 @@ func TestPrepareClonesTheStore(t *testing.T) {
 		t.Errorf("an unreachable store: %q", r.Line())
 	}
 }
+
+// GET /user's login is read only as a JSON string, as the Node step reads
+// it: a number that would pass as a login in lower case is refused.
+func TestReadLoginRefusesANonStringLogin(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, `{"login": 12345}`)
+	}))
+	t.Cleanup(srv.Close)
+	id := ReadLogin(func(k string) string {
+		return map[string]string{"GH_TOKEN": "good", "CLAUDINITE_GITHUB_USER_URL": srv.URL}[k]
+	}, http.DefaultClient)
+	if id.Login != "" || id.Error != `GH_TOKEN read back "12345", which is not a usable GitHub login` {
+		t.Errorf("identity %+v", id)
+	}
+}
+
+// The working tree is read first wherever the person's path exists in it;
+// a file there is no pack, and the store is not cloned to look past it.
+func TestPrepareClonesNothingPastAFileAtThePacksPath(t *testing.T) {
+	store := t.TempDir()
+	gitIn(t, store, "init", "-q")
+	put(t, store, "preferences/ariel/RULES.md", "- from the store\n")
+	gitIn(t, store, "add", "-A")
+	gitIn(t, store, "commit", "-q", "-m", "store")
+	repo := member(t, "        repo: acme/store\n")
+	put(t, repo, "preferences/ariel", "a file, not a pack\n")
+	r, _ := Prepare(repo, env(map[string]string{"GH_TOKEN": "good", "CLAUDINITE_GITHUB_USER_URL": github(t, "ariel"), "CLAUDINITE_USER_PACKS_CLONE_URL": "file://" + store}))
+	if r.Copied || read(repo, PackDir+"/RULES.md") != Placeholder {
+		t.Errorf("copied past a file at the pack's path: %q", r.Line())
+	}
+}
