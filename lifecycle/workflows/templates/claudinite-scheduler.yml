@@ -47,6 +47,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           CLAUDINITE_WAKE: ${{ inputs.wake }}
           CLAUDINITE_VARS: ${{ toJSON(vars) }}
+          FLEET_GITHUB_TOKEN: ${{ secrets.FLEET_GITHUB_TOKEN }}
         run: .claudinite/bin/cn schedule run
 
   drain:
