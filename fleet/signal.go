@@ -106,10 +106,8 @@ func nodeDeclaration(decl any, sm *SignalMember) {
 		default:
 			continue
 		}
-		id := raw
-		if bare, ok := strings.CutPrefix(raw, "local/"); ok {
-			id = bare
-		} else {
+		id, local := strings.CutPrefix(raw, "local/")
+		if !local {
 			id = workitem.CanonicalPackID(raw)
 		}
 		sm.ActivePacks = append(sm.ActivePacks, id)
