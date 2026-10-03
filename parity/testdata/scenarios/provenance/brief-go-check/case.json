@@ -1,0 +1,35 @@
+{
+  "remote": "https://github.com/acme/repo.git",
+  "why": "a check ported from a Node module to a Go check: cn reads the Go check as its carrier and follows it back to the module, where Node finds no carrier",
+  "commits": [
+    {
+      "message": "acme: the pack (#20)",
+      "files": {
+        "packs/acme/pack.json": "{\n  \"version\": \"1\",\n  \"ruleRoutingGuidance\": {\n    \"belongs\": \"widgets\",\n    \"excludes\": \"everything else\"\n  }\n}\n",
+        "packs/acme/RULES.md": "# acme\n",
+        "packs/acme/worldRules/acme-check.mjs": "export default [\n  { id: 'acme-check', description: 'a check', on_fail: 'advisory', check() { return []; } },\n];\n"
+      }
+    },
+    {
+      "message": "acme: the check in Go (#21)",
+      "files": {
+        "packs/acme/checks/acme_check.go": "package checks\n\nvar acmeCheck = Check{ID: \"acme-check\", Description: \"a check\"}\n",
+        "packs/acme/pack.json": "{\n  \"version\": \"2\",\n  \"ruleRoutingGuidance\": {\n    \"belongs\": \"widgets\",\n    \"excludes\": \"everything else\"\n  }\n}\n"
+      },
+      "remove": [
+        "packs/acme/worldRules"
+      ]
+    }
+  ],
+  "working": {
+    "packs/acme/provenance/acme-check.md": ""
+  },
+  "steps": [
+    {
+      "args": [
+        "brief",
+        "acme"
+      ]
+    }
+  ]
+}

@@ -82,10 +82,26 @@
 #            CLAUDINITE_PACKS_TREE (a ClaudinitePacks checkout, which this
 #            mode requires) and following its deploy to success.
 #
+# One more mode reads the real shelf and is never in the default set:
+#
+#   live-packs  a member declaring basics, git-github, claudinite-lifecycle,
+#            claudinite-tasks, claudinite-growth, node, python and aws-sam on
+#            the canary channel adopts them through the npx bootstrap from
+#            the real pack CDN and ClaudinitePacks' vendored branch, each
+#            index verified against the development roots this release
+#            embeds; its session loads them, check world runs their declared
+#            and Go checks silent and a planted aws-sam violation fires; cn
+#            update packs is up to date from both sources, from the branch
+#            alone with the CDN unreachable, and skips naming both serials
+#            when a local mirror of the branch is one release behind; every
+#            relevanceDetector the live catalog carries is accepted. Built
+#            at today's version when the release is older than the shelf's
+#            floor. CLAUDINITE_OFFLINE=1 skips it with a notice.
+#
 # The update, packs, adopt, tasks, license and growth modes give every member a GitHub-shaped
 # origin (url.<bare>.insteadOf), as the session's key request reads it.
 #
-#   release/rehearse.sh [--mode fresh|current|stale|update|packs|adopt|tasks|license|growth|fleet|dashboard]   (default: all eleven)
+#   release/rehearse.sh [--mode fresh|current|stale|update|packs|adopt|tasks|license|growth|fleet|dashboard|live-packs]   (default: the eleven offline modes)
 #
 # UPDATE_STEPS=4 stops the update mode after the landing and the session on
 # the landed version (release/hop.sh); the default, 11, runs every step.
@@ -103,15 +119,21 @@ export GOCACHE
 fail() { echo "rehearse: FAIL: $*" >&2; exit 1; }
 step() { echo "rehearse: $*"; }
 
-usage="usage: release/rehearse.sh [--mode fresh|current|stale|update|packs|adopt|tasks|license|growth|fleet|dashboard]"
+usage="usage: release/rehearse.sh [--mode fresh|current|stale|update|packs|adopt|tasks|license|growth|fleet|dashboard|live-packs]"
 modes="fresh current stale update packs adopt tasks license growth fleet dashboard"
 case $# in
   0) ;;
   2)
     [ "$1" = --mode ] || fail "$usage"
-    case $2 in fresh|current|stale|update|packs|adopt|tasks|license|growth|fleet|dashboard) modes=$2 ;; *) fail "unknown mode $2" ;; esac ;;
+    case $2 in fresh|current|stale|update|packs|adopt|tasks|license|growth|fleet|dashboard|live-packs) modes=$2 ;; *) fail "unknown mode $2" ;; esac ;;
   *) fail "$usage" ;;
 esac
+if [ "$modes" = live-packs ] && [ "${CLAUDINITE_OFFLINE:-}" = 1 ]; then
+  step "live-packs: skipped: CLAUDINITE_OFFLINE=1, and this mode reads the real pack CDN and ClaudinitePacks' vendored branch"
+  exit 0
+fi
+# The roots a real host is checked against, before any mode trusts a stub's.
+ca_base=${SSL_CERT_FILE:-/etc/ssl/certs/ca-certificates.crt}
 
 update_steps=${UPDATE_STEPS:-11}
 case $update_steps in 4|11) ;; *) fail "UPDATE_STEPS must be 4 or 11, not $update_steps" ;; esac
@@ -185,11 +207,26 @@ case " $modes " in
     ;;
 esac
 case " $modes " in
-  *" update "*|*" packs "*|*" adopt "*|*" tasks "*|*" license "*|*" growth "*|*" fleet "*)
+  *" update "*|*" packs "*|*" adopt "*|*" tasks "*|*" license "*|*" growth "*|*" fleet "*|*" live-packs "*)
     # The caller's dist stays as it was: sign a copy.
     dist1=$work/dist1
     cp -R "$DIST" "$dist1"
     DIST=$dist1 sh release/sign.sh > "$work/sign.out" 2>&1 || fail "signing $dist1: $(cat "$work/sign.out")"
+    ;;
+esac
+# live-packs runs alone, so dist2's slot is free for the build it needs
+# when this release predates the shelf's floor: a release's own day is
+# never older than the packs it ships beside.
+live_version=$version live_dist=$dist1
+case " $modes " in
+  *" live-packs "*)
+    day=$(go run ./cmd/cn version --day)
+    if [ "${version%%.*}" -lt "$day" ]; then
+      live_version=$day.1.0 live_dist=$dist2
+      step "live-packs: building $live_version into dist2/ from the same source, the shelf's floor being above $version"
+      DIST=$dist2 VERSION=$live_version PACKAGE=$package sh release/build.sh > "$work/build-live.out" || fail "build of $live_version: $(cat "$work/build-live.out")"
+      DIST=$dist2 sh release/sign.sh > "$work/sign.out" 2>&1 || fail "signing $live_version: $(cat "$work/sign.out")"
+    fi
     ;;
 esac
 printf '{}\n' > "$work/deprecations.json"
@@ -2147,7 +2184,131 @@ YAML
       unset GITHUB_API_URL NODE_EXTRA_CA_CERTS
       step "dashboard 7: publish-pages built the real pack on a cn manager, pushed index.html, the page's own modules and nothing else to gh-pages, and followed its deploy to success"
       ;;
+    live-packs)
+      live_packs="basics git-github claudinite-lifecycle claudinite-tasks claudinite-growth node python aws-sam"
+      step "live-packs: cn $live_version, signed with the development keys, against the real pack CDN and ClaudinitePacks' vendored branch"
+      # The real shelf: both sources at the engine's defaults.
+      unset CLAUDINITE_PACKS_CDN CLAUDINITE_PACKS_REPO
+      origin=$work/live-origin.git
+      git init -q --bare -b main "$origin"
+      start_ghstub "$origin"
+      start_licstub
+      cat "$ca_base" "$work/ca.pem" "$work/gh-ca.pem" "$work/lic-ca.pem" > "$work/cas.pem"
+      SSL_CERT_FILE=$work/cas.pem CURL_CA_BUNDLE=$work/cas.pem
+      GITHUB_REPOSITORY=acme/member CLAUDINITE_GITHUB_API=$gh GH_TOKEN=rehearsal-token
+      export SSL_CERT_FILE CURL_CA_BUNDLE GITHUB_REPOSITORY CLAUDINITE_GITHUB_API GH_TOKEN
+      actions_env
+      livejson() { node -e 'const st=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));process.stdout.write(String(eval(process.argv[2])))' "$1" "$2"; }
+
+      # The shelf as the branch holds it now: the catalog read in step 4,
+      # and the mirror step 3 rewinds.
+      mirror=$work/live-vendored.git
+      git clone -q --bare --single-branch -b vendored https://github.com/missingbulb/ClaudinitePacks "$mirror" || fail "live-packs: clone the vendored branch"
+      git --git-dir "$mirror" show vendored:catalog.json > "$work/live-catalog.json" || fail "live-packs: the branch holds no catalog.json"
+
+      name=${package#@claudinite/}
+      npx=$work/live-npx/node_modules
+      mkdir -p "$npx/@claudinite" "$npx/.bin"
+      cp -R "$live_dist/npm/$name/package" "$npx/$package"
+      chmod 0755 "$npx/$package/launch"
+      ln -s "../$package/launch" "$npx/.bin/cn"
+      member=$work/live-member
+      mkdir -p "$member" "$member-home" "$member-cache"
+      HOME=$member-home XDG_CACHE_HOME=$member-cache
+      export HOME XDG_CACHE_HOME
+      (cd "$member" && "$npx/.bin/cn" init --packs "$(echo "$live_packs" | tr ' ' ,)" --channel canary --package "$package" --repo "$member") \
+        > "$work/init.out" 2>&1 || fail "live-packs 1: init: $(cat "$work/init.out")"
+      for p in $live_packs; do
+        grep -q "$p: index serial [0-9]* from cdn" "$work/init.out" || fail "live-packs 1: $p was not read from the CDN: $(cat "$work/init.out")"
+        v=$(livejson "$member/.claudinite/shared/packs/$p/pack.json" st.version) || fail "live-packs 1: init vendored no $p"
+        [ "$(livejson "$work/live-catalog.json" 'st.packs.filter(e=>e.id==="'"$p"'"&&e.version==="'"$v"'").length')" -ge 1 ] \
+          || fail "live-packs 1: $p $v is not in the live catalog"
+      done
+      grep -qx '@.claudinite/flat/claudinite-rules.GENERATED.md' "$member/CLAUDE.md" || fail "live-packs 1: CLAUDE.md imports no rules index: $(cat "$member/CLAUDE.md")"
+      grep -q '^@../shared/packs/basics/RULES.md$' "$member/.claudinite/flat/claudinite-rules.GENERATED.md" || fail "live-packs 1: the rules index: $(cat "$member/.claudinite/flat/claudinite-rules.GENERATED.md")"
+      verify_out=$(cd "$member" && sh .claudinite/launch verify) || fail "live-packs 1: verify: $verify_out"
+      [ -z "$verify_out" ] || fail "live-packs 1: verify reported: $verify_out"
+      (cd "$member" && git init -q -b main && git add -A && git -c user.name=rehearse -c user.email=r@x -c commit.gpgsign=false commit -q -m adopt) \
+        || fail "live-packs 1: git setup"
+      github_origin "$origin"
+      (cd "$member" && git -c push.negotiate=false push -q origin main) || fail "live-packs 1: push"
+      n=$(find "$member/.claudinite/shared/packs" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')
+      step "live-packs 1: cn init through npx vendored $n packs from the CDN, each against its signed index, every version in the live catalog"
+
+      out=$(session_start) || fail "live-packs 2: SessionStart exited non-zero"
+      case $out in *"[cn] packs $n/$n loaded"*) ;; *) fail "live-packs 2: self-check line: $out" ;; esac
+      cn_member check build --wait > "$work/build.out" 2>&1 || fail "live-packs 2: check build: $(cat "$work/build.out")"
+      cn_member check world > "$work/world.out" 2>&1 || fail "live-packs 2: check world on the adopted tree: $(cat "$work/world.out")"
+      cn_member check list > "$work/list.out" 2>&1 || fail "live-packs 2: check list: $(cat "$work/list.out")"
+      grep -q 'handler-path' "$work/list.out" || fail "live-packs 2: check list names no aws-sam Go check: $(cat "$work/list.out")"
+      cat > "$member/template.yaml" <<'YAML'
+Resources:
+  Api:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handler.handler
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints:
+          - src/handler.ts
+YAML
+      (cd "$member" && git add template.yaml) || fail "live-packs 2: git add"
+      if cn_member check world > "$work/world.out" 2>&1; then fail "live-packs 2: check world passed a planted handler-path violation"; fi
+      grep -q 'handler-path' "$work/world.out" || fail "live-packs 2: check world failed without naming handler-path: $(cat "$work/world.out")"
+      (cd "$member" && git rm -q -f template.yaml) || fail "live-packs 2: git rm"
+      cn_member check world > "$work/world.out" 2>&1 || fail "live-packs 2: check world after the plant is gone: $(cat "$work/world.out")"
+      step "live-packs 2: SessionStart loads the $n packs; check world builds their Go checks, is silent on the tree and fires aws-sam's handler-path on a plant"
+
+      main_run success
+      update_live() {
+        cn_member update packs > "$work/update.out" 2> "$work/update.err" || fail "live-packs 3: update packs: $(cat "$work/update.out" "$work/update.err")"
+        verdict=$(sed -n '$p' "$work/update.out")
+        [ "$verdict" = "$1" ] || fail "live-packs 3: verdict '$verdict', want '$1': $(cat "$work/update.out" "$work/update.err")"
+      }
+      update_live "up to date"
+      grep -q 'basics: index serial [0-9]* from cdn (read: cdn serial [0-9]*, branch serial [0-9]*)' "$work/update.out" "$work/update.err" \
+        || fail "live-packs 3: the read names both sources: $(cat "$work/update.out" "$work/update.err")"
+      CLAUDINITE_PACKS_CDN=https://127.0.0.1:9
+      export CLAUDINITE_PACKS_CDN
+      update_live "up to date"
+      grep -q 'basics: index serial [0-9]* from branch' "$work/update.out" "$work/update.err" \
+        || fail "live-packs 3: with the CDN unreachable the branch did not answer: $(cat "$work/update.out" "$work/update.err")"
+      unset CLAUDINITE_PACKS_CDN
+      # The newest release commit that moved a declared pack's index,
+      # undone in the mirror: the branch is then one release behind the CDN
+      # for that pack.
+      paths=
+      for p in $live_packs; do paths="$paths $p/index.json"; done
+      # shellcheck disable=SC2086 # one pathspec per declared pack
+      moved=$(git --git-dir "$mirror" log -1 --format=%H vendored -- $paths)
+      [ -n "$moved" ] || fail "live-packs 3: no release on the branch moved a declared pack"
+      git --git-dir "$mirror" update-ref refs/heads/vendored "$moved^" || fail "live-packs 3: rewind the mirror"
+      CLAUDINITE_PACKS_REPO=$mirror
+      export CLAUDINITE_PACKS_REPO
+      cn_member update packs > "$work/update.out" 2> "$work/update.err" || fail "live-packs 3: update packs: $(cat "$work/update.out" "$work/update.err")"
+      verdict=$(sed -n '$p' "$work/update.out")
+      case $verdict in "skipped: pack index sources disagree (cdn serial "*", branch serial "*")") ;; *) fail "live-packs 3: a branch one release behind: '$verdict': $(cat "$work/update.err")" ;; esac
+      unset CLAUDINITE_PACKS_REPO
+      [ -z "$(cd "$member" && git status --porcelain)" ] || fail "live-packs 3: update packs left the checkout changed: $(cd "$member" && git status --porcelain)"
+      [ "$(gh_count 'st.pulls.length')" = 0 ] || fail "live-packs 3: a pull request was opened: $(gh_state)"
+      step "live-packs 3: cn update packs is up to date from both sources and from the branch alone; a branch one release behind is $verdict"
+
+      ids=$(livejson "$work/live-catalog.json" 'st.packs.map(e=>e.id+"@"+e.version).join(" ")')
+      checked=0
+      for e in $ids; do
+        livejson "$work/live-catalog.json" 'JSON.stringify({detector:st.packs.find(p=>p.id+"@"+p.version==="'"$e"'").relevanceDetector})' > "$work/detector.json"
+        cn_member fleet decide detector --world "$work/detector.json" > "$work/decide.out" 2>&1 || fail "live-packs 4: decide detector $e: $(cat "$work/decide.out")"
+        [ "$(tr -d ' \n' < "$work/decide.out")" = "[]" ] || fail "live-packs 4: $e's relevanceDetector is refused: $(cat "$work/decide.out")"
+        checked=$((checked + 1))
+      done
+      [ "$checked" -gt 0 ] || fail "live-packs 4: the live catalog lists no pack"
+      step "live-packs 4: every relevanceDetector in the live catalog ($checked rows) is accepted"
+      ;;
   esac
 done
 
-step "ok ($package $version, $pin)"
+case " $modes " in
+  *" live-packs "*) step "ok ($package $live_version, $(cat "$live_dist/manifest.integrity"))" ;;
+  *) step "ok ($package $version, $pin)" ;;
+esac

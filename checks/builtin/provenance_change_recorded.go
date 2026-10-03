@@ -144,7 +144,7 @@ func runProvenanceChangeRecorded(ctx *declared.Ctx, _ *transcript.Session) []fin
 		}
 		seen := map[string]bool{}
 		for _, c := range now.Checks {
-			id := provenance.ElementID(c.ID)
+			id := provenance.ElementOf(c)
 			if seen[id] || !touched[c.File] {
 				continue
 			}
@@ -256,7 +256,7 @@ func goneCarriers(b declared.Builtin, dir string, before, now provenance.Carrier
 	}
 	for _, c := range before.Checks {
 		if !nowChecks[c.ID] {
-			gone = append(gone, goneOne{provenance.ElementID(c.ID), "check " + c.ID})
+			gone = append(gone, goneOne{provenance.ElementOf(c), "check " + c.ID})
 		}
 	}
 	nowTasks := map[string]bool{}
@@ -278,7 +278,7 @@ func goneCarriers(b declared.Builtin, dir string, before, now provenance.Carrier
 		named[s] = true
 	}
 	for _, c := range now.Checks {
-		named[provenance.ElementID(c.ID)] = true
+		named[provenance.ElementOf(c)] = true
 	}
 	for t := range nowTasks {
 		named[t] = true

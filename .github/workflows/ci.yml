@@ -58,7 +58,7 @@ jobs:
           node-version: "22"
           package-manager-cache: false
       - run: go build -o "$RUNNER_TEMP/cn" ./cmd/cn
-      - run: go test ./parity -run 'Parity|Differential' -v
+      - run: go test ./parity -timeout 30m -run 'Parity|Differential' -v
         env:
           CLAUDINITE_NODE_ENGINE: ${{ github.workspace }}/claudinite-frozen
           CLAUDINITE_PARITY_TREES: ${{ github.workspace }}/claudinite-frozen:${{ github.workspace }}/parity/testdata/trees/planted

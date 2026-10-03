@@ -1,0 +1,19 @@
+{
+  "why": "no such pack",
+  "commits": [
+    {
+      "message": "empty",
+      "files": {
+        "x.txt": "x\n"
+      }
+    }
+  ],
+  "steps": [
+    {
+      "args": [
+        "brief",
+        "nope"
+      ]
+    }
+  ]
+}

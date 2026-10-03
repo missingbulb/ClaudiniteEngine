@@ -1,0 +1,91 @@
+{
+  "remote": "https://github.com/acme/repo.git",
+  "why": "every pending file of a pack: a rule reworded, a sweep set aside, a rule moved into a skill, a rule reworded in place, a declared check followed by its own declaration, a check listed before it was carried, a task, the manifest, a file with no carrier, the version rows claimed and orphaned, the README read as history",
+  "commits": [
+    {
+      "message": "acme: the pack (#10)\n\nThe first cut.\n\n\n\nRefs #5\nCo-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>",
+      "author": "123+acme@users.noreply.github.com",
+      "files": {
+        "packs/acme/pack.json": "{\n  \"version\": \"1\",\n  \"ruleRoutingGuidance\": {\n    \"belongs\": \"widgets\",\n    \"excludes\": \"everything else\"\n  }\n}\n",
+        "packs/acme/RULES.md": "# acme\n\n- **Writing a widget** — keep it small and name it for what it does. (writing-widget)\n- **Shipping a release**: tag it first. (shipping-release)\n- **Tidying the workspace** — clear stale branches, prune merged worktrees, delete scratch files and archive finished notes regularly. (tidying-workspace)\n",
+        "packs/acme/skills/guide/SKILL.md": "---\nname: guide\ndescription: Guidance for gadgets. Use when building one.\nmetadata:\n  body: guidelines\n---\n\n# guide\n\n- **Doing the first thing** — do it well. (doing-first-thing)\n",
+        "packs/acme/tasks/acme-task/task.json": "{\n  \"id\": \"acme-task\",\n  \"description\": \"d\",\n  \"trigger\": \"request\",\n  \"expected_outcome\": \"no_code_changes\"\n}\n",
+        "packs/acme/declared-checks.json": "[\n  {\"id\": \"acme-two\", \"description\": \"two\", \"on_fail\": \"advisory\", \"scanFiles\": \"*.md\"}\n]\n",
+        "packs/acme/README.md": "# acme\n\nThe widgets pack. It replaced the gadgets pack in 2026-06-30.\nKeep widgets small.\n\n## Checks\n\n| check | what |\n|---|---|\n| acme-one | the one |\n| acme-two | the two |\n\n## Why the widget rule reads small\n\nIt was kept as it was until #11, distilled from a review.\n",
+        "packs/acme/provenance/VERSIONS.md": "| version | date | change |\n|---|---|---|\n| 1 | 2026-07-01 | born (#10) |\n"
+      }
+    },
+    {
+      "message": "acme: reword the widget rule and add a check (#11)\n\nFixes #6 and Closes #7.\nCo-Authored-By: Claude <noreply@anthropic.com>\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+      "author": "456+helper@users.noreply.github.com",
+      "files": {
+        "packs/acme/RULES.md": "# acme\n\n- **Writing a widget** — keep it tiny and name it for what it does. (writing-widget)\n- **Shipping a release**: tag it first. (shipping-release)\n- **Tidying the workspace** — clear stale branches, prune merged worktrees, delete scratch files and archive finished notes regularly. (tidying-workspace)\n",
+        "packs/acme/declared-checks.json": "[\n  {\"id\": \"acme-two\", \"description\": \"two\", \"on_fail\": \"advisory\", \"scanFiles\": \"*.md\"},\n  {\"id\": \"acme-one\", \"description\": \"one\", \"on_fail\": \"blocking\", \"scanFiles\": \"*.txt\"}\n]\n"
+      }
+    },
+    {
+      "message": "sweep: rewrap every pack (#12)",
+      "files": {
+        "packs/acme/RULES.md": "# acme\n\n- **Writing a widget** — keep it tiny and name it for what it does. (writing-widget)\n- **Shipping a release**: tag it first, always. (shipping-release)\n- **Tidying the workspace** — clear stale branches, prune merged worktrees, delete scratch files and archive finished notes regularly. (tidying-workspace)\n",
+        "packs/b/x.md": "b\n",
+        "packs/c/x.md": "c\n",
+        "packs/d/x.md": "d\n",
+        "packs/e/x.md": "e\n"
+      }
+    },
+    {
+      "message": "acme: cut 2",
+      "files": {
+        "packs/acme/pack.json": "{\n  \"version\": \"2\",\n  \"ruleRoutingGuidance\": {\n    \"belongs\": \"widgets\",\n    \"excludes\": \"everything else\"\n  }\n}\n",
+        "packs/acme/provenance/VERSIONS.md": "| version | date | change |\n|---|---|---|\n| 1 | 2026-07-01 | born (#10) |\n| 2 | 2026-07-04 | a cut with no pull request |\n"
+      }
+    },
+    {
+      "message": "acme: tighten the second check (#13)\n\nline 1 of the long body\nline 2 of the long body\nline 3 of the long body\nline 4 of the long body\nline 5 of the long body\nline 6 of the long body\nline 7 of the long body\nline 8 of the long body\nline 9 of the long body\nline 10 of the long body\nline 11 of the long body\nline 12 of the long body\nline 13 of the long body\nline 14 of the long body\nline 15 of the long body\nline 16 of the long body\nline 17 of the long body\nline 18 of the long body\nline 19 of the long body\nline 20 of the long body\nline 21 of the long body\nline 22 of the long body\nline 23 of the long body\nline 24 of the long body\nline 25 of the long body\nline 26 of the long body\nline 27 of the long body\nline 28 of the long body\nline 29 of the long body\nline 30 of the long body\nline 31 of the long body\nline 32 of the long body\nline 33 of the long body\nline 34 of the long body\nline 35 of the long body\nline 36 of the long body\nline 37 of the long body\nline 38 of the long body\nline 39 of the long body\nline 40 of the long body\nline 41 of the long body\nline 42 of the long body\nline 43 of the long body\nline 44 of the long body\nline 45 of the long body\nline 46 of the long body\nline 47 of the long body\nline 48 of the long body\nline 49 of the long body\nline 50 of the long body\nline 51 of the long body\nline 52 of the long body\nline 53 of the long body\nline 54 of the long body\nline 55 of the long body\nline 56 of the long body\nline 57 of the long body\nline 58 of the long body\nline 59 of the long body\nline 60 of the long body\nline 61 of the long body\nline 62 of the long body",
+      "files": {
+        "packs/acme/declared-checks.json": "[\n  {\"id\": \"acme-two\", \"description\": \"two\", \"on_fail\": \"blocking\", \"scanFiles\": \"*.md\"},\n  {\"id\": \"acme-one\", \"description\": \"one\", \"on_fail\": \"blocking\", \"scanFiles\": \"*.txt\"}\n]\n"
+      }
+    },
+    {
+      "message": "acme: the release rule moves into the guide (#14)",
+      "files": {
+        "packs/acme/RULES.md": "# acme\n\n- **Writing a widget** — keep it tiny and name it for what it does. (writing-widget)\n- **Tidying the workspace** — clear stale branches, prune merged worktrees, delete scratch files and archive finished notes regularly. (tidying-workspace)\n",
+        "packs/acme/skills/guide/SKILL.md": "---\nname: guide\ndescription: Guidance for gadgets. Use when building one.\nmetadata:\n  body: guidelines\n---\n\n# guide\n\n- **Doing the first thing** — do it well. (doing-first-thing)\n- **Shipping a release** — tag it first, always. (shipping-release)\n"
+      }
+    },
+    {
+      "message": "acme: rewrite the tidying rule (#15)",
+      "files": {
+        "packs/acme/RULES.md": "# acme\n\n- **Writing a widget** — keep it tiny and name it for what it does. (writing-widget)\n- **Clearing stale state** — prune merged worktrees, clear stale branches, archive finished notes and delete scratch files every week. (clearing-stale-state)\n",
+        "packs/acme/pack.json": "{\n  \"version\": \"3\",\n  \"ruleRoutingGuidance\": {\n    \"belongs\": \"widgets\",\n    \"excludes\": \"everything else\"\n  }\n}\n",
+        "packs/acme/provenance/VERSIONS.md": "| version | date | change |\n|---|---|---|\n| 1 | 2026-07-01 | born (#10) |\n| 2 | 2026-07-04 | a cut with no pull request |\n| 3 | 2026-07-07 | the tidying rule rewritten (#15) |\n| 4 | 2026-07-08 | never landed here (#99) |\n"
+      }
+    },
+    {
+      "message": "elsewhere: unrelated (#16)",
+      "files": {
+        "other.txt": "x\n"
+      }
+    }
+  ],
+  "working": {
+    "packs/acme/provenance/writing-widget.md": "",
+    "packs/acme/provenance/shipping-release.md": "",
+    "packs/acme/provenance/clearing-stale-state.md": "",
+    "packs/acme/provenance/acme-two.md": "",
+    "packs/acme/provenance/acme-task.md": "",
+    "packs/acme/provenance/guide.md": "",
+    "packs/acme/provenance/_pack.md": "",
+    "packs/acme/provenance/doing-first-thing.md": "",
+    "packs/acme/provenance/ghost-element.md": "",
+    "packs/acme/provenance/acme-one.md": "## 2026-07-03 · born · converted from references.md (row 1)\n- **Mechanism:** check acme-one, in declared-checks.json.\n"
+  },
+  "steps": [
+    {
+      "args": [
+        "brief",
+        "acme"
+      ]
+    }
+  ]
+}

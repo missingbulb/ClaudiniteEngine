@@ -31,10 +31,14 @@ const (
 )
 
 // Kinds is the closed vocabulary of an entry's kind, and MechanismKinds
-// the kinds whose entry always carries Mechanism.
+// the kinds whose entry always carries Mechanism. The last three are the
+// shelf's own from its port onto cn: ported, an element's runtime moving
+// with its carrier unchanged; gate-changed, what decides when a task or
+// check runs; hardened, a guard made stricter (design record row 125).
 var (
 	Kinds = []string{"born", "reworded", "strengthened", "weakened", "split", "merged", "moved",
-		"converted", "trigger-changed", "policy-changed", "severity-changed", "scope-changed", "reaffirmed", "promoted", "retired"}
+		"converted", "trigger-changed", "policy-changed", "severity-changed", "scope-changed", "reaffirmed", "promoted", "retired",
+		"ported", "gate-changed", "hardened"}
 	MechanismKinds = []string{"born", "converted", "moved", "trigger-changed", "policy-changed", "severity-changed", "scope-changed"}
 	Fields         = []string{"Source", "Reason", "Actor", "Model", "Mechanism", "Rejected", "Retire when", "Landed"}
 )

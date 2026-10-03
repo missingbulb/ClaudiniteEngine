@@ -84,7 +84,7 @@ func TestTemplates(t *testing.T) {
 			if strings.Contains(l, "uses:") && !pinned.MatchString(l) {
 				t.Errorf("%s:%d: not pinned by SHA: %s", name, i+1, l)
 			}
-			if strings.Contains(l, "secrets.") && (name != "claudinite-executor.yml" || !strings.Contains(l, "CCR_ROUTINE_TOKEN: ${{ secrets.CCR_ROUTINE_TOKEN }}")) {
+			if strings.Contains(l, "secrets.") && !readsItsSecret(name, l) {
 				t.Errorf("%s:%d: reads a secret: %s", name, i+1, l)
 			}
 		}
@@ -109,10 +109,13 @@ func TestTemplates(t *testing.T) {
 	}
 	sched := string(tpl["claudinite-scheduler.yml"])
 	for _, w := range []string{"schedule:", "cron: \"" + CronPlaceholder + "\"", "wake:", "group: claudinite-scheduler-run", "cn schedule run", "cn schedule drain", "cn schedule report-failure",
-		"CLAUDINITE_WAKE: ${{ inputs.wake }}", "CLAUDINITE_VARS: ${{ toJSON(vars) }}", "pickable"} {
+		"CLAUDINITE_WAKE: ${{ inputs.wake }}", "CLAUDINITE_VARS: ${{ toJSON(vars) }}", "pickable", fleetToken} {
 		if !strings.Contains(sched, w) {
 			t.Errorf("claudinite-scheduler.yml lacks %q", w)
 		}
+	}
+	if run := sched[strings.Index(sched, "name: cn schedule run"):strings.Index(sched, "drain:")]; !strings.Contains(run, fleetToken) {
+		t.Error("cn schedule run, which collects the fleet signal, is not given FLEET_GITHUB_TOKEN")
 	}
 	exe := string(tpl["claudinite-executor.yml"])
 	for _, w := range []string{"types: [labeled]", "continuation_depth:", "timeout-minutes: 350", "CLAUDINITE_VARS: ${{ toJSON(vars) }}",
@@ -125,6 +128,20 @@ func TestTemplates(t *testing.T) {
 	if !strings.HasSuffix(strings.TrimRight(exe[:strings.Index(exe, SecretsMarker)+len(SecretsMarker)], " "), SecretsMarker) {
 		t.Error("the marker is a line of its own")
 	}
+}
+
+const fleetToken = "FLEET_GITHUB_TOKEN: ${{ secrets.FLEET_GITHUB_TOKEN }}"
+
+// A template reads only the secret its own steps need: the executor its
+// routine token, the scheduler run the fleet token its signal collects with.
+func readsItsSecret(name, line string) bool {
+	switch name {
+	case "claudinite-executor.yml":
+		return strings.Contains(line, "CCR_ROUTINE_TOKEN: ${{ secrets.CCR_ROUTINE_TOKEN }}")
+	case "claudinite-scheduler.yml":
+		return strings.Contains(line, fleetToken)
+	}
+	return false
 }
 
 // The task discovery reads the superseded workflow's path to let the

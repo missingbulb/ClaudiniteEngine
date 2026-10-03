@@ -8,6 +8,7 @@ import (
 
 	"github.com/missingbulb/ClaudiniteEngine/checks/declared"
 	"github.com/missingbulb/ClaudiniteEngine/shared/findings"
+	"github.com/missingbulb/ClaudiniteEngine/shared/provenance"
 	"github.com/missingbulb/ClaudiniteEngine/shared/transcript"
 )
 
@@ -103,11 +104,22 @@ func narration(ctx *declared.Ctx, b *declared.Builtin, docs []string) []findings
 	return out
 }
 
-// codedIDsIn are the rule ids the JavaScript modules directly in dir
-// declare, sorted: a pack's coded checks sit beside the prose they would
-// narrate.
+// codedIDsIn are the rule ids dir's coded checks declare, sorted: the
+// JavaScript modules directly in dir, and the Go package in dir/checks
+// (its _test.go files aside), sit beside the prose they would narrate.
 func codedIDsIn(ctx *declared.Ctx, dir string) []string {
 	seen := map[string]bool{}
+	var goSources []string
+	for _, f := range ctx.Files() {
+		if path.Dir(f) == dir+"/"+provenance.GoChecksDir && strings.HasSuffix(f, ".go") && !strings.HasSuffix(f, "_test.go") {
+			if text, ok := ctx.Read(f); ok {
+				goSources = append(goSources, text)
+			}
+		}
+	}
+	for _, id := range provenance.GoCheckIDs(goSources) {
+		seen[id] = true
+	}
 	for _, f := range ctx.Files() {
 		if path.Dir(f) != dir || !strings.HasSuffix(f, ".mjs") || strings.HasSuffix(f, "/pack.mjs") || strings.HasSuffix(f, ".test.mjs") {
 			continue

@@ -84,7 +84,13 @@ func AuditPack(packDir string, io IO) Audit {
 		name(s.Name, "skill "+s.Name, At{s.File, 0})
 	}
 	for _, ch := range c.Checks {
-		name(ElementID(ch.ID), "check "+ch.ID, At{ch.File, 0})
+		// The engine keeps its own checks' record: one names a pack's
+		// element where the pack keeps a file for it, and owes none.
+		if ch.File == EngineCarrierFile {
+			named[ElementOf(ch)] = true
+			continue
+		}
+		name(ElementOf(ch), "check "+ch.ID, At{ch.File, 0})
 	}
 	for _, t := range c.Tasks {
 		name(t.ID, "task "+t.ID, At{t.File, 0})

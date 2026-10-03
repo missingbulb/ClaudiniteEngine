@@ -1,8 +1,8 @@
 // Package provenance is the provenance verbs over the convention's reader
 // (shared/provenance): mark a pack onto it, append an entry, check a
-// pack, read one element's history, apply an edited brief, convert a
-// retired references doc, and reduce a file for promotion across a
-// repository boundary.
+// pack, read one element's history, write and apply a backfill brief,
+// convert a retired references doc, and reduce a file for promotion
+// across a repository boundary.
 package provenance
 
 import (
@@ -152,7 +152,11 @@ func Check(io WriteIO, git gitcmd.Repo, packs []string) ([]string, int) {
 			}
 		}
 		for _, ch := range c.Checks {
-			name(prov.ElementID(ch.ID), "check "+ch.ID)
+			if ch.File == prov.EngineCarrierFile {
+				name(prov.ElementOf(ch), "engine check "+ch.ID)
+				continue
+			}
+			name(prov.ElementOf(ch), "check "+ch.ID)
 		}
 		for _, t := range c.Tasks {
 			name(t.ID, "task "+t.ID)
@@ -371,7 +375,7 @@ func Changed(io WriteIO, git gitcmd.Repo, pack string) []string {
 	}
 	for _, c := range now.Checks {
 		if changed[c.File] {
-			out[prov.ElementID(c.ID)] = true
+			out[prov.ElementOf(c)] = true
 		}
 	}
 	for _, t := range now.Tasks {
@@ -452,7 +456,7 @@ func History(io WriteIO, git gitcmd.Repo, pack, element string) []string {
 		}
 	}
 	for _, ch := range c.Checks {
-		if prov.ElementID(ch.ID) == element {
+		if prov.ElementOf(ch) == element {
 			add(ch.File)
 		}
 	}
@@ -560,6 +564,7 @@ const Usage = `usage: cn provenance <command> …
   check <pack>|--all                     what each file is named by, and every fault
   append <pack> <element> [--kind K] [--date D] [--changed] [--backfill] < entry.md
   history <pack> <element>               one element's raw evidence from git, VERSIONS.md and the README
+  brief <pack> [<element>…]              the backfill brief: every pull request once, a draft entry per event
   apply <pack> <brief.md> [--backfill]   every entry fence of an edited brief, as one batch
   convert-references <pack>|--all        a references.md turned into entries, then deleted
   reduce <file> [--public]               a provenance file as it may cross into the canon
@@ -771,6 +776,13 @@ func Main(args []string, root string, stdin io.Reader, stdout, stderr io.Writer)
 			return 2
 		}
 		print(History(io, git, packs[0], positional[1]))
+		return 0
+	case "brief":
+		packs := packsFor()
+		if packs == nil {
+			return 2
+		}
+		print(Brief(io, git, packs[0], positional[1:]))
 		return 0
 	}
 	fmt.Fprintln(stderr, Usage)

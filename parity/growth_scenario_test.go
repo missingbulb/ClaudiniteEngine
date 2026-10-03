@@ -69,6 +69,8 @@ type GrowthCase struct {
 	Working map[string]string `json:"working,omitempty"`
 	Stdin   string            `json:"stdin,omitempty"`
 	Why     string            `json:"why,omitempty"`
+	// Remote is the origin URL the repo names, which nothing fetches.
+	Remote string `json:"remote,omitempty"`
 }
 
 // GrowthCommit is one commit of a provenance scenario's repo.
@@ -76,6 +78,8 @@ type GrowthCommit struct {
 	Message string            `json:"message"`
 	Files   map[string]string `json:"files"`
 	Remove  []string          `json:"remove,omitempty"`
+	// Author is the commit's author email, the parity identity's when "".
+	Author string `json:"author,omitempty"`
 }
 
 // GrowthRun is one command's answer.
@@ -599,7 +603,16 @@ func growthRepo(t *testing.T, c GrowthCase) (growthWorld, string, []string) {
 		if _, err := gitIn(repo, env, "add", "-A"); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := gitIn(repo, growthCommitEnv(env, i), "commit", "-q", "--allow-empty", "-m", cm.Message); err != nil {
+		cenv := growthCommitEnv(env, i)
+		if cm.Author != "" {
+			cenv = append(cenv, "GIT_AUTHOR_EMAIL="+cm.Author)
+		}
+		if _, err := gitIn(repo, cenv, "commit", "-q", "--allow-empty", "-m", cm.Message); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if c.Remote != "" {
+		if _, err := gitIn(repo, env, "remote", "add", "origin", c.Remote); err != nil {
 			t.Fatal(err)
 		}
 	}

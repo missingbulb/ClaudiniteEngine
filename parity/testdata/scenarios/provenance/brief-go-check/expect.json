@@ -1,0 +1,33 @@
+{
+  "runs": [
+    {
+      "exit": 0,
+      "stdout": "# packs/acme · backfill brief\n\n1 pending file · 0 pack-local commits · 0 sweeps\n\n## every commit that touched this pack\noldest first, each with the files it touched under the pack, the version row that claims it, and what it drafts below. a row reading NOTHING DRAFTED decided nothing, re-wrapped, or decided something no carrier's text shows - read its files before passing it\na commit touching 5 or more packs is marked \"sweep\": it goes on _pack.md where it changed the pack's shape, and on an element only where it decided something about that one - never where it merely re-wrapped it\n- #20 2026-07-01 acme: the pack · RULES.md, pack.json, worldRules/acme-check.mjs · NOTHING DRAFTED\n- #21 2026-07-02 acme: the check in Go · checks/acme_check.go, pack.json, worldRules/acme-check.mjs · NOTHING DRAFTED\n\n## no history found\ngit holds no commit for: acme-check (is the clone shallow?)\n",
+      "stderr": ""
+    }
+  ],
+  "branch": null,
+  "files": {
+    "packs/acme/RULES.md": "# acme\n",
+    "packs/acme/checks/acme_check.go": "package checks\n\nvar acmeCheck = Check{ID: \"acme-check\", Description: \"a check\"}\n",
+    "packs/acme/pack.json": "{\n  \"version\": \"2\",\n  \"ruleRoutingGuidance\": {\n    \"belongs\": \"widgets\",\n    \"excludes\": \"everything else\"\n  }\n}\n",
+    "packs/acme/provenance/acme-check.md": ""
+  },
+  "divergence": "record-126",
+  "cn": {
+    "runs": [
+      {
+        "exit": 0,
+        "stdout": "# packs/acme · backfill brief\n\n1 pending file · 2 pack-local commits · 0 sweeps\n\n## every commit that touched this pack\noldest first, each with the files it touched under the pack, the version row that claims it, and what it drafts below. a row reading NOTHING DRAFTED decided nothing, re-wrapped, or decided something no carrier's text shows - read its files before passing it\na commit touching 5 or more packs is marked \"sweep\": it goes on _pack.md where it changed the pack's shape, and on an element only where it decided something about that one - never where it merely re-wrapped it\n- #20 2026-07-01 acme: the pack · RULES.md, pack.json, worldRules/acme-check.mjs · acme-check (born)\n- #21 2026-07-02 acme: the check in Go · checks/acme_check.go, pack.json, worldRules/acme-check.mjs · acme-check (converted)\n\n## elements older than the carrier they sit in\nthe birth below is drafted at the EARLIER carrier the pickaxe found, and the commit that would otherwise have read as the birth is drafted as the move or conversion it is. verify each against the old path before trusting it - `git show \u003csha\u003e:\u003cold path\u003e`\n- acme-check: converted into packs/acme/checks/acme_check.go; carried by packs/acme/worldRules/acme-check.mjs from 2026-07-01 (435d6a50)\n\n## PR #20 · 2026-07-01 · acme: the pack\n- pack version 1\n- acme-check (born)\n\nthe defaults go under every entry below them; fill Source, Reason, Rejected and Retire when where the evidence carries them, there or on one entry; delete a draft the commit did not decide\n```entry-defaults\n- **Landed:** #20 · pack version 1.\n```\n```entry acme-check\n## 2026-07-01 · born · acme: the pack (#20)\n- **Mechanism:** check acme-check, in packs/acme/worldRules/acme-check.mjs.\n```\n\n## PR #21 · 2026-07-02 · acme: the check in Go\n- pack version 2\n- acme-check (converted)\n\nthe defaults go under every entry below them; fill Source, Reason, Rejected and Retire when where the evidence carries them, there or on one entry; delete a draft the commit did not decide\n```entry-defaults\n- **Landed:** #21 · pack version 2.\n```\n```entry acme-check\n## 2026-07-02 · converted · acme: the check in Go (#21)\n- **Mechanism:** check acme-check, in packs/acme/checks/acme_check.go. it was carried by\n  packs/acme/worldRules/acme-check.mjs until here; say why the carrier changed.\n```\n",
+        "stderr": ""
+      }
+    ],
+    "branch": null,
+    "files": {
+      "packs/acme/RULES.md": "# acme\n",
+      "packs/acme/checks/acme_check.go": "package checks\n\nvar acmeCheck = Check{ID: \"acme-check\", Description: \"a check\"}\n",
+      "packs/acme/pack.json": "{\n  \"version\": \"2\",\n  \"ruleRoutingGuidance\": {\n    \"belongs\": \"widgets\",\n    \"excludes\": \"everything else\"\n  }\n}\n",
+      "packs/acme/provenance/acme-check.md": ""
+    }
+  }
+}

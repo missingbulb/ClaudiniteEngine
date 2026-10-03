@@ -34,10 +34,17 @@ cases: the branch's files, bytes and commit subjects),
 `scenarios/session-end/*` (seven) and `scenarios/provenance/*` (33: `mark`,
 `append`, `check`, `history`). One scenario diverges:
 `provenance/mark-local-prefix`, record row 90 (cn resolves `local/<name>`,
-which Node's tool refused).
+which Node's tool refused). A second came later:
+`provenance/append-unknown-kind`, record row 125 (cn's kind vocabulary
+reads the shelf's `ported`, `gate-changed` and `hardened`). A third:
+`provenance/brief-go-check`, record row 126 (`brief` reads a pack's Go
+check as its carrier and follows it back to the module it was ported
+from, where Node's tool found no carrier at all).
 
-Phase 7 added `scenarios/provenance/*`'s maintainer verbs (thirteen more,
-46 in all: `reduce`, `apply`, `convert-references`) and
+Phase 7 added `scenarios/provenance/*`'s maintainer verbs (nineteen more,
+52 in all: `reduce`, `apply`, `convert-references` and `brief`, whose
+repos carry authors, an origin, a sweep, a moved rule, a rule reworded in
+place, a promoted pack and a declaration re-spelled to the same value) and
 `scenarios/pack-history/*` (three: the shelf, one pack, an earlier ref),
 where Node's `pack-versions.mjs` answers through `shims/pack-history.mjs`
 in `cn pack history --json`'s shape, and `scenarios/promote-scope/*`
@@ -48,6 +55,14 @@ set does, where Node dropped only `*.test.mjs`, and reads any dotted pack
 version, where Node read none below a date-anchored one.
 
 ## Divergences
+
+Scenarios face divergences: 1 of 282 fixtures.
+
+A coded scenario whose `cn` world findings differ on purpose carries
+`"divergence": "record-<row>"` and `cn`'s findings as `"cnWorld"`, its
+`world` staying the Node engine's: `coded-claudinite-canon-curation/pack-no-enforcement-narration-fires`
+is record row 124 (a pack's Go checks name its own rules, which the
+Node engine, reading `.mjs` alone, never saw).
 
 Growth face divergences: 0 of 57 fixtures.
 

@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/missingbulb/ClaudiniteEngine/shared/descriptor"
 	"github.com/missingbulb/ClaudiniteEngine/shared/skillfm"
@@ -156,6 +157,17 @@ type Carrier struct {
 	ID, File string
 	// Dir is a task's folder.
 	Dir string
+	// Element is a check's provenance element when it is not
+	// ElementID(ID); read it through ElementOf.
+	Element string
+}
+
+// ElementOf is the provenance element a check carrier names.
+func ElementOf(c Carrier) string {
+	if c.Element != "" {
+		return c.Element
+	}
+	return ElementID(c.ID)
 }
 
 // Carriers are every carrier of one pack.
@@ -188,7 +200,55 @@ var (
 	mjsShort   = regexp.MustCompile(`[{,]\s*id\s*[,}]`)
 	mjsFrom    = regexp.MustCompile(`\bfrom\s*['"](\.{1,2}/[^'"]+\.mjs)['"]`)
 	goID       = regexp.MustCompile(`\bID:\s*"([^"]+)"`)
+	// goRegistrar is a named function or a closure whose first parameter
+	// a check's ID field takes.
+	goRegistrar = regexp.MustCompile(`(?:\bfunc\s+(\w+)|\b(\w+)\s*:?=\s*func)\s*\(\s*(\w+)\b`)
 )
+
+// GoCheckIDs are the check ids one Go package's sources register, in the
+// order found: each ID: literal, and the first argument, a string literal,
+// of every call to a function or closure that passes its first parameter
+// to an ID field. A source is a file's text; the caller leaves _test.go
+// files out.
+func GoCheckIDs(sources []string) []string {
+	var out []string
+	add := func(id string) {
+		if !has(out, id) {
+			out = append(out, id)
+		}
+	}
+	var registrars []string
+	for _, src := range sources {
+		for _, m := range goID.FindAllStringSubmatch(src, -1) {
+			add(m[1])
+		}
+		for _, loc := range goRegistrar.FindAllStringSubmatchIndex(src, -1) {
+			name := ""
+			for _, g := range [][2]int{{loc[2], loc[3]}, {loc[4], loc[5]}} {
+				if g[0] >= 0 {
+					name = src[g[0]:g[1]]
+				}
+			}
+			param := src[loc[6]:loc[7]]
+			body := src[loc[1]:]
+			if next := strings.Index(body, "\nfunc "); next >= 0 {
+				body = body[:next]
+			}
+			if regexp.MustCompile(`\bID:\s*`+regexp.QuoteMeta(param)+`\s*[,}]`).MatchString(body) && !has(registrars, name) {
+				registrars = append(registrars, name)
+			}
+		}
+	}
+	for _, name := range registrars {
+		call := regexp.MustCompile(`\b` + regexp.QuoteMeta(name) + `\(\s*"([^"]+)"`)
+		for _, src := range sources {
+			for _, m := range call.FindAllStringSubmatch(src, -1) {
+				add(m[1])
+			}
+		}
+	}
+	return out
+}
 
 // checkIDsIn are the ids a Node rule module declares: each id: literal,
 // and a const id an object takes by shorthand.
@@ -320,14 +380,9 @@ func PackCarriers(packDir string, io IO) Carriers {
 			}
 		}
 	}
-	for _, f := range listFiles(io, packDir+"/"+GoChecksDir) {
-		if !strings.HasSuffix(f, ".go") || strings.HasSuffix(f, "_test.go") {
-			continue
-		}
-		p := packDir + "/" + GoChecksDir + "/" + f
-		for _, m := range goID.FindAllStringSubmatch(read(io, p), -1) {
-			c.Checks = append(c.Checks, Carrier{ID: m[1], File: p})
-		}
+	c.Checks = append(c.Checks, goChecks(packDir, io)...)
+	for _, id := range engineChecksOf(path.Base(packDir)) {
+		c.Checks = append(c.Checks, Carrier{ID: id, File: EngineCarrierFile})
 	}
 	for _, f := range declaredFiles {
 		for _, id := range declaredIDs(io, packDir+"/"+f) {
@@ -434,4 +489,64 @@ func PackDirsIn(files []string) []string {
 		}
 	}
 	return sortedKeys(dirs)
+}
+
+// goChecks are the checks a pack's Go package registers, each carried by
+// the file whose source names its id first. A check the Node engine
+// named <pack>/<id> keeps that element's file, <pack>-<id>.md, under the
+// flat id cn gives it (design record row 121).
+func goChecks(packDir string, io IO) []Carrier {
+	var files, sources []string
+	for _, f := range listFiles(io, packDir+"/"+GoChecksDir) {
+		if !strings.HasSuffix(f, ".go") || strings.HasSuffix(f, "_test.go") {
+			continue
+		}
+		p := packDir + "/" + GoChecksDir + "/" + f
+		files = append(files, p)
+		sources = append(sources, read(io, p))
+	}
+	pack := path.Base(packDir)
+	var out []Carrier
+	for _, id := range GoCheckIDs(sources) {
+		file := files[0]
+		for i, src := range sources {
+			if strings.Contains(src, `"`+id+`"`) {
+				file = files[i]
+				break
+			}
+		}
+		element := ElementID(id)
+		dir := packDir + "/" + Dir + "/"
+		if !io.Exists(dir+element+".md") && io.Exists(dir+pack+"-"+element+".md") {
+			element = pack + "-" + element
+		}
+		out = append(out, Carrier{ID: id, File: file, Element: element})
+	}
+	return out
+}
+
+// EngineCarrierFile stands for the file of a check the engine carries
+// for a folded pack.
+const EngineCarrierFile = "(engine built-in)"
+
+var (
+	engineMu     sync.Mutex
+	engineChecks = map[string][]string{}
+)
+
+// RegisterEngineCheck records a check the engine carries for the pack
+// named pack: a built-in names that pack's element as the pack's own
+// check would. The built-ins register theirs as they load.
+func RegisterEngineCheck(pack, id string) {
+	engineMu.Lock()
+	defer engineMu.Unlock()
+	if !has(engineChecks[pack], id) {
+		engineChecks[pack] = append(engineChecks[pack], id)
+	}
+}
+
+func engineChecksOf(pack string) []string {
+	engineMu.Lock()
+	defer engineMu.Unlock()
+	return append([]string(nil), engineChecks[pack]...)
 }

@@ -1,0 +1,43 @@
+# The first half of phase 7's gate: cn, built from this commit and signed with the development
+# keys, adopts, loads, checks and updates the real packs from the pack CDN and ClaudinitePacks'
+# vendored branch (release/rehearse.sh --mode live-packs). Nightly, since the shelf moves without
+# this repo; on every push to main; and on a pull request touching what reads the shelf.
+name: live-packs
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - "release/**"
+      - "lifecycle/packs/**"
+      - "lifecycle/adopt/**"
+      - "lifecycle/update/**"
+      - "shared/packindex/**"
+      - "shared/sign/**"
+      - ".github/workflows/live-packs.yml"
+  schedule:
+    - cron: "41 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: live-packs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  live-packs:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.24"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+      # Today's version, so the build meets every floor the shelf names.
+      - run: VERSION="$(go run ./cmd/cn version --day).1.0" release/build.sh
+      - run: release/rehearse.sh --mode live-packs
