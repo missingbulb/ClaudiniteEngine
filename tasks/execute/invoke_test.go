@@ -135,3 +135,27 @@ func TestTheGrantCommentCarriesTheMarkerAndTheWireForm(t *testing.T) {
 		t.Error("no marker")
 	}
 }
+
+// A routine's name is any key of the member's map, "default" only when the
+// task names none: a task naming "not-default" fires that routine with its
+// own token, and the default routine is never called.
+func TestATaskNamingARoutineFiresThatOneNotTheDefault(t *testing.T) {
+	srv, calls := routine(t, 200, `{"claude_code_session_id":"s-1"}`)
+	iv := Invoker{Repo: "o/r", HTTP: srv.Client(), Timeout: 5 * time.Second,
+		Endpoints: map[string]any{
+			"default":     map[string]any{"url": srv.URL + "/v1/claude_code/routines/trig_default"},
+			"not-default": map[string]any{"url": srv.URL + "/v1/claude_code/routines/trig_other", "tokenSecret": "OTHER_ROUTINE_TOKEN"},
+		},
+		Env: map[string]string{"CLAUDINITE_SECRETS": `{"CCR_ROUTINE_TOKEN":"sk-default","OTHER_ROUTINE_TOKEN":"sk-other"}`}}
+	inv := iv.Invoke(loopTask("a", map[string]any{"invocation_endpoint": "not-default"}), workitem.Issue{Number: 7}, "7-n")
+	if !inv.OK || len(*calls) != 1 {
+		t.Fatalf("%+v %+v", inv, *calls)
+	}
+	if c := (*calls)[0]; c.path != "/v1/claude_code/routines/trig_other/fire" || c.auth != "Bearer sk-other" {
+		t.Errorf("fired %+v, want the not-default routine with its own token", c)
+	}
+	inv = iv.Invoke(loopTask("b", nil), workitem.Issue{Number: 8}, "8-n")
+	if c := (*calls)[len(*calls)-1]; !inv.OK || c.path != "/v1/claude_code/routines/trig_default/fire" || c.auth != "Bearer sk-default" {
+		t.Errorf("a task naming no routine fired %+v, want the default", c)
+	}
+}
