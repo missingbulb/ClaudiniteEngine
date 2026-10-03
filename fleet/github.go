@@ -42,13 +42,14 @@ func NewGH(base, token string) GH {
 // Get is a GET.
 func (gh GH) Get(path string) (Response, error) { return gh("GET", path, nil) }
 
-// GrantError is a refusal the token's grant explains: the item parks
-// action (a person adds a scope), never failure.
+// GrantError is a refusal the token's grant explains: a person adds a
+// scope. The sweep prints the action marker for it, which the executor's
+// park comment names as the worker's own verdict.
 type GrantError struct{ Msg string }
 
 func (e *GrantError) Error() string { return e.Msg }
 
-// Triage is the needs-human lane a grant error parks in.
+// Triage is the marker's kind for a grant error.
 const Triage = "action"
 
 // IsGrant reports whether err is a grant error.
@@ -86,6 +87,23 @@ func Paged(gh GH, path string) ([]json.RawMessage, error) {
 			return all, nil
 		}
 	}
+}
+
+// Expect is one write that must answer want: a 403 is a grant error
+// carrying the hint for path, any other status an error naming it.
+func Expect(gh GH, method, path string, body any, want int) (Response, error) {
+	r, err := gh(method, path, body)
+	if err != nil {
+		return r, err
+	}
+	if r.Status == want {
+		return r, nil
+	}
+	msg := fmt.Sprintf("%s %s returned %d", method, path, r.Status)
+	if r.Status == 403 {
+		return r, &GrantError{msg + ForbiddenHint(path)}
+	}
+	return r, errors.New(msg)
 }
 
 // EnsureLabel creates a label in repo; 422 is "already exists".

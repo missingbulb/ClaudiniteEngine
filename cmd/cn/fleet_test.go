@@ -3,7 +3,9 @@ package main
 import (
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -76,5 +78,46 @@ func TestFleetTokenPrintsTheGrant(t *testing.T) {
 	out, _, code := runInProc([]string{"fleet", "token", "--sweep", "fleet-update"}, "")
 	if code != 0 || !strings.Contains(out, "FLEET_GITHUB_TOKEN must be granted: ") || !strings.Contains(out, "fleet-update uses: ") {
 		t.Fatalf("exit %d, out %q", code, out)
+	}
+}
+
+// The per-repo half answers only for the fleet's own owner: a repository
+// anywhere else is refused before anything of it is read.
+func TestFleetJudgeRefusesARepositoryOutsideTheOwner(t *testing.T) {
+	repo, calls := fleetManager(t)
+	t.Setenv("FLEET_GITHUB_TOKEN", "t")
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "")
+	writeFile(t, repo, ".claudinite/settings.yaml", "packs:\n  declared:\n    - id: claudinite-fleet-sheepdog\n      config:\n        owner: acme\n")
+	_, errOut, code := runInProc([]string{"fleet", "judge", "Other/x", "--repo", repo}, "")
+	if code != 1 || !strings.Contains(errOut, "other/x is not under the fleet's owner acme") || !strings.Contains(errOut, "[cn] fleet judge refused 0/1 ") {
+		t.Fatalf("exit %d, err %q", code, errOut)
+	}
+	if n := calls.Load(); n != 0 {
+		t.Errorf("judging a repository outside the owner made %d API calls", n)
+	}
+}
+
+func writeFile(t *testing.T, root, rel, text string) {
+	t.Helper()
+	p := filepath.Join(root, filepath.FromSlash(rel))
+	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(p, []byte(text), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// The executor carries a declared secret in its CLAUDINITE_SECRETS bag
+// as well as stamped into its env, so the fleet reader takes either.
+func TestTheFleetSignalReadsTheTokenFromTheSecretsBag(t *testing.T) {
+	t.Setenv("FLEET_GITHUB_TOKEN", "")
+	t.Setenv("CLAUDINITE_SECRETS", "")
+	if fleetSignal("acme/manager") != nil {
+		t.Fatal("a reader with no token anywhere")
+	}
+	t.Setenv("CLAUDINITE_SECRETS", `{"FLEET_GITHUB_TOKEN": "t"}`)
+	if fleetSignal("acme/manager") == nil {
+		t.Fatal("no reader with the token in the secrets bag")
 	}
 }

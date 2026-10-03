@@ -46,6 +46,30 @@
             "pull_request": {}
           }
         ]
+      },
+      "POST /repos/acme/manager/issues/4/comments": {
+        "status": 201,
+        "json": {}
+      },
+      "PATCH /repos/acme/manager/issues/4": {
+        "status": 200,
+        "json": {}
+      },
+      "POST /repos/acme/manager/issues/6/comments": {
+        "status": 201,
+        "json": {}
+      },
+      "PATCH /repos/acme/manager/issues/6": {
+        "status": 200,
+        "json": {}
+      },
+      "POST /repos/acme/manager/issues/8/comments": {
+        "status": 201,
+        "json": {}
+      },
+      "PATCH /repos/acme/manager/issues/8": {
+        "status": 200,
+        "json": {}
       }
     }
   },
@@ -58,7 +82,7 @@
     "calls": [
       [
         "GET",
-        "/repos/acme/manager/issues?labels=fleet-adoption\u0026state=all\u0026per_page=100\u0026page=1"
+        "/repos/acme/manager/issues?labels=fleet-adoption&state=all&per_page=100&page=1"
       ],
       [
         "POST",

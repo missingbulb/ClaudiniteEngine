@@ -118,6 +118,16 @@ func (r Report) Render() string {
 
 // Verdict is what fails the run, "" when the fleet is current: a dispatch
 // that never landed first, then a dispatched member not current.
+// Grant reports whether the token's grant explains any failure.
+func (r Report) Grant() bool {
+	for _, f := range r.Failed {
+		if f.Grant {
+			return true
+		}
+	}
+	return false
+}
+
 func (r Report) Verdict() string {
 	if len(r.Failed) > 0 {
 		var parts []string

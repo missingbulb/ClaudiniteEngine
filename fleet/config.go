@@ -32,6 +32,13 @@ type Config struct {
 	CanonRepoNamed bool
 }
 
+// Owns reports whether repo (lowercased owner/name) is under the fleet's
+// owner.
+func (c Config) Owns(repo string) bool {
+	owner, _, _ := strings.Cut(repo, "/")
+	return owner == c.Owner
+}
+
 // Excluded reports whether repo (lowercased owner/name) is on the list.
 func (c Config) Excluded(repo string) bool {
 	for _, e := range c.Exclude {

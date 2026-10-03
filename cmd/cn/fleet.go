@@ -24,6 +24,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/shared/packindex"
 	"github.com/missingbulb/ClaudiniteEngine/shared/report"
 	"github.com/missingbulb/ClaudiniteEngine/shared/settings"
+	"github.com/missingbulb/ClaudiniteEngine/tasks/execute"
 )
 
 func cmdFleet(args []string, stdout, stderr io.Writer, start time.Time) error {
@@ -111,8 +112,8 @@ type sweep struct {
 	closer func()
 }
 
-// sweepFailed prints a failure; a grant error also prints the marker the
-// executor parks the item action on.
+// failed prints a failure; a grant error also prints the action marker,
+// which the executor's park comment names as the worker's verdict.
 func (s *sweep) failed(err error) error {
 	fmt.Fprintf(s.stderr, "%s failed: %s\n", s.name, err.Error())
 	if fleet.IsGrant(err) {
@@ -426,10 +427,8 @@ func fleetUpdate(args []string, stdout, stderr io.Writer, start time.Time) error
 			outcome = "error"
 		}
 		s.crumb("update", outcome, current, len(fired))
-		for _, f := range failed {
-			if f.State == "no-permission" {
-				return s.failed(&fleet.GrantError{Msg: v})
-			}
+		if rep.Grant() {
+			return s.failed(&fleet.GrantError{Msg: v})
 		}
 		return s.failed(errors.New(v))
 	}
@@ -456,6 +455,11 @@ func fleetJudge(args []string, stdout, stderr io.Writer, start time.Time) error 
 		return err
 	}
 	defer s.closer()
+	if !s.cfg.Owns(strings.ToLower(target)) {
+		fmt.Fprintf(stderr, "fleet judge refused: %s is not under the fleet's owner %s — the fleet reaches no other\n", strings.ToLower(target), s.cfg.Owner)
+		s.crumb("judge", "refused", 0, 1)
+		return report.Said(report.IO)
+	}
 	r, err := fleet.ReadRepo(s.gh, target)
 	if err != nil {
 		s.crumb("judge", "error", 0, 1)
@@ -495,9 +499,11 @@ func fleetJudge(args []string, stdout, stderr io.Writer, start time.Time) error 
 }
 
 // fleetSignal is the collector's fleet reader when FLEET_GITHUB_TOKEN is
-// in the env, over the run's own repo owner; nil without it.
+// in the env or the executor's secrets bag, over the run's own repo
+// owner; nil without it.
 func fleetSignal(repo string) func(sinceISO string) (any, error) {
-	token := os.Getenv(fleet.TokenEnv)
+	token, _ := execute.Secret(fleet.TokenEnv, map[string]string{
+		fleet.TokenEnv: os.Getenv(fleet.TokenEnv), execute.SecretsBagEnv: os.Getenv(execute.SecretsBagEnv)})
 	owner, _, ok := strings.Cut(repo, "/")
 	if token == "" || !ok {
 		return nil

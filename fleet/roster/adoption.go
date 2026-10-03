@@ -80,11 +80,11 @@ func ConvergeAdoption(gh fleet.GH, home string, uncovered, covered, ignored []st
 			continue
 		}
 		if prior != nil {
-			if _, err := gh("PATCH", fmt.Sprintf("/repos/%s/issues/%d", home, prior.Number), map[string]any{"state": "open"}); err != nil {
+			if _, err := fleet.Expect(gh, "PATCH", fmt.Sprintf("/repos/%s/issues/%d", home, prior.Number), map[string]any{"state": "open"}, 200); err != nil {
 				return actions, err
 			}
-			if _, err := gh("POST", fmt.Sprintf("/repos/%s/issues/%d/comments", home, prior.Number),
-				map[string]any{"body": "Reopened by the roster sweep: `" + repo + "` is still uncovered."}); err != nil {
+			if _, err := fleet.Expect(gh, "POST", fmt.Sprintf("/repos/%s/issues/%d/comments", home, prior.Number),
+				map[string]any{"body": "Reopened by the roster sweep: `" + repo + "` is still uncovered."}, 201); err != nil {
 				return actions, err
 			}
 			actions = append(actions, fmt.Sprintf("reopened #%d (%s)", prior.Number, repo))
@@ -128,11 +128,11 @@ func ConvergeAdoption(gh fleet.GH, home string, uncovered, covered, ignored []st
 		default:
 			continue
 		}
-		if _, err := gh("POST", fmt.Sprintf("/repos/%s/issues/%d/comments", home, issue.Number),
-			map[string]any{"body": "Closed by the roster sweep: `" + m[1] + "` " + note + "."}); err != nil {
+		if _, err := fleet.Expect(gh, "POST", fmt.Sprintf("/repos/%s/issues/%d/comments", home, issue.Number),
+			map[string]any{"body": "Closed by the roster sweep: `" + m[1] + "` " + note + "."}, 201); err != nil {
 			return actions, err
 		}
-		if _, err := gh("PATCH", fmt.Sprintf("/repos/%s/issues/%d", home, issue.Number), map[string]any{"state": "closed", "state_reason": why}); err != nil {
+		if _, err := fleet.Expect(gh, "PATCH", fmt.Sprintf("/repos/%s/issues/%d", home, issue.Number), map[string]any{"state": "closed", "state_reason": why}, 200); err != nil {
 			return actions, err
 		}
 		actions = append(actions, fmt.Sprintf("closed #%d (%s: %s)", issue.Number, m[1], note))
