@@ -1,0 +1,31 @@
+{
+  "input": {
+    "kind": "verdict",
+    "args": {
+      "fired": [
+        {
+          "fullName": "acme/a",
+          "state": "fired"
+        },
+        {
+          "fullName": "acme/b",
+          "state": "fired"
+        }
+      ],
+      "followed": [
+        {
+          "fullName": "acme/a",
+          "outcome": "updated",
+          "detail": "engine v61002.1, 0 declared pack(s) at canon versions"
+        },
+        {
+          "fullName": "acme/b",
+          "outcome": "already-current",
+          "detail": "engine v61002.1, 0 declared pack(s) at canon versions"
+        }
+      ],
+      "failed": []
+    }
+  },
+  "expect": null
+}

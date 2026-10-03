@@ -1,0 +1,65 @@
+{
+  "input": {
+    "roster": [
+      {
+        "fullName": "acme/claudinite",
+        "displayName": "acme/claudinite",
+        "isHome": false,
+        "isCanon": true,
+        "archived": false,
+        "fork": false,
+        "excluded": false,
+        "declaration": {
+          "packs": []
+        },
+        "declarationError": null,
+        "dormant": false,
+        "freshness": null,
+        "freshnessError": null
+      }
+    ]
+  },
+  "expect": {
+    "coverage": {
+      "covered": [
+        "acme/claudinite"
+      ],
+      "dormant": [],
+      "ignored": [],
+      "skipped": [],
+      "uncovered": [],
+      "unknown": []
+    },
+    "freshness": {
+      "dormant": [],
+      "fresh": [],
+      "ignored": [],
+      "outOfScope": [],
+      "unhealthy": [],
+      "unknown": []
+    }
+  },
+  "divergence": "record-94",
+  "cn": {
+    "coverage": {
+      "covered": [
+        "acme/claudinite"
+      ],
+      "dormant": [],
+      "uncovered": [],
+      "ignored": [],
+      "skipped": [],
+      "unknown": []
+    },
+    "freshness": {
+      "fresh": [],
+      "unhealthy": [],
+      "dormant": [],
+      "ignored": [],
+      "outOfScope": [],
+      "unknown": [
+        "acme/claudinite — not measured"
+      ]
+    }
+  }
+}

@@ -1,0 +1,75 @@
+{
+  "input": {
+    "canonEngine": "61002.1",
+    "startedAt": "2026-10-01T00:01:00Z",
+    "budgetMs": 200000,
+    "members": [
+      {
+        "fullName": "acme/z",
+        "firedAt": "2026-10-01T00:00:00Z",
+        "wasFresh": false
+      },
+      {
+        "fullName": "acme/a",
+        "firedAt": "2026-10-01T00:00:00Z",
+        "wasFresh": false
+      },
+      {
+        "fullName": "acme/m",
+        "firedAt": "2026-10-01T00:00:00Z",
+        "wasFresh": true
+      }
+    ],
+    "script": {
+      "acme/z": [
+        {
+          "engine": "61001.1"
+        },
+        {
+          "engine": "61002.1"
+        }
+      ],
+      "acme/a": [
+        {
+          "engine": "61002.1"
+        }
+      ],
+      "acme/m": [
+        {
+          "engine": "61002.1"
+        }
+      ]
+    },
+    "runs": {}
+  },
+  "expect": {
+    "followed": [
+      {
+        "fullName": "acme/z",
+        "outcome": "updated"
+      },
+      {
+        "fullName": "acme/a",
+        "outcome": "updated"
+      },
+      {
+        "fullName": "acme/m",
+        "outcome": "already-current"
+      }
+    ],
+    "logs": [
+      "- 2/3 current; still following acme/z"
+    ],
+    "pollDelays": [
+      15000,
+      30000,
+      45000,
+      60000,
+      60000,
+      60000
+    ],
+    "sleeps": [
+      15000
+    ]
+  }
+}

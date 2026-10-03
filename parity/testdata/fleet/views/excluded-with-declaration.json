@@ -1,0 +1,44 @@
+{
+  "input": {
+    "roster": [
+      {
+        "fullName": "acme/x",
+        "displayName": "acme/x",
+        "isHome": false,
+        "isCanon": false,
+        "archived": false,
+        "fork": false,
+        "excluded": true,
+        "declaration": {
+          "packs": []
+        },
+        "declarationError": null,
+        "dormant": false,
+        "freshness": null,
+        "freshnessError": null
+      }
+    ]
+  },
+  "expect": {
+    "coverage": {
+      "covered": [],
+      "dormant": [],
+      "ignored": [
+        "acme/x"
+      ],
+      "skipped": [],
+      "uncovered": [],
+      "unknown": []
+    },
+    "freshness": {
+      "dormant": [],
+      "fresh": [],
+      "ignored": [
+        "acme/x"
+      ],
+      "outOfScope": [],
+      "unhealthy": [],
+      "unknown": []
+    }
+  }
+}

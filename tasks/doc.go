@@ -31,6 +31,10 @@
 //     executor decides; a task-local term at a tick files open the same way.
 //     schedule.TestAnUnreadableSignalFailsOpen,
 //     schedule.TestATaskLocalTermAtATickFilesOpen
+//   - A task over the fleet signal fails open on Node's sentence when the
+//     run holds no FLEET_GITHUB_TOKEN, and asks the reader when it does.
+//     schedule.TestAFleetTaskWithoutTheTokenFailsOpenOnNodesSentence,
+//     schedule.TestAFleetTaskWithTheTokenAsksTheReader
 //   - A second live unqualified item of one task is closed obsolete, the
 //     oldest kept. schedule.TestADuplicateStandingItemSelfHeals
 //   - Readiness has one site, the scheduler run: a blocked item is readied

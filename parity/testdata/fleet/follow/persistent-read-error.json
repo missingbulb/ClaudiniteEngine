@@ -1,0 +1,66 @@
+{
+  "input": {
+    "canonEngine": "61002.1",
+    "startedAt": "2026-10-01T00:01:00Z",
+    "budgetMs": 50000,
+    "members": [
+      {
+        "fullName": "acme/a",
+        "firedAt": "2026-10-01T00:00:00Z",
+        "wasFresh": false
+      },
+      {
+        "fullName": "acme/b",
+        "firedAt": "2026-10-01T00:00:00Z",
+        "wasFresh": false
+      }
+    ],
+    "script": {
+      "acme/a": [
+        {
+          "error": "acme/a:.claudinite-settings.json returned 502"
+        }
+      ],
+      "acme/b": [
+        {
+          "error": "transient"
+        },
+        {
+          "engine": "61002.1"
+        }
+      ]
+    },
+    "runs": {}
+  },
+  "expect": {
+    "followed": [
+      {
+        "detail": "could not be read: acme/a:.claudinite-settings.json returned 502",
+        "fullName": "acme/a",
+        "outcome": "unknown"
+      },
+      {
+        "fullName": "acme/b",
+        "outcome": "updated"
+      }
+    ],
+    "logs": [
+      "- 0/2 current; still following acme/a, acme/b",
+      "- 1/2 current; still following acme/a",
+      "- 1/2 current; still following acme/a"
+    ],
+    "pollDelays": [
+      15000,
+      30000,
+      45000,
+      60000,
+      60000,
+      60000
+    ],
+    "sleeps": [
+      15000,
+      30000,
+      5000
+    ]
+  }
+}

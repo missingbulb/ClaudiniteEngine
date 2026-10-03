@@ -1,0 +1,26 @@
+{
+  "input": {
+    "hasScheduler": true,
+    "installed": {
+      "engineVersion": "61002.1",
+      "packVersions": {
+        "basics": "latest"
+      }
+    },
+    "canon": {
+      "engineVersion": "61002.1",
+      "packVersions": {
+        "basics": "61002.3"
+      }
+    }
+  },
+  "expect": {
+    "detail": "engine v61002.1, 1 declared pack(s) at canon versions",
+    "state": "fresh"
+  },
+  "divergence": "record-94",
+  "cn": {
+    "state": "fresh",
+    "detail": "engine 61002.1.0, 1 declared pack(s) at the published versions"
+  }
+}

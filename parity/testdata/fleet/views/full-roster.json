@@ -1,0 +1,267 @@
+{
+  "input": {
+    "roster": [
+      {
+        "fullName": "acme/manager",
+        "displayName": "acme/manager",
+        "isHome": true,
+        "isCanon": false,
+        "archived": false,
+        "fork": false,
+        "excluded": false,
+        "declaration": {
+          "packs": []
+        },
+        "declarationError": null,
+        "dormant": false,
+        "freshness": null,
+        "freshnessError": null
+      },
+      {
+        "fullName": "acme/ignored",
+        "displayName": "acme/ignored",
+        "isHome": false,
+        "isCanon": false,
+        "archived": false,
+        "fork": false,
+        "excluded": true,
+        "declaration": null,
+        "declarationError": null,
+        "dormant": false,
+        "freshness": null,
+        "freshnessError": null
+      },
+      {
+        "fullName": "acme/old",
+        "displayName": "acme/Old",
+        "isHome": false,
+        "isCanon": false,
+        "archived": true,
+        "fork": false,
+        "excluded": false,
+        "declaration": null,
+        "declarationError": null,
+        "dormant": false,
+        "freshness": null,
+        "freshnessError": null
+      },
+      {
+        "fullName": "acme/forked",
+        "displayName": "acme/forked",
+        "isHome": false,
+        "isCanon": false,
+        "archived": false,
+        "fork": true,
+        "excluded": false,
+        "declaration": null,
+        "declarationError": null,
+        "dormant": false,
+        "freshness": null,
+        "freshnessError": null
+      },
+      {
+        "fullName": "acme/broken",
+        "displayName": "acme/broken",
+        "isHome": false,
+        "isCanon": false,
+        "archived": false,
+        "fork": false,
+        "excluded": false,
+        "declaration": null,
+        "declarationError": "unparsable .claudinite-settings.json: Unexpected token",
+        "dormant": false,
+        "freshness": null,
+        "freshnessError": null
+      },
+      {
+        "fullName": "acme/uncovered",
+        "displayName": "acme/uncovered",
+        "isHome": false,
+        "isCanon": false,
+        "archived": false,
+        "fork": false,
+        "excluded": false,
+        "declaration": null,
+        "declarationError": null,
+        "dormant": false,
+        "freshness": null,
+        "freshnessError": null
+      },
+      {
+        "fullName": "acme/dormant",
+        "displayName": "acme/dormant",
+        "isHome": false,
+        "isCanon": false,
+        "archived": false,
+        "fork": false,
+        "excluded": false,
+        "declaration": {
+          "packs": []
+        },
+        "declarationError": null,
+        "dormant": true,
+        "freshness": null,
+        "freshnessError": null
+      },
+      {
+        "fullName": "acme/probe",
+        "displayName": "acme/probe",
+        "isHome": false,
+        "isCanon": false,
+        "archived": false,
+        "fork": false,
+        "excluded": false,
+        "declaration": {
+          "packs": []
+        },
+        "declarationError": null,
+        "dormant": false,
+        "freshness": null,
+        "freshnessError": "claudinite-scheduler.yml check returned 500"
+      },
+      {
+        "fullName": "acme/current",
+        "displayName": "acme/current",
+        "isHome": false,
+        "isCanon": false,
+        "archived": false,
+        "fork": false,
+        "excluded": false,
+        "declaration": {
+          "packs": []
+        },
+        "declarationError": null,
+        "dormant": false,
+        "freshness": {
+          "state": "fresh",
+          "detail": "engine v61002.1, 1 declared pack(s) at canon versions"
+        },
+        "freshnessError": null
+      },
+      {
+        "fullName": "acme/behind",
+        "displayName": "acme/behind",
+        "isHome": false,
+        "isCanon": false,
+        "archived": false,
+        "fork": false,
+        "excluded": false,
+        "declaration": {
+          "packs": []
+        },
+        "declarationError": null,
+        "dormant": false,
+        "freshness": {
+          "state": "behind",
+          "detail": "behind canon by engine v61001.1 → v61002.1"
+        },
+        "freshnessError": null
+      },
+      {
+        "fullName": "acme/nosched",
+        "displayName": "acme/nosched",
+        "isHome": false,
+        "isCanon": false,
+        "archived": false,
+        "fork": false,
+        "excluded": false,
+        "declaration": {
+          "packs": []
+        },
+        "declarationError": null,
+        "dormant": false,
+        "freshness": {
+          "state": "no-scheduler",
+          "detail": "no cron"
+        },
+        "freshnessError": null
+      },
+      {
+        "fullName": "acme/nostamp",
+        "displayName": "acme/nostamp",
+        "isHome": false,
+        "isCanon": false,
+        "archived": false,
+        "fork": false,
+        "excluded": false,
+        "declaration": {
+          "packs": []
+        },
+        "declarationError": null,
+        "dormant": false,
+        "freshness": {
+          "state": "no-stamp",
+          "detail": "never vendored"
+        },
+        "freshnessError": null
+      }
+    ]
+  },
+  "expect": {
+    "coverage": {
+      "covered": [
+        "acme/probe",
+        "acme/current",
+        "acme/behind",
+        "acme/nosched",
+        "acme/nostamp"
+      ],
+      "dormant": [
+        "acme/dormant"
+      ],
+      "ignored": [
+        "acme/ignored"
+      ],
+      "skipped": [
+        "acme/Old (archived)",
+        "acme/forked (fork)"
+      ],
+      "uncovered": [
+        "acme/uncovered"
+      ],
+      "unknown": [
+        "acme/broken — unparsable .claudinite-settings.json: Unexpected token"
+      ]
+    },
+    "freshness": {
+      "dormant": [
+        "acme/dormant"
+      ],
+      "fresh": [
+        {
+          "detail": "engine v61002.1, 1 declared pack(s) at canon versions",
+          "fullName": "acme/current"
+        }
+      ],
+      "ignored": [
+        "acme/ignored"
+      ],
+      "outOfScope": [
+        "acme/Old (archived)",
+        "acme/forked (fork)",
+        "acme/uncovered (uncovered — the adoption half's subject)"
+      ],
+      "unhealthy": [
+        {
+          "detail": "behind canon by engine v61001.1 → v61002.1",
+          "fullName": "acme/behind",
+          "state": "behind"
+        },
+        {
+          "detail": "no cron",
+          "fullName": "acme/nosched",
+          "state": "no-scheduler"
+        },
+        {
+          "detail": "never vendored",
+          "fullName": "acme/nostamp",
+          "state": "no-stamp"
+        }
+      ],
+      "unknown": [
+        "acme/broken — unparsable .claudinite-settings.json: Unexpected token",
+        "acme/probe — claudinite-scheduler.yml check returned 500"
+      ]
+    }
+  }
+}

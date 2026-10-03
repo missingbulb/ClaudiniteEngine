@@ -1,0 +1,58 @@
+{
+  "input": {
+    "kind": "update",
+    "args": {
+      "owner": "acme",
+      "dryRun": false,
+      "filter": null,
+      "fired": [
+        {
+          "fullName": "acme/a",
+          "state": "fired"
+        },
+        {
+          "fullName": "acme/b",
+          "state": "fired"
+        },
+        {
+          "fullName": "acme/c",
+          "state": "fired"
+        }
+      ],
+      "followed": [
+        {
+          "fullName": "acme/a",
+          "outcome": "updated",
+          "detail": "engine v61002.1, 0 declared pack(s) at canon versions"
+        },
+        {
+          "fullName": "acme/b",
+          "outcome": "already-current",
+          "detail": "engine v61002.1, 0 declared pack(s) at canon versions"
+        },
+        {
+          "fullName": "acme/c",
+          "outcome": "never-started",
+          "detail": "no claudinite-scheduler.yml run started since the dispatch — the run was queued and never ran"
+        }
+      ],
+      "skipped": [
+        {
+          "fullName": "acme/d",
+          "state": "dormant",
+          "detail": "self-declared dormant — pass INCLUDE_DORMANT=true to force it anyway"
+        }
+      ],
+      "failed": [
+        {
+          "fullName": "acme/e",
+          "state": "no-scheduler",
+          "detail": "x"
+        }
+      ]
+    }
+  },
+  "expect": "# Fleet update — acme\nAsked each covered member's own `claudinite-scheduler.yml` to wake its `update` item, then followed each one until its own `.claudinite-settings.json` stamped the engine and every declared pack at the versions canon publishes.\n| current | not current | not dispatched | skipped |\n| --- | --- | --- | --- |\n| 2 of 3 | 1 | 1 | 1 |\n**Updated during this run** — was behind canon and is now at its versions:\n- [`acme/a`](https://github.com/acme/a/actions/workflows/claudinite-scheduler.yml) — engine v61002.1, 0 declared pack(s) at canon versions\n**Already current** — was at canon's versions before the dispatch, so its own update correctly declined:\n- [`acme/b`](https://github.com/acme/b/actions/workflows/claudinite-scheduler.yml) — engine v61002.1, 0 declared pack(s) at canon versions\n**Never started** — the dispatch was accepted and no run followed it:\n- [`acme/c`](https://github.com/acme/c/actions/workflows/claudinite-scheduler.yml) — no claudinite-scheduler.yml run started since the dispatch — the run was queued and never ran\n**Skipped:**\n- `acme/d` — **dormant**: self-declared dormant — pass INCLUDE_DORMANT=true to force it anyway\n**Could not be dispatched:**\n- `acme/e` — **no-scheduler**: x\n_Current means the member stamps canon's published engine and pack versions. Canon content_\n_that shipped without a version bump moves no number, so it is invisible here._",
+  "divergence": "record-94",
+  "cn": "# Fleet update — acme\nAsked each covered member's own `claudinite-scheduler.yml` to wake its `update` item, then followed each one until it pinned the engine and held every declared pack at the versions its own update would move to.\n| current | not current | not dispatched | skipped |\n| --- | --- | --- | --- |\n| 2 of 3 | 1 | 1 | 1 |\n**Updated during this run** — was behind the published versions and is now at them:\n- [`acme/a`](https://github.com/acme/a/actions/workflows/claudinite-scheduler.yml) — engine v61002.1, 0 declared pack(s) at canon versions\n**Already current** — was at the published versions before the dispatch, so its own update correctly declined:\n- [`acme/b`](https://github.com/acme/b/actions/workflows/claudinite-scheduler.yml) — engine v61002.1, 0 declared pack(s) at canon versions\n**Never started** — the dispatch was accepted and no run followed it:\n- [`acme/c`](https://github.com/acme/c/actions/workflows/claudinite-scheduler.yml) — no claudinite-scheduler.yml run started since the dispatch — the run was queued and never ran\n**Skipped:**\n- `acme/d` — **dormant**: self-declared dormant — pass INCLUDE_DORMANT=true to force it anyway\n**Could not be dispatched:**\n- `acme/e` — **no-scheduler**: x\n_Current means the member is at the published engine and pack versions its own update reads. Content_\n_that shipped without a version bump moves no number, so it is invisible here._"
+}

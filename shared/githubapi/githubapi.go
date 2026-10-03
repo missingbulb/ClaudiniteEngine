@@ -96,23 +96,47 @@ func FromEnv(token string) (*Client, error) {
 }
 
 func (c *Client) do(method, path string, in, out any) error {
+	status, raw, err := c.Raw(method, path, in)
+	if err != nil {
+		return err
+	}
+	label := method + " " + strings.SplitN(path, "?", 2)[0]
+	if status < 200 || status > 299 {
+		msg := strings.TrimSpace(string(raw))
+		if len(msg) > 300 {
+			msg = msg[:300]
+		}
+		return &HTTPError{Label: label, Status: status, StatusText: fmt.Sprintf("%d %s", status, http.StatusText(status)), Message: msg}
+	}
+	if out != nil && len(raw) > 0 {
+		if err := json.Unmarshal(raw, out); err != nil {
+			return fmt.Errorf("%s: %w", label, err)
+		}
+	}
+	return nil
+}
+
+// Raw is one REST call answered whatever its status: the status and the
+// body, an error only when GitHub was not reached. The fleet's client
+// judges every status itself, as the Node sweeps did.
+func (c *Client) Raw(method, path string, in any) (int, []byte, error) {
 	c.calls.Add(1)
 	label := method + " " + strings.SplitN(path, "?", 2)[0]
 	u, err := url.Parse(c.Base + path)
 	if err != nil || u.Scheme != "https" {
-		return fmt.Errorf("%s: the GitHub API is called over HTTPS only, not %s", label, c.Base)
+		return 0, nil, fmt.Errorf("%s: the GitHub API is called over HTTPS only, not %s", label, c.Base)
 	}
 	var body io.Reader
 	if in != nil {
 		raw, err := json.Marshal(in)
 		if err != nil {
-			return err
+			return 0, nil, err
 		}
 		body = bytes.NewReader(raw)
 	}
 	req, err := http.NewRequest(method, u.String(), body)
 	if err != nil {
-		return err
+		return 0, nil, err
 	}
 	if c.Token != "" {
 		req.Header.Set("Authorization", "Bearer "+c.Token)
@@ -124,26 +148,14 @@ func (c *Client) do(method, path string, in, out any) error {
 	}
 	resp, err := c.HTTP.Do(req)
 	if err != nil {
-		return fmt.Errorf("%s: %w", label, err)
+		return 0, nil, fmt.Errorf("%s: %w", label, err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	raw, err := io.ReadAll(io.LimitReader(resp.Body, 16<<20))
 	if err != nil {
-		return fmt.Errorf("%s: %w", label, err)
+		return 0, nil, fmt.Errorf("%s: %w", label, err)
 	}
-	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		msg := strings.TrimSpace(string(raw))
-		if len(msg) > 300 {
-			msg = msg[:300]
-		}
-		return &HTTPError{Label: label, Status: resp.StatusCode, StatusText: resp.Status, Message: msg}
-	}
-	if out != nil && len(raw) > 0 {
-		if err := json.Unmarshal(raw, out); err != nil {
-			return fmt.Errorf("%s: %w", label, err)
-		}
-	}
-	return nil
+	return resp.StatusCode, raw, nil
 }
 
 // Run is one workflow run.

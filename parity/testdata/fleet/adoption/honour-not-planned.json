@@ -1,0 +1,40 @@
+{
+  "input": {
+    "home": "acme/manager",
+    "uncovered": [
+      "acme/u"
+    ],
+    "covered": [],
+    "ignored": [],
+    "calls": {
+      "GET /repos/acme/manager/issues?labels=fleet-adoption&state=all&per_page=100&page=1": {
+        "status": 200,
+        "json": [
+          {
+            "number": 3,
+            "title": "Adopt acme/u into the Claudinite fleet",
+            "state": "closed",
+            "state_reason": "completed",
+            "closed_at": "2026-09-01T00:00:00Z"
+          },
+          {
+            "number": 5,
+            "title": "Adopt acme/u into the Claudinite fleet",
+            "state": "closed",
+            "state_reason": "not_planned",
+            "closed_at": "2026-09-10T00:00:00Z"
+          }
+        ]
+      }
+    }
+  },
+  "expect": {
+    "actions": [],
+    "calls": [
+      [
+        "GET",
+        "/repos/acme/manager/issues?labels=fleet-adoption\u0026state=all\u0026per_page=100\u0026page=1"
+      ]
+    ]
+  }
+}

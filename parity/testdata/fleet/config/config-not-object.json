@@ -1,0 +1,16 @@
+{
+  "input": {
+    "cfg": {
+      "packs": [
+        {
+          "id": "claudinite-fleet-sheepdog",
+          "config": "acme"
+        }
+      ]
+    },
+    "home": "acme/manager"
+  },
+  "expect": {
+    "error": "the fleet-enforcer repo acme/manager declares no claudinite-fleet-sheepdog config { owner, exclude } on its pack entry - nothing to cover"
+  }
+}

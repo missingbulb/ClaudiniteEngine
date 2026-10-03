@@ -1,6 +1,6 @@
 #!/bin/sh
 # The local Phase 1 to 4 gates, against the built release in $DIST
-# (default dist/) served by regstub, in nine modes:
+# (default dist/) served by regstub, in ten modes:
 #
 #   fresh    the host's smoke leg (release/smoke-platform.sh) on a new member
 #   current  a member warm on this release moves its pin to the next ordinal
@@ -57,11 +57,19 @@
 #            prune as its code-work only once the captures are past
 #            retention, and cn pack new leaves verify and cn provenance
 #            check clean.
+#   fleet    a manager declaring claudinite-fleet-sheepdog over eight acme
+#            repositories (release/fleet-fixture.sh) served by ghstub: cn
+#            fleet roster opens one adoption issue and counts the census and
+#            freshness, a second run writes nothing, a 403 is unknown with the
+#            action marker, cn fleet update's dry run and live run follow each
+#            member to its outcome, a degraded Actions key reaches no member,
+#            and a fleet-roster item parks without FLEET_GITHUB_TOKEN and runs
+#            to done with it.
 #
 # The update, packs, adopt, tasks, license and growth modes give every member a GitHub-shaped
 # origin (url.<bare>.insteadOf), as the session's key request reads it.
 #
-#   release/rehearse.sh [--mode fresh|current|stale|update|packs|adopt|tasks|license|growth]   (default: all nine)
+#   release/rehearse.sh [--mode fresh|current|stale|update|packs|adopt|tasks|license|growth|fleet]   (default: all ten)
 #
 # UPDATE_STEPS=4 stops the update mode after the landing and the session on
 # the landed version (release/hop.sh); the default, 11, runs every step.
@@ -79,13 +87,13 @@ export GOCACHE
 fail() { echo "rehearse: FAIL: $*" >&2; exit 1; }
 step() { echo "rehearse: $*"; }
 
-usage="usage: release/rehearse.sh [--mode fresh|current|stale|update|packs|adopt|tasks|license|growth]"
-modes="fresh current stale update packs adopt tasks license growth"
+usage="usage: release/rehearse.sh [--mode fresh|current|stale|update|packs|adopt|tasks|license|growth|fleet]"
+modes="fresh current stale update packs adopt tasks license growth fleet"
 case $# in
   0) ;;
   2)
     [ "$1" = --mode ] || fail "$usage"
-    case $2 in fresh|current|stale|update|packs|adopt|tasks|license|growth) modes=$2 ;; *) fail "unknown mode $2" ;; esac ;;
+    case $2 in fresh|current|stale|update|packs|adopt|tasks|license|growth|fleet) modes=$2 ;; *) fail "unknown mode $2" ;; esac ;;
   *) fail "$usage" ;;
 esac
 
@@ -161,7 +169,7 @@ case " $modes " in
     ;;
 esac
 case " $modes " in
-  *" update "*|*" packs "*|*" adopt "*|*" tasks "*|*" license "*|*" growth "*)
+  *" update "*|*" packs "*|*" adopt "*|*" tasks "*|*" license "*|*" growth "*|*" fleet "*)
     # The caller's dist stays as it was: sign a copy.
     dist1=$work/dist1
     cp -R "$DIST" "$dist1"
@@ -1748,6 +1756,113 @@ YAML
         | cn_member provenance append acme _pack > "$work/prov.out" 2>&1 || fail "growth 6: provenance append: $(cat "$work/prov.out")"
       grep -q 'scope-changed · acme owns its widgets' "$member/.claudinite/local/packs/acme/provenance/_pack.md" || fail "growth 6: the entry is not in the file"
       step "growth 6: cn pack new declared local/acme and wrote the rules index; verify and cn provenance check are clean; append wrote the entry"
+      ;;
+    fleet)
+      step "fleet: a manager declaring claudinite-fleet-sheepdog over eight acme repositories, ghstub and licstub"
+      warm_member fleet
+      # The newest release the registry serves: earlier modes may have
+      # published $next.
+      latest=$version latest_pin=$pin
+      if [ -f "$dist2/manifest.integrity" ]; then latest=$next latest_pin=$(cat "$dist2/manifest.integrity"); fi
+      behind=$(printf '%s\n' "$version" | awk -F. '{ print $1 - 1 "." $2 "." $3 }')
+      flags=$(sh release/fleet-fixture.sh "$work" "$member" "$version" "$latest" "$behind" "$latest_pin" "$package") || fail "fleet: fixture"
+      origin=$work/fleet-origin.git
+      git init -q --bare -b main "$origin"
+      (cd "$member" && git init -q -b main && git add -A && git -c user.name=rehearse -c user.email=r@x -c commit.gpgsign=false commit -q -m adopt) \
+        || fail "fleet: git setup"
+      oldifs=$IFS
+      IFS='
+'
+      # shellcheck disable=SC2086 # the fixture prints one flag per line
+      set -- $flags
+      IFS=$oldifs
+      start_ghstub "$origin" "$@" --repo acme/manager
+      start_licstub
+      # Steps 1 to 5 sweep from a desktop; an earlier mode's Actions
+      # identity would name a stub that is gone.
+      unset ACTIONS_ID_TOKEN_REQUEST_URL ACTIONS_ID_TOKEN_REQUEST_TOKEN GITHUB_REPOSITORY_ID GITHUB_REPOSITORY_OWNER_ID GITHUB_REPOSITORY_OWNER
+      cat "$work/ca.pem" "$work/gh-ca.pem" "$work/lic-ca.pem" > "$work/cas.pem"
+      SSL_CERT_FILE=$work/cas.pem CURL_CA_BUNDLE=$work/cas.pem
+      GITHUB_REPOSITORY=acme/manager CLAUDINITE_GITHUB_API=$gh FLEET_GITHUB_TOKEN=rehearsal-token CLAUDINITE_FLEET_POLL_MS=50
+      export SSL_CERT_FILE CURL_CA_BUNDLE GITHUB_REPOSITORY CLAUDINITE_GITHUB_API FLEET_GITHUB_TOKEN CLAUDINITE_FLEET_POLL_MS
+      fleet_cn() { (cd "$member" && .claudinite/bin/cn fleet "$@") > "$work/fleet.out" 2> "$work/fleet.err"; }
+      adoption() { gh_count 'st.issues.filter(i=>i.labels.includes("fleet-adoption")&&i.state==="open").map(i=>i.title).join(",")'; }
+      member_calls() { gh_count 'st.calls.filter(c=>c.startsWith("member ")||c==="user-repos").length'; }
+      expect_line() { grep -qF -- "$1" "$work/fleet.out" || fail "fleet $2: no line '$1': $(cat "$work/fleet.out" "$work/fleet.err")"; }
+
+      fleet_cn roster || fail "fleet 1: roster: $(cat "$work/fleet.out" "$work/fleet.err")"
+      expect_line '| 4 | 1 | 1 | 1 | 1 | 0 |' 1
+      expect_line '| 1 | 1 | 1 | 0 | 1 | 1 | 1 | 2 | 0 |' 1
+      [ "$(adoption)" = "Adopt acme/uncovered into the Claudinite fleet" ] || fail "fleet 1: adoption issues $(adoption)"
+      grep -q '^\[cn\] fleet roster ok 5/9 ' "$work/fleet.err" || fail "fleet 1: breadcrumb: $(cat "$work/fleet.err")"
+      step "fleet 1: the roster opened one adoption issue, for acme/uncovered; covered 4, dormant 1, ignored 1, skipped 1; fresh, behind, no scheduler and node 1 each"
+
+      before=$(gh_count 'st.calls.filter(c=>/^(POST|PATCH) /.test(c)||c.startsWith("issue")).length')
+      issues=$(gh_count 'st.issues.length')
+      fleet_cn roster || fail "fleet 2: roster: $(cat "$work/fleet.out" "$work/fleet.err")"
+      [ "$(gh_count 'st.issues.length')" = "$issues" ] || fail "fleet 2: a second roster filed an issue: $(gh_state)"
+      [ "$(adoption)" = "Adopt acme/uncovered into the Claudinite fleet" ] || fail "fleet 2: adoption issues $(adoption)"
+      [ "$before" = "$(gh_count 'st.calls.filter(c=>/^(POST|PATCH) /.test(c)||c.startsWith("issue")).length')" ] || fail "fleet 2: a second roster wrote"
+      step "fleet 2: a second roster wrote nothing"
+
+      ctl /_stub/deny '{"repo":"acme/behind","path":".claudinite"}'
+      if fleet_cn roster; then fail "fleet 3: a denied member read as known: $(cat "$work/fleet.out")"; fi
+      grep -q 'Contents' "$work/fleet.err" || fail "fleet 3: no Contents hint: $(cat "$work/fleet.err")"
+      grep -q '^claudinite-needs-human: action — ' "$work/fleet.err" || fail "fleet 3: no action marker: $(cat "$work/fleet.err")"
+      grep -q '^\[cn\] fleet roster unknown ' "$work/fleet.err" || fail "fleet 3: breadcrumb: $(cat "$work/fleet.err")"
+      ctl /_stub/deny '{"repo":"acme/behind","deny":false}'
+      step "fleet 3: a 403 on acme/behind's contents is unknown, exit 1, with the Contents hint and the action marker"
+
+      CLAUDINITE_CONTEXT='DRY_RUN=true' fleet_cn update || fail "fleet 4: dry run: $(cat "$work/fleet.out" "$work/fleet.err")"
+      for m in current behind noscheduler nodemember; do expect_line "acme/$m" 4; done
+      bt='`'
+      expect_line "${bt}acme/dormant${bt} — **dormant**" 4
+      expect_line "${bt}acme/ignored${bt} — **excluded**" 4
+      [ "$(gh_count 'st.dispatches.filter(d=>d.repo).length')" = 0 ] || fail "fleet 4: a dry run dispatched"
+      step "fleet 4: a dry run would fire current, behind, noscheduler and nodemember, skipped dormant and ignored by name, and dispatched nothing"
+
+      ctl /_stub/advance "{\"repo\":\"acme/behind\",\"files\":{\".claudinite/settings.yaml\":\"engine:\\n  package: \\\"$package\\\"\\n  version: \\\"$latest\\\"\\n  manifest: \\\"$latest_pin\\\"\\n\"}}"
+      ctl /_stub/advance '{"repo":"acme/nodemember","files":{".claudinite-settings.json":"{\"engineVersion\": \"61002.1\", \"packs\": [{\"id\": \"basics\", \"version\": \"3.0\"}]}\n"}}'
+      if CLAUDINITE_CONTEXT='FOLLOW_MINUTES=0.05' fleet_cn update; then fail "fleet 5: a failed dispatch passed: $(cat "$work/fleet.out")"; fi
+      expect_line "[${bt}acme/behind${bt}]" 5
+      grep -A1 -F '**Updated during this run**' "$work/fleet.out" | grep -qF 'acme/behind' || fail "fleet 5: behind not updated: $(cat "$work/fleet.out")"
+      grep -A1 -F '**Already current**' "$work/fleet.out" | grep -qF 'acme/current' || fail "fleet 5: current not already current: $(cat "$work/fleet.out")"
+      grep -A1 -F '**Moved during this run**' "$work/fleet.out" | grep -qF 'acme/nodemember' || fail "fleet 5: nodemember not moved: $(cat "$work/fleet.out")"
+      expect_line "${bt}acme/noscheduler${bt} — **no-scheduler**" 5
+      grep -q '^\[cn\] fleet update error 3/3 ' "$work/fleet.err" || fail "fleet 5: breadcrumb: $(cat "$work/fleet.out" "$work/fleet.err")"
+      [ "$(gh_count 'st.dispatches.filter(d=>d.repo&&d.inputs.wake==="update").length')" = 3 ] || fail "fleet 5: dispatches $(gh_state)"
+      step "fleet 5: live, behind updated, current already current, nodemember moved, noscheduler's dispatch failed; exit 1"
+
+      actions_env
+      licctl '{"state":"degraded"}'
+      calls=$(member_calls)
+      if fleet_cn roster; then fail "fleet 6: a degraded key swept"; fi
+      grep -q '^\[cn\] fleet: off under this key (degraded' "$work/fleet.err" || fail "fleet 6: no gate line: $(cat "$work/fleet.err")"
+      grep -q '^claudinite-needs-human: action — ' "$work/fleet.err" || fail "fleet 6: no action marker: $(cat "$work/fleet.err")"
+      [ "$(member_calls)" = "$calls" ] || fail "fleet 6: a degraded key reached a member"
+      licctl '{"state":"ok"}'
+      if fleet_cn roster; then fail "fleet 6: a public plan swept"; fi
+      grep -q "^claudinite-needs-human: action — \[cn\] fleet: acme's public plan does not include fleet sweeps" "$work/fleet.err" || fail "fleet 6: no plan notice: $(cat "$work/fleet.err")"
+      [ "$(member_calls)" = "$calls" ] || fail "fleet 6: a public plan reached a member"
+      licctl '{"plan":"personal"}'
+      step "fleet 6: under a degraded Actions key, and a public plan's, the sweep said why, parked action and reached no member"
+
+      execute() { (cd "$member" && GITHUB_TOKEN=rehearsal-token .claudinite/bin/cn execute loop) > "$work/exec.out" 2>&1; }
+      item() { gh_count 'Math.max(0,...st.issues.filter(i=>i.title==="'"$1"'").map(i=>i.number))'; }
+      labels_of() { gh_count 'st.issues.find(i=>i.number==='"$1"').labels.join(" ")'; }
+      roster_item="[claudinite-work] claudinite-fleet-sheepdog/fleet-roster"
+      saved=$FLEET_GITHUB_TOKEN
+      unset FLEET_GITHUB_TOKEN
+      cn_member work create claudinite-fleet-sheepdog/fleet-roster --qualifier nosecret > "$work/create.out" 2>&1 || fail "fleet 7: work create: $(cat "$work/create.out")"
+      n=$(item "$roster_item nosecret")
+      execute || fail "fleet 7: execute: $(cat "$work/exec.out")"
+      case " $(labels_of "$n") " in *" task:status:needs-human-action "*) ;; *) fail "fleet 7: #$n without the secret is $(labels_of "$n"): $(cat "$work/exec.out")" ;; esac
+      gh_count 'st.issues.find(i=>i.number==='"$n"').comments.join("\n")' | grep -q FLEET_GITHUB_TOKEN || fail "fleet 7: the park names no secret: $(gh_state)"
+      cn_member work create claudinite-fleet-sheepdog/fleet-roster --qualifier secret > "$work/create.out" 2>&1 || fail "fleet 7: work create: $(cat "$work/create.out")"
+      n=$(item "$roster_item secret")
+      CLAUDINITE_SECRETS="{\"FLEET_GITHUB_TOKEN\":\"$saved\"}" execute || fail "fleet 7: execute: $(cat "$work/exec.out")"
+      case " $(labels_of "$n") " in *" task:status:done "*) ;; *) fail "fleet 7: #$n with the secret is $(labels_of "$n"): $(cat "$work/exec.out")" ;; esac
+      step "fleet 7: a fleet-roster item parked needs-human-action naming FLEET_GITHUB_TOKEN without it, and ran cn fleet roster to done with it in CLAUDINITE_SECRETS"
       ;;
   esac
 done

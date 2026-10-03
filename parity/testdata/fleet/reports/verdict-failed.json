@@ -1,0 +1,45 @@
+{
+  "input": {
+    "kind": "verdict",
+    "args": {
+      "fired": [
+        {
+          "fullName": "acme/a",
+          "state": "fired"
+        },
+        {
+          "fullName": "acme/b",
+          "state": "fired"
+        },
+        {
+          "fullName": "acme/c",
+          "state": "fired"
+        }
+      ],
+      "followed": [
+        {
+          "fullName": "acme/a",
+          "outcome": "updated",
+          "detail": "engine v61002.1, 0 declared pack(s) at canon versions"
+        },
+        {
+          "fullName": "acme/b",
+          "outcome": "already-current",
+          "detail": "engine v61002.1, 0 declared pack(s) at canon versions"
+        },
+        {
+          "fullName": "acme/c",
+          "outcome": "never-started",
+          "detail": "no claudinite-scheduler.yml run started since the dispatch — the run was queued and never ran"
+        }
+      ],
+      "failed": [
+        {
+          "fullName": "acme/e",
+          "state": "no-permission"
+        }
+      ]
+    }
+  },
+  "expect": "1 member(s) could not be dispatched (acme/e: no-permission) — the rest are reported above, and this run fails so the cause is escalated"
+}

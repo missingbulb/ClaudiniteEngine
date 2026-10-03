@@ -1,0 +1,36 @@
+{
+  "input": {
+    "configs": [
+      {
+        "packs": [
+          {
+            "id": "barriers",
+            "config": {
+              "dormant": true
+            }
+          }
+        ]
+      },
+      {
+        "packs": [
+          {
+            "id": "basics",
+            "config": {
+              "dormant": true
+            }
+          },
+          {
+            "id": "claudinite-tasks",
+            "config": {
+              "dormant": true
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "expect": [
+    false,
+    true
+  ]
+}

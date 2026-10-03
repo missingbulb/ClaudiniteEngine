@@ -1,0 +1,47 @@
+{
+  "input": {
+    "owner": "acme",
+    "canonRepo": "acme/claudinite",
+    "sinceIso": "2026-10-01T00:00:00Z",
+    "calls": {
+      "GET /user/repos?affiliation=owner&per_page=100&page=1": {
+        "status": 200,
+        "json": [
+          {
+            "name": "claudinite",
+            "full_name": "acme/claudinite",
+            "owner": {
+              "login": "acme"
+            },
+            "default_branch": "main"
+          }
+        ]
+      },
+      "GET /repos/acme/claudinite/contents/.claudinite-settings.json": {
+        "status": 200,
+        "json": {
+          "content": "ewogICJwYWNrcyI6IFtdCn0="
+        }
+      }
+    }
+  },
+  "expect": {
+    "members": [],
+    "owner": "acme"
+  },
+  "divergence": "record-94",
+  "cn": {
+    "owner": "acme",
+    "members": [
+      {
+        "repo": "acme/claudinite",
+        "defaultBranch": "main",
+        "activePacks": [],
+        "packConfigs": {},
+        "localPacksChanged": false,
+        "schedulesItself": false,
+        "stamp": null
+      }
+    ]
+  }
+}

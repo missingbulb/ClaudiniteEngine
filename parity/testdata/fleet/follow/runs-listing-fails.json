@@ -1,0 +1,47 @@
+{
+  "input": {
+    "canonEngine": "61002.1",
+    "startedAt": "2026-10-01T00:01:00Z",
+    "budgetMs": 10000,
+    "members": [
+      {
+        "fullName": "acme/a",
+        "firedAt": "2026-10-01T00:00:00Z",
+        "wasFresh": false
+      }
+    ],
+    "script": {
+      "acme/a": [
+        {
+          "engine": "61001.1"
+        }
+      ]
+    },
+    "runs": {
+      "acme/a": "error"
+    }
+  },
+  "expect": {
+    "followed": [
+      {
+        "detail": "could not be read: could not list claudinite-scheduler.yml runs: 500",
+        "fullName": "acme/a",
+        "outcome": "unknown"
+      }
+    ],
+    "logs": [
+      "- 0/1 current; still following acme/a"
+    ],
+    "pollDelays": [
+      15000,
+      30000,
+      45000,
+      60000,
+      60000,
+      60000
+    ],
+    "sleeps": [
+      10000
+    ]
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "input": {
+    "raw": "REPOS=alpha beta\nDRY_RUN=false\nINCLUDE_DORMANT"
+  },
+  "expect": {
+    "DRY_RUN": "false",
+    "INCLUDE_DORMANT": "true",
+    "REPOS": "alpha beta"
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "input": {
+    "owner": "acme",
+    "canonRepo": "acme/claudinite",
+    "exclude": [],
+    "repos": [
+      {
+        "full_name": "acme/Alpha"
+      },
+      {
+        "full_name": "acme/beta"
+      }
+    ],
+    "filter": "Alpha  other/gamma\n"
+  },
+  "expect": {
+    "filter": [
+      "acme/alpha",
+      "other/gamma"
+    ],
+    "scopes": [
+      null,
+      {
+        "detail": "not in this run's REPOS filter",
+        "fullName": "acme/beta",
+        "state": "filtered-out"
+      }
+    ]
+  }
+}

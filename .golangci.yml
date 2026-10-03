@@ -44,6 +44,14 @@ linters:
             - $gostd
             - github.com/missingbulb/ClaudiniteEngine/shared
             - github.com/missingbulb/ClaudiniteEngine/growth
+        fleet:
+          list-mode: strict
+          files:
+            - "**/fleet/**"
+          allow:
+            - $gostd
+            - github.com/missingbulb/ClaudiniteEngine/shared
+            - github.com/missingbulb/ClaudiniteEngine/fleet
         tasks:
           list-mode: strict
           files:
