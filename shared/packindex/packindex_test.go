@@ -104,6 +104,22 @@ func TestSelect(t *testing.T) {
 	}
 }
 
+// A two-part minEngineVersion names a Node engine: the entry is passed
+// over with that reason and never chosen, never an error.
+func TestSelectSkipsANodeEngineFloor(t *testing.T) {
+	ix := Index{V: 1, Pack: "hello", Serial: 2, Versions: []Entry{
+		entry("1.0", "canary", false, "1.1.0"),
+		entry("1.1", "canary", false, "60928.1"),
+	}}
+	got := Select(ix, Want{Channel: "canary", Engine: "99999.0.0"})
+	if got.Entry == nil || got.Entry.Version != "1.0" || got.Skipped == nil || got.Skipped.Version != "1.1" || got.Skipped.Reason != "names a Node engine version" {
+		t.Errorf("%+v %+v", got.Entry, got.Skipped)
+	}
+	if got := Select(ix, Want{Channel: "canary", Engine: "99999.0.0", Held: "1.0"}); got.Entry != nil || got.Skipped == nil || got.Skipped.Reason != "names a Node engine version" {
+		t.Errorf("held: %+v %+v", got.Entry, got.Skipped)
+	}
+}
+
 func TestSelectNamesTheRevokedSkipBelowThePick(t *testing.T) {
 	ix := Index{V: 1, Pack: "hello", Serial: 3, Versions: []Entry{
 		entry("1.1", "canary", false, "1.1.0"),

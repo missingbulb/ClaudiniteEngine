@@ -74,7 +74,6 @@ var rules = []rule{
 	{"hooks", checkHooks},
 	{"member-workflows", checkWorkflows},
 	{"bin-ignore", checkBinIgnore},
-	{"min-engine-version-legacy", nil},
 	{"pack-declared", checkPackDeclared},
 	{"pack-min-engine", checkPackMinEngine},
 	{"license-plan", checkLicensePlan},
@@ -405,9 +404,9 @@ func checkPackMinEngine(in Input) []findings.Finding {
 			continue
 		}
 		rel := packset.TreeRel(id) + "/" + m.File
-		legacy := PackManifest(rel, m.MinEngineVersion)
-		out = append(out, legacy...)
-		if len(legacy) != 0 || pin == "" {
+		unreadable := PackManifest(rel, m.MinEngineVersion)
+		out = append(out, unreadable...)
+		if len(unreadable) != 0 || pin == "" {
 			continue
 		}
 		if min, _ := version.ParseMinEngineVersion(m.MinEngineVersion); !min.Satisfies(pin) {
@@ -417,14 +416,16 @@ func checkPackMinEngine(in Input) []findings.Finding {
 	return out
 }
 
-// PackManifest checks a declared pack's minEngineVersion.
+// PackManifest checks a declared pack's minEngineVersion. A two-part one
+// names a Node engine version, which a pack vendored before the shelf
+// moved to the cn floor still carries: the update replaces it.
 func PackManifest(path, minEngineVersion string) []findings.Finding {
-	m, err := version.ParseMinEngineVersion(minEngineVersion)
-	if err != nil {
-		return []findings.Finding{brk("min-engine-version-legacy", path, err.Error())}
-	}
-	if m.Legacy() {
-		return []findings.Finding{dep("min-engine-version-legacy", path, "minEngineVersion "+minEngineVersion+" is the old two-part form, which any engine satisfies; publish a version declaring <day>.<n>.<patch>")}
+	_, err := version.ParseMinEngineVersion(minEngineVersion)
+	switch {
+	case errors.Is(err, version.ErrNodeEngine):
+		return []findings.Finding{dep("pack-min-engine", path, err.Error()+"; `cn update packs` moves the pack to a version naming the cn floor")}
+	case err != nil:
+		return []findings.Finding{brk("pack-min-engine", path, err.Error())}
 	}
 	return nil
 }

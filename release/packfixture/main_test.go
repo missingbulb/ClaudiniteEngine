@@ -260,3 +260,13 @@ func TestReadPackDropsWhatVendoringDrops(t *testing.T) {
 		t.Errorf("vendored set %q", got)
 	}
 }
+
+// v5 needs an engine no rehearsal builds, and v6 names a Node engine
+// version: the two floors the update must skip.
+func TestTheUnreachableFloors(t *testing.T) {
+	for label, want := range map[string]string{"v5": `"minEngineVersion": "99999.0.0"`, "v6": `"minEngineVersion": "60928.1"`, "v4": `"minEngineVersion": "1.1.0"`} {
+		if pj := string(mustVariant(t, label)["pack.json"].Data); !strings.Contains(pj, want) {
+			t.Errorf("%s: %s", label, pj)
+		}
+	}
+}

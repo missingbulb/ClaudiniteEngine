@@ -4,6 +4,7 @@
 package version
 
 import (
+	"errors"
 	"fmt"
 	"runtime"
 	"runtime/debug"
@@ -124,41 +125,29 @@ func Platform() string {
 }
 
 // MinEngine is a pack's parsed minEngineVersion.
-type MinEngine struct {
-	v      V
-	legacy bool
-}
+type MinEngine struct{ v V }
 
-// ParseMinEngineVersion reads a pack's minEngineVersion: <day>.<n>.<patch>
-// as Parse reads it, or the old Node engine's two-part <day>.<n>, which
-// every pack carried before the binary existed and so can only mean "any
-// engine of the new kind". Anything else is refused.
-//
-// @legacy-tolerance advisory:min-engine-version-legacy retire:#18
+// ErrNodeEngine is a two-part minEngineVersion: the Node engine's own
+// version, which names no cn release.
+var ErrNodeEngine = errors.New("names a Node engine version")
+
+// ParseMinEngineVersion reads a pack's minEngineVersion, <day>.<n>.<patch>
+// as Parse reads it. A two-part value is ErrNodeEngine; anything else
+// unreadable is refused.
 func ParseMinEngineVersion(s string) (MinEngine, error) {
-	parts := strings.Split(s, ".")
-	if len(parts) == 2 {
-		if _, err := Parse(s + ".0"); err != nil {
-			return MinEngine{}, fmt.Errorf("minEngineVersion %q: want <day>.<n>.<patch>", s)
-		}
-		return MinEngine{legacy: true}, nil
-	}
 	v, err := Parse(s)
-	if err != nil {
-		return MinEngine{}, fmt.Errorf("minEngineVersion %q: want <day>.<n>.<patch>", s)
+	if err == nil {
+		return MinEngine{v: v}, nil
 	}
-	return MinEngine{v: v}, nil
+	if _, e := Parse(s + ".0"); e == nil {
+		return MinEngine{}, fmt.Errorf("minEngineVersion %q %w; want <day>.<n>.<patch>", s, ErrNodeEngine)
+	}
+	return MinEngine{}, fmt.Errorf("minEngineVersion %q: want <day>.<n>.<patch>", s)
 }
 
-// Legacy reports the two-part form, which raises a deprecation finding.
-func (m MinEngine) Legacy() bool { return m.legacy }
-
-// Satisfies reports whether an engine pinned at pin meets the minimum. A
-// legacy minimum is met by every pin; an unreadable pin meets nothing else.
+// Satisfies reports whether an engine pinned at pin meets the minimum; an
+// unreadable pin meets nothing.
 func (m MinEngine) Satisfies(pin string) bool {
-	if m.legacy {
-		return true
-	}
 	c, err := Compare(pin, fmt.Sprintf("%d.%d.%d", m.v.Day, m.v.Ordinal, m.v.Patch))
 	return err == nil && c >= 0
 }

@@ -202,11 +202,14 @@ func loadOne(repo string, kind Kind, id, rel, engine string) (Pack, string) {
 			return Pack{}, m.File + " has no version"
 		}
 		if engine != "0.0.0" {
+			// A Node engine floor was vendored before the shelf named the cn
+			// floor: the pack keeps running until the update replaces it,
+			// and verify names it.
 			min, err := version.ParseMinEngineVersion(m.MinEngineVersion)
-			if err != nil {
+			if err != nil && !errors.Is(err, version.ErrNodeEngine) {
 				return Pack{}, err.Error()
 			}
-			if !min.Satisfies(engine) {
+			if err == nil && !min.Satisfies(engine) {
 				return Pack{}, fmt.Sprintf("pack %s %s needs engine %s or newer; this is %s", id, m.Version, m.MinEngineVersion, engine)
 			}
 		}

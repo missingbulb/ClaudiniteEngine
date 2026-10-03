@@ -782,6 +782,12 @@ for mode in $modes; do
       grep -q '^hello 1.7 skipped: not for this engine$' "$work/update.out" || fail "packs 8: no engine skip: $(cat "$work/update.out")"
       step "packs 8: hello 1.7 skipped: not for this engine"
 
+      fixture --publish v6
+      update_packs
+      expect_verdict "up to date"
+      grep -q '^hello 1.8 skipped: names a Node engine version$' "$work/update.out" || fail "packs 8b: no Node-floor skip: $(cat "$work/update.out")"
+      step "packs 8b: hello 1.8, whose floor names a Node engine version, skipped and never an error"
+
       # set_channel C: the member's packs channel, committed and pushed, main green.
       set_channel() {
         sed "s|^  channel: .*|  channel: \"$1\"|" "$member/.claudinite/settings.yaml" > "$work/settings.yaml"

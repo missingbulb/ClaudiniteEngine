@@ -259,13 +259,18 @@ func (n nodeFresh) adapt() fleet.FreshIn {
 		p.Versions[c] = npmreg.Version{Version: c}
 		in.EngineNext = npmreg.Candidate(in.Pin, p, npmreg.StatesFromPackument(p)).Version
 	}
+	// Every pin meets the canon entry's floor: the stamps carry none.
+	pin := in.Pin
+	if pin == "" {
+		pin = "0.0.0"
+	}
 	for id, held := range in.Held {
 		there, ok := n.Canon.PackVersions[id]
 		if !ok {
 			continue
 		}
-		ix := packindex.Index{Pack: id, Versions: []packindex.Entry{{Version: there, Channel: "stable", MinEngineVersion: "60000.1"}}}
-		if c := packindex.Select(ix, packindex.Want{Channel: "stable", Engine: in.Pin, Held: held}); c.Entry != nil {
+		ix := packindex.Index{Pack: id, Versions: []packindex.Entry{{Version: there, Channel: "stable", MinEngineVersion: "0.0.0"}}}
+		if c := packindex.Select(ix, packindex.Want{Channel: "stable", Engine: pin, Held: held}); c.Entry != nil {
 			in.PackNext[id] = c.Entry.Version
 		}
 	}

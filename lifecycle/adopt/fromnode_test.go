@@ -255,9 +255,9 @@ func TestFromNodeOverRealMembers(t *testing.T) {
 			var got []findings.Finding
 			for _, f := range verify.Verify(verify.Input{Repo: repo, Launcher: []byte(launcherBody)}) {
 				got = append(got, f)
-				// min-engine-version-legacy is about the shelf's packs, not the
-				// member: a pack published before the three-part form.
-				if f.ID != "node-leftovers" && f.ID != "local-pack-shape" && f.ID != "min-engine-version-legacy" {
+				// pack-min-engine is about the shelf's packs, not the member: a
+				// pack published before the three-part form.
+				if f.ID != "node-leftovers" && f.ID != "local-pack-shape" && f.ID != "pack-min-engine" {
 					t.Errorf("verify: %s", f)
 				}
 			}

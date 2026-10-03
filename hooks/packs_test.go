@@ -236,7 +236,7 @@ func TestSessionStartMountsSkills(t *testing.T) {
 
 func TestSessionStartNamesJavaScriptItIgnores(t *testing.T) {
 	repo := member(t, []string{"basics"}, map[string]map[string]string{
-		"basics": {"pack.json": `{"version": "60928.1", "minEngineVersion": "60928.1"}`, "worldRules/x.mjs": "export default 1", "RULES.md": "- r\n"},
+		"basics": {"pack.json": `{"version": "60928.1", "minEngineVersion": "60928.1.0"}`, "worldRules/x.mjs": "export default 1", "RULES.md": "- r\n"},
 	})
 	out, _ := hook(t, Handler{ProjectDir: repo}, "session-start", startIn)
 	if ctx := contextOf(t, out); !strings.Contains(ctx, "pack basics: its coded checks (worldRules/, workRules/, skills/*/checks.mjs) and tasks are not run by this engine; its declared checks are") {
