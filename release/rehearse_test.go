@@ -1,6 +1,8 @@
 package release
 
 import (
+	"os"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -39,5 +41,26 @@ func TestRehearseModes(t *testing.T) {
 	}
 	if out, err := runScript(t, []string{"DIST=" + dist}, "release/rehearse.sh", "--mode", "sideways"); err == nil {
 		t.Errorf("--mode sideways accepted:\n%s", out)
+	}
+}
+
+// The live-packs mode reads the real shelf; a sandbox that has no network
+// sets CLAUDINITE_OFFLINE=1 and the mode stands aside before it needs a
+// release, with a notice.
+func TestRehearseLivePacksOffline(t *testing.T) {
+	out, err := runScript(t, []string{"CLAUDINITE_OFFLINE=1", "DIST=" + t.TempDir()}, "release/rehearse.sh", "--mode", "live-packs")
+	if err != nil {
+		t.Fatalf("--mode live-packs offline: %v\n%s", err, out)
+	}
+	if !strings.Contains(out, "live-packs: skipped: CLAUDINITE_OFFLINE=1") {
+		t.Errorf("--mode live-packs offline names no skip:\n%s", out)
+	}
+	// The default set stays the offline modes.
+	raw, err := os.ReadFile("rehearse.sh")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m := regexp.MustCompile(`(?m)^modes="([^"]*)"$`).FindStringSubmatch(string(raw)); m == nil || strings.Contains(m[1], "live-packs") {
+		t.Errorf("rehearse.sh's default modes include live-packs or are unreadable: %v", m)
 	}
 }

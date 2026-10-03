@@ -21,3 +21,15 @@ func TestBlockerIssue(t *testing.T) {
 	}
 	golden(t, "blocker-issue.md", title+"\n\n"+body)
 }
+
+func TestLivePacksBlockerIssue(t *testing.T) {
+	log := "rehearse: live-packs 1: cn init through npx vendored 8 packs\nrehearse: FAIL: live-packs 2: check world on the adopted tree: aws-sam/handler-path\n"
+	title, body := LivePacksBlockerIssue("61003.2.0", "https://github.com/missingbulb/ClaudiniteEngine/actions/runs/2", log)
+	if !strings.Contains(title, "61003.2.0") || !strings.Contains(title, "live-packs") {
+		t.Errorf("title %q", title)
+	}
+	if !strings.Contains(body, "promote.yml") || !strings.Contains(body, "live-packs 2") {
+		t.Errorf("body names no promotion hold or no log:\n%s", body)
+	}
+	golden(t, "blocker-issue-live-packs.md", title+"\n\n"+body)
+}
