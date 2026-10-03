@@ -84,3 +84,6 @@ func stringOf(v Value) string {
 	}
 	return "[object Object]"
 }
+
+// StringOfValue is JavaScript's String(v) of a parsed value.
+func StringOfValue(v Value) string { return stringOf(v) }

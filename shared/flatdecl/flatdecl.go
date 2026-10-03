@@ -2,7 +2,8 @@
 // pack's task declarations and dashboard descriptor, one file each under
 // .claudinite/flat/, so the dashboard reading a member over the API and a
 // session asking what runs here read one file rather than every task
-// folder. Each entry carries the source's parsed value as written (no
+// folder; and, beside them, the member file a cn member states its
+// declaration, pin and held versions in. Each entry carries the source's parsed value as written (no
 // defaults, no normalisation) and the path it was read from; a file that
 // does not parse carries its text. Session-copied packs are left out. The
 // bytes match the Node engine's generate-flat-declarations.mjs at
@@ -126,9 +127,13 @@ func render(repo, key string, sources map[string]string) (string, error) {
 	return jsjson.StringifyIndent(doc, "  ") + "\n", nil
 }
 
-// Content is both files' text for the active packs, keyed by file; nil
-// when no pack is active, so an unloadable declaration leaves the files on
-// disk as they are.
+// Files are the flat files in the order they are written and reported.
+var Files = []string{TasksFile, DashboardFile, MemberFile}
+
+// Content is the flat files' text for the active packs, keyed by file:
+// the task and dashboard declarations, and the member file where the repo
+// keeps a .claudinite/settings.*; nil when no pack is active, so an
+// unloadable declaration leaves the files on disk as they are.
 func Content(repo string, packs []packset.Pack) (map[string]string, error) {
 	if len(packs) == 0 {
 		return nil, nil
@@ -142,7 +147,17 @@ func Content(repo string, packs []packset.Pack) (map[string]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	return map[string]string{TasksFile: t, DashboardFile: d}, nil
+	out := map[string]string{TasksFile: t, DashboardFile: d}
+	m, ok, err := ReadMember(repo, packs)
+	if err != nil {
+		return nil, err
+	}
+	if ok {
+		if out[MemberFile], err = MemberContent(m); err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
 }
 
 // Write writes whichever file changed and returns the paths written.
@@ -152,7 +167,10 @@ func Write(repo string, packs []packset.Pack) ([]string, error) {
 		return nil, err
 	}
 	var written []string
-	for _, rel := range []string{TasksFile, DashboardFile} {
+	for _, rel := range Files {
+		if _, ok := content[rel]; !ok {
+			continue
+		}
 		p := filepath.Join(repo, filepath.FromSlash(rel))
 		if old, err := os.ReadFile(p); err == nil && bytes.Equal(old, []byte(content[rel])) {
 			continue

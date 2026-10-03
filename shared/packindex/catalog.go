@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/missingbulb/ClaudiniteEngine/shared/jsjson"
 	"github.com/missingbulb/ClaudiniteEngine/shared/jsregex"
 	"github.com/missingbulb/ClaudiniteEngine/shared/version"
 )
@@ -194,7 +195,7 @@ func DecodeDetector(raw json.RawMessage) (*Detector, error) {
 
 // ValidateDetector is the Node engine's validateRelevanceDetector over the
 // data form: each problem as a sentence, none for a well-formed detector
-// or null.
+// or null. An undeclared key is named in the order the detector writes it.
 func ValidateDetector(raw json.RawMessage) []string {
 	var v any
 	if err := json.Unmarshal(raw, &v); err != nil {
@@ -208,12 +209,8 @@ func ValidateDetector(raw json.RawMessage) []string {
 		return []string{"relevanceDetector is an object or null"}
 	}
 	var errs []string
-	keys := make([]string, 0, len(o))
-	for k := range o {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	for _, k := range keys {
+	ordered, _ := jsjson.Decode(raw)
+	for _, k := range ordered.Keys {
 		if !contains(detectorKeys, k) {
 			errs = append(errs, fmt.Sprintf("relevanceDetector declares %q, which is not one of %s", k, strings.Join(detectorKeys, ", ")))
 		}

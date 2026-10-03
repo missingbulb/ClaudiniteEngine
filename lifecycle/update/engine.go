@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/missingbulb/ClaudiniteEngine/shared/flatdecl"
 	"github.com/missingbulb/ClaudiniteEngine/shared/gitcmd"
 	"github.com/missingbulb/ClaudiniteEngine/shared/githubapi"
 	"github.com/missingbulb/ClaudiniteEngine/shared/npmreg"
@@ -318,7 +319,15 @@ func openPR(d Deps, f settings.Format, raw []byte, got Fetched, self, verifyOut 
 		if err := os.WriteFile(filepath.Join(d.Repo, filepath.FromSlash(rel)), moved, 0o644); err != nil {
 			return err
 		}
-		if err := d.Git.Commit(EngineTitle(got.Version), rel); err != nil {
+		rels := []string{rel}
+		member, err := writeMemberFile(d.Repo)
+		if err != nil {
+			return err
+		}
+		if member {
+			rels = append(rels, flatdecl.MemberFile)
+		}
+		if err := d.Git.Commit(EngineTitle(got.Version), rels...); err != nil {
 			return err
 		}
 		return d.Git.Push(remote, branch)
@@ -331,7 +340,7 @@ func openPR(d Deps, f settings.Format, raw []byte, got Fetched, self, verifyOut 
 	}
 
 	var b strings.Builder
-	fmt.Fprintf(&b, "Moves this repo's Claudinite engine pin to **%s**. Only `%s` changes: `engine.version` and `engine.manifest`.\n\n", got.Version, rel)
+	fmt.Fprintf(&b, "Moves this repo's Claudinite engine pin to **%s**. Only `%s` changes: `engine.version` and `engine.manifest`, with `%s` restating them.\n\n", got.Version, rel, flatdecl.MemberFile)
 	fmt.Fprintf(&b, "- Manifest: `%s`\n- Key: `%s`\n\n", got.Integrity, got.KeyID)
 	fmt.Fprintf(&b, "Self-test of the new binary:\n\n```\n%s```\n\n", self)
 	if forced {

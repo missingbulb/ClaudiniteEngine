@@ -1,0 +1,11 @@
+{
+  "rules": "",
+  "mounts": [],
+  "world": [
+    "descriptor-usable packs/acme-pack/dashboard.json block"
+  ],
+  "work": [],
+  "only": [
+    "descriptor-usable"
+  ]
+}

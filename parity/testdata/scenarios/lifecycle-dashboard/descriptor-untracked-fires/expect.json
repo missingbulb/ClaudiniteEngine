@@ -1,0 +1,11 @@
+{
+  "rules": "",
+  "mounts": [],
+  "world": [
+    "descriptor-usable .claudinite/local/packs/stats/dashboard.json block"
+  ],
+  "work": [],
+  "only": [
+    "descriptor-usable"
+  ]
+}

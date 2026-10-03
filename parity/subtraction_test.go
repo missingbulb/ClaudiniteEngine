@@ -69,10 +69,11 @@ func TestDeferredFileParses(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, id := range []string{"descriptor-usable", "pack-discovery-entry-await"} {
-		if d[id] == "" {
-			t.Errorf("deferred.txt does not name %s", id)
-		}
+	if d["pack-discovery-entry-await"] == "" {
+		t.Error("deferred.txt does not name pack-discovery-entry-await")
+	}
+	if d["descriptor-usable"] != "" {
+		t.Error("deferred.txt still defers descriptor-usable, which the dashboard slice ported as a built-in")
 	}
 	for id, slice := range d {
 		if slice == "task-runner" {

@@ -184,7 +184,7 @@ func TestInitAdoptsAnEmptyRepo(t *testing.T) {
 		t.Fatalf("%v\n%s", err, out)
 	}
 	want := []string{".claude/settings.json", ".claude/skills/.gitignore", ".claudinite/.gitignore",
-		".claudinite/flat/claudinite-rules.GENERATED.md", ".claudinite/flat/dashboard.GENERATED.json", ".claudinite/flat/tasks.GENERATED.json", ".claudinite/launch", ".claudinite/settings.yaml",
+		".claudinite/flat/claudinite-rules.GENERATED.md", ".claudinite/flat/dashboard.GENERATED.json", ".claudinite/flat/member.GENERATED.json", ".claudinite/flat/tasks.GENERATED.json", ".claudinite/launch", ".claudinite/settings.yaml",
 		".claudinite/shared/packs/base/RULES.md", ".claudinite/shared/packs/base/pack.json",
 		".claudinite/shared/packs/hello/RULES.md", ".claudinite/shared/packs/hello/pack.json",
 		".github/workflows/claudinite-ci.yml", ".github/workflows/claudinite-executor.yml", ".github/workflows/claudinite-scheduler.yml", "CLAUDE.md"}
@@ -303,7 +303,7 @@ func TestAdoptDeclaresAndVendors(t *testing.T) {
 	if string(raw) != body+"    - hello\n" {
 		t.Errorf("%s", raw)
 	}
-	if got := listFiles(t, repo); strings.Join(got, " ") != ".claude/skills/.gitignore .claudinite/flat/claudinite-rules.GENERATED.md .claudinite/flat/dashboard.GENERATED.json .claudinite/flat/tasks.GENERATED.json .claudinite/settings.yaml .claudinite/shared/packs/hello/RULES.md .claudinite/shared/packs/hello/pack.json CLAUDE.md" {
+	if got := listFiles(t, repo); strings.Join(got, " ") != ".claude/skills/.gitignore .claudinite/flat/claudinite-rules.GENERATED.md .claudinite/flat/dashboard.GENERATED.json .claudinite/flat/member.GENERATED.json .claudinite/flat/tasks.GENERATED.json .claudinite/settings.yaml .claudinite/shared/packs/hello/RULES.md .claudinite/shared/packs/hello/pack.json CLAUDE.md" {
 		t.Errorf("%v", got)
 	}
 	if g, _ := os.ReadFile(filepath.Join(repo, ".claude/skills/.gitignore")); string(g) != "*\n!.gitignore\n" {

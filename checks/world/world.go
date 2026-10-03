@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"github.com/missingbulb/ClaudiniteEngine/shared/findings"
+	"github.com/missingbulb/ClaudiniteEngine/shared/flatdecl"
 	"github.com/missingbulb/ClaudiniteEngine/shared/settings"
 )
 
@@ -105,7 +106,14 @@ func guard(in Input) error {
 			return fmt.Errorf("the PR changes the launcher, .claudinite/launch; an engine update PR moves only engine.version and engine.manifest")
 		}
 	}
-	if len(changed) != 1 {
+	// The member file restates the pin, so the engine update PR carries it.
+	others := 0
+	for _, c := range changed {
+		if c != flatdecl.MemberFile {
+			others++
+		}
+	}
+	if others != 1 {
 		return fmt.Errorf("an update PR changes only engine.version and engine.manifest, but this one changes %s", strings.Join(changed, ", "))
 	}
 	path := pinFiles[0]

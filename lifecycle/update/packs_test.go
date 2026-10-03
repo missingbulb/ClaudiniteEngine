@@ -157,7 +157,7 @@ func TestPacksProposesAPackPR(t *testing.T) {
 	}
 	branch := "claudinite/packs-" + fmt.Sprint(versionDay())
 	files := gitRun(t, w.bare, "diff", "--name-only", "main", branch)
-	if files != ".claudinite/flat/claudinite-rules.GENERATED.md\n.claudinite/flat/claudinite-skills.GENERATED.md\n.claudinite/shared/packs/hello/RULES.md\n.claudinite/shared/packs/hello/pack.json\nCLAUDE.md" {
+	if files != ".claudinite/flat/claudinite-rules.GENERATED.md\n.claudinite/flat/claudinite-skills.GENERATED.md\n.claudinite/flat/dashboard.GENERATED.json\n.claudinite/flat/member.GENERATED.json\n.claudinite/flat/tasks.GENERATED.json\n.claudinite/shared/packs/hello/RULES.md\n.claudinite/shared/packs/hello/pack.json\nCLAUDE.md" {
 		t.Errorf("changed %q", files)
 	}
 	if msg := gitRun(t, w.bare, "log", "-1", "--format=%s", branch); msg != "Claudinite packs "+fmt.Sprint(versionDay())+": hello 1.0→1.1" {
@@ -267,7 +267,7 @@ func TestPacksConvergeTheIndexWhenNoPackMoves(t *testing.T) {
 		t.Errorf("title %q", pr.Title)
 	}
 	files := gitRun(t, w.bare, "diff", "--name-only", "main", pr.HeadRef)
-	if files != ".claudinite/flat/claudinite-rules.GENERATED.md\n.claudinite/flat/claudinite-skills.GENERATED.md\nCLAUDE.md" {
+	if files != ".claudinite/flat/claudinite-rules.GENERATED.md\n.claudinite/flat/claudinite-skills.GENERATED.md\n.claudinite/flat/dashboard.GENERATED.json\n.claudinite/flat/member.GENERATED.json\n.claudinite/flat/tasks.GENERATED.json\nCLAUDE.md" {
 		t.Errorf("changed %q", files)
 	}
 	if c := w.hub.pulls[len(w.hub.pulls)-1]; !strings.Contains(c.Title, "rules index") {

@@ -666,3 +666,35 @@ func TestAnUpdatePRForAVersionNowHeldIsClosed(t *testing.T) {
 		}
 	}
 }
+
+// The member file states the pin, so the engine update PR restates it
+// beside the settings edit.
+func TestProposeRestatesTheMemberFile(t *testing.T) {
+	w := newWorld(t, settings.YAML)
+	for rel, body := range map[string]string{
+		settings.RelPath(settings.YAML):          settingsFor(settings.YAML, v1, pin1) + "packs:\n  declared:\n    - hello\n",
+		".claudinite/shared/packs/hello/pack.json": `{"version": "1.0", "minEngineVersion": "0.0.0"}`,
+	} {
+		p := filepath.Join(w.repo, filepath.FromSlash(rel))
+		_ = os.MkdirAll(filepath.Dir(p), 0o755)
+		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	gitRun(t, w.repo, "add", "-A")
+	gitRun(t, w.repo, "commit", "-q", "-m", "declare hello")
+	gitRun(t, w.repo, "push", "-q", "origin", "main")
+	w.mainRun(t, "success")
+	w.publish(t, v2, relOpts{})
+	if v, err := Engine(w.deps(t), Options{}); err != nil || v != "opened #1 for "+v2 {
+		t.Fatalf("%q %v\n%s", v, err, w.out)
+	}
+	branch := "claudinite/engine-" + v2
+	if got := gitRun(t, w.bare, "diff", "--name-only", "main", branch); got != ".claudinite/flat/member.GENERATED.json\n"+settings.RelPath(settings.YAML) {
+		t.Errorf("branch changes %q", got)
+	}
+	member := gitRun(t, w.bare, "show", branch+":.claudinite/flat/member.GENERATED.json")
+	if !strings.Contains(member, `"version": "`+v2+`"`) || !strings.Contains(member, `"hello": "1.0"`) {
+		t.Errorf("the member file does not state the new pin and the held pack:\n%s", member)
+	}
+}

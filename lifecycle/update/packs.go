@@ -14,6 +14,7 @@ import (
 
 	"github.com/missingbulb/ClaudiniteEngine/lifecycle/packs"
 	"github.com/missingbulb/ClaudiniteEngine/lifecycle/rulesindex"
+	"github.com/missingbulb/ClaudiniteEngine/shared/flatdecl"
 	"github.com/missingbulb/ClaudiniteEngine/shared/gitcmd"
 	"github.com/missingbulb/ClaudiniteEngine/shared/githubapi"
 	"github.com/missingbulb/ClaudiniteEngine/shared/packindex"
@@ -302,21 +303,20 @@ func indexShape(raw []byte) error {
 	return nil
 }
 
-// skillsIndexRendered refuses a skills index on sha that is not the one
-// the packs on sha render, absent where they bundle no skill, so a pack PR
-// cannot carry text into every session through it.
-func skillsIndexRendered(g gitcmd.Repo, sha string) error {
-	tmp, err := os.MkdirTemp("", "claudinite-skills-index-")
+// packsAt writes sha's settings file and pack trees into a fresh
+// directory, the tree a derived file on sha is rendered from; the caller
+// removes it.
+func packsAt(g gitcmd.Repo, sha string) (string, error) {
+	tmp, err := os.MkdirTemp("", "claudinite-pack-pr-")
 	if err != nil {
-		return err
+		return "", err
 	}
-	defer func() { _ = os.RemoveAll(tmp) }()
 	files := map[string]gitcmd.File{}
 	for _, f := range settings.Formats {
 		rel := settings.RelPath(f)
 		data, ok, err := g.Show(sha, rel)
 		if err != nil {
-			return err
+			return tmp, err
 		}
 		if ok {
 			files[rel] = gitcmd.File{Data: data}
@@ -325,7 +325,7 @@ func skillsIndexRendered(g gitcmd.Repo, sha string) error {
 	for _, root := range []string{packset.Dir, packset.LocalDir} {
 		tree, err := g.Tree(sha, root+"/")
 		if err != nil {
-			return err
+			return tmp, err
 		}
 		for p, f := range tree {
 			files[p] = f
@@ -334,11 +334,54 @@ func skillsIndexRendered(g gitcmd.Repo, sha string) error {
 	for rel, f := range files {
 		p := filepath.Join(tmp, filepath.FromSlash(rel))
 		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
-			return err
+			return tmp, err
 		}
 		if err := os.WriteFile(p, f.Data, 0o644); err != nil {
-			return err
+			return tmp, err
 		}
+	}
+	return tmp, nil
+}
+
+// flatRendered refuses a flat file on sha that is not the one the packs
+// and the declaration on sha render, so a pack PR carries no other text
+// through it.
+func flatRendered(g gitcmd.Repo, sha, file string) error {
+	tmp, err := packsAt(g, sha)
+	defer func() { _ = os.RemoveAll(tmp) }()
+	if err != nil {
+		return err
+	}
+	set, err := packset.Load(tmp, pinVersion(tmp), false)
+	if err != nil {
+		return err
+	}
+	content, err := flatdecl.Content(tmp, set.Packs)
+	if err != nil {
+		return err
+	}
+	have, ok, err := g.Show(sha, file)
+	if err != nil {
+		return err
+	}
+	want, rendered := content[file]
+	switch {
+	case !ok && rendered:
+		return errors.New("is removed while the packs render it")
+	case ok && (!rendered || string(have) != want):
+		return errors.New("is not the file the packs render")
+	}
+	return nil
+}
+
+// skillsIndexRendered refuses a skills index on sha that is not the one
+// the packs on sha render, absent where they bundle no skill, so a pack PR
+// cannot carry text into every session through it.
+func skillsIndexRendered(g gitcmd.Repo, sha string) error {
+	tmp, err := packsAt(g, sha)
+	defer func() { _ = os.RemoveAll(tmp) }()
+	if err != nil {
+		return err
 	}
 	want, err := rulesindex.SkillsContent(tmp, pinVersion(tmp))
 	if err != nil {
@@ -418,6 +461,11 @@ func openPackPR(d Deps, o Options, moves []move, prev *githubapi.PR) (string, er
 		if changed {
 			rels = append(rels, rulesindex.SkillsFile)
 		}
+		flat, err := writeFlat(d.Repo)
+		if err != nil {
+			return err
+		}
+		rels = append(rels, flat...)
 		if _, err := os.Stat(filepath.Join(d.Repo, filepath.FromSlash(rulesindex.File))); err == nil {
 			added, err := rulesindex.EnsureImport(d.Repo)
 			if err != nil {
@@ -529,8 +577,8 @@ func onlyAppendsImport(g gitcmd.Repo, base, sha string) error {
 
 // landPacks checks pack PR pr is the updater's own: every changed file
 // under the vendored packs, the rules index (import lines only) or
-// CLAUDE.md (the import appended only), the skills index the PR's packs
-// render, each touched pack's tree exactly the archive
+// CLAUDE.md (the import appended only), the skills index and the flat
+// files the PR's packs render, each touched pack's tree exactly the archive
 // its index names at the tree's version, fetched and verified again now,
 // and newer than main's. Then it merges.
 func landPacks(d Deps, pr githubapi.PR, sha string) (string, error) {
@@ -561,6 +609,12 @@ func landPacks(d Deps, pr githubapi.PR, sha string) (string, error) {
 			continue
 		}
 		if f == rulesindex.SkillsFile {
+			continue
+		}
+		if isFlatFile(f) {
+			if err := flatRendered(d.Git, sha, f); err != nil {
+				return "", fmt.Errorf("#%d: %s: %w", pr.Number, f, err)
+			}
 			continue
 		}
 		if f == rulesindex.ClaudeMD {

@@ -16,7 +16,8 @@ import (
 // The sibling of the rules index check for the flat declarations: a task
 // edited, added or removed since the last converge leaves a file that
 // answers "what runs here" wrongly, and the dashboard reading a member
-// reads only that file. Asked from the repo's tracked files: does each
+// reads only that file. The member file is judged against what the
+// settings file and the vendored manifests say now. Asked from the repo's tracked files: does each
 // flat file name every source an active pack holds here, each with the
 // content it holds now. A subset test: an entry beyond the active set is
 // judged by its own source file instead.
@@ -55,6 +56,42 @@ func (h *heldSources) set(name, path string) {
 	h.path[name] = path
 }
 
+const regenerate = "run `cn tasks flat --write` and commit the result"
+
+// memberFileCurrent judges the member file of a repo keeping a
+// .claudinite/settings.*: it must state what the settings file and the
+// vendored manifests say now.
+func memberFileCurrent(ctx *declared.Ctx) []findings.Finding {
+	active := false
+	for _, p := range ctx.Config.Packs {
+		active = active || p.Kind != packset.Temp
+	}
+	if !active || !strings.HasPrefix(ctx.Config.SettingsPath, ".claudinite/settings.") {
+		return nil
+	}
+	m, ok, err := flatdecl.ReadMember(ctx.Root, ctx.Config.Packs)
+	if err != nil || !ok {
+		return nil
+	}
+	want, err := flatdecl.MemberContent(m)
+	if err != nil {
+		return nil
+	}
+	flag := func(what string) []findings.Finding {
+		return []findings.Finding{flatDeclarationsCurrent.Finding(flatdecl.MemberFile, 0, what, regenerate)}
+	}
+	text, ok := ctx.Read(flatdecl.MemberFile)
+	if !ok {
+		return flag(flatdecl.MemberFile + " is missing or unreadable")
+	}
+	have, herr := jsjson.Decode([]byte(text))
+	wantDoc, _ := jsjson.Decode([]byte(want))
+	if herr != nil || !sameJSON(&have, &wantDoc) {
+		return flag(flatdecl.MemberFile + " no longer states what " + ctx.Config.SettingsPath + " and the vendored pack manifests say")
+	}
+	return nil
+}
+
 func runFlatDeclarationsCurrent(ctx *declared.Ctx, _ *transcript.Session) []findings.Finding {
 	held := make([]*heldSources, len(flatSources))
 	for i := range held {
@@ -89,8 +126,8 @@ func runFlatDeclarationsCurrent(ctx *declared.Ctx, _ *transcript.Session) []find
 		}
 	}
 
-	const regenerate = "run `cn tasks flat --write` and commit the result"
 	var out []findings.Finding
+	out = append(out, memberFileCurrent(ctx)...)
 	for i, s := range flatSources {
 		if len(held[i].names) == 0 {
 			continue
