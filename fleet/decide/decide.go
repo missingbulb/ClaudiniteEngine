@@ -18,7 +18,7 @@ import (
 )
 
 // Cores are the decisions Decide answers.
-var Cores = []string{"token", "config", "dormancy", "dispatch", "scope", "freshness", "views", "reports", "adoption", "follow", "bag", "signal"}
+var Cores = []string{"token", "config", "dormancy", "dispatch", "scope", "freshness", "views", "reports", "adoption", "follow", "bag", "signal", "params", "force", "protocol", "mark", "fit", "scan", "seeds"}
 
 // Decide answers one core over raw.
 func Decide(core string, raw []byte) (any, error) {
@@ -84,6 +84,20 @@ func Decide(core string, raw []byte) (any, error) {
 		}
 		gh, _ := fake(in.Calls)
 		return fleet.ReadFleet(gh, in.Owner, in.SinceIso), nil
+	case "params":
+		return params(raw)
+	case "force":
+		return force(raw)
+	case "protocol":
+		return protocol(raw)
+	case "mark":
+		return mark(raw)
+	case "fit":
+		return fitCore(raw)
+	case "scan":
+		return scan(raw)
+	case "seeds":
+		return seedsCore(raw)
 	}
 	return nil, fmt.Errorf("unknown fleet core %q (want one of %s)", core, strings.Join(Cores, ", "))
 }

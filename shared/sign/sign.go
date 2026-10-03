@@ -45,6 +45,10 @@ const (
 	// a field without an engine release; the certificate keeps its strict
 	// decode.
 	PackIndexDomain = "claudinite-packindex-v1\n"
+	// PackCatalogDomain covers the shelf's catalog.json bytes as
+	// published, signed by a packs key like an index; its own domain keeps
+	// an index signature from passing as a catalog's and the reverse.
+	PackCatalogDomain = "claudinite-packcatalog-v1\n"
 )
 
 // AbsoluteMaxValidity bounds any certificate at verify time, whatever its use.
@@ -279,6 +283,21 @@ func SignPackIndex(key ed25519.PrivateKey, cert Certificate, index []byte) Signe
 // the signature over index by the certificate's subject.
 func VerifyPackIndex(s SignedPackIndex, index []byte, roots []ed25519.PublicKey, now time.Time) (Body, error) {
 	return verifyDetached(PackIndexDomain, UsePacks, "pack index", s, index, roots, now)
+}
+
+// SignedPackCatalog is the content of catalog.sig.json.
+type SignedPackCatalog = Detached
+
+// SignPackCatalog signs the shelf's catalog.json bytes with key, attaching
+// cert.
+func SignPackCatalog(key ed25519.PrivateKey, cert Certificate, catalog []byte) SignedPackCatalog {
+	return signDetached(PackCatalogDomain, key, cert, catalog)
+}
+
+// VerifyPackCatalog checks the certificate for use packs against roots,
+// then the signature over catalog by the certificate's subject.
+func VerifyPackCatalog(s SignedPackCatalog, catalog []byte, roots []ed25519.PublicKey, now time.Time) (Body, error) {
+	return verifyDetached(PackCatalogDomain, UsePacks, "pack catalog", s, catalog, roots, now)
 }
 
 // FormatPrivateKey renders a key file: the base64url seed and a newline.

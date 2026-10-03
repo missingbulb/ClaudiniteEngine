@@ -12,13 +12,21 @@ import (
 	"testing"
 )
 
-// writers is every function under fleet/ that calls a GH with a method
-// other than GET, by package-relative name, and whom it writes to.
+// writers is every function under fleet/ that calls a GH (or Expect)
+// with a method other than GET, dispatches a scheduler or puts a file,
+// by package-relative name, and whom it writes to.
 var writers = map[string]string{
-	"fleet.FireScheduler":     "member: a workflow dispatch on its own scheduler",
-	"fleet.EnsureLabel":       "manager",
-	"roster.ConvergeAdoption": "manager",
-	"update.Force":            "member: through FireScheduler",
+	"fleet.FireScheduler":        "member: a workflow dispatch on its own scheduler",
+	"fleet.EnsureLabel":          "manager, or a member's work-list label",
+	"fleet.PutFile":              "member: the one write into its tree, a sha-guarded Contents PUT",
+	"roster.ConvergeAdoption":    "manager",
+	"update.Force":               "member: through FireScheduler",
+	"addpacks.Remark":            "member: its work-list issue's mark, body and status labels",
+	"addpacks.openIssue":         "member: a marked work-list issue",
+	"addpacks.CloseSatisfied":    "member: closes its satisfied requested list",
+	"addpacks.ConvergeSuspected": "member: closes its suspected list when fitted",
+	"addpacks.Run":               "member: the nudge, through FireScheduler",
+	"seeds.member":               "member: its settings file, through PutFile",
 }
 
 func TestEveryWriterIsListed(t *testing.T) {
@@ -42,16 +50,22 @@ func TestEveryWriterIsListed(t *testing.T) {
 				if !ok || len(call.Args) == 0 {
 					return true
 				}
-				if lit, ok := call.Args[0].(*ast.BasicLit); ok && lit.Kind == token.STRING {
-					m, _ := strconv.Unquote(lit.Value)
-					if slices.Contains([]string{"POST", "PUT", "PATCH", "DELETE"}, m) {
-						found[pkg+"."+fn.Name.Name] = true
+				for _, arg := range call.Args[:min(2, len(call.Args))] {
+					if lit, ok := arg.(*ast.BasicLit); ok && lit.Kind == token.STRING {
+						m, _ := strconv.Unquote(lit.Value)
+						if slices.Contains([]string{"POST", "PUT", "PATCH", "DELETE"}, m) {
+							found[pkg+"."+fn.Name.Name] = true
+						}
 					}
 				}
-				if id, ok := call.Fun.(*ast.Ident); ok && id.Name == "FireScheduler" {
-					found[pkg+"."+fn.Name.Name] = true
+				name := ""
+				if id, ok := call.Fun.(*ast.Ident); ok {
+					name = id.Name
 				}
-				if sel, ok := call.Fun.(*ast.SelectorExpr); ok && sel.Sel.Name == "FireScheduler" {
+				if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
+					name = sel.Sel.Name
+				}
+				if name == "FireScheduler" || name == "PutFile" {
 					found[pkg+"."+fn.Name.Name] = true
 				}
 				return true

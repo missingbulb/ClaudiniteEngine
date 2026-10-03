@@ -58,5 +58,41 @@
         }
       ]
     }
+  },
+  "divergence": "record-95",
+  "cn": {
+    "calls": [
+      [
+        "GET",
+        "/repos/acme/a/contents/.claudinite"
+      ],
+      [
+        "GET",
+        "/repos/acme/a/contents/.claudinite-settings.json"
+      ],
+      [
+        "GET",
+        "/repos/acme/b/contents/.claudinite"
+      ],
+      [
+        "GET",
+        "/repos/acme/b/contents/.claudinite-settings.json"
+      ]
+    ],
+    "result": {
+      "targets": [
+        {
+          "fullName": "acme/a",
+          "missing": [
+            "node",
+            "asks"
+          ],
+          "defaultBranch": "trunk"
+        }
+      ],
+      "alreadyDeclared": [
+        "acme/b"
+      ]
+    }
   }
 }

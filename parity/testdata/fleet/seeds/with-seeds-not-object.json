@@ -14,5 +14,9 @@
   },
   "expect": {
     "error": "the declaration is not a JSON object"
+  },
+  "divergence": "record-101",
+  "cn": {
+    "error": ".claudinite/settings.json must hold an object"
   }
 }

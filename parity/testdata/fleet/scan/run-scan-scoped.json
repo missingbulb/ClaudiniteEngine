@@ -414,5 +414,93 @@
       }
     ],
     "unknown": []
+  },
+  "divergence": "record-95",
+  "cn": {
+    "actions": [
+      "opened #11 (acme/grown)"
+    ],
+    "calls": [
+      [
+        "GET",
+        "/user/repos?affiliation=owner&per_page=100&page=1"
+      ],
+      [
+        "GET",
+        "/repos/acme/grown/contents/.claudinite"
+      ],
+      [
+        "GET",
+        "/repos/acme/grown/contents/.claudinite-settings.json"
+      ],
+      [
+        "GET",
+        "/repos/acme/grown/git/trees/main?recursive=1"
+      ],
+      [
+        "GET",
+        "/repos/acme/grown/contents/src/a.js?ref=main"
+      ],
+      [
+        "GET",
+        "/repos/acme/grown/issues?labels=add-packs&state=all&per_page=100&page=1"
+      ],
+      [
+        "POST",
+        "/repos/acme/grown/labels",
+        {
+          "color": "0E8A16",
+          "description": "The fleet asks this repo to declare packs — adopted by the adopt-requested-packs task",
+          "name": "add-packs"
+        }
+      ],
+      [
+        "POST",
+        "/repos/acme/grown/labels",
+        {
+          "color": "bfd4f2",
+          "description": "Claudinite queue: asked for by a person — their own issue, adopted as the work item itself",
+          "name": "task:origin:ad-hoc"
+        }
+      ],
+      [
+        "POST",
+        "/repos/acme/grown/issues",
+        {
+          "body": "Task: claudinite-lifecycle/adopt-requested-packs\n\nThis repo carries file shapes that fingerprint packs its `.claudinite-settings.json`\ndoes not declare. A fingerprint only **suspects** a pack is wanted — declaring one is\nthis project's call, which is why this is an issue and not a failing check.\n\n## Suspected packs\n\n- **`firebase`** — Firebase projects\n- **`node`** — Node.js projects\n\nThis repo's own **adopt-requested-packs** task acts on this list: its agent confirms\neach suspicion against the checkout, adopts what survives through the adopt-pack skill\n(one reviewed PR on this repo), and declines the rest with a reason here. To decline\neverything for good, close this issue `not planned` — that is a standing answer the\nweekly fleet scan honours rather than re-suggesting.\n\nConverged weekly by the fleet's add-missing-packs scan: it closes this `completed` once\nthe declaration carries the packs (or the shape stops suggesting them).",
+          "labels": [
+            "add-packs",
+            "task:origin:ad-hoc"
+          ],
+          "title": "Add packs: suspected from this repo’s shape"
+        }
+      ],
+      [
+        "GET",
+        "/repos/acme/grown/issues?labels=add-packs&state=all&per_page=100&page=1"
+      ]
+    ],
+    "dormant": [],
+    "findings": [
+      {
+        "repo": "acme/grown",
+        "fits": [
+          "firebase",
+          "node"
+        ],
+        "undecided": []
+      }
+    ],
+    "fitted": [],
+    "outOfScope": [
+      "acme/Ignored (ignored — config.exclude)"
+    ],
+    "toFire": [
+      {
+        "fullName": "acme/grown",
+        "defaultBranch": "main"
+      }
+    ],
+    "unknown": []
   }
 }

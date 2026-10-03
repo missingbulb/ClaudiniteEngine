@@ -30,5 +30,7 @@
       "text": "# the member's own comment\nengine:\n  package: \"@claudinite/cli\"\n  version: \"61002.1.0\"\npacks:\n  channel: stable\n  declared:\n    - basics\n    - id: q\n      config:\n        keep: \"mine\"\n    - id: r\n# a trailing comment\n"
     }
   },
-  "expect": "{\n  \"packs\": [\n    \"basics\",\n    {\n      \"id\": \"q\",\n      \"config\": {\n        \"keep\": \"mine\"\n      }\n    },\n    {\n      \"id\": \"r\",\n      \"config\": {\n        \"b\": 2\n      }\n    },\n    {\n      \"id\": \"p\",\n      \"config\": {\n        \"a\": \"1\"\n      }\n    },\n    \"s\"\n  ],\n  \"other\": 1\n}\n"
+  "expect": "{\n  \"packs\": [\n    \"basics\",\n    {\n      \"id\": \"q\",\n      \"config\": {\n        \"keep\": \"mine\"\n      }\n    },\n    {\n      \"id\": \"r\",\n      \"config\": {\n        \"b\": 2\n      }\n    },\n    {\n      \"id\": \"p\",\n      \"config\": {\n        \"a\": \"1\"\n      }\n    },\n    \"s\"\n  ],\n  \"other\": 1\n}\n",
+  "divergence": "record-101",
+  "cn": "# the member's own comment\nengine:\n  package: \"@claudinite/cli\"\n  version: \"61002.1.0\"\npacks:\n  channel: \"stable\"\n  declared:\n    - \"basics\"\n    - id: \"q\"\n      config:\n        keep: \"mine\"\n    - id: \"r\"\n      config:\n        b: 2\n    - id: \"p\"\n      config:\n        a: \"1\"\n    - \"s\"\n# a trailing comment\n"
 }

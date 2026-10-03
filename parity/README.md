@@ -87,14 +87,19 @@ Settings face divergences: 4 of 19 fixtures.
 The fleet slice added the `fleet` face: the token grant, the manager's
 config, dormancy, dispatch classes, the update's scope, freshness, the
 roster's views, the four reports, the adoption issues' convergence, the
-follow loop and the signal reader. cn has no canon repo: current is what
+follow loop and the signal reader; 15b added the add-packs sweep's
+parameters, force, work-list protocol and mark, fingerprint fit, scan and
+the pack-seed classification and write. cn has no canon repo: current is what
 each member's own update would move it to, and a repo once named canon is
 judged as any other.
 
-Fleet face divergences: 18 of 67 fixtures.
+Fleet face divergences: 27 of 124 fixtures.
 
 | Row | Fixtures | Why |
 | --- | --- | --- |
 | 94 | config/canon-repo, freshness/engine-behind, freshness/fresh, freshness/non-version-skipped, freshness/pack-behind, freshness/pack-canon-lacks, freshness/packs-only-stamp, reports/freshness-full, reports/update-dry-run, reports/update-live, reports/update-nothing-dispatched, reports/verdict-not-current, scope/canon, signal/canon-skipped, views/canon | there is no canon: freshness is judged against the published engine and pack versions a member's own update reads, and a repo Node set aside as canon is measured like any member |
 | 95 | freshness/no-stamp | a cn member's held versions are its engine pin and its vendored manifests, so the no-stamp detail names `.claudinite/settings.*` |
+| 95 | force/resolve-targets, force/resolve-targets-refused, scan/run-scan, scan/run-scan-scoped | a member's shape is read from its `.claudinite/` listing before the Node file, one call more per member, and an uncovered repo is named as lacking both |
 | 98 | adoption/create-refused, adoption/open-new | the adoption issue asks for `cn init` and names `.claudinite/settings.*` |
+| 99 | scan/fit-summary, scan/fit-summary-scoped-clean, scan/suspected-body | the corpus is the shelf's signed catalog, not a canon clone, and the undecided fingerprints are settled by running them over the member's checkout rather than by a Node module the fleet no longer ships |
+| 101 | seeds/with-seeds, seeds/with-seeds-not-object | a seed is spliced into the member's settings file in its own format, comments and every byte outside `packs` kept, rather than round-tripped through two-space JSON |

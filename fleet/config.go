@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+
+	"github.com/missingbulb/ClaudiniteEngine/shared/packseed"
 )
 
 // PackID is the pack whose entry carries the fleet's config.
@@ -16,10 +18,7 @@ const KindUser = "user"
 const CanonRepoNote = "[cn] fleet: canonRepo is not read; current is judged against the published engine and pack versions"
 
 // Seed is one pack declaration the fleet wants in every member.
-type Seed struct {
-	ID     string         `json:"id"`
-	Config map[string]any `json:"config,omitempty"`
-}
+type Seed = packseed.Seed
 
 // Config is the manager's own claudinite-fleet-sheepdog entry: who to
 // cover, who to leave out, and the seeds.
@@ -77,23 +76,7 @@ func ParseConfig(raw any, present bool, home string) (Config, error) {
 		}
 	}
 	_, c.CanonRepoNamed = sd["canonRepo"]
-	if seeds, ok := sd["packSeeds"].([]any); ok {
-		for _, s := range seeds {
-			o, ok := s.(map[string]any)
-			if !ok {
-				continue
-			}
-			id, ok := o["id"].(string)
-			if !ok || strings.TrimSpace(id) == "" {
-				continue
-			}
-			seed := Seed{ID: strings.TrimSpace(id)}
-			if cfg, ok := o["config"].(map[string]any); ok {
-				seed.Config = cfg
-			}
-			c.PackSeeds = append(c.PackSeeds, seed)
-		}
-	}
+	c.PackSeeds = packseed.Parse(sd)
 	return c, nil
 }
 
