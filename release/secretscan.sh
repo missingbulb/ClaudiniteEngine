@@ -1,6 +1,6 @@
 #!/bin/sh
 # Fails if any built binary under DIR carries a secret-shaped string: token
-# prefixes, PEM private key blocks, AWS key ids, or any private key under keys/dev/ in
+# prefixes, PEM private key blocks, AWS key ids, or any private key under testkeys/ in
 # base64url or standard base64.
 # usage: release/secretscan.sh DIR
 set -eu
@@ -12,7 +12,7 @@ needles=$(mktemp)
 strs=$(mktemp)
 list=$(mktemp)
 trap 'rm -f "$needles" "$strs" "$list"' EXIT
-for key in "$here"/keys/dev/*.key; do
+for key in "$here"/testkeys/*.key; do
   [ -f "$key" ] || continue
   b64url=$(tr -d '\n' < "$key")
   printf '%s\n' "$b64url" >> "$needles"

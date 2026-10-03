@@ -40,7 +40,8 @@ var (
 )
 
 // unsignedDist is a copy of one release/build.sh run (VERSION=1.1.0,
-// PACKAGE=@claudinite/cli-rc), as a folder named dist under a fresh parent.
+// PACKAGE=@claudinite/cli-rc, the development roots, as release/rehearse.sh
+// needs), as a folder named dist under a fresh parent.
 func unsignedDist(t *testing.T) (string, string) {
 	t.Helper()
 	builtOnce.Do(func() {
@@ -51,7 +52,7 @@ func unsignedDist(t *testing.T) (string, string) {
 		builtDist = filepath.Join(dir, "dist")
 		cmd := exec.Command("sh", "release/build.sh")
 		cmd.Dir = ".."
-		cmd.Env = append(os.Environ(), "VERSION=1.1.0", "PACKAGE=@claudinite/cli-rc", "DIST="+builtDist)
+		cmd.Env = append(os.Environ(), "VERSION=1.1.0", "PACKAGE=@claudinite/cli-rc", "DIST="+builtDist, "REHEARSAL=1", "BUILD_TAGS=devroots")
 		var out []byte
 		out, builtErr = cmd.CombinedOutput()
 		builtOut = string(out)
@@ -67,7 +68,7 @@ func unsignedDist(t *testing.T) (string, string) {
 }
 
 func devKeyEnv(t *testing.T) []string {
-	return []string{"RELEASE_KEY=" + repoPath(t, "keys/dev/release.key"), "RELEASE_CERT=" + repoPath(t, "keys/dev/release.cert.json")}
+	return []string{"RELEASE_KEY=" + repoPath(t, "testkeys/release.key"), "RELEASE_CERT=" + repoPath(t, "testkeys/release.cert.json"), "ROOTS=" + repoPath(t, "license/devroots")}
 }
 
 func sumsCheck(dist string) (string, error) {
@@ -173,31 +174,33 @@ func TestSignSignsCopiesAndRepacks(t *testing.T) {
 
 func TestSignKeySources(t *testing.T) {
 	dist, _ := unsignedDist(t)
-	gone := filepath.Join(t.TempDir(), "no-dev-keys")
-	out, err := runScript(t, []string{"DEV_KEYS=" + gone, "RELEASE_KEY=", "RELEASE_CERT=", "DIST=" + dist}, "release/sign.sh")
+	out, err := runScript(t, []string{"RELEASE_KEY=", "RELEASE_CERT=", "ROOTS=", "DIST=" + dist}, "release/sign.sh")
 	if err == nil {
 		t.Fatalf("sign.sh signed with no keys\n%s", out)
 	}
 	if !strings.Contains(out, "RELEASE_KEY") || !strings.Contains(out, "RELEASE_CERT") {
 		t.Errorf("message does not name RELEASE_KEY and RELEASE_CERT:\n%s", out)
 	}
-	out, err = runScript(t, []string{"RELEASE_KEY=", "RELEASE_CERT=", "DIST=" + dist}, "release/sign.sh")
-	if err != nil {
-		t.Fatalf("sign.sh with dev keys: %v\n%s", err, out)
+	// The development release key is certified by the development root,
+	// which a released cn does not trust: by default its signature fails.
+	dev := []string{"RELEASE_KEY=" + repoPath(t, "testkeys/release.key"), "RELEASE_CERT=" + repoPath(t, "testkeys/release.cert.json"), "ROOTS=", "DIST=" + dist}
+	if out, err := runScript(t, dev, "release/sign.sh"); err == nil {
+		t.Fatalf("sign.sh accepted the development key against license/roots\n%s", out)
 	}
-	if !strings.Contains(out, "development") || !strings.Contains(out, "#5") {
-		t.Errorf("no warning naming #5 for a dev-key signature:\n%s", out)
+	dist, _ = unsignedDist(t)
+	if out, err := runScript(t, append(devKeyEnv(t), "DIST="+dist), "release/sign.sh"); err != nil {
+		t.Fatalf("sign.sh with the development key against license/devroots: %v\n%s", err, out)
 	}
 }
 
 func TestSignRefusesAnExpiringCertificate(t *testing.T) {
 	dist, _ := unsignedDist(t)
-	rootRaw, _ := os.ReadFile(repoPath(t, "keys/dev/root.key"))
+	rootRaw, _ := os.ReadFile(repoPath(t, "testkeys/root.key"))
 	root, err := sign.ParsePrivateKey(string(rootRaw))
 	if err != nil {
 		t.Fatal(err)
 	}
-	pubRaw, _ := os.ReadFile(repoPath(t, "keys/dev/release.pub"))
+	pubRaw, _ := os.ReadFile(repoPath(t, "testkeys/release.pub"))
 	pub, err := sign.ParsePublicKey(string(pubRaw))
 	if err != nil {
 		t.Fatal(err)
@@ -210,7 +213,7 @@ func TestSignRefusesAnExpiringCertificate(t *testing.T) {
 	certPath := filepath.Join(t.TempDir(), "release.cert.json")
 	raw, _ := json.Marshal(cert)
 	_ = os.WriteFile(certPath, raw, 0o644)
-	out, err := runScript(t, []string{"RELEASE_KEY=" + repoPath(t, "keys/dev/release.key"), "RELEASE_CERT=" + certPath, "DIST=" + dist}, "release/sign.sh")
+	out, err := runScript(t, []string{"RELEASE_KEY=" + repoPath(t, "testkeys/release.key"), "RELEASE_CERT=" + certPath, "ROOTS=" + repoPath(t, "license/devroots"), "DIST=" + dist}, "release/sign.sh")
 	if err == nil {
 		t.Fatalf("sign.sh signed with a certificate expiring in 10 days\n%s", out)
 	}

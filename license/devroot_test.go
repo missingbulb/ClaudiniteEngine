@@ -4,26 +4,33 @@ import (
 	"bytes"
 	"os"
 	"testing"
+
+	"github.com/missingbulb/ClaudiniteEngine/shared/sign"
 )
 
-// A stable release must never embed the development root (keys/dev/).
-// The promotion job builds with -tags stable; until #5 replaces the roots,
-// that build fails here on purpose.
+// A stable release must never embed the development roots (devroots/).
+// The promotion job builds with -tags stable.
 func TestStableBuildDoesNotEmbedTheDevRoot(t *testing.T) {
 	if !stableBuild {
-		t.Skip("not a stable build; #5 (root key ceremony) replaces the dev roots before any stable release")
+		t.Skip("not a stable build")
+	}
+	roots, err := Roots()
+	if err != nil {
+		t.Fatal(err)
 	}
 	for _, name := range []string{"root", "standby"} {
-		embedded, err := rootFiles.ReadFile("roots/" + name + ".pub")
+		raw, err := os.ReadFile("devroots/" + name + ".pub")
 		if err != nil {
 			t.Fatal(err)
 		}
-		dev, err := os.ReadFile("../keys/dev/" + name + ".pub")
+		dev, err := sign.ParsePublicKey(string(raw))
 		if err != nil {
-			continue
+			t.Fatal(err)
 		}
-		if bytes.Equal(bytes.TrimSpace(embedded), bytes.TrimSpace(dev)) {
-			t.Errorf("license/roots/%s.pub is the development key from keys/dev/", name)
+		for _, r := range roots {
+			if bytes.Equal(r, dev) {
+				t.Errorf("the build embeds the development %s from license/devroots/", name)
+			}
 		}
 	}
 }

@@ -6,15 +6,20 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/shared/sign"
 )
 
-func TestExactlyTwoDistinctRootsEmbed(t *testing.T) {
+func TestEveryEmbeddedRootIsDistinct(t *testing.T) {
 	roots, err := Roots()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(roots) != 2 {
-		t.Fatalf("%d roots embedded, want 2", len(roots))
+	if len(roots) == 0 || len(roots)%2 != 0 {
+		t.Fatalf("%d roots embedded, want a root and a standby per directory", len(roots))
 	}
-	if sign.KeyID(roots[0]) == sign.KeyID(roots[1]) {
-		t.Fatal("root and standby share a key id")
+	seen := map[string]bool{}
+	for _, r := range roots {
+		id := sign.KeyID(r)
+		if seen[id] {
+			t.Fatalf("key id %s embedded twice", id)
+		}
+		seen[id] = true
 	}
 }

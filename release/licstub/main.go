@@ -1,7 +1,7 @@
 // Command licstub stands in for the Claudinite license server
 // (ClaudiniteLicenses workers/key) over HTTPS on loopback, for the
 // rehearsal's license mode. It signs every key with a license issuing key
-// it makes at start and certifies with --root-key (keys/dev/root.key), so
+// it makes at start and certifies with --root-key (testkeys/root.key), so
 // the roots cn embeds in a development build verify it.
 //
 // Routes, as the Worker answers them:
@@ -573,7 +573,7 @@ func (f refuseFlag) Set(v string) error {
 }
 
 func main() {
-	rootKey := flag.String("root-key", "keys/dev/root.key", "the root that certifies the issuing key")
+	rootKey := flag.String("root-key", "testkeys/root.key", "the root that certifies the issuing key")
 	ghReady := flag.String("gh-ready", "", "ghstub's --ready file")
 	ghCA := flag.String("gh-ca", "", "ghstub's --ca-out file")
 	addr := flag.String("addr", "127.0.0.1:0", "listen address")

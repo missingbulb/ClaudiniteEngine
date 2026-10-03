@@ -2,13 +2,22 @@
 # Builds one platform's cn exactly as a release does: static, stripped,
 # reproducible (no VCS stamp, trimmed paths, no timestamps).
 # usage: release/gobuild.sh <platform> <out-file>   (VERSION, COMMIT from the environment)
-# BUILD_TAGS may name rehearsal_break, and only with REHEARSAL=1: the
-# rehearsal's deliberately broken verify never reaches a release.
+# BUILD_TAGS may name devroots and rehearsal_break, comma-separated, and
+# only with REHEARSAL=1 (release/rehearse.sh): a build that trusts the
+# development roots, or whose verify is deliberately broken, never reaches
+# a release.
 set -eu
 tags=${BUILD_TAGS:-}
-if [ -n "$tags" ] && { [ "$tags" != rehearsal_break ] || [ "${REHEARSAL:-}" != 1 ]; }; then
-  echo "gobuild: BUILD_TAGS=$tags refused: only rehearsal_break, and only with REHEARSAL=1 (release/rehearse.sh)" >&2
-  exit 2
+if [ -n "$tags" ]; then
+  refused=
+  [ "${REHEARSAL:-}" = 1 ] || refused=1
+  for tag in $(printf '%s' "$tags" | tr ',' ' '); do
+    case $tag in devroots|rehearsal_break) ;; *) refused=1 ;; esac
+  done
+  if [ -n "$refused" ]; then
+    echo "gobuild: BUILD_TAGS=$tags refused: only devroots and rehearsal_break, and only with REHEARSAL=1 (release/rehearse.sh)" >&2
+    exit 2
+  fi
 fi
 platform=$1
 out=$2

@@ -40,12 +40,12 @@ standby root.
    being public.
 9. Delete `CEREMONY_TOKEN` and `CEREMONY_PASSPHRASE` from the `ceremony` environment and revoke
    the token.
-10. The public keys from #5 then replace the development roots: ClaudiniteEngine
-    `license/roots/`, ClaudinitePacks `keys/dev/roots/` (what `release-packs.yml` passes to
-    `--roots`) and ClaudiniteLicenses `keys/dev/` (its root and both development issuing keys,
-    `license-public` and `license`). From the moment the run sets the working keys until those
-    land, every Engine release, Packs publish and Licenses deploy signs with a chain nothing
-    trusts and fails verification.
+10. The public keys from #5 then become the roots every verifier trusts: ClaudiniteEngine
+    `license/roots/` (whose key ids `license/roots_real_test.go` pins), ClaudinitePacks
+    `keys/roots/` (what `release-packs.yml` passes to `--roots`) and ClaudiniteLicenses
+    `packages/signing/roots/` (the key Worker's `TRUST_ROOTS`). From the moment the run sets the
+    working keys until those land, every Engine release, Packs publish and Licenses deploy signs
+    with a chain nothing trusts and fails verification.
 
 A second ceremony refuses once `ROOT_KEY` exists. A run that fails before storing the root can be
 run again; it replaces any working key it had already set. If a run dies after `ROOT_KEY` is stored

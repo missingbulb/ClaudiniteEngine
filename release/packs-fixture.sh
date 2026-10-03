@@ -4,7 +4,7 @@
 # (which release/cdnstub serves at the CDN's paths) and mirror.git (which
 # CLAUDINITE_PACKS_REPO names), laid out and signed as ClaudinitePacks'
 # branch is. The first call issues a packs key certified by the
-# development root (keys/dev/root.key) and publishes v1; later calls apply
+# development root (testkeys/root.key) and publishes v1; later calls apply
 # their operations in order, commit once and push.
 #
 #   release/packs-fixture.sh DIR --min-engine VERSION      first call: v1
@@ -31,7 +31,7 @@ if [ ! -d "$dir/cdn.git" ]; then
   (cd "$here" && go build -o "$tools/cn-keys" ./cmd/cn-keys && go build -o "$tools/packfixture" ./release/packfixture) \
     || fail "building the tools"
   "$tools/cn-keys" key new --out "$dir/keys" --name packs > /dev/null
-  "$tools/cn-keys" certify --root "$here/keys/dev/root.key" --subject "$dir/keys/packs.pub" --use packs --days 90 \
+  "$tools/cn-keys" certify --root "$here/testkeys/root.key" --subject "$dir/keys/packs.pub" --use packs --days 90 \
     --out "$dir/keys/packs.cert.json" > /dev/null
   printf '%s\n' "$2" > "$dir/min-engine"
   shift 2

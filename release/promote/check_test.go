@@ -37,12 +37,12 @@ func rcTarballs(t *testing.T, how tamper) string {
 		data[p] = d
 	}
 	manifest := releasefiles.Format(releasefiles.Manifest{V: 1, Version: ver, BuiltAt: "2026-09-30T00:00:00Z", Commit: "abc1234", GoVersion: runtime.Version(), UpdaterDigest: strings.Repeat("1", 64), Binaries: bins})
-	keyRaw, _ := os.ReadFile("../../keys/dev/release.key")
+	keyRaw, _ := os.ReadFile("../../testkeys/release.key")
 	key, err := sign.ParsePrivateKey(string(keyRaw))
 	if err != nil {
 		t.Fatal(err)
 	}
-	certRaw, _ := os.ReadFile("../../keys/dev/release.cert.json")
+	certRaw, _ := os.ReadFile("../../testkeys/release.cert.json")
 	var cert sign.Certificate
 	if err := json.Unmarshal(certRaw, &cert); err != nil {
 		t.Fatal(err)
@@ -96,7 +96,7 @@ func TestCheck(t *testing.T) {
 	}
 	for _, c := range cases {
 		dir := rcTarballs(t, c.how)
-		got, reason, stable := Check(dir, ver, "../../license/roots", "abc1234ffffffffffffffffffffffffffffffff", c.stable)
+		got, reason, stable := Check(dir, ver, "../../license/devroots", "abc1234ffffffffffffffffffffffffffffffff", c.stable)
 		if got != c.want {
 			t.Errorf("%s: %s (%s), want %s", c.name, got, reason, c.want)
 		}
@@ -112,7 +112,7 @@ func TestCheck(t *testing.T) {
 func TestCheckRefusesAMissingPlatform(t *testing.T) {
 	dir := rcTarballs(t, tamper{})
 	_ = os.Remove(filepath.Join(dir, "cli-rc-windows-x64-"+ver+".tgz"))
-	if got, reason, _ := Check(dir, ver, "../../license/roots", "abc1234ffffffffffffffffffffffffffffffff", passing); got != "refuse" || !strings.Contains(reason, "windows-x64") {
+	if got, reason, _ := Check(dir, ver, "../../license/devroots", "abc1234ffffffffffffffffffffffffffffffff", passing); got != "refuse" || !strings.Contains(reason, "windows-x64") {
 		t.Errorf("%s %s", got, reason)
 	}
 }
@@ -122,7 +122,7 @@ func TestCheckRefusesAMissingPlatform(t *testing.T) {
 func TestCheckRefusesACandidateCheckoutAtAnotherCommit(t *testing.T) {
 	dir := rcTarballs(t, tamper{})
 	head := "def5678000000000000000000000000000000000"
-	got, reason, _ := Check(dir, ver, "../../license/roots", head, passing)
+	got, reason, _ := Check(dir, ver, "../../license/devroots", head, passing)
 	if got != "refuse" || !strings.Contains(reason, head) || !strings.Contains(reason, "abc1234") {
 		t.Errorf("%s %s", got, reason)
 	}
