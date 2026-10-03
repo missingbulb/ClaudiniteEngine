@@ -360,3 +360,17 @@ func sortedKeys[V any](m map[string]V) []string {
 	sort.Strings(out)
 	return out
 }
+
+// StripNumericMarker is line without the retired numeric marker at its
+// end.
+func StripNumericMarker(line string) string { return numericAtEnd.ReplaceAllString(line, "") }
+
+// ValidDate reports whether a YYYY-MM-DD string is a date the Node
+// engine's Date.parse reads.
+func ValidDate(d string) bool {
+	return regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`).MatchString(d) && validDate(d)
+}
+
+// Converted reports whether an entry's title is the one the references
+// conversion writes.
+func Converted(title string) bool { return convertedRE.MatchString(title) }
