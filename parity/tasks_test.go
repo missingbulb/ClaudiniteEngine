@@ -21,12 +21,16 @@ import (
 // frozen shelf, cn through `cn tasks <kind> --world <input>`, and both
 // answers must equal expect. CLAUDINITE_PARITY_RECORD=1 writes the Node
 // answer into expect: a fixture is written against the Node engine first.
+// Where cn decides otherwise on purpose, the fixture carries "divergence"
+// and "cn" as an update fixture does.
 
 // TaskFixture is one tasks-face fixture.
 type TaskFixture struct {
 	Kind, Name, Path string
 	Input            json.RawMessage
 	Expect           json.RawMessage
+	Divergence       string
+	Cn               json.RawMessage
 }
 
 // LoadTaskFixtures reads every fixture under root, sorted by kind and name.
@@ -51,8 +55,10 @@ func LoadTaskFixtures(root string) ([]TaskFixture, error) {
 				return nil, err
 			}
 			var body struct {
-				Input  json.RawMessage `json:"input"`
-				Expect json.RawMessage `json:"expect"`
+				Input      json.RawMessage `json:"input"`
+				Expect     json.RawMessage `json:"expect"`
+				Divergence string          `json:"divergence"`
+				Cn         json.RawMessage `json:"cn"`
 			}
 			dec := json.NewDecoder(bytes.NewReader(raw))
 			dec.DisallowUnknownFields()
@@ -62,7 +68,14 @@ func LoadTaskFixtures(root string) ([]TaskFixture, error) {
 			if len(body.Input) == 0 {
 				return nil, fmt.Errorf("%s: no input", f)
 			}
-			out = append(out, TaskFixture{Kind: k.Name(), Name: strings.TrimSuffix(filepath.Base(f), ".json"), Path: f, Input: body.Input, Expect: body.Expect})
+			if (body.Divergence == "") != (len(body.Cn) == 0) {
+				return nil, fmt.Errorf("%s: a divergence names its record row and carries cn's answer, both or neither", f)
+			}
+			if body.Divergence != "" && !divergenceForm.MatchString(body.Divergence) {
+				return nil, fmt.Errorf("%s: divergence %q is not record-<row>", f, body.Divergence)
+			}
+			out = append(out, TaskFixture{Kind: k.Name(), Name: strings.TrimSuffix(filepath.Base(f), ".json"), Path: f,
+				Input: body.Input, Expect: body.Expect, Divergence: body.Divergence, Cn: body.Cn})
 		}
 	}
 	return out, nil
@@ -131,8 +144,12 @@ func TestParityTasks(t *testing.T) {
 				if len(f.Expect) == 0 {
 					t.Fatalf("%s has no expect; record it against the Node engine first (%s=1)", f.Path, recordEnv)
 				}
+				wantRaw := f.Expect
+				if e.Name() == "cn" && f.Divergence != "" {
+					wantRaw = f.Cn
+				}
 				var want any
-				if err := json.Unmarshal(f.Expect, &want); err != nil {
+				if err := json.Unmarshal(wantRaw, &want); err != nil {
 					t.Fatal(err)
 				}
 				if !reflect.DeepEqual(got, want) {
@@ -154,7 +171,12 @@ func recordTasks(f TaskFixture, answer any) error {
 	enc := json.NewEncoder(&b)
 	enc.SetEscapeHTML(false)
 	enc.SetIndent("", "  ")
-	if err := enc.Encode(map[string]json.RawMessage{"input": f.Input, "expect": mustJSON(answer)}); err != nil {
+	body := map[string]json.RawMessage{"input": f.Input, "expect": mustJSON(answer)}
+	if f.Divergence != "" {
+		body["divergence"] = mustJSON(f.Divergence)
+		body["cn"] = f.Cn
+	}
+	if err := enc.Encode(orderedFixture(body)); err != nil {
 		return err
 	}
 	return os.WriteFile(f.Path, b.Bytes(), 0o644)
