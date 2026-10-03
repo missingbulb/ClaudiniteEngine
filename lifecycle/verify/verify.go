@@ -611,9 +611,6 @@ func pinOf(in Input) string {
 	return e.Version
 }
 
-// checkRulesIndex breaks when the rules index differs from what the
-// declaration produces; an absent index is a deprecation until the rules
-// channel's live measurement makes it a break.
 // checkSkillsIndex asks the Node rule's question of the repo's own files:
 // is there a skills index, and does it name every skill a declared pack
 // holds here. An index no earlier cn release wrote is a deprecation; one
@@ -663,6 +660,9 @@ func checkSkillsIndex(in Input) []findings.Finding {
 	return out
 }
 
+// checkRulesIndex breaks when the rules index differs from what the
+// declaration produces; an absent index is a deprecation until the rules
+// channel's live measurement makes it a break.
 func checkRulesIndex(in Input) []findings.Finding {
 	if _, _, err := settings.Find(in.Repo); err != nil {
 		return nil

@@ -78,10 +78,14 @@ func FromEnv() (*Client, error) {
 }
 
 // Refusal is an answer outside 2xx; Reason is the body's "refused" field,
-// empty when it has none.
+// empty when it has none. CheckoutURL and PortalURL are the body's links
+// (a no-plan refusal names where a plan is picked), "" when absent or not
+// an https URL.
 type Refusal struct {
-	Status int
-	Reason string
+	Status      int
+	Reason      string
+	CheckoutURL string
+	PortalURL   string
 }
 
 func (r *Refusal) Error() string {
@@ -89,6 +93,19 @@ func (r *Refusal) Error() string {
 		return fmt.Sprintf("the license server answered %d", r.Status)
 	}
 	return fmt.Sprintf("the license server refused (%d %s)", r.Status, r.Reason)
+}
+
+// httpsURL is raw as a string when it is an https URL with a host, and ""
+// otherwise.
+func httpsURL(raw json.RawMessage) string {
+	var s string
+	if json.Unmarshal(raw, &s) != nil {
+		return ""
+	}
+	if u, err := url.Parse(s); err != nil || u.Scheme != "https" || u.Host == "" {
+		return ""
+	}
+	return s
 }
 
 // IsUnreachable reports an error that never got an answer from the server.
@@ -136,10 +153,12 @@ func (c *Client) call(method, path, bearer string, in, out any) error {
 	}
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
 		var r struct {
-			Refused string `json:"refused"`
+			Refused  string          `json:"refused"`
+			Checkout json.RawMessage `json:"checkout_url"`
+			Portal   json.RawMessage `json:"portal_url"`
 		}
 		_ = json.Unmarshal(raw, &r)
-		return &Refusal{Status: resp.StatusCode, Reason: r.Refused}
+		return &Refusal{Status: resp.StatusCode, Reason: r.Refused, CheckoutURL: httpsURL(r.Checkout), PortalURL: httpsURL(r.Portal)}
 	}
 	if err := json.Unmarshal(raw, out); err != nil {
 		return fmt.Errorf("%s %s: %w: %v", method, path, errShape, err)

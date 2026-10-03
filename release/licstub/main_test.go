@@ -196,6 +196,19 @@ func TestDesktopRefusals(t *testing.T) {
 	}
 }
 
+// A desktop refusal licstub is told to make carries the checkout link it
+// was given, as a no-plan refusal names where a plan is picked.
+func TestDesktopRefusalCarriesTheCheckout(t *testing.T) {
+	st, err := newStub(devRoot(t), config{Refuse: map[string]string{"desktop": "no-plan"}, CheckoutURL: "https://polar.sh/c/acme"}, fakeGH(t, false, true), time.Now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	code, out := call(t, st, http.MethodPost, "/v1/session-key", "ghu_x", map[string]any{"repo": "acme/member", "nonce": "nonce-0123456789abcd"})
+	if code != 403 || out["refused"] != "no-plan" || out["checkout_url"] != "https://polar.sh/c/acme" {
+		t.Errorf("%d %v", code, out)
+	}
+}
+
 // The refusal vocabulary is the Worker README's. CLAUDINITE_LICENSES names
 // a ClaudiniteLicenses checkout; without it the comparison is skipped.
 func TestRefusalsAreTheWorkersVocabulary(t *testing.T) {

@@ -389,6 +389,21 @@ func (e Env) degrade(path string, f *File, c Cause, detail string) {
 	})
 }
 
+// degradeRefused records the server's refusal as the cause, with the
+// checkout and portal links it named.
+func (e Env) degradeRefused(path string, f *File, ref *licenseapi.Refusal) {
+	c := Cause(ref.Reason)
+	e.logf("degraded: %s (refused %d)", c, ref.Status)
+	e.write(path, f, func(cur *File) bool {
+		if cur.Key != "" {
+			return false
+		}
+		cur.State, cur.Cause, cur.CauseDetail, cur.Link = StateDegraded, c, "", LinkFor(c)
+		cur.Checkout, cur.Portal = ref.CheckoutURL, ref.PortalURL
+		return true
+	})
+}
+
 // write applies edit to the file under its lock while it still belongs to
 // f's request (same nonce) and that request has not landed its key yet;
 // edit returning false writes nothing. What the request observed (the
@@ -605,7 +620,7 @@ func (e Env) askWorker(path string, f *File, login Login, origin, landedBy strin
 		e.degrade(path, f, CauseServerUnreachable, err.Error())
 		return false
 	case errors.As(err, &ref) && ref.Reason != "":
-		e.degrade(path, f, Cause(ref.Reason), "")
+		e.degradeRefused(path, f, ref)
 		return false
 	default:
 		e.degrade(path, f, CauseServerUnreachable, err.Error())
