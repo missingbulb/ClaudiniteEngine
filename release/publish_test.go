@@ -130,7 +130,7 @@ func fakeNpm(t *testing.T, whoami, orgJSON string) (string, string) {
 	dir := t.TempDir()
 	log := filepath.Join(dir, "calls")
 	script := `#!/bin/sh
-echo "$*" >> "` + log + `"
+echo "${npm_config_loglevel:+loglevel=$npm_config_loglevel }$*" >> "` + log + `"
 case $1 in
   whoami)
     [ -n "` + whoami + `" ] || { echo "npm error code E401" >&2; echo "npm error 401 Unauthorized - GET https://registry.npmjs.org/-/whoami" >&2; exit 1; }
@@ -186,8 +186,11 @@ func TestPublishTokenAuthNamesTheCauseOfARefusal(t *testing.T) {
 	}
 	for name, c := range cases {
 		dist := fakeTarballs(t, "0.0.0", rcNames()...)
-		path, _ := fakeNpm(t, c.whoami, c.org)
+		path, log := fakeNpm(t, c.whoami, c.org)
 		out, err := runScript(t, []string{"DIST=" + dist, "VERSION=0.0.0", "PATH=" + path}, "release/publish.sh", "--channel", "rc", "--auth", "token", "--skip-existing")
+		if calls := readCalls(t, log); strings.Contains(calls, "loglevel=verbose") {
+			t.Errorf("%s: a token publish ran npm at verbose:\n%s", name, calls)
+		}
 		if err == nil {
 			t.Errorf("%s: a refused publish succeeded:\n%s", name, out)
 			continue
@@ -210,8 +213,12 @@ func TestPublishOIDCRefusalPointsAtTheTrustedPublisher(t *testing.T) {
 	if err == nil || !strings.Contains(out, "attach its trusted publisher") {
 		t.Fatalf("err %v\n%s", err, out)
 	}
-	if calls := readCalls(t, log); strings.Contains(calls, "whoami") {
+	calls := readCalls(t, log)
+	if strings.Contains(calls, "whoami") {
 		t.Errorf("an OIDC publish ran npm whoami, which has no token to check:\n%s", calls)
+	}
+	if !strings.Contains(calls, "loglevel=verbose publish") {
+		t.Errorf("an OIDC publish ran npm below verbose, so a refusal hides the token exchange:\n%s", calls)
 	}
 }
 

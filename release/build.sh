@@ -54,7 +54,7 @@ done
 
 pkgjson() {
   # name, description, extra fields
-  printf '{\n  "name": "%s",\n  "version": "%s",\n  "description": "Claudinite engine %s",\n  "license": "UNLICENSED",\n  "repository": "github:missingbulb/ClaudiniteEngine"%s\n}\n' \
+  printf '{\n  "name": "%s",\n  "version": "%s",\n  "description": "Claudinite engine %s",\n  "license": "UNLICENSED",\n  "repository": {"type": "git", "url": "git+https://github.com/missingbulb/ClaudiniteEngine.git"}%s\n}\n' \
     "$1" "$VERSION" "$2" "$3"
 }
 
