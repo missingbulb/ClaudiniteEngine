@@ -16,13 +16,19 @@
 # promote environment holds; without it the job fails naming the secret,
 # the commands kept in its summary. A version npm does not have is refused
 # with a notice and a green run.
+#
+# action unpublish removes the version from @claudinite/cli-rc and its
+# platform packages with npm unpublish, on the same token and environment.
+# It refuses, failing before any unpublish, when the version is the only
+# one any of those packages holds, since npm deletes a package whose last
+# version is unpublished.
 name: promote
 
 on:
   workflow_dispatch:
     inputs:
       action:
-        description: promote the version, hold or revoke it on npm, or release a hold or revocation
+        description: promote the version, hold or revoke it on npm, release a hold or revocation, or unpublish it from the rc packages
         required: true
         type: choice
         default: promote
@@ -31,6 +37,7 @@ on:
           - hold
           - revoke
           - release
+          - unpublish
       version:
         description: The @claudinite/cli-rc version to act on
         required: true
@@ -197,6 +204,53 @@ jobs:
           fi
           NODE_AUTH_TOKEN=$NPM_DEPRECATE_TOKEN sh "$RUNNER_TEMP/commands.sh"
           echo "deprecated now: $(npm view "@claudinite/cli-rc@$VERSION" deprecated)" >> "$GITHUB_STEP_SUMMARY"
+
+  unpublish:
+    if: inputs.action == 'unpublish'
+    runs-on: ubuntu-24.04
+    environment: promote
+    permissions:
+      contents: read
+    env:
+      VERSION: ${{ inputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.24"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+          registry-url: https://registry.npmjs.org
+      - name: npm unpublish
+        env:
+          NPM_DEPRECATE_TOKEN: ${{ secrets.NPM_DEPRECATE_TOKEN }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/versions/@claudinite"
+          for name in $(go run ./release/pipeline names --channel rc); do
+            npm view "$name" versions --json > "$RUNNER_TEMP/versions/$name.json" 2>/dev/null || true
+          done
+          if ! go run ./release/pipeline unpublish-commands --version "$VERSION" --versions-dir "$RUNNER_TEMP/versions" > "$RUNNER_TEMP/commands.sh"; then
+            echo "### unpublish $VERSION: refused; nothing unpublished (the error is in this job's log)" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          if [ ! -s "$RUNNER_TEMP/commands.sh" ]; then
+            echo "### unpublish $VERSION: npm has no such version; nothing done" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          {
+            echo "### unpublish $VERSION"
+            echo
+            echo '```'
+            cat "$RUNNER_TEMP/commands.sh"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ -z "$NPM_DEPRECATE_TOKEN" ]; then
+            echo "::error::the promote environment has no NPM_DEPRECATE_TOKEN secret, an npm token with write access to @claudinite; add it and dispatch again (the commands are in this job's summary)"
+            exit 1
+          fi
+          NODE_AUTH_TOKEN=$NPM_DEPRECATE_TOKEN sh "$RUNNER_TEMP/commands.sh"
+          echo "versions now: $(npm view @claudinite/cli-rc versions --json | tr -d '\n ')" >> "$GITHUB_STEP_SUMMARY"
 
   publish:
     needs: [gate, check]
