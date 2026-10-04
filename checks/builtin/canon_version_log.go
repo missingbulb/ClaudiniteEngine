@@ -3,12 +3,12 @@ package builtin
 import (
 	"fmt"
 	"regexp"
-	"strconv"
 	"strings"
 
 	"github.com/missingbulb/ClaudiniteEngine/checks/declared"
 	"github.com/missingbulb/ClaudiniteEngine/shared/findings"
 	"github.com/missingbulb/ClaudiniteEngine/shared/transcript"
+	"github.com/missingbulb/ClaudiniteEngine/shared/version"
 )
 
 // A shelf pack's provenance/VERSIONS.md rows run newest-first. The history
@@ -28,35 +28,31 @@ var versionLog = declared.Builtin{
 func init() { register(&versionLog, runVersionLog) }
 
 var (
-	versionRow = regexp.MustCompile(`^\|\s*(\d+(?:\.\d+)?)\s*\|`)
-	dayOrdinal = regexp.MustCompile(`^([1-9]\d{4,5})\.([1-9]\d*)$`)
+	versionRow = regexp.MustCompile(`^\|\s*(\d+(?:\.\d+)*)\s*\|`)
+	dayOrdinal = regexp.MustCompile(`^([1-9]\d{4,5}\.[1-9]\d*|\d+)$`)
 )
 
-// rowVersion is a VERSIONS.md line's version as <day> and <n>: a
-// date-anchored <day>.<n>, or a bare integer read as <day>.0.
-func rowVersion(line string) (day, n int, ok bool) {
+// rowVersion is a VERSIONS.md line's version: a <major>.<day>.<n>, or an
+// earlier date-anchored <day>.<n> or bare integer, which ComparePack sorts
+// below it. Any other number in the first column is not a version.
+func rowVersion(line string) (string, bool) {
 	m := versionRow.FindStringSubmatch(strings.TrimSpace(line))
 	if m == nil {
-		return 0, 0, false
+		return "", false
 	}
-	if !strings.Contains(m[1], ".") {
-		d, err := strconv.Atoi(m[1])
-		return d, 0, err == nil
+	if dayOrdinal.MatchString(m[1]) {
+		return m[1], true
 	}
-	v := dayOrdinal.FindStringSubmatch(m[1])
-	if v == nil {
-		return 0, 0, false
+	if v, err := version.Parse(m[1]); err == nil && v != (version.V{}) {
+		return m[1], true
 	}
-	day, _ = strconv.Atoi(v[1])
-	n, _ = strconv.Atoi(v[2])
-	return day, n, true
+	return "", false
 }
 
 func runVersionLog(ctx *declared.Ctx, _ *transcript.Session) []findings.Finding {
 	type claim struct {
-		text   string
-		day, n int
-		line   int
+		text string
+		line int
 	}
 	var out []findings.Finding
 	for _, f := range ctx.Files() {
@@ -67,13 +63,13 @@ func runVersionLog(ctx *declared.Ctx, _ *transcript.Session) []findings.Finding 
 		text, _ := ctx.Read(f)
 		var claims []claim
 		for i, l := range strings.Split(text, "\n") {
-			if day, n, ok := rowVersion(l); ok {
-				claims = append(claims, claim{versionRow.FindStringSubmatch(strings.TrimSpace(l))[1], day, n, i + 1})
+			if v, ok := rowVersion(l); ok {
+				claims = append(claims, claim{v, i + 1})
 			}
 		}
 		for i := 1; i < len(claims); i++ {
 			prev, cur := claims[i-1], claims[i]
-			if cur.day > prev.day || (cur.day == prev.day && cur.n > prev.n) {
+			if c, _ := version.ComparePack(cur.text, prev.text); c > 0 {
 				out = append(out, versionLog.Finding(f, cur.line,
 					fmt.Sprintf("version %s sits below %s (line %d) but is newer — VERSIONS.md rows must run newest-first", cur.text, prev.text, prev.line),
 					fmt.Sprintf("move the row for %s above line %d, so rows descend by version top to bottom", cur.text, prev.line)))

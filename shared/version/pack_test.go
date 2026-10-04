@@ -2,7 +2,7 @@ package version
 
 import "testing"
 
-// The table ClaudinitePacks' tools/release/index.test.mjs pins for
+// The tables ClaudinitePacks' tools/release/index.test.mjs pins for
 // compareVersions, plus the cases this reader adds: the two readers are one
 // order.
 func TestComparePack(t *testing.T) {
@@ -21,6 +21,19 @@ func TestComparePack(t *testing.T) {
 		{"1.0", "1.1", -1},
 		{"2", "1.9.9", 1},
 		{"18446744073709551616", "18446744073709551615", 1},
+		// ClaudinitePacks' old-below-new table: a version outside
+		// <major>.<day>.<n> sorts below every version in it.
+		{"61002.3", "1.61004.1", -1},
+		{"99999.99", "0.60101.1", -1},
+		{"61002.3.0", "1.60101.1", -1},
+		{"0.0.0", "0.60101.1", -1},
+		{"1.61004.0", "1.60101.1", -1},
+		{"1.61300.1", "1.60101.1", -1},
+		{"1.61004.2", "1.61004.10", -1},
+		{"1.61004.9", "1.61005.1", -1},
+		{"1.61231.9", "2.60101.1", -1},
+		{"1.61004.1", "1.61004.1", 0},
+		{"01.61004.1", "1.60101.1", -1},
 	}
 	for _, c := range cases {
 		got, err := ComparePack(c.a, c.b)
@@ -43,6 +56,14 @@ func TestComparePackRefusesNonNumeric(t *testing.T) {
 		}
 		if _, err := ComparePack("1.0", s); err == nil {
 			t.Errorf("ComparePack(_, %q) accepted", s)
+		}
+	}
+}
+
+func TestValidPackReadsBothForms(t *testing.T) {
+	for _, s := range []string{"61002.3", "1.5", "1.61004.1", "0.0.0"} {
+		if !ValidPack(s) {
+			t.Errorf("ValidPack(%q) = false", s)
 		}
 	}
 }

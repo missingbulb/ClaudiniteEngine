@@ -5,11 +5,14 @@ import (
 	"strings"
 )
 
-// ComparePack orders two pack versions: dot-separated decimal segments
-// compared as numbers of any size, never as floats, and where one version
-// is a prefix of the other the shorter sorts first. It is the order of
-// ClaudinitePacks' compareVersions, which writes the index. A version with
-// an empty or non-decimal segment is refused.
+// ComparePack orders two pack versions, the order of ClaudinitePacks'
+// compareVersions, which writes the index. A pack version is
+// <major>.<day>.<n> as Parse reads it, the dev build's 0.0.0 aside; one in
+// any other dot-separated form, such as the two-part 61002.3 the shelf first
+// published, sorts below every version in that form. Within either form,
+// dot-separated decimal segments compare as numbers of any size, never as
+// floats, and where one version is a prefix of the other the shorter sorts
+// first. A version with an empty or non-decimal segment is refused.
 func ComparePack(a, b string) (int, error) {
 	x, err := packSegments(a)
 	if err != nil {
@@ -18,6 +21,12 @@ func ComparePack(a, b string) (int, error) {
 	y, err := packSegments(b)
 	if err != nil {
 		return 0, err
+	}
+	if ra, rb := releaseForm(a), releaseForm(b); ra != rb {
+		if ra {
+			return 1, nil
+		}
+		return -1, nil
 	}
 	for i := 0; i < len(x) || i < len(y); i++ {
 		switch {
@@ -33,7 +42,14 @@ func ComparePack(a, b string) (int, error) {
 	return 0, nil
 }
 
-// ValidPack reports whether s is a pack version ComparePack reads.
+// releaseForm reports whether s is a <major>.<day>.<n> release version.
+func releaseForm(s string) bool {
+	v, err := Parse(s)
+	return err == nil && v != (V{})
+}
+
+// ValidPack reports whether s is a pack version ComparePack reads, in
+// either form: a published index keeps its older entries.
 func ValidPack(s string) bool {
 	_, err := packSegments(s)
 	return err == nil

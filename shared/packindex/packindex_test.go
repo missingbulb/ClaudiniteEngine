@@ -120,6 +120,25 @@ func TestSelectSkipsANodeEngineFloor(t *testing.T) {
 	}
 }
 
+// The shelf's first versions are two-part, such as 61002.3; a
+// <major>.<day>.<n> version published after them is newer than every one.
+func TestSelectPrefersTheMajorDayForm(t *testing.T) {
+	ix := Index{V: 1, Pack: "hello", Serial: 3, Versions: []Entry{
+		entry("61002.3", "stable", false, "1.60102.1"),
+		entry("61009.9", "stable", false, "1.60102.1"),
+		entry("1.61004.1", "stable", false, "1.60102.1"),
+	}}
+	if got := Select(ix, Want{Channel: "stable", Engine: "1.60102.1"}); got.Entry == nil || got.Entry.Version != "1.61004.1" {
+		t.Errorf("from nothing: %+v", got.Entry)
+	}
+	if got := Select(ix, Want{Channel: "stable", Engine: "1.60102.1", Held: "61009.9"}); got.Entry == nil || got.Entry.Version != "1.61004.1" {
+		t.Errorf("held a two-part version: %+v", got.Entry)
+	}
+	if got := Select(ix, Want{Channel: "stable", Engine: "1.60102.1", Held: "1.61004.1"}); got.Entry != nil {
+		t.Errorf("held the new form: moved to %+v", got.Entry)
+	}
+}
+
 func TestSelectNamesTheRevokedSkipBelowThePick(t *testing.T) {
 	ix := Index{V: 1, Pack: "hello", Serial: 3, Versions: []Entry{
 		entry("1.1", "canary", false, "1.60102.1"),
