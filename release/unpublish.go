@@ -2,6 +2,7 @@ package release
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/missingbulb/ClaudiniteEngine/shared/version"
@@ -34,12 +35,17 @@ func UnpublishPackages() []string {
 	return names
 }
 
+// npmVersion is the shape of an npm version string: no format this engine
+// reads is required, since a version in a retired format is one an
+// unpublish exists to remove.
+var npmVersion = regexp.MustCompile(`^[0-9A-Za-z.+-]+$`)
+
 // UnpublishCommands renders the removal of an rc version from npm. It
 // refuses, writing no command, when the version is the only one a package
 // holds: npm deletes a package whose last version is unpublished.
 func UnpublishCommands(in UnpublishInput) (Unpublishing, error) {
-	if _, err := version.Parse(in.Version); err != nil {
-		return Unpublishing{}, err
+	if !npmVersion.MatchString(in.Version) {
+		return Unpublishing{}, fmt.Errorf("version %q is not an npm version: want letters, digits, '.', '+' and '-'", in.Version)
 	}
 	held := map[string]map[string]bool{}
 	for _, n := range UnpublishPackages() {

@@ -178,7 +178,7 @@ Nothing ever moves a member's pin backward, so every fix rolls forward.
 2. **Revoke**, when running it does harm. The Worker lists the version as revoked in every key and npm marks it deprecated, and the engine design's revoked state applies: guards and checks keep running, paid work stops, and the next engine update moves the member off it.
 3. **Roll forward.** Release the fix, or the last good source rebuilt under a new version, through the canaries as a security fix.
 
-`promote.yml` carries these as dispatch actions: `hold` and `revoke` mark the version deprecated on npm, `release` clears the mark, and `unpublish` removes an rc version from `@claudinite/cli-rc` and its platform packages altogether. `unpublish` refuses, before removing anything, when the version is the only one any of those packages holds, since npm deletes a package whose last version is unpublished.
+`promote.yml` carries these as dispatch actions: `hold` and `revoke` mark the version deprecated on npm, `release` clears the mark, and `unpublish` removes an rc version from `@claudinite/cli-rc` and its platform packages altogether. `unpublish` needs the dispatch's `confirm` to repeat the version, and refuses, before removing anything, when npm cannot be read or the version is the only one any of those packages holds, since npm deletes a package whose last version is unpublished. Both stop at the first npm command that fails.
 
 A pack version is revoked in its pack index; the pack update never installs a revoked version and treats a member holding one as due for the next version, which is the revert. Why roll forward only: the design's rule that pins only move forward is what stops a downgrade attack, and a revert released as a new version keeps it.
 

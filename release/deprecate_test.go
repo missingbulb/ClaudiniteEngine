@@ -75,7 +75,7 @@ func TestPromoteHasHoldAndRevoke(t *testing.T) {
 		"go run ./release/pipeline deprecate-commands",
 		"NPM_DEPRECATE_TOKEN: ${{ secrets.NPM_DEPRECATE_TOKEN }}",
 		"::error::the promote environment has no NPM_DEPRECATE_TOKEN",
-		`NODE_AUTH_TOKEN=$NPM_DEPRECATE_TOKEN sh "$RUNNER_TEMP/commands.sh"`,
+		`NODE_AUTH_TOKEN=$NPM_DEPRECATE_TOKEN sh -e "$RUNNER_TEMP/commands.sh"`,
 	} {
 		if !strings.Contains(s, want) {
 			t.Errorf("promote.yml lacks %q", want)

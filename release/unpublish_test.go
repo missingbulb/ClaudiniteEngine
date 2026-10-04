@@ -21,6 +21,12 @@ func TestUnpublishCommands(t *testing.T) {
 		t.Fatalf("%+v %v", u, err)
 	}
 	golden(t, "unpublish-commands.txt", strings.Join(u.Commands, "\n")+"\n")
+	// A version in the retired <day>.<n>.0 form is still an npm version, and
+	// one this action exists to remove.
+	u, err = UnpublishCommands(UnpublishInput{Version: "61003.1.0", Versions: rcVersions(`["61003.1.0","1.61004.1"]`)})
+	if err != nil || len(u.Commands) != 6 || u.Commands[0] != "npm unpublish '@claudinite/cli-rc@61003.1.0'" {
+		t.Errorf("retired format: %+v %v", u, err)
+	}
 	for _, c := range u.Commands {
 		if strings.Contains(c, "@claudinite/cli@") || strings.Contains(c, "@claudinite/cli-linux") {
 			t.Errorf("a stable package: %s", c)
@@ -60,7 +66,9 @@ func TestUnpublishCommandsForAMissingVersion(t *testing.T) {
 
 func TestUnpublishCommandsRefuses(t *testing.T) {
 	for name, in := range map[string]UnpublishInput{
-		"not a version":  {Version: "60930.3", Versions: rcVersions(`["60930.3","60930.4"]`)},
+		"a shell word":   {Version: "1.60930.3; rm -rf", Versions: rcVersions(`["1.60930.3; rm -rf","1.60930.4"]`)},
+		"a quote":        {Version: "1.60930.3'", Versions: rcVersions(`["1.60930.3'","1.60930.4"]`)},
+		"empty":          {Version: "", Versions: rcVersions(`["","1.60930.4"]`)},
 		"bad npm answer": {Version: "1.60930.3", Versions: map[string]string{"@claudinite/cli-rc": "{"}},
 		"failed read":    {Version: "1.60930.3", Versions: map[string]string{"@claudinite/cli-rc": `{"error":{"code":"E500","summary":"down"}}`}},
 	} {
@@ -80,7 +88,8 @@ func TestPromoteHasUnpublish(t *testing.T) {
 		"          - revoke\n          - release\n          - unpublish\n",
 		"  unpublish:\n    if: inputs.action == 'unpublish'\n",
 		"go run ./release/pipeline unpublish-commands",
-		`npm view "$name" versions --json > "$RUNNER_TEMP/versions/$name.json"`,
+		`out=$RUNNER_TEMP/versions/$name.json`,
+		`npm view "$name" versions --json > "$out"`,
 	} {
 		if !strings.Contains(s, want) {
 			t.Errorf("promote.yml lacks %q", want)
@@ -91,7 +100,9 @@ func TestPromoteHasUnpublish(t *testing.T) {
 		"    environment: promote\n",
 		"NPM_DEPRECATE_TOKEN: ${{ secrets.NPM_DEPRECATE_TOKEN }}",
 		"::error::the promote environment has no NPM_DEPRECATE_TOKEN",
-		`NODE_AUTH_TOKEN=$NPM_DEPRECATE_TOKEN sh "$RUNNER_TEMP/commands.sh"`,
+		`NODE_AUTH_TOKEN=$NPM_DEPRECATE_TOKEN sh -e "$RUNNER_TEMP/commands.sh"`,
+		"CONFIRM: ${{ inputs.confirm }}",
+		`if [ "$CONFIRM" != "$VERSION" ]; then`,
 	} {
 		if !strings.Contains(job, want) {
 			t.Errorf("the unpublish job lacks %q", want)
@@ -99,7 +110,16 @@ func TestPromoteHasUnpublish(t *testing.T) {
 	}
 	// The refusal is the command list's own exit status, written before
 	// any npm unpublish runs.
-	if strings.Index(job, "unpublish-commands") > strings.Index(job, `sh "$RUNNER_TEMP/commands.sh"`) {
+	if strings.Index(job, "unpublish-commands") > strings.Index(job, `sh -e "$RUNNER_TEMP/commands.sh"`) {
 		t.Error("the unpublish job runs commands before writing them")
+	}
+	// The confirmation is checked before npm is asked anything.
+	if strings.Index(job, `"$CONFIRM" != "$VERSION"`) > strings.Index(job, "npm view") {
+		t.Error("the unpublish job reads npm before checking confirm")
+	}
+	// A failed npm view other than npm's E404 fails the job rather than
+	// reading as a version npm does not have.
+	if strings.Contains(job, "|| true") || !strings.Contains(job, "E404") {
+		t.Error("the unpublish job swallows a failed npm view")
 	}
 }
