@@ -162,9 +162,9 @@ func TestPacksIsOneCallForTheRun(t *testing.T) {
 			t.Fatalf("unexpected call %s", method)
 		}
 		calls++
-		return json.RawMessage(`[{"id":"acme-pack","kind":"canon","dir":".claudinite/shared/packs/acme-pack","version":"1.2","minEngineVersion":"61001.1.0","prose":"RULES.md","skills":["how"],"requires":["basics"]}]`), nil
+		return json.RawMessage(`[{"id":"acme-pack","kind":"canon","dir":".claudinite/shared/packs/acme-pack","version":"1.2","minEngineVersion":"1.61001.1","prose":"RULES.md","skills":["how"],"requires":["basics"]}]`), nil
 	})
-	want := []Pack{{ID: "acme-pack", Kind: "canon", Dir: ".claudinite/shared/packs/acme-pack", Version: "1.2", MinEngineVersion: "61001.1.0", Prose: "RULES.md", Skills: []string{"how"}, Requires: []string{"basics"}}}
+	want := []Pack{{ID: "acme-pack", Kind: "canon", Dir: ".claudinite/shared/packs/acme-pack", Version: "1.2", MinEngineVersion: "1.61001.1", Prose: "RULES.md", Skills: []string{"how"}, Requires: []string{"basics"}}}
 	for range 2 {
 		if got := repo.Packs(); !reflect.DeepEqual(got, want) {
 			t.Errorf("Packs %+v", got)

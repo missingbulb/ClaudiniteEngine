@@ -6,11 +6,11 @@ import (
 )
 
 func TestReleaseStates(t *testing.T) {
-	k := minted(t, map[string]any{"release": map[string]any{"held": []string{"60930.2.0"}, "revoked": []string{"60930.1.0"},
-		"security_fixes": []string{"60930.3.0"}, "pack_index_serial": 41, "pack_keys": []string{"0123456789abcdef"}}})
+	k := minted(t, map[string]any{"release": map[string]any{"held": []string{"1.60930.2"}, "revoked": []string{"1.60930.1"},
+		"security_fixes": []string{"1.60930.3"}, "pack_index_serial": 41, "pack_keys": []string{"0123456789abcdef"}}})
 	s := ReleaseStates(&k)
-	if s.Held["60930.2.0"] != "license key" || s.Revoked["60930.1.0"] != "license key" || s.SerialFloor != 41 ||
-		!slices.Equal(s.PackKeys, []string{"0123456789abcdef"}) || !slices.Equal(s.SecurityFixes, []string{"60930.3.0"}) {
+	if s.Held["1.60930.2"] != "license key" || s.Revoked["1.60930.1"] != "license key" || s.SerialFloor != 41 ||
+		!slices.Equal(s.PackKeys, []string{"0123456789abcdef"}) || !slices.Equal(s.SecurityFixes, []string{"1.60930.3"}) {
 		t.Errorf("%+v", s)
 	}
 	none := ReleaseStates(nil)

@@ -72,7 +72,7 @@ func TestEveryMethodAnswersJSON(t *testing.T) {
 	_ = os.WriteFile(filepath.Join(root, "p.toml"), []byte("[project]\nname = \"x\"\n"), 0o644)
 	cfg := Config{PackConfig: map[string]map[string]any{"acme-pack": {"probe": true}}, Rules: map[string]string{"acme-check": "off"},
 		Packs: []packset.Pack{
-			{ID: "acme-pack", Kind: packset.Canon, Dir: filepath.Join(root, ".claudinite/shared/packs/acme-pack"), Rel: ".claudinite/shared/packs/acme-pack", Version: "1.2", MinEngine: "61001.1.0", Prose: "RULES.md", Skills: []string{"how"}, Requires: []string{"basics"}},
+			{ID: "acme-pack", Kind: packset.Canon, Dir: filepath.Join(root, ".claudinite/shared/packs/acme-pack"), Rel: ".claudinite/shared/packs/acme-pack", Version: "1.2", MinEngine: "1.61001.1", Prose: "RULES.md", Skills: []string{"how"}, Requires: []string{"basics"}},
 			{ID: "mine", Kind: packset.Local, Rel: ".claudinite/local/packs/mine"},
 		}}
 	s := Serve(root, fakeTree{root}, session(t), cfg)
@@ -97,7 +97,7 @@ func TestEveryMethodAnswersJSON(t *testing.T) {
 		"config.pack":          {`{"id":"acme-pack"}`, `{"probe":true}`},
 		"config.checks":        {`{}`, `{"rules":{"acme-check":"off"},"accept":[]}`},
 		"doc.parse":            {`{"path":"b.yaml"}`, `{"Resources":{"F":{"Handler":"Name"}}}`},
-		"packs.list": {`{}`, `[{"id":"acme-pack","kind":"canon","dir":".claudinite/shared/packs/acme-pack","version":"1.2","minEngineVersion":"61001.1.0","prose":"RULES.md","skills":["how"],"requires":["basics"]},` +
+		"packs.list": {`{}`, `[{"id":"acme-pack","kind":"canon","dir":".claudinite/shared/packs/acme-pack","version":"1.2","minEngineVersion":"1.61001.1","prose":"RULES.md","skills":["how"],"requires":["basics"]},` +
 			`{"id":"mine","kind":"local","dir":".claudinite/local/packs/mine","version":"","minEngineVersion":"","prose":"","skills":[],"requires":[]}]`},
 	}
 	for m, c := range cases {

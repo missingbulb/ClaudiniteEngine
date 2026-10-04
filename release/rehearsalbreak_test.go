@@ -12,7 +12,7 @@ func gobuild(t *testing.T, out string, env ...string) (string, error) {
 	t.Helper()
 	cmd := exec.Command("sh", "release/gobuild.sh", "linux-x64", out)
 	cmd.Dir = ".."
-	cmd.Env = append(append(os.Environ(), "VERSION=1.1.0", "REHEARSAL=", "BUILD_TAGS="), env...)
+	cmd.Env = append(append(os.Environ(), "VERSION=1.61001.1", "REHEARSAL=", "BUILD_TAGS="), env...)
 	o, err := cmd.CombinedOutput()
 	return string(o), err
 }

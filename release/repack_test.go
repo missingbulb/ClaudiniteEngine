@@ -91,7 +91,7 @@ func TestRepackKeepsTheBytesAndRenamesOnly(t *testing.T) {
 			t.Errorf("%s: package.json differs beyond name: %v vs %v", base, ja, jb)
 		}
 	}
-	if _, ok := tarEntries(t, filepath.Join(out, "cli-1.1.0.tgz"))["package/manifest.sig.json"]; !ok {
+	if _, ok := tarEntries(t, filepath.Join(out, "cli-1.61001.1.tgz"))["package/manifest.sig.json"]; !ok {
 		t.Error("the stable manifest package lacks manifest.sig.json")
 	}
 }

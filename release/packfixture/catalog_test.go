@@ -18,14 +18,14 @@ func TestTheFixtureCatalogVerifiesAndOffersTheNewestVersions(t *testing.T) {
 	key, cert, roots := packsKey(t)
 	tree := t.TempDir()
 	for _, l := range []string{"v1", "v2", "v3"} {
-		if err := run([]string{"--tree", tree, "--src", src, "--key", key, "--cert", cert, "--min-engine", "1.1.0", "--publish", l}); err != nil {
+		if err := run([]string{"--tree", tree, "--src", src, "--key", key, "--cert", cert, "--min-engine", "1.61001.1", "--publish", l}); err != nil {
 			t.Fatal(err)
 		}
 	}
 	if err := run([]string{"--tree", tree, "--key", key, "--cert", cert, "--revoke", "v3"}); err != nil {
 		t.Fatal(err)
 	}
-	if err := run([]string{"--tree", tree, "--src", "../testdata/hello-asks", "--key", key, "--cert", cert, "--min-engine", "1.1.0", "--pack", "hello-asks", "--publish", SourceLabel}); err != nil {
+	if err := run([]string{"--tree", tree, "--src", "../testdata/hello-asks", "--key", key, "--cert", cert, "--min-engine", "1.61001.1", "--pack", "hello-asks", "--publish", SourceLabel}); err != nil {
 		t.Fatal(err)
 	}
 	raw, _ := os.ReadFile(filepath.Join(tree, "catalog.json"))

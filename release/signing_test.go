@@ -39,7 +39,7 @@ var (
 	builtErr  error
 )
 
-// unsignedDist is a copy of one release/build.sh run (VERSION=1.1.0,
+// unsignedDist is a copy of one release/build.sh run (VERSION=1.61001.1,
 // PACKAGE=@claudinite/cli-rc, the development roots, as release/rehearse.sh
 // needs), as a folder named dist under a fresh parent.
 func unsignedDist(t *testing.T) (string, string) {
@@ -52,7 +52,7 @@ func unsignedDist(t *testing.T) (string, string) {
 		builtDist = filepath.Join(dir, "dist")
 		cmd := exec.Command("sh", "release/build.sh")
 		cmd.Dir = ".."
-		cmd.Env = append(os.Environ(), "VERSION=1.1.0", "PACKAGE=@claudinite/cli-rc", "DIST="+builtDist, "REHEARSAL=1", "BUILD_TAGS=devroots")
+		cmd.Env = append(os.Environ(), "VERSION=1.61001.1", "PACKAGE=@claudinite/cli-rc", "DIST="+builtDist, "REHEARSAL=1", "BUILD_TAGS=devroots")
 		var out []byte
 		out, builtErr = cmd.CombinedOutput()
 		builtOut = string(out)
@@ -147,7 +147,7 @@ func TestSignSignsCopiesAndRepacks(t *testing.T) {
 	if err != nil || string(inPkg) != string(sig) {
 		t.Fatalf("npm package signature: %v", err)
 	}
-	listing, err := exec.Command("tar", "-tzf", filepath.Join(dist, "tarballs/cli-rc-1.1.0.tgz")).CombinedOutput()
+	listing, err := exec.Command("tar", "-tzf", filepath.Join(dist, "tarballs/cli-rc-1.61001.1.tgz")).CombinedOutput()
 	if err != nil || !strings.Contains(string(listing), "package/manifest.sig.json") {
 		t.Fatalf("tarball lacks the signature: %v %s", err, listing)
 	}

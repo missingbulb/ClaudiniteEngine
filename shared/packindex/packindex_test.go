@@ -68,11 +68,11 @@ func entry(v, channel string, revoked bool, minEngine string) Entry {
 
 func TestSelect(t *testing.T) {
 	ix := Index{V: 1, Pack: "hello", Serial: 5, Versions: []Entry{
-		entry("1.0", "stable", false, "1.1.0"),
-		entry("1.1", "stable", false, "1.1.0"),
-		entry("1.2", "canary", true, "1.1.0"),
-		entry("1.3", "canary", false, "1.1.0"),
-		entry("1.4", "canary", false, "99999.0.0"),
+		entry("1.0", "stable", false, "1.60102.1"),
+		entry("1.1", "stable", false, "1.60102.1"),
+		entry("1.2", "canary", true, "1.60102.1"),
+		entry("1.3", "canary", false, "1.60102.1"),
+		entry("1.4", "canary", false, "99.991231.99"),
 	}}
 	cases := []struct {
 		name    string
@@ -80,13 +80,13 @@ func TestSelect(t *testing.T) {
 		pick    string
 		skipped string
 	}{
-		{"canary from nothing", Want{Channel: "canary", Engine: "1.1.0"}, "1.3", "1.4 not for this engine"},
-		{"stable from nothing", Want{Channel: "stable", Engine: "1.1.0"}, "1.1", "1.4 canary"},
-		{"canary past a revoked", Want{Channel: "canary", Engine: "1.1.0", Held: "1.1"}, "1.3", "1.4 not for this engine"},
-		{"canary up to date", Want{Channel: "canary", Engine: "1.1.0", Held: "1.3"}, "", "1.4 not for this engine"},
-		{"stable up to date", Want{Channel: "stable", Engine: "1.1.0", Held: "1.1"}, "", "1.4 canary"},
-		{"old engine", Want{Channel: "canary", Engine: "1.0.0"}, "", "1.4 not for this engine"},
-		{"held newest", Want{Channel: "canary", Engine: "99999.0.0", Held: "1.4"}, "", "1.4 not newer"},
+		{"canary from nothing", Want{Channel: "canary", Engine: "1.60102.1"}, "1.3", "1.4 not for this engine"},
+		{"stable from nothing", Want{Channel: "stable", Engine: "1.60102.1"}, "1.1", "1.4 canary"},
+		{"canary past a revoked", Want{Channel: "canary", Engine: "1.60102.1", Held: "1.1"}, "1.3", "1.4 not for this engine"},
+		{"canary up to date", Want{Channel: "canary", Engine: "1.60102.1", Held: "1.3"}, "", "1.4 not for this engine"},
+		{"stable up to date", Want{Channel: "stable", Engine: "1.60102.1", Held: "1.1"}, "", "1.4 canary"},
+		{"old engine", Want{Channel: "canary", Engine: "1.60101.1"}, "", "1.4 not for this engine"},
+		{"held newest", Want{Channel: "canary", Engine: "99.991231.99", Held: "1.4"}, "", "1.4 not newer"},
 	}
 	for _, c := range cases {
 		got := Select(ix, c.want)
@@ -108,25 +108,44 @@ func TestSelect(t *testing.T) {
 // over with that reason and never chosen, never an error.
 func TestSelectSkipsANodeEngineFloor(t *testing.T) {
 	ix := Index{V: 1, Pack: "hello", Serial: 2, Versions: []Entry{
-		entry("1.0", "canary", false, "1.1.0"),
+		entry("1.0", "canary", false, "1.60102.1"),
 		entry("1.1", "canary", false, "60928.1"),
 	}}
-	got := Select(ix, Want{Channel: "canary", Engine: "99999.0.0"})
+	got := Select(ix, Want{Channel: "canary", Engine: "99.991231.99"})
 	if got.Entry == nil || got.Entry.Version != "1.0" || got.Skipped == nil || got.Skipped.Version != "1.1" || got.Skipped.Reason != "names a Node engine version" {
 		t.Errorf("%+v %+v", got.Entry, got.Skipped)
 	}
-	if got := Select(ix, Want{Channel: "canary", Engine: "99999.0.0", Held: "1.0"}); got.Entry != nil || got.Skipped == nil || got.Skipped.Reason != "names a Node engine version" {
+	if got := Select(ix, Want{Channel: "canary", Engine: "99.991231.99", Held: "1.0"}); got.Entry != nil || got.Skipped == nil || got.Skipped.Reason != "names a Node engine version" {
 		t.Errorf("held: %+v %+v", got.Entry, got.Skipped)
+	}
+}
+
+// The shelf's first versions are two-part, such as 61002.3; a
+// <major>.<day>.<n> version published after them is newer than every one.
+func TestSelectPrefersTheMajorDayForm(t *testing.T) {
+	ix := Index{V: 1, Pack: "hello", Serial: 3, Versions: []Entry{
+		entry("61002.3", "stable", false, "1.60102.1"),
+		entry("61009.9", "stable", false, "1.60102.1"),
+		entry("1.61004.1", "stable", false, "1.60102.1"),
+	}}
+	if got := Select(ix, Want{Channel: "stable", Engine: "1.60102.1"}); got.Entry == nil || got.Entry.Version != "1.61004.1" {
+		t.Errorf("from nothing: %+v", got.Entry)
+	}
+	if got := Select(ix, Want{Channel: "stable", Engine: "1.60102.1", Held: "61009.9"}); got.Entry == nil || got.Entry.Version != "1.61004.1" {
+		t.Errorf("held a two-part version: %+v", got.Entry)
+	}
+	if got := Select(ix, Want{Channel: "stable", Engine: "1.60102.1", Held: "1.61004.1"}); got.Entry != nil {
+		t.Errorf("held the new form: moved to %+v", got.Entry)
 	}
 }
 
 func TestSelectNamesTheRevokedSkipBelowThePick(t *testing.T) {
 	ix := Index{V: 1, Pack: "hello", Serial: 3, Versions: []Entry{
-		entry("1.1", "canary", false, "1.1.0"),
-		entry("1.2", "canary", true, "1.1.0"),
-		entry("1.3", "canary", false, "1.1.0"),
+		entry("1.1", "canary", false, "1.60102.1"),
+		entry("1.2", "canary", true, "1.60102.1"),
+		entry("1.3", "canary", false, "1.60102.1"),
 	}}
-	got := Select(ix, Want{Channel: "canary", Engine: "1.1.0", Held: "1.1"})
+	got := Select(ix, Want{Channel: "canary", Engine: "1.60102.1", Held: "1.1"})
 	if got.Entry == nil || got.Entry.Version != "1.3" || got.Skipped == nil || got.Skipped.Version != "1.2" || got.Skipped.Reason != "revoked" {
 		t.Errorf("%+v %+v", got.Entry, got.Skipped)
 	}
@@ -134,16 +153,16 @@ func TestSelectNamesTheRevokedSkipBelowThePick(t *testing.T) {
 
 func TestSelectRevokedHeldVersion(t *testing.T) {
 	ix := Index{V: 1, Pack: "hello", Serial: 4, Versions: []Entry{
-		entry("1.0", "canary", false, "1.1.0"),
-		entry("1.1", "canary", true, "1.1.0"),
+		entry("1.0", "canary", false, "1.60102.1"),
+		entry("1.1", "canary", true, "1.60102.1"),
 	}}
-	got := Select(ix, Want{Channel: "canary", Engine: "1.1.0", Held: "1.1"})
+	got := Select(ix, Want{Channel: "canary", Engine: "1.60102.1", Held: "1.1"})
 	if got.Entry != nil || got.Skipped == nil || got.Skipped.Version != "1.1" || got.Skipped.Reason != "revoked, no replacement published" {
 		t.Errorf("no replacement: %+v %+v", got.Entry, got.Skipped)
 	}
-	ix.Versions = append(ix.Versions, entry("1.2", "canary", false, "1.1.0"))
+	ix.Versions = append(ix.Versions, entry("1.2", "canary", false, "1.60102.1"))
 	ix.Versions[1].Revoked = true
-	if got := Select(ix, Want{Channel: "canary", Engine: "1.1.0", Held: "1.1"}); got.Entry == nil || got.Entry.Version != "1.2" {
+	if got := Select(ix, Want{Channel: "canary", Engine: "1.60102.1", Held: "1.1"}); got.Entry == nil || got.Entry.Version != "1.2" {
 		t.Errorf("replacement: %+v", got.Entry)
 	}
 }

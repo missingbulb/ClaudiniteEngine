@@ -4,7 +4,7 @@
 # promotion job republishes the same bytes, so a build must be reproducible.
 set -eu
 cd "$(dirname "$0")/.."
-VERSION="${VERSION:-1.1.0}"
+VERSION="${VERSION:-1.61001.1}"
 export VERSION
 COMMIT=$(git rev-parse --short=7 HEAD 2>/dev/null || echo unknown)
 export COMMIT

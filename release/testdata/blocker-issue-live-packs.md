@@ -1,8 +1,8 @@
-@claudinite/cli-rc 61003.2.0 fails the live-packs rehearsal against the real shelf
+@claudinite/cli-rc 1.61003.2 fails the live-packs rehearsal against the real shelf
 
-`release/rehearse.sh --mode live-packs` failed for 61003.2.0: built from this release's source and signed with the development keys, it did not adopt, load, check or update the real packs from packs.claudinite.com and ClaudinitePacks' vendored branch as a member would.
+`release/rehearse.sh --mode live-packs` failed for 1.61003.2: built from this release's source and signed with the development keys, it did not adopt, load, check or update the real packs from packs.claudinite.com and ClaudinitePacks' vendored branch as a member would.
 
-While this issue is open with the `release-blocker` label, `promote.yml` refuses to promote 61003.2.0. Close it once the failure is understood: a shelf-side cause is fixed in ClaudinitePacks, an engine-side one ships as a new version.
+While this issue is open with the `release-blocker` label, `promote.yml` refuses to promote 1.61003.2. Close it once the failure is understood: a shelf-side cause is fixed in ClaudinitePacks, an engine-side one ships as a new version.
 
 Run: https://github.com/missingbulb/ClaudiniteEngine/actions/runs/2
 

@@ -13,7 +13,7 @@ func TestMemberBytes(t *testing.T) {
 	put(t, repo, map[string]string{
 		".claudinite/settings.yaml": `engine:
   package: "@claudinite/cli-rc"
-  version: "61003.1.2"
+  version: "1.61003.2"
   manifest: "sha512-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
 packs:
   channel: canary
@@ -39,7 +39,7 @@ packs:
   },
   "engine": {
     "package": "@claudinite/cli-rc",
-    "version": "61003.1.2",
+    "version": "1.61003.2",
     "channel": "canary"
   },
   "packs": {

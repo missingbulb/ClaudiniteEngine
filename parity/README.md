@@ -92,7 +92,7 @@ Update face divergences: 19 of 40 fixtures.
 | Row | Fixtures | Why |
 | --- | --- | --- |
 | 8 | plan/downgrade-refused | a pin only moves forward: the plan keeps the newer held version |
-| 12 | plan/min-engine-blocks | a minimum engine is `<day>.<n>.<patch>` |
+| 12 | plan/min-engine-blocks | a minimum engine is `<major>.<day>.<n>` |
 | 120 | plan/two-part-min-engine | a two-part minimum names a Node engine version, which no cn release meets: the plan blocks it |
 | 32 | gap/unstamped, gap/old-engine, gap/mid-engine, applystage/record-asks, applystage/withheld, applystage/test-visible, terminal/apply-stage | no update migrates member files and none runs an agent stage |
 | 39 | convergescope/mount-wiring | a pack PR carries the packs, the flat files and the CLAUDE.md import, never hook settings |

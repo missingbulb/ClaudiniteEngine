@@ -52,15 +52,15 @@ var now = time.Date(2026, 10, 2, 12, 0, 0, 0, time.UTC)
 func world() (fakeRegistry, fakeIssues) {
 	reg := fakeRegistry{
 		published: map[string]time.Time{
-			"@claudinite/cli-rc@60930.1.0": now.Add(-25 * time.Hour),
-			"@claudinite/cli-rc@61001.1.0": now.Add(-2 * time.Hour),
+			"@claudinite/cli-rc@1.60930.1": now.Add(-25 * time.Hour),
+			"@claudinite/cli-rc@1.61001.1": now.Add(-2 * time.Hour),
 		},
 		manifests: map[string]releasefiles.Manifest{
-			"@claudinite/cli-rc@60930.1.0": {Version: "60930.1.0", Commit: "abc1234", UpdaterDigest: "d1"},
-			"@claudinite/cli@60920.1.0":    {Version: "60920.1.0", Commit: "0000001", UpdaterDigest: "d0"},
-			"@claudinite/cli@60925.2.0":    {Version: "60925.2.0", Commit: "0000002", UpdaterDigest: "d1"},
+			"@claudinite/cli-rc@1.60930.1": {Version: "1.60930.1", Commit: "abc1234", UpdaterDigest: "d1"},
+			"@claudinite/cli@1.60920.1":    {Version: "1.60920.1", Commit: "0000001", UpdaterDigest: "d0"},
+			"@claudinite/cli@1.60925.2":    {Version: "1.60925.2", Commit: "0000002", UpdaterDigest: "d1"},
 		},
-		versions: map[string][]string{"@claudinite/cli": {"0.0.0", "60920.1.0", "60925.2.0"}},
+		versions: map[string][]string{"@claudinite/cli": {"0.0.0", "1.60920.1", "1.60925.2"}},
 	}
 	return reg, fakeIssues{runs: map[string]map[string]string{}}
 }
@@ -79,34 +79,34 @@ func TestGateVerdicts(t *testing.T) {
 		edit     func(*fakeIssues)
 		want     string
 	}{
-		{"absent", "60931.1.0", twoCanaries, nil, "refuse"},
-		{"soaking", "61001.1.0", twoCanaries, nil, "soak"},
-		{"blocked by title", "60930.1.0", twoCanaries, func(g *fakeIssues) {
-			g.issues = []Issue{{Number: 41, Title: "60930.1.0 breaks Stop", Labels: []string{"release-blocker"}}}
+		{"absent", "1.60931.1", twoCanaries, nil, "refuse"},
+		{"soaking", "1.61001.1", twoCanaries, nil, "soak"},
+		{"blocked by title", "1.60930.1", twoCanaries, func(g *fakeIssues) {
+			g.issues = []Issue{{Number: 41, Title: "1.60930.1 breaks Stop", Labels: []string{"release-blocker"}}}
 		}, "blocked:41"},
-		{"blocked by body", "60930.1.0", twoCanaries, func(g *fakeIssues) {
-			g.issues = []Issue{{Number: 42, Title: "hold", Body: "do not promote 60930.1.0", Labels: []string{"release-blocker"}}}
+		{"blocked by body", "1.60930.1", twoCanaries, func(g *fakeIssues) {
+			g.issues = []Issue{{Number: 42, Title: "hold", Body: "do not promote 1.60930.1", Labels: []string{"release-blocker"}}}
 		}, "blocked:42"},
-		{"blocker for another version", "60930.1.0", nil, func(g *fakeIssues) {
-			g.issues = []Issue{{Number: 43, Title: "60930.1.01 breaks Stop", Labels: []string{"release-blocker"}}}
+		{"blocker for another version", "1.60930.1", nil, func(g *fakeIssues) {
+			g.issues = []Issue{{Number: 43, Title: "1.60930.10 breaks Stop", Labels: []string{"release-blocker"}}}
 		}, "no-canaries"},
-		{"version text without the label", "60930.1.0", nil, func(g *fakeIssues) {
-			g.issues = []Issue{{Number: 44, Title: "60930.1.0 notes", Labels: []string{"docs"}}}
+		{"version text without the label", "1.60930.1", nil, func(g *fakeIssues) {
+			g.issues = []Issue{{Number: 44, Title: "1.60930.1 notes", Labels: []string{"docs"}}}
 		}, "no-canaries"},
-		{"no canaries", "60930.1.0", nil, nil, "no-canaries"},
-		{"canaries naming no workflow", "60930.1.0", unwatched, nil, "no-canaries"},
-		{"an unwatched canary beside a watched one", "60930.1.0", append(append([]Canary{}, unwatched...), twoCanaries...), func(g *fakeIssues) {
+		{"no canaries", "1.60930.1", nil, nil, "no-canaries"},
+		{"canaries naming no workflow", "1.60930.1", unwatched, nil, "no-canaries"},
+		{"an unwatched canary beside a watched one", "1.60930.1", append(append([]Canary{}, unwatched...), twoCanaries...), func(g *fakeIssues) {
 			g.runs["main"] = map[string]string{"abc1234": "success"}
 		}, "canary:lagging:none"},
-		{"all canaries green", "60930.1.0", twoCanaries, func(g *fakeIssues) {
+		{"all canaries green", "1.60930.1", twoCanaries, func(g *fakeIssues) {
 			g.runs["main"] = map[string]string{"abc1234": "success"}
 			g.runs["lagging"] = map[string]string{"abc1234": "success"}
 		}, "pass"},
-		{"a canary red", "60930.1.0", twoCanaries, func(g *fakeIssues) {
+		{"a canary red", "1.60930.1", twoCanaries, func(g *fakeIssues) {
 			g.runs["main"] = map[string]string{"abc1234": "success"}
 			g.runs["lagging"] = map[string]string{"abc1234": "failure"}
 		}, "canary:lagging:failure"},
-		{"a canary never ran", "60930.1.0", twoCanaries, func(g *fakeIssues) {
+		{"a canary never ran", "1.60930.1", twoCanaries, func(g *fakeIssues) {
 			g.runs["main"] = map[string]string{"abc1234": "success"}
 			g.runs["lagging"] = map[string]string{"fffffff": "success"}
 		}, "canary:lagging:none"},
@@ -134,15 +134,15 @@ func TestGateHop(t *testing.T) {
 	gh.runs["main"] = map[string]string{"abc1234": "success"}
 	gh.runs["lagging"] = map[string]string{"abc1234": "success"}
 	clock := func() time.Time { return now }
-	v, _ := Gate(reg, gh, clock, "60930.1.0", twoCanaries)
-	if v.Hop != "hop:proven-by 60925.2.0" {
+	v, _ := Gate(reg, gh, clock, "1.60930.1", twoCanaries)
+	if v.Hop != "hop:proven-by 1.60925.2" {
 		t.Errorf("same digest as the newest promoted: %q", v.Hop)
 	}
 
-	m := reg.manifests["@claudinite/cli-rc@60930.1.0"]
+	m := reg.manifests["@claudinite/cli-rc@1.60930.1"]
 	m.UpdaterDigest = "d2"
-	reg.manifests["@claudinite/cli-rc@60930.1.0"] = m
-	v, _ = Gate(reg, gh, clock, "60930.1.0", twoCanaries)
+	reg.manifests["@claudinite/cli-rc@1.60930.1"] = m
+	v, _ = Gate(reg, gh, clock, "1.60930.1", twoCanaries)
 	if v.Hop != "hop:needed" {
 		t.Errorf("changed digest: %q", v.Hop)
 	}
@@ -151,8 +151,16 @@ func TestGateHop(t *testing.T) {
 		t.Errorf("hop:needed blocked promotion: %s", v.Result)
 	}
 
+	m.UpdaterDigest = reg.manifests["@claudinite/cli@1.60925.2"].UpdaterDigest
+	reg.manifests["@claudinite/cli-rc@1.60930.1"] = m
+	reg.versions["@claudinite/cli"] = []string{"0.0.0", "60920.1.0", "1.60920.1", "1.60925.2"}
+	v, _ = Gate(reg, gh, clock, "1.60930.1", twoCanaries)
+	if v.Hop != "hop:proven-by 1.60925.2" {
+		t.Errorf("a retired-format version first on the registry: %q", v.Hop)
+	}
+
 	reg.versions["@claudinite/cli"] = []string{"0.0.0"}
-	v, _ = Gate(reg, gh, clock, "60930.1.0", twoCanaries)
+	v, _ = Gate(reg, gh, clock, "1.60930.1", twoCanaries)
 	if v.Hop != "hop:needed" {
 		t.Errorf("nothing promoted yet: %q", v.Hop)
 	}
@@ -160,7 +168,7 @@ func TestGateHop(t *testing.T) {
 
 func TestGateCommandOnTheSoakedFixture(t *testing.T) {
 	var out, errb strings.Builder
-	code := run([]string{"gate", "--version", "1.1.0", "--canaries", "../canaries.json", "--fixtures", "testdata/soaked"}, &out, &errb)
+	code := run([]string{"gate", "--version", "1.61001.1", "--canaries", "../canaries.json", "--fixtures", "testdata/soaked"}, &out, &errb)
 	if code != 0 {
 		t.Fatalf("exit %d: %s", code, errb.String())
 	}
@@ -168,7 +176,7 @@ func TestGateCommandOnTheSoakedFixture(t *testing.T) {
 		t.Errorf("stdout %q", out.String())
 	}
 	out.Reset()
-	if code := run([]string{"gate", "--version", "9.9.0", "--canaries", "../canaries.json", "--fixtures", "testdata/soaked"}, &out, &errb); code != 0 || !strings.Contains(out.String(), "verdict=refuse\n") {
+	if code := run([]string{"gate", "--version", "9.61001.1", "--canaries", "../canaries.json", "--fixtures", "testdata/soaked"}, &out, &errb); code != 0 || !strings.Contains(out.String(), "verdict=refuse\n") {
 		t.Errorf("absent version: exit %d, %q", code, out.String())
 	}
 }

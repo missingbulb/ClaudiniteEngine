@@ -51,7 +51,7 @@ func repoRoot(t *testing.T) string {
 
 func writeSign(t *testing.T, dist string) {
 	t.Helper()
-	if _, e, c := tool(t, "write", "--dist", dist, "--version", "1.1.0", "--commit", "abc1234", "--source", repoRoot(t)); c != 0 {
+	if _, e, c := tool(t, "write", "--dist", dist, "--version", "1.61001.1", "--commit", "abc1234", "--source", repoRoot(t)); c != 0 {
 		t.Fatalf("write: %s", e)
 	}
 	root := repoRoot(t)
@@ -90,7 +90,7 @@ func TestWriteListsExactlyTheFivePlatforms(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if parsed.V != 1 || parsed.Version != "1.1.0" || parsed.Commit != "abc1234" || len(parsed.TestedPacks) != 0 {
+	if parsed.V != 1 || parsed.Version != "1.61001.1" || parsed.Commit != "abc1234" || len(parsed.TestedPacks) != 0 {
 		t.Errorf("manifest %+v", parsed)
 	}
 	if len(parsed.Binaries) != 5 {
@@ -113,7 +113,7 @@ func TestWriteListsExactlyTheFivePlatforms(t *testing.T) {
 }
 
 func TestWriteNeedsTheSource(t *testing.T) {
-	if _, e, c := tool(t, "write", "--dist", fakeDist(t), "--version", "1.1.0", "--commit", "x"); c == 0 || !strings.Contains(e, "--source") {
+	if _, e, c := tool(t, "write", "--dist", fakeDist(t), "--version", "1.61001.1", "--commit", "x"); c == 0 || !strings.Contains(e, "--source") {
 		t.Fatalf("write without --source: exit %d %s", c, e)
 	}
 }
@@ -123,7 +123,7 @@ func TestWriteRefusesAMissingPlatform(t *testing.T) {
 	if err := os.RemoveAll(filepath.Join(dist, "bin", "darwin-arm64")); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, c := tool(t, "write", "--dist", dist, "--version", "1.1.0", "--commit", "x", "--source", repoRoot(t)); c == 0 {
+	if _, _, c := tool(t, "write", "--dist", dist, "--version", "1.61001.1", "--commit", "x", "--source", repoRoot(t)); c == 0 {
 		t.Fatal("wrote a manifest missing darwin-arm64")
 	}
 }
@@ -182,7 +182,7 @@ func TestIntegrity(t *testing.T) {
 
 func TestSignRefusesACertificateExpiringWithin14Days(t *testing.T) {
 	dist := fakeDist(t)
-	if _, e, c := tool(t, "write", "--dist", dist, "--version", "1.1.0", "--commit", "abc1234", "--source", repoRoot(t)); c != 0 {
+	if _, e, c := tool(t, "write", "--dist", dist, "--version", "1.61001.1", "--commit", "abc1234", "--source", repoRoot(t)); c != 0 {
 		t.Fatal(e)
 	}
 	root := repoRoot(t)
@@ -220,7 +220,7 @@ func TestSignRefusesACertificateExpiringWithin14Days(t *testing.T) {
 
 func TestSumsListsEveryReleaseFile(t *testing.T) {
 	dist := filepath.Join(t.TempDir(), "out")
-	for _, f := range []string{"bin/linux-x64/cn", "npm/cli/package/package.json", "tarballs/cli-1.1.0.tgz", "manifest.json", "manifest.integrity"} {
+	for _, f := range []string{"bin/linux-x64/cn", "npm/cli/package/package.json", "tarballs/cli-1.61001.1.tgz", "manifest.json", "manifest.integrity"} {
 		p := filepath.Join(dist, f)
 		_ = os.MkdirAll(filepath.Dir(p), 0o755)
 		_ = os.WriteFile(p, []byte(f), 0o644)
@@ -237,7 +237,7 @@ func TestSumsListsEveryReleaseFile(t *testing.T) {
 		names = append(names, strings.SplitN(line, "  ", 2)[1])
 	}
 	got := strings.Join(names, " ")
-	if got != "out/bin/linux-x64/cn out/manifest.json out/npm/cli/package/package.json out/tarballs/cli-1.1.0.tgz" {
+	if got != "out/bin/linux-x64/cn out/manifest.json out/npm/cli/package/package.json out/tarballs/cli-1.61001.1.tgz" {
 		t.Errorf("SHA256SUMS names %s", got)
 	}
 }

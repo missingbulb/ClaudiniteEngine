@@ -2,9 +2,9 @@
   "now": "2026-10-02T12:00:00Z",
   "registry": {
     "@claudinite/cli-rc": {
-      "1.1.0": {
+      "1.61001.1": {
         "publishedAt": "2026-10-01T09:00:00Z",
-        "manifest": {"v": 1, "version": "1.1.0", "builtAt": "2026-10-01T08:50:00Z", "commit": "abc1234", "goVersion": "go1.24.7", "updaterDigest": "1111111111111111111111111111111111111111111111111111111111111111", "binaries": {}, "testedPacks": {}}
+        "manifest": {"v": 1, "version": "1.61001.1", "builtAt": "2026-10-01T08:50:00Z", "commit": "abc1234", "goVersion": "go1.24.7", "updaterDigest": "1111111111111111111111111111111111111111111111111111111111111111", "binaries": {}, "testedPacks": {}}
       }
     },
     "@claudinite/cli": {
@@ -15,7 +15,7 @@
     }
   },
   "issues": [
-    {"number": 7, "title": "Launcher and release hardening", "body": "names 1.1.0 but carries no release-blocker label", "labels": []}
+    {"number": 7, "title": "Launcher and release hardening", "body": "names 1.61001.1 but carries no release-blocker label", "labels": []}
   ],
   "runs": {}
 }

@@ -58,18 +58,18 @@ func TestSmokePlatformRunsTheHostLeg(t *testing.T) {
 	dist, _ := unsignedDist(t)
 	url, ca := serveDist(t, dist)
 	out, err := runScript(t, []string{"CURL_CA_BUNDLE=" + ca, "NO_PROXY=127.0.0.1,localhost"}, "release/smoke-platform.sh",
-		"--registry", url, "--package", "@claudinite/cli-rc", "--version", "1.1.0", "--pin", integrityOf(t, dist), "--dist", dist)
+		"--registry", url, "--package", "@claudinite/cli-rc", "--version", "1.61001.1", "--pin", integrityOf(t, dist), "--dist", dist)
 	if err != nil {
 		t.Fatalf("%v\n%s", err, out)
 	}
-	for _, want := range []string{"ok binary: linux-x64", "ok hooks: ", "version 1.1.0", "pre-tool-use", "pin change refused"} {
+	for _, want := range []string{"ok binary: linux-x64", "ok hooks: ", "version 1.61001.1", "pre-tool-use", "pin change refused"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("output lacks %q:\n%s", want, out)
 		}
 	}
 
 	out, err = runScript(t, []string{"CURL_CA_BUNDLE=" + ca, "NO_PROXY=127.0.0.1,localhost"}, "release/smoke-platform.sh",
-		"--registry", url, "--package", "@claudinite/cli-rc", "--version", "1.1.0", "--pin", integrityOf(t, dist), "--dist", dist, "--keep")
+		"--registry", url, "--package", "@claudinite/cli-rc", "--version", "1.61001.1", "--pin", integrityOf(t, dist), "--dist", dist, "--keep")
 	if err != nil {
 		t.Fatalf("--keep: %v\n%s", err, out)
 	}
@@ -94,7 +94,7 @@ func TestSmokePlatformRefusesAMissingBinary(t *testing.T) {
 		t.Fatal(err)
 	}
 	out, err := runScript(t, nil, "release/smoke-platform.sh",
-		"--registry", "https://127.0.0.1:9", "--package", "@claudinite/cli-rc", "--version", "1.1.0", "--pin", integrityOf(t, dist), "--dist", dist, "--platform", "darwin-arm64")
+		"--registry", "https://127.0.0.1:9", "--package", "@claudinite/cli-rc", "--version", "1.61001.1", "--pin", integrityOf(t, dist), "--dist", dist, "--platform", "darwin-arm64")
 	if err == nil || !strings.Contains(out, "darwin-arm64") || !strings.Contains(out, "no ") {
 		t.Fatalf("err %v\n%s", err, out)
 	}

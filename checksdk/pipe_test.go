@@ -56,7 +56,7 @@ func engineSide(t *testing.T, r *registry, methods []string, handle func(string,
 		t.Fatal("the child closed its stdout")
 		return nil
 	}
-	hs := map[string]any{"proto": Proto, "engine": "61001.1.0"}
+	hs := map[string]any{"proto": Proto, "engine": "1.61001.1"}
 	if methods != nil {
 		hs["methods"] = methods
 	}

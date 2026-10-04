@@ -26,18 +26,18 @@ func TestCandidate(t *testing.T) {
 		skipped    string
 		skipReason string
 	}{
-		{"newest wins", "60930.1.0", packument(nil, "0.0.0", "60930.1.0", "60930.2.0", "60930.10.0"), States{}, "60930.10.0", "", ""},
+		{"newest wins", "1.60930.1", packument(nil, "0.0.0", "1.60930.1", "1.60930.2", "1.60930.10"), States{}, "1.60930.10", "", ""},
 		// strings never floats: 60930.10 sorts after 60930.9
-		{"ordinal ten after nine", "60930.9.0", packument(nil, "60930.9.0", "60930.10.0"), States{}, "60930.10.0", "", ""},
-		{"nothing newer", "60930.2.0", packument(nil, "60930.1.0", "60930.2.0"), States{}, "", "60930.2.0", "not newer"},
-		{"held by states", "60930.1.0", packument(nil, "60930.1.0", "60930.2.0"), States{Held: map[string]string{"60930.2.0": "canary red"}}, "", "60930.2.0", "held"},
-		{"revoked by states", "60930.1.0", packument(nil, "60930.1.0", "60930.2.0"), States{Revoked: map[string]string{"60930.2.0": "bad"}}, "", "60930.2.0", "revoked"},
-		{"held through npm", "60930.1.0", packument(map[string]string{"60930.2.0": "held: x"}, "60930.1.0", "60930.2.0"), States{}, "", "60930.2.0", "held"},
-		{"revoked through npm", "60930.1.0", packument(map[string]string{"60930.2.0": "revoked: x"}, "60930.1.0", "60930.2.0"), States{}, "", "60930.2.0", "revoked"},
-		{"plain deprecation", "60930.1.0", packument(map[string]string{"60930.2.0": "do not use"}, "60930.1.0", "60930.2.0"), States{}, "", "60930.2.0", "deprecated"},
-		{"skips a held newest for the next", "60930.1.0", packument(map[string]string{"60930.3.0": "held: x"}, "60930.1.0", "60930.2.0", "60930.3.0"), States{}, "60930.2.0", "60930.3.0", "held"},
-		{"ignores an unparseable version", "60930.1.0", packument(nil, "60930.1.0", "1.2.3-beta", "60930.2.0"), States{}, "60930.2.0", "", ""},
-		{"empty packument", "60930.1.0", packument(nil), States{}, "", "", ""},
+		{"ordinal ten after nine", "1.60930.9", packument(nil, "1.60930.9", "1.60930.10"), States{}, "1.60930.10", "", ""},
+		{"nothing newer", "1.60930.2", packument(nil, "1.60930.1", "1.60930.2"), States{}, "", "1.60930.2", "not newer"},
+		{"held by states", "1.60930.1", packument(nil, "1.60930.1", "1.60930.2"), States{Held: map[string]string{"1.60930.2": "canary red"}}, "", "1.60930.2", "held"},
+		{"revoked by states", "1.60930.1", packument(nil, "1.60930.1", "1.60930.2"), States{Revoked: map[string]string{"1.60930.2": "bad"}}, "", "1.60930.2", "revoked"},
+		{"held through npm", "1.60930.1", packument(map[string]string{"1.60930.2": "held: x"}, "1.60930.1", "1.60930.2"), States{}, "", "1.60930.2", "held"},
+		{"revoked through npm", "1.60930.1", packument(map[string]string{"1.60930.2": "revoked: x"}, "1.60930.1", "1.60930.2"), States{}, "", "1.60930.2", "revoked"},
+		{"plain deprecation", "1.60930.1", packument(map[string]string{"1.60930.2": "do not use"}, "1.60930.1", "1.60930.2"), States{}, "", "1.60930.2", "deprecated"},
+		{"skips a held newest for the next", "1.60930.1", packument(map[string]string{"1.60930.3": "held: x"}, "1.60930.1", "1.60930.2", "1.60930.3"), States{}, "1.60930.2", "1.60930.3", "held"},
+		{"ignores an unparseable version", "1.60930.1", packument(nil, "1.60930.1", "1.2.3-beta", "1.60930.2"), States{}, "1.60930.2", "", ""},
+		{"empty packument", "1.60930.1", packument(nil), States{}, "", "", ""},
 	}
 	for _, c := range cases {
 		got := Candidate(c.pin, c.p, c.states)

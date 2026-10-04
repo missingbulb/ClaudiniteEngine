@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 
 	"github.com/missingbulb/ClaudiniteEngine/release"
 )
@@ -19,6 +20,7 @@ const usage = `usage:
   pipeline blocker-issue --gate live-packs --version V --run-url URL --log FILE
   pipeline publish-mode --channel rc|stable --signing release|dev --dry-run true|false --npm-versions FILE [--stable-test pass|fail]
   pipeline deprecate-commands --action hold|revoke|release --version V [--reason R] --rc-versions FILE --stable-versions FILE
+  pipeline unpublish-commands --version V --versions-dir DIR
 `
 
 func main() { os.Exit(run(os.Args[1:], os.Stdout, os.Stderr)) }
@@ -52,6 +54,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return blockerIssue(args[1:], stdout, stderr)
 	case "deprecate-commands":
 		return deprecateCommands(args[1:], stdout, stderr)
+	case "unpublish-commands":
+		return unpublishCommands(args[1:], stdout, stderr)
 	}
 	fmt.Fprintf(stderr, "pipeline: unknown command %q\n%s", args[0], usage)
 	return 2
@@ -152,6 +156,42 @@ func deprecateCommands(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "::notice::%s\n", d.Notice)
 	}
 	for _, c := range d.Commands {
+		fmt.Fprintln(stdout, c)
+	}
+	return 0
+}
+
+// unpublishCommands prints one npm unpublish command per line, or nothing
+// and a notice when npm has no such version. DIR holds each rc package's
+// `npm view <pkg> versions --json` at <DIR>/<package name>.json; a refusal
+// exits 1 with nothing on stdout.
+func unpublishCommands(args []string, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("unpublish-commands", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	in := release.UnpublishInput{Versions: map[string]string{}}
+	fs.StringVar(&in.Version, "version", "", "")
+	dir := fs.String("versions-dir", "", "")
+	if err := fs.Parse(args); err != nil || fs.NArg() != 0 || *dir == "" {
+		fmt.Fprint(stderr, usage)
+		return 2
+	}
+	for _, n := range release.UnpublishPackages() {
+		raw, err := os.ReadFile(filepath.Join(*dir, n+".json"))
+		if err != nil && !os.IsNotExist(err) {
+			fmt.Fprintf(stderr, "pipeline: %v\n", err)
+			return 1
+		}
+		in.Versions[n] = string(raw)
+	}
+	u, err := release.UnpublishCommands(in)
+	if err != nil {
+		fmt.Fprintf(stderr, "::error::%v\n", err)
+		return 1
+	}
+	if u.Notice != "" {
+		fmt.Fprintf(stderr, "::notice::%s\n", u.Notice)
+	}
+	for _, c := range u.Commands {
 		fmt.Fprintln(stdout, c)
 	}
 	return 0

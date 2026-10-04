@@ -36,8 +36,8 @@ func TestDeclaredVersionReadsEveryPackVersion(t *testing.T) {
 		`{"version": "61001.2"}`: "61001.2",
 		`{"version": "1.4"}`:     "1.4",
 		`{"version": "1.2.3"}`:   "1.2.3",
-		`{"minEngineVersion": "61001.1.0", "version": "61001.3"}`: "61001.3",
-		`{"minEngineVersion": "61001.1.0"}`:                       "",
+		`{"minEngineVersion": "1.61001.1", "version": "61001.3"}`: "61001.3",
+		`{"minEngineVersion": "1.61001.1"}`:                       "",
 	} {
 		if got := DeclaredVersion(text); got != want {
 			t.Errorf("DeclaredVersion(%s) = %q, want %q", text, got, want)

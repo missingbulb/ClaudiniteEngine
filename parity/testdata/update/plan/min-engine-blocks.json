@@ -4,7 +4,7 @@
       {
         "id": "acme-pack",
         "version": "61003.1",
-        "minEngineVersion": "61003.1.0"
+        "minEngineVersion": "1.61003.1"
       }
     ],
     "declared": [
@@ -16,7 +16,7 @@
       }
     },
     "today": "2026-10-02",
-    "engineVersion": "61002.4.0"
+    "engineVersion": "1.61002.4"
   },
   "expect": [
     {
@@ -33,7 +33,7 @@
       "id": "acme-pack",
       "from": "61002.1",
       "to": "61003.1",
-      "blocked": "pack \"acme-pack\" version 61003.1 needs engine 61003.1.0; this repo runs engine 61002.4.0",
+      "blocked": "pack \"acme-pack\" version 61003.1 needs engine 1.61003.1; this repo runs engine 1.61002.4",
       "records": []
     }
   ]

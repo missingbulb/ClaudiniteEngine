@@ -154,7 +154,7 @@ Each member repo pins one engine version and the hash of its manifest; a small l
 
 ```yaml
 engine:
-  version: "60928.1.0"
+  version: "1.60928.1"
   manifest: "sha512-…"
 ```
 
@@ -495,7 +495,7 @@ sequenceDiagram
   ER->>NPM: Publish cli, platform binaries and sdk
 ```
 
-**Version format.** `<day>.<n>.0`: the day number and the release's ordinal that day, plus a `.0` patch part for tools that expect three numbers. Versions sort in release order, and every published version stays downloadable forever.
+**Version format.** `<major>.<day>.<n>`: the major version, which the owner raises by hand in `release/major` and which is the major the paragraph on engine versions and member files means; the day number; and the release's build that day, from 1. Versions compare as numbers, major then day then build, so they sort in release order, and every published version stays downloadable forever.
 
 ## Security design
 

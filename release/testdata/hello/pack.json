@@ -1,6 +1,6 @@
 {
   "version": "1.5",
-  "minEngineVersion": "61001.1.0",
+  "minEngineVersion": "1.61001.1",
   "githubActions": [
     "createComment",
     "openPr"

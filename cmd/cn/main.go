@@ -27,7 +27,8 @@ commands:
   hook <event>   answer a Claude Code hook: session-start, pre-tool-use,
                  post-tool-use, user-prompt-submit, stop, session-end
   version        print the engine version
-  version --day  print today's <day> version part (UTC), for release tooling
+  version --day  print today's <day>, the middle of <major>.<day>.<n> (UTC),
+                 for release tooling
   selftest       check this machine, and with --repo DIR that member, can run the engine
   verify [--repo DIR]
                  check a member's files against this engine version;

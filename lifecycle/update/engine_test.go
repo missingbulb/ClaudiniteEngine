@@ -16,9 +16,9 @@ import (
 )
 
 const (
-	v1   = "60930.1.0"
-	v2   = "60930.2.0"
-	v3   = "60930.3.0"
+	v1   = "1.60930.1"
+	v2   = "1.60930.2"
+	v3   = "1.60930.3"
 	pin1 = "sha512-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
 )
 
@@ -575,7 +575,7 @@ func TestLandRefusesAnUntrustedPin(t *testing.T) {
 			return "held"
 		},
 		"a lower version": func(w *world, t *testing.T) string {
-			w.publish(t, "60930.0.5", relOpts{})
+			w.publish(t, "1.60929.5", relOpts{})
 			return "not newer"
 		},
 		"a manifest the roots do not sign": func(w *world, t *testing.T) string {
@@ -588,7 +588,7 @@ func TestLandRefusesAnUntrustedPin(t *testing.T) {
 		want := setup(w, t)
 		ver := v2
 		if name == "a lower version" {
-			ver = "60930.0.5"
+			ver = "1.60929.5"
 		}
 		sha := w.openUpdatePR(t, 4, ver, "success")
 		if _, err := Land(w.deps(t), 4, sha); err == nil || !strings.Contains(err.Error(), want) {

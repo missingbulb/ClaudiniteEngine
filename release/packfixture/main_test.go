@@ -70,7 +70,7 @@ func verifiedPack(t *testing.T, tree, pack string, roots []ed25519.PublicKey) pa
 func TestAnotherPackPublishesItsSource(t *testing.T) {
 	key, cert, roots := packsKey(t)
 	tree := t.TempDir()
-	args := []string{"--tree", tree, "--src", "../testdata/hello-asks", "--key", key, "--cert", cert, "--min-engine", "1.1.0", "--pack", "hello-asks", "--publish"}
+	args := []string{"--tree", tree, "--src", "../testdata/hello-asks", "--key", key, "--cert", cert, "--min-engine", "1.61001.1", "--pack", "hello-asks", "--publish"}
 	if err := run(append(args, "v2")); err == nil {
 		t.Error("hello-asks published a hello label")
 	}
@@ -78,7 +78,7 @@ func TestAnotherPackPublishesItsSource(t *testing.T) {
 		t.Fatal(err)
 	}
 	ix := verifiedPack(t, tree, "hello-asks", roots)
-	if ix.Pack != "hello-asks" || len(ix.Versions) != 1 || ix.Versions[0].Version != "1.0" || strings.Join(ix.Versions[0].Requires, ",") != "hello" || ix.Versions[0].MinEngineVersion != "1.1.0" {
+	if ix.Pack != "hello-asks" || len(ix.Versions) != 1 || ix.Versions[0].Version != "1.0" || strings.Join(ix.Versions[0].Requires, ",") != "hello" || ix.Versions[0].MinEngineVersion != "1.61001.1" {
 		t.Fatalf("%+v", ix)
 	}
 	a, _ := os.ReadFile(filepath.Join(tree, "hello-asks", "1.0.tar.gz"))
@@ -97,7 +97,7 @@ func TestTheFixtureIndexVerifiesAndNamesItsArchives(t *testing.T) {
 	key, cert, roots := packsKey(t)
 	tree := t.TempDir()
 	for _, l := range []string{"v1", "v2", "v3"} {
-		if err := run([]string{"--tree", tree, "--src", src, "--key", key, "--cert", cert, "--min-engine", "1.1.0", "--publish", l}); err != nil {
+		if err := run([]string{"--tree", tree, "--src", src, "--key", key, "--cert", cert, "--min-engine", "1.61001.1", "--publish", l}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -198,7 +198,7 @@ func mustVariant(t *testing.T, label string) map[string]File {
 	if err != nil {
 		t.Fatal(err)
 	}
-	v, err := Variant(files, label, "1.1.0")
+	v, err := Variant(files, label, "1.61001.1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -266,7 +266,7 @@ func TestReadPackDropsWhatVendoringDrops(t *testing.T) {
 // v5 needs an engine no rehearsal builds, and v6 names a Node engine
 // version: the two floors the update must skip.
 func TestTheUnreachableFloors(t *testing.T) {
-	for label, want := range map[string]string{"v5": `"minEngineVersion": "99999.0.0"`, "v6": `"minEngineVersion": "60928.1"`, "v4": `"minEngineVersion": "1.1.0"`} {
+	for label, want := range map[string]string{"v5": `"minEngineVersion": "99.991231.99"`, "v6": `"minEngineVersion": "60928.1"`, "v4": `"minEngineVersion": "1.61001.1"`} {
 		if pj := string(mustVariant(t, label)["pack.json"].Data); !strings.Contains(pj, want) {
 			t.Errorf("%s: %s", label, pj)
 		}

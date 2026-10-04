@@ -119,8 +119,8 @@ func TestPlaceholderSDK(t *testing.T) {
 		t.Errorf("index.mjs %q", index)
 	}
 
-	out, err = runScript(t, []string{"VERSION=1.1.0", "DIST=" + filepath.Join(t.TempDir(), "dist")}, "release/build.sh", "--placeholder-sdk")
+	out, err = runScript(t, []string{"VERSION=1.61001.1", "DIST=" + filepath.Join(t.TempDir(), "dist")}, "release/build.sh", "--placeholder-sdk")
 	if err == nil || !strings.Contains(out, "0.0.0") {
-		t.Errorf("--placeholder-sdk at 1.1.0: err %v\n%s", err, out)
+		t.Errorf("--placeholder-sdk at 1.61001.1: err %v\n%s", err, out)
 	}
 }

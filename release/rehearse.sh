@@ -214,8 +214,8 @@ for b in "$DIST"/bin/*/*; do
   break
 done
 
-next=$(printf '%s\n' "$version" | awk -F. '{ print $1 "." $2 + 1 "." $3 }')
-third=$(printf '%s\n' "$version" | awk -F. '{ print $1 "." $2 + 2 "." $3 }')
+next=$(printf '%s\n' "$version" | awk -F. '{ print $1 "." $2 "." $3 + 1 }')
+third=$(printf '%s\n' "$version" | awk -F. '{ print $1 "." $2 "." $3 + 2 }')
 dist1=$DIST
 dist2=$work/dist2
 dist3=$work/dist3
@@ -252,14 +252,16 @@ case " $modes " in
     ;;
 esac
 # live-packs runs alone, so dist2's slot is free for the build it needs
-# when this release predates the shelf's floor: a release's own day is
-# never older than the packs it ships beside.
+# when this release predates the shelf's floor: a release of today's major
+# and day is never older than the packs it ships beside.
 live_version=$version live_dist=$dist1
 case " $modes " in
   *" live-packs "*)
     day=$(go run ./cmd/cn version --day)
-    if [ "${version%%.*}" -lt "$day" ]; then
-      live_version=$day.1.0 live_dist=$dist2
+    major=$(cat release/major)
+    vmajor=${version%%.*} vday=$(echo "$version" | cut -d. -f2)
+    if [ "$vmajor" -lt "$major" ] || { [ "$vmajor" -eq "$major" ] && [ "$vday" -lt "$day" ]; }; then
+      live_version=$major.$day.1 live_dist=$dist2
       step "live-packs: building $live_version into dist2/ from the same source, the shelf's floor being above $version"
       DIST=$dist2 VERSION=$live_version PACKAGE=$package REHEARSAL=1 BUILD_TAGS=devroots sh release/build.sh > "$work/build-live.out" || fail "build of $live_version: $(cat "$work/build-live.out")"
       rehearsal_sign "$dist2"
@@ -478,7 +480,7 @@ for mode in $modes; do
     stale)
       step "stale: a member warm on $version moves its pin to a version nobody serves"
       warm_member stale
-      missing=$(printf '%s\n' "$version" | awk -F. '{ print $1 "." $2 + 1000 "." $3 }')
+      missing=$(printf '%s\n' "$version" | awk -F. '{ print $1 "." $2 "." $3 + 1000 }')
       repin "$missing" "$pin"
       out=$(session_start) || fail "stale: SessionStart exited non-zero"
       case $out in
@@ -1930,7 +1932,7 @@ YAML
       verify_out=$(cd "$member" && .claudinite/bin/cn verify) || fail "growth 6: verify: $verify_out"
       [ -z "$verify_out" ] || fail "growth 6: verify reported: $verify_out"
       cn_member provenance check acme > "$work/prov.out" 2>&1 || fail "growth 6: provenance check: $(cat "$work/prov.out")"
-      printf '## 2026-10-03 · scope-changed · acme owns its widgets\n- **Reason:** the first lesson landed.\n- **Actor:** @rehearse (owner).\n- **Mechanism:** the pack manifest.\n' \
+      printf '## %s · scope-changed · acme owns its widgets\n- **Reason:** the first lesson landed.\n- **Actor:** @rehearse (owner).\n- **Mechanism:** the pack manifest.\n' "$(date -u +%Y-%m-%d)" \
         | cn_member provenance append acme _pack > "$work/prov.out" 2>&1 || fail "growth 6: provenance append: $(cat "$work/prov.out")"
       grep -q 'scope-changed · acme owns its widgets' "$member/.claudinite/local/packs/acme/provenance/_pack.md" || fail "growth 6: the entry is not in the file"
       step "growth 6: cn pack new declared local/acme and wrote the rules index; verify and cn provenance check are clean; append wrote the entry"

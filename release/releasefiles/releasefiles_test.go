@@ -9,7 +9,7 @@ import (
 )
 
 func TestFormatRoundTripsWithOneLinePerBinary(t *testing.T) {
-	m := Manifest{V: 1, Version: "1.1.0", BuiltAt: "2026-10-01T00:00:00Z", Commit: "abc", GoVersion: "go1.24",
+	m := Manifest{V: 1, Version: "1.61001.1", BuiltAt: "2026-10-01T00:00:00Z", Commit: "abc", GoVersion: "go1.24",
 		Binaries: map[string]Binary{
 			"windows-x64": {File: "cn.exe", SHA256: strings.Repeat("a", 64), Size: 3},
 			"linux-x64":   {File: "cn", SHA256: strings.Repeat("b", 64), Size: 4},
@@ -103,7 +103,7 @@ func TestUpdaterDigestFollowsTheUpdaterSource(t *testing.T) {
 }
 
 func TestFormatPinsUpdaterDigestAfterGoVersion(t *testing.T) {
-	m := Manifest{V: 1, Version: "1.1.0", BuiltAt: "2026-10-01T00:00:00Z", Commit: "abc", GoVersion: "go1.24", UpdaterDigest: strings.Repeat("c", 64),
+	m := Manifest{V: 1, Version: "1.61001.1", BuiltAt: "2026-10-01T00:00:00Z", Commit: "abc", GoVersion: "go1.24", UpdaterDigest: strings.Repeat("c", 64),
 		Binaries: map[string]Binary{"linux-x64": {File: "cn", SHA256: strings.Repeat("b", 64), Size: 4}}}
 	raw := string(Format(m))
 	lines := strings.Split(raw, "\n")

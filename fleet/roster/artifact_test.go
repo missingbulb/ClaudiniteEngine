@@ -16,7 +16,7 @@ func verdicts() []fleet.Verdict {
 		{Repo: "acme/Zeta", DefaultBranch: "main", Scope: fleet.ScopeIn, Shape: fleet.ShapeNode, Settings: ".claudinite-settings.json", Covered: true, Freshness: &fresh},
 		{Repo: "acme/manager", DefaultBranch: "main", Scope: fleet.ScopeHome},
 		{Repo: "acme/alpha", DefaultBranch: "trunk", Scope: fleet.ScopeIn, Shape: fleet.ShapeCn, Settings: ".claudinite/settings.yaml", Covered: true,
-			Pin: "61003.1.0", Held: fleet.Held{"basics": "61003.1"}, HasScheduler: &yes, Error: "GET /repos/acme/alpha/contents/x returned 500"},
+			Pin: "1.61003.1", Held: fleet.Held{"basics": "61003.1"}, HasScheduler: &yes, Error: "GET /repos/acme/alpha/contents/x returned 500"},
 	}
 }
 
@@ -38,7 +38,7 @@ func TestRenderPinsTheRosterBytes(t *testing.T) {
       "settings": ".claudinite/settings.yaml",
       "covered": true,
       "dormant": false,
-      "pin": "61003.1.0",
+      "pin": "1.61003.1",
       "held": {
         "basics": "61003.1"
       },

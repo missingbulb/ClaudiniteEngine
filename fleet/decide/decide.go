@@ -232,13 +232,15 @@ type nodeVersions struct {
 	PackVersions  map[string]string
 }
 
-// engine3 reads a Node engine version <day>.<n> as cn's <day>.<n>.0.
+// engine3 reads a Node engine version <day>.<n> as cn's 0.<day>.<n>: the
+// Node engine predates every cn release line, and both sides of a Node
+// comparison are read alike.
 func engine3(v *string) string {
 	if v == nil {
 		return ""
 	}
 	if strings.Count(*v, ".") == 1 {
-		return *v + ".0"
+		return "0." + *v
 	}
 	return *v
 }

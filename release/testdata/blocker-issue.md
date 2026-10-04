@@ -1,8 +1,8 @@
-@claudinite/cli-rc 60928.3.0 fails the post-publish smoke on darwin-arm64
+@claudinite/cli-rc 1.60928.3 fails the post-publish smoke on darwin-arm64
 
-`@claudinite/cli-rc 60928.3.0` is published, and the darwin-arm64 leg of `smoke-published` failed against registry.npmjs.org: a member pinned to it on darwin-arm64 cannot run its engine.
+`@claudinite/cli-rc 1.60928.3` is published, and the darwin-arm64 leg of `smoke-published` failed against registry.npmjs.org: a member pinned to it on darwin-arm64 cannot run its engine.
 
-While this issue is open with the `release-blocker` label, `promote.yml` refuses to promote 60928.3.0. Close it once the failure is understood; the fix ships as a new version, since nothing is republished.
+While this issue is open with the `release-blocker` label, `promote.yml` refuses to promote 1.60928.3. Close it once the failure is understood; the fix ships as a new version, since nothing is republished.
 
 Run: https://github.com/missingbulb/ClaudiniteEngine/actions/runs/1
 

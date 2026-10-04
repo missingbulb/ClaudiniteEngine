@@ -46,7 +46,7 @@ func TestCheckWorldCommand(t *testing.T) {
 		t.Errorf("unchanged pin: exit %d\n%s", code, out)
 	}
 	raw, _ := os.ReadFile(filepath.Join(dir, ".claudinite/settings.yaml"))
-	_ = os.WriteFile(filepath.Join(dir, ".claudinite/settings.yaml"), []byte(strings.Replace(string(raw), "60930.1.0", "60930.2.0", 1)), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, ".claudinite/settings.yaml"), []byte(strings.Replace(string(raw), "1.60930.1", "1.60930.2", 1)), 0o644)
 	cmd := exec.Command("git", "-c", "user.name=t", "-c", "user.email=t@x", "commit", "-q", "-am", "move")
 	cmd.Dir = dir
 	if out, err := cmd.CombinedOutput(); err != nil {

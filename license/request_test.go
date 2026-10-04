@@ -199,7 +199,7 @@ type rig struct {
 func newRig(t *testing.T) *rig {
 	r := &rig{t: t, now: testNow, gh: &fakeGH{t: t}, w: &fakeWorker{t: t}, origin: "https://github.com/acme/member.git", vars: map[string]string{}}
 	r.env = Env{
-		CacheRoot: filepath.Join(t.TempDir(), "claudinite"), Roots: testRoots(), Engine: "60930.1.0",
+		CacheRoot: filepath.Join(t.TempDir(), "claudinite"), Roots: testRoots(), Engine: "1.60930.1",
 		Now: func() time.Time { return r.now }, Sleep: func(d time.Duration) { r.now = r.now.Add(d) },
 		Getenv: func(k string) string { return r.vars[k] },
 		GitHub: func(repo, token string, timeout time.Duration) GitHub {

@@ -6,8 +6,8 @@
         "after": "{\"packs\":[\"basics\",\"node\"]}"
       },
       {
-        "before": "{\"engine\":{\"version\":\"61001.1.0\",\"manifest\":\"sha512-a\"},\"packs\":[\"basics\"]}",
-        "after": "{\"engine\":{\"version\":\"61002.1.0\",\"manifest\":\"sha512-b\"},\"packs\":[\"basics\",\"node\"]}"
+        "before": "{\"engine\":{\"version\":\"1.61001.1\",\"manifest\":\"sha512-a\"},\"packs\":[\"basics\"]}",
+        "after": "{\"engine\":{\"version\":\"1.61002.1\",\"manifest\":\"sha512-b\"},\"packs\":[\"basics\",\"node\"]}"
       }
     ]
   },

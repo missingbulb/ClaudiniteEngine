@@ -20,7 +20,7 @@ func TestHop(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%v\n%s", err, out)
 	}
-	for _, w := range []string{"update 1: opened #1 for 1.2.0", "update 3: landed 1.2.0", "update 4: SessionStart runs 1.2.0", "hop: 1.1.0 updated a member to 1.2.0"} {
+	for _, w := range []string{"update 1: opened #1 for 1.61001.2", "update 3: landed 1.61001.2", "update 4: SessionStart runs 1.61001.2", "hop: 1.61001.1 updated a member to 1.61001.2"} {
 		if !strings.Contains(out, w) {
 			t.Errorf("output lacks %q:\n%s", w, out)
 		}

@@ -86,18 +86,18 @@ func TestLoadConventionsOverride(t *testing.T) {
 
 func TestLoadNotLoaded(t *testing.T) {
 	repo := member(t, "    - needs\n    - absent\n    - newer\n    - local/gone\n    - local/needs\n    - badskill\n")
-	write(t, filepath.Join(Tree(repo, "needs"), "pack.json"), `{"version": "1.0", "minEngineVersion": "1.1.0", "requires": ["other"]}`)
-	write(t, filepath.Join(Tree(repo, "newer"), "pack.json"), `{"version": "1.0", "minEngineVersion": "9.0.0"}`)
-	write(t, filepath.Join(Tree(repo, "badskill"), "pack.json"), `{"version": "1.0", "minEngineVersion": "1.1.0", "skills": ["nope"]}`)
+	write(t, filepath.Join(Tree(repo, "needs"), "pack.json"), `{"version": "1.0", "minEngineVersion": "1.60102.1", "requires": ["other"]}`)
+	write(t, filepath.Join(Tree(repo, "newer"), "pack.json"), `{"version": "1.0", "minEngineVersion": "9.60101.1"}`)
+	write(t, filepath.Join(Tree(repo, "badskill"), "pack.json"), `{"version": "1.0", "minEngineVersion": "1.60102.1", "skills": ["nope"]}`)
 	write(t, filepath.Join(repo, LocalDir, "needs", "pack.json"), `{}`)
-	s, err := Load(repo, "1.1.0", false)
+	s, err := Load(repo, "1.60102.1", false)
 	if err != nil {
 		t.Fatal(err)
 	}
 	got := notLoaded(s)
 	for _, want := range []string{
 		"absent: .claudinite/shared/packs/absent is missing",
-		"newer: pack newer 1.0 needs engine 9.0.0 or newer; this is 1.1.0",
+		"newer: pack newer 1.0 needs engine 9.60101.1 or newer; this is 1.60102.1",
 		"local/gone: .claudinite/local/packs/gone is missing",
 		"local/needs: its id is the declared canon pack needs's",
 		`badskill: pack.json names a skill "nope" with no skills/nope/ directory`,
@@ -120,7 +120,7 @@ func TestLoadANodeEngineFloor(t *testing.T) {
 	repo := member(t, "    - old\n    - bad\n")
 	write(t, filepath.Join(Tree(repo, "old"), "pack.json"), `{"version": "1.0", "minEngineVersion": "60928.1"}`)
 	write(t, filepath.Join(Tree(repo, "bad"), "pack.json"), `{"version": "1.0", "minEngineVersion": "soon"}`)
-	s, err := Load(repo, "61003.1.0", false)
+	s, err := Load(repo, "1.61003.1", false)
 	if err != nil {
 		t.Fatal(err)
 	}

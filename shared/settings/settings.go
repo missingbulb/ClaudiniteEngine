@@ -235,7 +235,7 @@ func ReadEngine(raw []byte, f Format) (Engine, error) {
 		}
 		return nil
 	}
-	if err := get("version", VersionPattern, `version like "60928.1.0"`, &e.Version, true); err != nil {
+	if err := get("version", VersionPattern, `version like "1.60928.1"`, &e.Version, true); err != nil {
 		return Engine{}, err
 	}
 	if err := get("manifest", ManifestPattern, "sha512-... integrity string", &e.Manifest, true); err != nil {

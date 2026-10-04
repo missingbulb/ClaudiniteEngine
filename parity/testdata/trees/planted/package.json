@@ -1,5 +1,5 @@
 {
-  "version": "61002.1.0",
+  "version": "1.61002.1",
   "scripts": {
     "test": "node --test .hidden/**/*.test.mjs"
   },

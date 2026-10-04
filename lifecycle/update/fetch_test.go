@@ -24,13 +24,13 @@ func fetchIn(t *testing.T, r *registry, ver string) FetchInput {
 
 func TestFetchPlacesTheVerifiedBinaryWhereTheLauncherLooks(t *testing.T) {
 	r := newRegistry(t)
-	r.publish(t, pkg, "60930.2.0", relOpts{})
-	in := fetchIn(t, r, "60930.2.0")
+	r.publish(t, pkg, "1.60930.2", relOpts{})
+	in := fetchIn(t, r, "1.60930.2")
 	got, err := Fetch(in)
 	if err != nil {
 		t.Fatal(err)
 	}
-	dir := filepath.Join(in.CacheRoot, "60930.2.0")
+	dir := filepath.Join(in.CacheRoot, "1.60930.2")
 	if got.Binary != filepath.Join(dir, binaryName(version.Platform())) {
 		t.Errorf("binary at %s", got.Binary)
 	}
@@ -52,7 +52,7 @@ func TestFetchPlacesTheVerifiedBinaryWhereTheLauncherLooks(t *testing.T) {
 	if got.KeyID != sign.KeyID(relKey.Public().(ed25519.PublicKey)) {
 		t.Errorf("key id %s", got.KeyID)
 	}
-	if string(got.Launcher) != "#!/bin/sh\n# launcher of 60930.2.0\n" {
+	if string(got.Launcher) != "#!/bin/sh\n# launcher of 1.60930.2\n" {
 		t.Errorf("launcher %q", got.Launcher)
 	}
 	if sst, err := os.Stat(filepath.Join(dir, "manifest.sig.json")); err != nil || sst.Mode().Perm() != 0o444 {
@@ -72,13 +72,13 @@ func TestFetchRefuses(t *testing.T) {
 		{"packs certificate", relOpts{use: sign.UsePacks}, nil, "use"},
 		{"expired certificate", relOpts{notBefore: t0.AddDate(0, 0, -60)}, nil, "expired"},
 		{"root the binary does not embed", relOpts{issuer: otherRoot}, nil, "trusted root"},
-		{"not in the packument", relOpts{}, func(in *FetchInput) { in.Version = "60930.9.0" }, "no 60930.9.0"},
+		{"not in the packument", relOpts{}, func(in *FetchInput) { in.Version = "1.60930.9" }, "no 1.60930.9"},
 		{"over the size cap", relOpts{}, func(in *FetchInput) { in.Registry.MaxBytes = 10 }, "cap"},
 	}
 	for _, c := range cases {
 		r := newRegistry(t)
-		r.publish(t, pkg, "60930.2.0", c.o)
-		in := fetchIn(t, r, "60930.2.0")
+		r.publish(t, pkg, "1.60930.2", c.o)
+		in := fetchIn(t, r, "1.60930.2")
 		if c.in != nil {
 			c.in(&in)
 		}
