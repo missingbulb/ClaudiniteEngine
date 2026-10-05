@@ -93,6 +93,11 @@ func guard(in Input) error {
 	}
 	var pinFiles []string
 	for _, c := range changed {
+		// A directory never lists as a changed path; a symlink or submodule
+		// there would carry pin files git never shows.
+		if c == ".claudinite" {
+			return fmt.Errorf(".claudinite is not a directory")
+		}
 		if isPinFile(c) {
 			pinFiles = append(pinFiles, c)
 		}

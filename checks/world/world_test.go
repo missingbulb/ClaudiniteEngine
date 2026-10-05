@@ -241,6 +241,16 @@ func TestPinGuardLetsAPersonAdoptAndEditTheirSettings(t *testing.T) {
 				write(t, dir, ".claudinite/launch", "#!/bin/sh\n")
 			})
 		}, nil, 1, "not a regular file", false},
+		{"a person's adoption PR makes .claudinite a symlink", func(t *testing.T) string {
+			return unadopted(t, func(dir string) {
+				write(t, dir, "evil/settings.yaml", settingsBody("1.9.0", pin2))
+				write(t, dir, "evil/launch", "#!/bin/sh\n")
+				_ = os.RemoveAll(filepath.Join(dir, ".claudinite"))
+				if err := os.Symlink("evil", filepath.Join(dir, ".claudinite")); err != nil {
+					t.Fatal(err)
+				}
+			})
+		}, nil, 1, "not a directory", false},
 		{"a person's adoption PR writes two settings files", func(t *testing.T) string {
 			return unadopted(t, func(dir string) {
 				adopt(t)(dir)
