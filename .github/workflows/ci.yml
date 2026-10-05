@@ -1,3 +1,6 @@
+# The fast check every pull request and every push to main waits on: lint, the short tests
+# and the script linters. What takes minutes (the release build and rehearsal, the packs
+# suite against this cn, the latency budgets and the tests short mode skips) is full.yml's.
 name: ci
 
 on:
@@ -7,6 +10,10 @@ on:
 
 permissions:
   contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   test:
@@ -19,132 +26,13 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "22"
-      - run: sudo apt-get update && sudo apt-get install -y shellcheck
-      - run: go vet ./...
+      # The standard linters include govet.
       - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         with:
           version: v2.5.0
-      - run: go test ./...
+      # The parity harness is off CI: the port it proved is done (design record 135).
+      - run: go list ./... | grep -v /parity | xargs go test -short
       - run: shellcheck -s sh launcher/launch release/*.sh probe/desktop-timings/run.sh probe/hook-latency/run.sh
       # actionlint v1.7.11, the last release that builds on Go 1.24, over the engine's workflows and
       # the member templates; it runs shellcheck over every run: body too.
       - run: go run github.com/rhysd/actionlint/cmd/actionlint@393031adb9afb225ee52ae2ccd7a5af5525e03e8 .github/workflows/*.yml lifecycle/workflows/templates/*.yml
-
-  # The two-engine harness: the frozen Node engine, pinned by commit, against cn.
-  parity:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          repository: missingbulb/Claudinite
-          ref: 057841ac43de1f90b821f7a57e0f3d21eb6ff0e7
-          path: claudinite-frozen
-          persist-credentials: false
-      # The ported packs, from ClaudinitePacks at the commit parity/claudinitepacks.ref pins.
-      - id: packs
-        run: echo "ref=$(cat parity/claudinitepacks.ref)" >> "$GITHUB_OUTPUT"
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          repository: missingbulb/ClaudinitePacks
-          ref: ${{ steps.packs.outputs.ref }}
-          path: claudinitepacks
-          persist-credentials: false
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version: "1.24"
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: "22"
-          package-manager-cache: false
-      - run: go build -o "$RUNNER_TEMP/cn" ./cmd/cn
-      - run: go test ./parity -timeout 30m -run 'Parity|Differential' -v
-        env:
-          CLAUDINITE_NODE_ENGINE: ${{ github.workspace }}/claudinite-frozen
-          CLAUDINITE_PARITY_TREES: ${{ github.workspace }}/claudinite-frozen:${{ github.workspace }}/parity/testdata/trees/planted
-          CLAUDINITE_PACKS_TREE: ${{ github.workspace }}/claudinitepacks
-          CLAUDINITE_CN: ${{ runner.temp }}/cn
-      # cn init --from-node over a copy of each Node member tree, its canon packs from the pinned checkout.
-      - run: go test ./lifecycle/adopt -run TestFromNodeOverRealMembers -v
-        env:
-          CLAUDINITE_PARITY_TREES: ${{ github.workspace }}/claudinite-frozen
-          CLAUDINITE_PACKS_TREE: ${{ github.workspace }}/claudinitepacks
-      # The ported packs' Go tests and cn check --pack fixtures, against this cn, until
-      # ClaudinitePacks pins a published one (#2).
-      - run: sh tools/checks/test.sh
-        working-directory: claudinitepacks
-        env:
-          CLAUDINITE_CN: ${{ runner.temp }}/cn
-      # The dashboard pack's suite, whose copies of the engine's predicates are held to this cn.
-      - run: node --test 'packs/claudinite-dashboard/test/**/*.test.mjs'
-        working-directory: claudinitepacks
-        env:
-          CLAUDINITE_CN: ${{ runner.temp }}/cn
-      # The per-call hooks' latency on the runner, over the frozen tree's packs, held to its budgets; the table lands in the log.
-      - run: |
-          rc=0
-          sh probe/hook-latency/run.sh --node claudinite-frozen --out "$RUNNER_TEMP/hook-latency" --budget || rc=$?
-          cat "$RUNNER_TEMP"/hook-latency/*.md
-          exit "$rc"
-
-  build:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version: "1.24"
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: "22"
-      # The rehearsal's release: built with the development roots and signed with the
-      # development keys (testkeys/), which release/rehearse.sh's every key chains to.
-      - run: release/build.sh
-        env:
-          VERSION: "1.61001.1"
-          REHEARSAL: "1"
-          BUILD_TAGS: devroots
-      - run: release/sign.sh
-        env:
-          RELEASE_KEY: testkeys/release.key
-          RELEASE_CERT: testkeys/release.cert.json
-          ROOTS: shared/trust/devroots
-      - run: sha256sum -c dist/SHA256SUMS
-      - run: release/smoke.sh
-      - run: release/repro.sh
-        env:
-          VERSION: "1.61001.1"
-      - run: release/secretscan.sh dist/bin
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: dist
-          path: dist/
-          if-no-files-found: error
-
-  rehearse:
-    needs: build
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version: "1.24"
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: "22"
-      # The dashboard mode's step 7 publishes the real dashboard pack, from ClaudinitePacks at the pinned commit.
-      - id: packs
-        run: echo "ref=$(cat parity/claudinitepacks.ref)" >> "$GITHUB_OUTPUT"
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          repository: missingbulb/ClaudinitePacks
-          ref: ${{ steps.packs.outputs.ref }}
-          path: claudinitepacks
-          persist-credentials: false
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: dist
-          path: dist/
-      - run: release/rehearse.sh
-        env:
-          CLAUDINITE_PACKS_TREE: ${{ github.workspace }}/claudinitepacks

@@ -59,12 +59,14 @@ func TestNoExpressionInARunBody(t *testing.T) {
 var (
 	stepUses   = regexp.MustCompile(`^\s*(?:- )?uses:\s*\S`)
 	pinnedUses = regexp.MustCompile(`^\s*(?:- )?uses:\s*[^@\s]+@[0-9a-f]{40}(?:\s+#.*)?$`)
+	// A job calling one of this repository's own workflows runs it from the calling commit.
+	ownWorkflow = regexp.MustCompile(`^    uses: \./\.github/workflows/[a-z0-9-]+\.yml$`)
 )
 
 // unpinnedUse reports a step's uses: that names an action by anything but a commit SHA. A bare
 // `uses:` key with no value is a workflow_dispatch input of that name, not a step.
 func unpinnedUse(line string) bool {
-	return stepUses.MatchString(line) && !pinnedUses.MatchString(line)
+	return stepUses.MatchString(line) && !pinnedUses.MatchString(line) && !ownWorkflow.MatchString(line)
 }
 
 func TestUnpinnedUse(t *testing.T) {
@@ -72,7 +74,9 @@ func TestUnpinnedUse(t *testing.T) {
 		"      - uses: actions/checkout@v4":                                                true,
 		"      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1": false,
 		"        uses: ./local-action":                                                     true,
-		"      uses:":                                                                      false,
+		"    uses: ./.github/workflows/full.yml":                                           false,
+		"    uses: acme/other/.github/workflows/full.yml@main":                             true,
+		"      uses:": false,
 	} {
 		if got := unpinnedUse(line); got != want {
 			t.Errorf("unpinnedUse(%q) = %v, want %v", line, got, want)
@@ -255,8 +259,8 @@ func TestPromoteMovesLatest(t *testing.T) {
 	const wf = "../.github/workflows/promote.yml"
 	job := jobBlock(t, wf, "promote")
 	for _, want := range []string{
-		"    needs: [gate, check]\n",
-		"    if: needs.check.outputs.check == 'pass'\n",
+		"    needs: [gate, check, full]\n",
+		"    if: needs.check.outputs.check == 'pass' && needs.full.result == 'success'\n",
 		"    environment: promote\n",
 		"      id-token: write\n",
 		"npm install -g npm@11.21.0",
@@ -274,9 +278,31 @@ func TestPromoteMovesLatest(t *testing.T) {
 	}
 }
 
+// Only stable waits on the full check, run on the promoted version's own
+// commit; a release, staging or rc, never calls it.
+func TestOnlyStableWaitsOnTheFullCheck(t *testing.T) {
+	full := jobBlock(t, "../.github/workflows/promote.yml", "full")
+	for _, want := range []string{
+		"    uses: ./.github/workflows/full.yml\n",
+		"      ref: v${{ inputs.version }}\n",
+	} {
+		if !strings.Contains(full, want) {
+			t.Errorf("promote.yml's full job lacks %q:\n%s", want, full)
+		}
+	}
+	raw, _ := os.ReadFile("../.github/workflows/full.yml")
+	if strings.Count(string(raw), "ref: ${{ inputs.ref }}") != 4 {
+		t.Errorf("full.yml does not check out inputs.ref in each of its four jobs")
+	}
+	rel, _ := os.ReadFile("../.github/workflows/release.yml")
+	if strings.Contains(string(rel), "full.yml") {
+		t.Error("release.yml calls the full check, which only stable waits on")
+	}
+}
+
 // The live-packs rehearsal runs in the release straight after the build, holding
-// promotion through a release-blocker issue, and in its own workflow on
-// main and nightly.
+// promotion through a release-blocker issue, and in its own workflow nightly
+// and on demand, never on a pull request or a push.
 func TestLivePacksRuns(t *testing.T) {
 	const wf = "../.github/workflows/release.yml"
 	job := jobBlock(t, wf, "live-packs")
@@ -308,9 +334,14 @@ func TestLivePacksRuns(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, trigger := range []string{"\n  push:\n    branches: [main]\n", "\n  schedule:\n"} {
+	for _, trigger := range []string{"\n  schedule:\n", "\n  workflow_dispatch:\n"} {
 		if !strings.Contains(string(raw), trigger) {
 			t.Errorf("live-packs.yml lacks the trigger %q", trigger)
+		}
+	}
+	for _, trigger := range []string{"\n  push:", "\n  pull_request:"} {
+		if strings.Contains(string(raw), trigger) {
+			t.Errorf("live-packs.yml has the trigger %q", trigger)
 		}
 	}
 }

@@ -56,8 +56,11 @@ func tarballRepositoryURLs(t *testing.T, dist string) map[string]string {
 }
 
 func TestBuildNamesEveryTarballOfTheCLIPackage(t *testing.T) {
+	if testing.Short() {
+		t.Skip("builds a release; the full run covers it")
+	}
 	dist := filepath.Join(t.TempDir(), "dist")
-	if out, err := runScript(t, []string{"VERSION=0.0.0", "DIST=" + dist}, "release/build.sh", "--placeholder-sdk"); err != nil {
+	if out, err := runScript(t, []string{"VERSION=0.0.0", "DIST=" + dist}, "release/build.sh"); err != nil {
 		t.Fatalf("%v\n%s", err, out)
 	}
 	if out, err := runScript(t, []string{"DIST=" + dist}, "release/smoke.sh"); err != nil {
@@ -76,10 +79,7 @@ func TestBuildNamesEveryTarballOfTheCLIPackage(t *testing.T) {
 		got = append(got, name)
 	}
 	sort.Strings(got)
-	var want []string
-	for _, p := range Placeholders() {
-		want = append(want, p.Name)
-	}
+	want := CLIPackages()
 	sort.Strings(want)
 	if strings.Join(got, " ") != strings.Join(want, " ") {
 		t.Errorf("tarballs %v, want %v", got, want)
@@ -90,6 +90,9 @@ func TestBuildNamesEveryTarballOfTheCLIPackage(t *testing.T) {
 // smoke all name that one platform, and the smoke refuses it as a full
 // release.
 func TestBuildRestrictsPlatforms(t *testing.T) {
+	if testing.Short() {
+		t.Skip("builds a release; the full run covers it")
+	}
 	dist := filepath.Join(t.TempDir(), "dist")
 	if out, err := runScript(t, []string{"VERSION=1.61005.1", "DIST=" + dist, "PLATFORMS=linux-x64"}, "release/build.sh"); err != nil {
 		t.Fatalf("%v\n%s", err, out)
@@ -120,35 +123,5 @@ func TestBuildRestrictsPlatforms(t *testing.T) {
 		if out, err := runScript(t, []string{"VERSION=1.61005.1", "DIST=" + filepath.Join(t.TempDir(), "dist"), "PLATFORMS=" + bad}, "release/build.sh"); err == nil {
 			t.Errorf("PLATFORMS=%q built:\n%s", bad, out)
 		}
-	}
-}
-
-func TestPlaceholderSDK(t *testing.T) {
-	dist := filepath.Join(t.TempDir(), "dist")
-	out, err := runScript(t, []string{"VERSION=0.0.0", "DIST=" + dist}, "release/build.sh", "--placeholder-sdk")
-	if err != nil {
-		t.Fatalf("%v\n%s", err, out)
-	}
-	sdk := filepath.Join(dist, "npm", "sdk", "package")
-	entries, _ := os.ReadDir(sdk)
-	var files []string
-	for _, e := range entries {
-		files = append(files, e.Name())
-	}
-	if strings.Join(files, " ") != "README.md index.mjs package.json" {
-		t.Errorf("sdk package holds %v", files)
-	}
-	readme, _ := os.ReadFile(filepath.Join(sdk, "README.md"))
-	if strings.TrimSpace(string(readme)) != "placeholder, see ClaudiniteEngine" {
-		t.Errorf("README %q", readme)
-	}
-	index, _ := os.ReadFile(filepath.Join(sdk, "index.mjs"))
-	if strings.TrimSpace(string(index)) != "export {};" {
-		t.Errorf("index.mjs %q", index)
-	}
-
-	out, err = runScript(t, []string{"VERSION=1.61001.1", "DIST=" + filepath.Join(t.TempDir(), "dist")}, "release/build.sh", "--placeholder-sdk")
-	if err == nil || !strings.Contains(out, "0.0.0") {
-		t.Errorf("--placeholder-sdk at 1.61001.1: err %v\n%s", err, out)
 	}
 }

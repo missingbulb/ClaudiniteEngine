@@ -8,8 +8,7 @@
 #
 # VERSION (default 0.0.0). PLATFORMS (default all five) names the platforms
 # built, separated by spaces; a staging build is linux-x64 alone, and its
-# manifest lists that one. --placeholder-sdk adds the @claudinite/sdk
-# placeholder package, at 0.0.0 only, for npm-bootstrap.yml.
+# manifest lists that one.
 set -eu
 cd "$(dirname "$0")/.."
 root=$(pwd)
@@ -27,16 +26,7 @@ for p in $platforms; do
   case $seen in *" $p "*) echo "build: PLATFORMS names $p twice" >&2; exit 2 ;; esac
   seen="$seen$p "
 done
-sdk=false
-case $# in
-  0) ;;
-  1) [ "$1" = --placeholder-sdk ] || { echo "usage: release/build.sh [--placeholder-sdk]" >&2; exit 2; }; sdk=true ;;
-  *) echo "usage: release/build.sh [--placeholder-sdk]" >&2; exit 2 ;;
-esac
-if [ "$sdk" = true ] && [ "$VERSION" != 0.0.0 ]; then
-  echo "build: --placeholder-sdk reserves @claudinite/sdk at 0.0.0 only, not $VERSION" >&2
-  exit 2
-fi
+[ $# -eq 0 ] || { echo "usage: release/build.sh" >&2; exit 2; }
 COMMIT=$(git rev-parse --short=7 HEAD 2>/dev/null || echo unknown)
 export VERSION COMMIT
 
@@ -86,16 +76,6 @@ for p in $platforms; do
   \"os\": [\"$os\"],
   \"cpu\": [\"$cpu\"]" > "$dir/package.json"
 done
-
-if [ "$sdk" = true ]; then
-  dir=$DIST/npm/sdk/package
-  mkdir -p "$dir"
-  pkgjson "@claudinite/sdk" "SDK" ",
-  \"type\": \"module\",
-  \"main\": \"index.mjs\"" > "$dir/package.json"
-  echo 'export {};' > "$dir/index.mjs"
-  echo 'placeholder, see ClaudiniteEngine' > "$dir/README.md"
-fi
 
 for d in "$DIST"/npm/*/package; do
   sh release/npmpack.sh "$d" "$DIST/tarballs"

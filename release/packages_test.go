@@ -28,7 +28,7 @@ func golden(t *testing.T, name, got string) {
 	}
 }
 
-func TestPlaceholdersAreExactlyThe7Packages(t *testing.T) {
+func TestPackagesAreExactlyThe7(t *testing.T) {
 	release := Publisher{Workflow: "release.yml", Environment: "release"}
 	promote := Publisher{Workflow: "promote.yml", Environment: "promote", DistTag: true}
 	want := map[string][]Publisher{
@@ -40,9 +40,9 @@ func TestPlaceholdersAreExactlyThe7Packages(t *testing.T) {
 		"@claudinite/cli-windows-x64":  {release},
 		"@claudinite/sdk":              {{Workflow: "promote.yml", Environment: "promote"}},
 	}
-	got := Placeholders()
+	got := Packages()
 	if len(got) != 7 {
-		t.Fatalf("%d placeholders, want 7", len(got))
+		t.Fatalf("%d packages, want 7", len(got))
 	}
 	seen := map[string]bool{}
 	for _, p := range got {
@@ -98,15 +98,4 @@ func TestReleaseKinds(t *testing.T) {
 			t.Errorf("ReleaseKindOf(%q) = %+v, want an error", bad, k)
 		}
 	}
-}
-
-func TestBootstrapComment(t *testing.T) {
-	body := BootstrapComment()
-	if n := strings.Count(body, "- [ ] "); n != 8+7+1 {
-		t.Errorf("%d checkboxes, want %d", n, 8+7+1)
-	}
-	if n := strings.Count(body, "Allow npm dist-tag"); n != 1 {
-		t.Errorf("%d dist-tag grants, want 1 (@claudinite/cli for promote.yml)", n)
-	}
-	golden(t, "bootstrap-comment.md", body)
 }

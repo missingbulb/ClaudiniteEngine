@@ -44,6 +44,9 @@ var (
 // dist under a fresh parent.
 func unsignedDist(t *testing.T) (string, string) {
 	t.Helper()
+	if testing.Short() {
+		t.Skip("builds a release; the full run covers it")
+	}
 	builtOnce.Do(func() {
 		var dir string
 		if dir, builtErr = os.MkdirTemp("", "build-once-"); builtErr != nil {

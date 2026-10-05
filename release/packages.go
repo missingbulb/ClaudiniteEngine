@@ -1,7 +1,7 @@
 // Package release holds the release pipeline's decisions as data and pure
 // functions, so the workflows and scripts read them rather than restate
 // them: the npm packages and their trusted publishers, the release kinds,
-// the publish mode, and the text the pipeline posts.
+// and the publish mode.
 package release
 
 import (
@@ -79,9 +79,9 @@ func ReleaseKindOf(kind string) (ReleaseKind, error) {
 	return ReleaseKind{}, fmt.Errorf("kind %q is neither full nor staging", kind)
 }
 
-// Placeholders are the 7 packages npm-bootstrap.yml reserves at 0.0.0: the
-// CLI packages and the SDK.
-func Placeholders() []Package {
+// Packages are the @claudinite npm packages and the trusted publishers of
+// each: the CLI packages and the SDK.
+func Packages() []Package {
 	release := Publisher{Workflow: "release.yml", Environment: "release"}
 	var out []Package
 	for _, n := range CLIPackages() {
@@ -92,27 +92,4 @@ func Placeholders() []Package {
 		out = append(out, p)
 	}
 	return append(out, Package{Name: "@claudinite/sdk", Publishers: []Publisher{{Workflow: "promote.yml", Environment: "promote"}}})
-}
-
-// BootstrapComment is the handover npm-bootstrap.yml posts on #2 once the
-// placeholders exist: what Ariel sets on npmjs.com, which has no CLI or API
-// for trusted publishers.
-func BootstrapComment() string {
-	var b strings.Builder
-	b.WriteString("The 7 `@claudinite` packages are reserved at `0.0.0`. Each needs its trusted publishers and token refusal set on npmjs.com:\n\n")
-	for _, p := range Placeholders() {
-		for _, pub := range p.Publishers {
-			fmt.Fprintf(&b, "- [ ] `%s` trusted publisher: GitHub Actions, organization or user `missingbulb`, repository `ClaudiniteEngine`, workflow filename `%s`, environment `%s`", p.Name, pub.Workflow, pub.Environment)
-			if pub.DistTag {
-				b.WriteString(", Allow npm dist-tag")
-			}
-			b.WriteString("\n")
-		}
-		fmt.Fprintf(&b, "- [ ] `%s` Publishing access: Require two-factor authentication and disallow tokens\n", p.Name)
-	}
-	b.WriteString("- [ ] delete `NPM_BOOTSTRAP_TOKEN` from Actions secrets and revoke it on npm\n\n")
-	b.WriteString("Every box of a package is on its page at `https://www.npmjs.com/package/<name>/access`. " +
-		"Until a package's publisher is attached, a real `release.yml` publish or `promote.yml` promotion of it is a red run whose last line names its box here; " +
-		"before the placeholders existed those runs were dry runs. npm has no CLI or API for trusted publishers (https://docs.npmjs.com/trusted-publishers), so these are clicks.\n")
-	return b.String()
 }

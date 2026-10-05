@@ -283,11 +283,24 @@ jobs:
           NODE_AUTH_TOKEN=$NPM_DEPRECATE_TOKEN sh -e "$RUNNER_TEMP/commands.sh"
           echo "versions now: $(npm view @claudinite/cli versions --json | tr -d '\n ')" >> "$GITHUB_STEP_SUMMARY"
 
+  # The full check on the commit this version was built from: a staging or rc
+  # release skips it, and stable never does.
+  full:
+    needs: gate
+    if: needs.gate.outputs.allowed == 'true'
+    permissions:
+      contents: read
+      # Only full.yml's nightly report job writes issues; it never runs here.
+      issues: write
+    uses: ./.github/workflows/full.yml
+    with:
+      ref: v${{ inputs.version }}
+
   # Moves latest; npm's trusted publishing authorizes dist-tag for the
   # promote environment's publisher of @claudinite/cli.
   promote:
-    needs: [gate, check]
-    if: needs.check.outputs.check == 'pass'
+    needs: [gate, check, full]
+    if: needs.check.outputs.check == 'pass' && needs.full.result == 'success'
     runs-on: ubuntu-24.04
     environment: promote
     permissions:

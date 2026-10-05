@@ -17,7 +17,6 @@ import (
 const usage = `usage:
   pipeline names
   pipeline release-kind --kind full|staging
-  pipeline bootstrap-comment
   pipeline blocker-issue --version V --leg PLATFORM --run-url URL --log FILE
   pipeline blocker-issue --gate live-packs --version V --run-url URL --log FILE
   pipeline publish-mode --tag rc|staging --signing release --dry-run true|false --npm-versions FILE
@@ -56,9 +55,6 @@ func run(args []string, stdout, stderr io.Writer) int {
 			return 2
 		}
 		fmt.Fprintf(stdout, "tag=%s\nchannel=%s\nplatforms=%s\n", k.Tag, k.Channel, strings.Join(k.Platforms, " "))
-		return 0
-	case "bootstrap-comment":
-		fmt.Fprint(stdout, release.BootstrapComment())
 		return 0
 	case "publish-mode":
 		return publishMode(args[1:], stdout, stderr)
