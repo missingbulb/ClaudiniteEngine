@@ -170,8 +170,8 @@ func checkEnginePin(in Input) []findings.Finding {
 	return nil
 }
 
-// checkLicensePlan breaks on a license.plan the key server does not know;
-// no block passes, since the paid plans are the default.
+// checkLicensePlan names a license block as a retired shape: nothing reads
+// it, and the next engine update PR drops it.
 func checkLicensePlan(in Input) []findings.Finding {
 	p, f, err := settings.Find(in.Repo)
 	if err != nil {
@@ -181,8 +181,8 @@ func checkLicensePlan(in Input) []findings.Finding {
 	if err != nil {
 		return nil
 	}
-	if _, err := settings.ReadLicense(raw, f); err != nil {
-		return []findings.Finding{brk("license-plan", settings.RelPath(f), err.Error()+"; sessions ask the paid key server until it names a plan the server knows, quoted")}
+	if settings.HasRetiredLicense(raw, f) {
+		return []findings.Finding{dep("license-plan", settings.RelPath(f), "the license block is a retired shape: a single repo needs no license and nothing reads it; the next engine update PR drops it, or delete it by hand")}
 	}
 	return nil
 }

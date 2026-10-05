@@ -296,6 +296,12 @@ func openPR(d Deps, f settings.Format, raw []byte, got Fetched, self, verifyOut 
 	if err != nil {
 		return 0, err
 	}
+	dropped := settings.HasRetiredLicense(moved, f)
+	if dropped {
+		if moved, err = settings.DropLicense(moved, f); err != nil {
+			return 0, err
+		}
+	}
 	back, err := d.Git.CurrentBranch()
 	if err != nil {
 		return 0, err
@@ -331,6 +337,9 @@ func openPR(d Deps, f settings.Format, raw []byte, got Fetched, self, verifyOut 
 
 	var b strings.Builder
 	fmt.Fprintf(&b, "Moves this repo's Claudinite engine pin to **%s**. Only `%s` changes: `engine.version` and `engine.manifest`, with `%s` restating them.\n\n", got.Version, rel, flatdecl.MemberFile)
+	if dropped {
+		fmt.Fprintf(&b, "It also drops the retired `license` block from `%s`: a single repo needs no license, and nothing reads it.\n\n", rel)
+	}
 	fmt.Fprintf(&b, "- Manifest: `%s`\n- Key: `%s`\n\n", got.Integrity, got.KeyID)
 	fmt.Fprintf(&b, "Self-test of the new binary:\n\n```\n%s```\n\n", self)
 	if forced {

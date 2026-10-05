@@ -25,85 +25,68 @@ func noLicenseFixtures() map[Format]string {
 	}
 }
 
-func TestReadLicense(t *testing.T) {
+// A file that still carries the retired block parses whatever its plan,
+// and reads as carrying it.
+func TestARetiredLicenseBlockStillParses(t *testing.T) {
 	for f, raw := range licenseFixtures() {
-		l, err := ReadLicense([]byte(raw), f)
-		if err != nil || l.Plan != "public" || !l.Present {
-			t.Errorf("%s: %+v %v", f, l, err)
+		for _, plan := range []string{`"public"`, `"private-repo"`, `"gold"`} {
+			r := []byte(strings.Replace(raw, `"public"`, plan, 1))
+			if !HasRetiredLicense(r, f) {
+				t.Errorf("%s %s: the block is not seen", f, plan)
+			}
+			if _, err := ReadEngine(r, f); err != nil {
+				t.Errorf("%s %s: %v", f, plan, err)
+			}
+			if _, err := ParseFile(r, f); err != nil {
+				t.Errorf("%s %s: %v", f, plan, err)
+			}
 		}
 	}
 	for f, raw := range noLicenseFixtures() {
-		l, err := ReadLicense([]byte(raw), f)
-		if err != nil || l.Plan != "" || l.Present {
-			t.Errorf("%s without a block: %+v %v", f, l, err)
+		if HasRetiredLicense([]byte(raw), f) {
+			t.Errorf("%s: a block where there is none", f)
 		}
 	}
 }
 
-func TestReadLicenseRefusesAPlanOutsideTheFive(t *testing.T) {
+func TestDropLicenseRemovesOnlyTheBlock(t *testing.T) {
+	want := map[Format]string{
+		YAML: "# kept\nengine:\n" + pinLines + "packs:\n  channel: \"stable\"\n",
+		TOML: "# kept\n[engine]\nversion = \"1.60928.1\"\nmanifest = \"" + testManifest + "\"\n",
+		JSON: "{\n  \"engine\": {\"version\": \"1.60928.1\", \"manifest\": \"" + testManifest + "\"}\n}\n",
+	}
 	for f, raw := range licenseFixtures() {
-		bad := strings.Replace(raw, `"public"`, `"gold"`, 1)
-		if _, err := ReadLicense([]byte(bad), f); err == nil || !strings.Contains(err.Error(), "gold") {
+		got, err := DropLicense([]byte(raw), f)
+		if err != nil || string(got) != want[f] {
+			t.Errorf("%s: %v\n%s\nwant\n%s", f, err, got, want[f])
+		}
+	}
+	for f, raw := range noLicenseFixtures() {
+		if got, err := DropLicense([]byte(raw), f); err != nil || string(got) != raw {
+			t.Errorf("%s without a block: %v\n%s", f, err, got)
+		}
+	}
+	first := "{\"license\": {\"plan\": \"public\"},\n  \"engine\": {\"version\": \"1.60928.1\", \"manifest\": \"" + testManifest + "\"}}\n"
+	if got, err := DropLicense([]byte(first), JSON); err != nil || string(got) != "{\"engine\": {\"version\": \"1.60928.1\", \"manifest\": \""+testManifest+"\"}}\n" {
+		t.Errorf("first member: %v\n%s", err, got)
+	}
+	mid := "[engine]\nversion = \"1.60928.1\"\nmanifest = \"" + testManifest + "\"\n\n[license]\nplan = \"public\"\n\n[packs]\nchannel = \"stable\"\n"
+	if got, err := DropLicense([]byte(mid), TOML); err != nil || string(got) != "[engine]\nversion = \"1.60928.1\"\nmanifest = \""+testManifest+"\"\n\n[packs]\nchannel = \"stable\"\n" {
+		t.Errorf("a block between two: %v\n%s", err, got)
+	}
+}
+
+// The engine update's pull request may drop the retired block beside the
+// pin, and nothing else.
+func TestAPinMoveMayDropTheRetiredBlock(t *testing.T) {
+	for f, raw := range licenseFixtures() {
+		moved, _ := SetPin([]byte(raw), f, "1.60929.1", testManifest)
+		dropped, _ := DropLicense(moved, f)
+		if err := PinOnlyChange([]byte(raw), dropped, f); err != nil {
 			t.Errorf("%s: %v", f, err)
 		}
-	}
-}
-
-func TestSetPlanIsALineEdit(t *testing.T) {
-	for f, raw := range licenseFixtures() {
-		got, err := SetPlan([]byte(raw), f, "personal")
-		if err != nil {
-			t.Fatalf("%s: %v", f, err)
-		}
-		if want := strings.Replace(raw, `"public"`, `"personal"`, 1); string(got) != want {
-			t.Errorf("%s:\n%s\nwant\n%s", f, got, want)
-		}
-	}
-}
-
-func TestSetPlanAddsTheBlock(t *testing.T) {
-	for f, raw := range noLicenseFixtures() {
-		got, err := SetPlan([]byte(raw), f, "public")
-		if err != nil {
-			t.Fatalf("%s: %v", f, err)
-		}
-		if !strings.HasPrefix(string(got), strings.TrimSuffix(raw, "}\n")[:len(raw)/2]) {
-			t.Errorf("%s: the head of the file moved:\n%s", f, got)
-		}
-		l, err := ReadLicense(got, f)
-		if err != nil || l.Plan != "public" {
-			t.Errorf("%s: %+v %v\n%s", f, l, err, got)
-		}
-		if _, err := ReadEngine(got, f); err != nil {
-			t.Errorf("%s: the pin no longer reads: %v\n%s", f, err, got)
-		}
-	}
-}
-
-func TestSetPlanRefusesAnUnknownPlan(t *testing.T) {
-	if _, err := SetPlan([]byte(licenseFixtures()[YAML]), YAML, "gold"); err == nil {
-		t.Fatal("set gold")
-	}
-}
-
-func TestPlanOnlyChange(t *testing.T) {
-	for f, raw := range licenseFixtures() {
-		moved, _ := SetPlan([]byte(raw), f, "organization")
-		if err := PlanOnlyChange([]byte(raw), moved, f); err != nil {
-			t.Errorf("%s: %v", f, err)
-		}
-		pin, _ := SetPin(moved, f, "1.60929.1", testManifest)
-		if err := PlanOnlyChange([]byte(raw), pin, f); err == nil {
-			t.Errorf("%s: a pin move passed as plan-only", f)
-		}
-		if err := PlanOnlyChange([]byte(raw), []byte(raw), f); err == nil {
-			t.Errorf("%s: no change passed as a plan change", f)
-		}
-	}
-	for f, raw := range noLicenseFixtures() {
-		added, _ := SetPlan([]byte(raw), f, "public")
-		if err := PlanOnlyChange([]byte(raw), added, f); err != nil {
-			t.Errorf("%s adding the block: %v", f, err)
+		if err := PinOnlyChange([]byte(raw), []byte(strings.Replace(string(dropped), "1.60929.1", "1.60929.1", 1)+"\n"), f); err == nil {
+			t.Errorf("%s: a drop with another change passed", f)
 		}
 	}
 }

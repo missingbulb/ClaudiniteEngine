@@ -249,18 +249,18 @@ func TestRules(t *testing.T) {
 			write(t, d, ".claudinite/flat/claudinite-rules.GENERATED.md", "@../shared/packs/acme-pack/RULES.md\n")
 			write(t, d, "CLAUDE.md", "# mine\n@.claudinite/flat/claudinite-rules.GENERATED.md\n")
 		}, nil, nil},
-		{"license plan public", func(t *testing.T, d string) {
+		{"retired license block", func(t *testing.T, d string) {
 			raw, _ := os.ReadFile(filepath.Join(d, ".claudinite/settings.yaml"))
 			write(t, d, ".claudinite/settings.yaml", string(raw)+"license:\n  plan: \"public\"\n")
-		}, nil, nil},
-		{"license plan unknown", func(t *testing.T, d string) {
+		}, nil, []string{"license-plan"}},
+		{"retired license block with a plan no server knows", func(t *testing.T, d string) {
 			raw, _ := os.ReadFile(filepath.Join(d, ".claudinite/settings.yaml"))
 			write(t, d, ".claudinite/settings.yaml", string(raw)+"license:\n  plan: \"free\"\n")
-		}, []string{"license-plan"}, nil},
-		{"license plan unquoted", func(t *testing.T, d string) {
+		}, nil, []string{"license-plan"}},
+		{"retired license block unquoted", func(t *testing.T, d string) {
 			raw, _ := os.ReadFile(filepath.Join(d, ".claudinite/settings.yaml"))
 			write(t, d, ".claudinite/settings.yaml", string(raw)+"license:\n  plan: public\n")
-		}, []string{"license-plan"}, nil},
+		}, nil, []string{"license-plan"}},
 		{"local pack with retired manifest keys", func(t *testing.T, d string) {
 			declare(t, d, "local/mine", "")
 			write(t, d, ".claudinite/local/packs/mine/pack.json", "{\n  \"marker\": null,\n  \"detect\": null,\n  \"contributes\": {}\n}\n")

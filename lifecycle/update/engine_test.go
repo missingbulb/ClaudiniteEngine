@@ -745,3 +745,47 @@ func declareHello(t *testing.T, w *world) {
 	gitRun(t, w.repo, "push", "-q", "origin", "main")
 	w.mainRun(t, "success")
 }
+
+func withLicense(f settings.Format, ver, pin string) string {
+	switch f {
+	case settings.TOML:
+		return settingsFor(f, ver, pin) + "\n[license]\nplan = \"public\"\n"
+	case settings.JSON:
+		return strings.Replace(settingsFor(f, ver, pin), "\"other\": 1", "\"license\": {\"plan\": \"public\"},\n  \"other\": 1", 1)
+	}
+	return settingsFor(f, ver, pin) + "license:\n  plan: \"public\"\n"
+}
+
+func TestTheUpdatePRDropsTheRetiredLicenseBlock(t *testing.T) {
+	for _, f := range settings.Formats {
+		w := newWorld(t, f)
+		if err := os.WriteFile(filepath.Join(w.repo, settings.RelPath(f)), []byte(withLicense(f, v1, pin1)), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		gitRun(t, w.repo, "commit", "-q", "-am", "licensed")
+		gitRun(t, w.repo, "push", "-q", "origin", "main")
+		w.mainRun(t, "success")
+		w.publish(t, v2, relOpts{})
+		v, err := Engine(w.deps(t), Options{})
+		if err != nil || v != "opened #1 for "+v2 {
+			t.Fatalf("%s: %q %v\n%s", f, v, err, w.out)
+		}
+		branch := "claudinite/engine-" + v2
+		committed := gitRun(t, w.bare, "show", branch+":"+settings.RelPath(f)) + "\n"
+		e, err := settings.ReadEngine([]byte(committed), f)
+		if err != nil || e.Version != v2 {
+			t.Fatalf("%s: committed settings %+v %v", f, e, err)
+		}
+		if settings.HasRetiredLicense([]byte(committed), f) {
+			t.Errorf("%s: the license block survived:\n%s", f, committed)
+		}
+		want, _ := settings.SetPin([]byte(settingsFor(f, v1, pin1)), f, v2, e.Manifest)
+		if committed != string(want) {
+			t.Errorf("%s: dropped more than the block:\n%s\nwant\n%s", f, committed, want)
+		}
+		creates := w.hub.called("create-pull")
+		if len(creates) != 1 || !strings.Contains(creates[0], "retired `license` block") {
+			t.Errorf("%s: PR body does not name the dropped block: %v", f, creates)
+		}
+	}
+}

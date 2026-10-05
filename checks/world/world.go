@@ -129,9 +129,6 @@ func guard(in Input) error {
 	if err != nil {
 		return err
 	}
-	if settings.PlanOnlyChange(old, cur, format) == nil {
-		return nil
-	}
 	if err := settings.PinOnlyChange(old, cur, format); err != nil {
 		return fmt.Errorf("%s: %w", path, err)
 	}
