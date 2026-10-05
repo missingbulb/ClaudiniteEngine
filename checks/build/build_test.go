@@ -178,6 +178,9 @@ func TestBuildRunsOnceAndRebuildsNothing(t *testing.T) {
 	if got, err := Wait(c, key, time.Second); err != nil || got != bin {
 		t.Errorf("Wait: %q %v", got, err)
 	}
+	if rec, ok := ReadRecord(c, key); !ok || !rec.OK || rec.Took <= 0 {
+		t.Errorf("record of a successful build: %+v %v", rec, ok)
+	}
 }
 
 func TestBuildRecordsACompileError(t *testing.T) {
@@ -339,5 +342,26 @@ func TestWriteSDKIsTheBuildsSDK(t *testing.T) {
 	stanza, _ := os.ReadFile(filepath.Join(out, "go.mod.stanza"))
 	if want := "require claudinite.com/checksdk v0.0.0\n\nreplace claudinite.com/checksdk => " + filepath.ToSlash(out) + "\n"; string(stanza) != want {
 		t.Errorf("stanza %q, want %q", stanza, want)
+	}
+}
+
+// Every compile leaves its duration and result beside the binary, so the
+// session that started a detached build can report it later; a key never
+// compiled has no record, which is not a build of zero.
+func TestBuildRecordsItsTimingAndOutcome(t *testing.T) {
+	repo := helloRepo(t)
+	c := cfg(t)
+	c.Go = filepath.Join(t.TempDir(), "no-go-here")
+	srcs, _ := Sources(canon(repo, "hello"))
+	key := Key(c, srcs)
+	if _, ok := ReadRecord(c, key); ok {
+		t.Fatal("a record before any build")
+	}
+	if err := Build(c, key, srcs); err == nil {
+		t.Fatal("built without go")
+	}
+	rec, ok := ReadRecord(c, key)
+	if !ok || rec.OK || rec.Took < 0 {
+		t.Errorf("record of a failed build: %+v %v", rec, ok)
 	}
 }

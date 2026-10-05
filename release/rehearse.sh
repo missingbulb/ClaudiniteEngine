@@ -738,7 +738,7 @@ for mode in $modes; do
       [ -f "$member/.claude/skills/hello/SKILL.md" ] || fail "packs 2: the skill is not mounted"
       cn_member check build --wait > "$work/build.out" 2>&1 || fail "packs 2: check build: $(cat "$work/build.out")"
       checks=$XDG_CACHE_HOME/claudinite/checks
-      keys=$(find "$checks" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')
+      keys=$(find "$checks" -mindepth 1 -maxdepth 1 -type d ! -name sessions | wc -l | tr -d ' ')
       [ "$keys" = 1 ] || fail "packs 2: $keys checks binaries"
       buildlog=$(find "$checks" -name build.log)
       [ -x "$(dirname "$buildlog")/checks" ] || fail "packs 2: no checks binary beside $buildlog"
@@ -810,7 +810,7 @@ for mode in $modes; do
       cn_member check build --wait > "$work/build.out" 2>&1 || fail "packs 5: check build: $(cat "$work/build.out")"
       # The key covers the engine, the SDK and the check sources; 1.4 adds
       # Go checks, so its checks binary is a second one beside 1.0's.
-      [ "$(find "$checks" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')" = 2 ] || fail "packs 5: hello 1.4's checks did not build a second checks binary"
+      [ "$(find "$checks" -mindepth 1 -maxdepth 1 -type d ! -name sessions | wc -l | tr -d ' ')" = 2 ] || fail "packs 5: hello 1.4's checks did not build a second checks binary"
       step "packs 5: opened, checked and landed hello 1.4 with the CLAUDE.md import restored; its Go checks build a second checks binary"
 
       fixture --publish v3

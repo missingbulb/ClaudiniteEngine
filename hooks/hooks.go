@@ -43,12 +43,15 @@ type CheckResult struct {
 type RunScope struct {
 	Tags       []string
 	Transcript string
+	// Session is the Claude Code session id, "" for none.
+	Session string
 }
 
 // Checks runs the declared packs' checks.
 type Checks interface {
-	// Start begins building the checks binary and returns at once.
-	Start(repo string) error
+	// Start begins building the checks binary for the session and returns
+	// at once, with the build's breadcrumb ("" for nothing to build).
+	Start(repo, session string) (string, error)
 	// Run runs the checks scope selects, waiting up to wait for the
 	// binary.
 	Run(repo, event string, scope RunScope, wait time.Duration) CheckResult
@@ -157,7 +160,7 @@ func (h Handler) Run(event string, stdin io.Reader, stdout, stderr io.Writer, st
 		if readErr != nil || parseErr != nil || in.HookEventName != "SessionStart" {
 			outcome = breadcrumb.Error
 		}
-		return h.sessionStart(h.projectDir(in), outcome, stdout, start)
+		return h.sessionStart(h.projectDir(in), in.SessionID, outcome, stdout, start)
 	case "stop":
 		return h.stop(h.projectDir(in), in, stdout, stderr, start)
 	case "session-end":
@@ -166,7 +169,7 @@ func (h Handler) Run(event string, stdin io.Reader, stdout, stderr io.Writer, st
 	return h.perCall(event, raw, readErr, stdout, stderr, start)
 }
 
-func (h Handler) sessionStart(repo string, outcome breadcrumb.Outcome, stdout io.Writer, start time.Time) error {
+func (h Handler) sessionStart(repo, session string, outcome breadcrumb.Outcome, stdout io.Writer, start time.Time) error {
 	personal := ""
 	if h.UserPack != nil {
 		personal = h.UserPack.Prepare(repo)
@@ -182,7 +185,11 @@ func (h Handler) sessionStart(repo string, outcome breadcrumb.Outcome, stdout io
 		b.WriteString(l + "\n")
 	}
 	if h.Checks != nil {
-		if err := h.Checks.Start(repo); err != nil {
+		line, err := h.Checks.Start(repo, session)
+		if line != "" {
+			b.WriteString(line + "\n")
+		}
+		if err != nil {
 			fmt.Fprintf(&b, "[cn] checks build did not start: %v\n", err)
 		}
 	}
@@ -212,7 +219,7 @@ func (h Handler) sessionStart(repo string, outcome breadcrumb.Outcome, stdout io
 // finding the session cannot clear never loops.
 func (h Handler) stop(repo string, in hookInput, stdout, stderr io.Writer, start time.Time) error {
 	answer := "{}"
-	scope := RunScope{Tags: []string{"work"}, Transcript: in.TranscriptPath}
+	scope := RunScope{Tags: []string{"work"}, Transcript: in.TranscriptPath, Session: in.SessionID}
 	if h.Checks != nil {
 		res := h.Checks.Run(repo, "stop", scope, StopWait)
 		for _, e := range res.Errors {
