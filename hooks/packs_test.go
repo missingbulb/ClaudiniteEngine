@@ -47,12 +47,19 @@ func member(t *testing.T, declared []string, held map[string]map[string]string) 
 
 type fakeChecks struct {
 	started []string
-	result  CheckResult
-	ran     []string
-	scopes  []RunScope
+	// sessions is each Start's session id; startLine what Start answers.
+	sessions  []string
+	startLine string
+	result    CheckResult
+	ran       []string
+	scopes    []RunScope
 }
 
-func (f *fakeChecks) Start(repo string) error { f.started = append(f.started, repo); return nil }
+func (f *fakeChecks) Start(repo, session string) (string, error) {
+	f.started = append(f.started, repo)
+	f.sessions = append(f.sessions, session)
+	return f.startLine, nil
+}
 
 func (f *fakeChecks) Run(repo, event string, scope RunScope, wait time.Duration) CheckResult {
 	f.ran = append(f.ran, event+" "+strings.Join(scope.Tags, ",")+" "+wait.String())
@@ -315,6 +322,28 @@ func TestStopRunsWorkChecks(t *testing.T) {
 }
 
 var errTest = os.ErrDeadlineExceeded
+
+// The check build's own breadcrumbs reach the transcript: SessionStart's
+// in its context, a Stop's on stderr beside the checks crumb, both with
+// the session's id handed to the checks.
+func TestTheCheckBuildReportsThroughTheHooks(t *testing.T) {
+	repo := member(t, nil, nil)
+	fc := &fakeChecks{startLine: "[cn] build started ok 3ms", result: CheckResult{Crumb: "[cn] buildwait stop ok 4200ms\n[cn] build compiled ok 5712ms\n[cn] checks stop ok 4300ms"}}
+	out, _ := hook(t, Handler{Checks: fc, ProjectDir: repo}, "session-start", `{"session_id":"s9","hook_event_name":"SessionStart","source":"startup"}`)
+	if ctx := contextOf(t, out); !strings.Contains(ctx, "[cn] build started ok 3ms\n") {
+		t.Errorf("context:\n%s", ctx)
+	}
+	if len(fc.sessions) != 1 || fc.sessions[0] != "s9" {
+		t.Errorf("start sessions %v", fc.sessions)
+	}
+	_, errOut := hook(t, Handler{Checks: fc, ProjectDir: repo}, "stop", `{"session_id":"s9","hook_event_name":"Stop"}`)
+	if !strings.Contains(errOut, "[cn] buildwait stop ok 4200ms\n[cn] build compiled ok 5712ms\n") {
+		t.Errorf("stderr %q", errOut)
+	}
+	if len(fc.scopes) != 1 || fc.scopes[0].Session != "s9" {
+		t.Errorf("stop scope %+v", fc.scopes)
+	}
+}
 
 // A pending adoption question is one engine line, and an entry another
 // pack pulled in, untouched by the project, asks nothing.

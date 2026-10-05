@@ -28,6 +28,14 @@ type Service struct {
 	Build build.Config
 	// Exe is this cn, which Start runs detached as `cn check build`.
 	Exe string
+	// Session is the Claude Code session the service serves, "" for none:
+	// a build its SessionStart started is reported by its first run that
+	// finds that build done.
+	Session string
+	// Caller names a foreground build's wait, as the event names a run's.
+	Caller string
+	// Timing receives the build's breadcrumbs; nil drops them.
+	Timing func(line string)
 }
 
 // Key is the repo's checks binary key and its sources; "" when no active
@@ -50,21 +58,109 @@ func (s Service) Key(repo string) (string, []build.Source, error) {
 }
 
 // Start begins building the repo's checks binary in the background unless
-// it is built or nothing needs building, and returns at once.
-func (s Service) Start(repo string) error {
+// it is built or nothing needs building, and returns at once with the
+// build breadcrumb: cached, or started, when the session is marked to
+// report the build; "" when there is nothing to build.
+func (s Service) Start(repo string) (string, error) {
+	start := time.Now()
 	key, _, err := s.Key(repo)
 	if err != nil || key == "" {
-		return err
+		return "", err
 	}
 	if _, err := build.Wait(s.Build, key, 0); err == nil {
-		return nil
+		return breadcrumb.Line("build", "cached", breadcrumb.OK, time.Since(start)), nil
 	}
-	return build.Start(s.Exe, repo, key)
+	s.markSession(key)
+	if err := build.Start(s.Exe, repo, key); err != nil {
+		return breadcrumb.Line("build", "started", breadcrumb.Error, time.Since(start)), err
+	}
+	return breadcrumb.Line("build", "started", breadcrumb.OK, time.Since(start)), nil
+}
+
+// staleMark is how long a session's mark outlives a session that never
+// reported its build.
+const staleMark = 7 * 24 * time.Hour
+
+func (s Service) markPath() string {
+	for _, r := range s.Session {
+		if !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '-' || r == '_') {
+			return ""
+		}
+	}
+	if s.Session == "" {
+		return ""
+	}
+	return filepath.Join(s.Build.SessionsDir(), s.Session)
+}
+
+// markSession records that this session started the key's build, and
+// drops the marks of sessions long gone. Best effort: a mark that cannot
+// be written costs only the report.
+func (s Service) markSession(key string) {
+	p := s.markPath()
+	if p == "" || os.MkdirAll(filepath.Dir(p), 0o700) != nil {
+		return
+	}
+	if entries, err := os.ReadDir(filepath.Dir(p)); err == nil {
+		for _, e := range entries {
+			if info, err := e.Info(); err == nil && time.Since(info.ModTime()) > staleMark {
+				_ = os.Remove(filepath.Join(filepath.Dir(p), e.Name()))
+			}
+		}
+	}
+	_ = os.WriteFile(p, []byte(key), 0o600)
+}
+
+// reportSessionBuild reports, once, the build this session started, as
+// soon as a compile of its key ended after the mark was made.
+func (s Service) reportSessionBuild() {
+	p := s.markPath()
+	if p == "" || s.Timing == nil {
+		return
+	}
+	info, err := os.Stat(p)
+	if err != nil {
+		return
+	}
+	key, err := os.ReadFile(p)
+	if err != nil {
+		return
+	}
+	rec, ok := build.ReadRecord(s.Build, string(key))
+	if !ok || rec.At.Before(info.ModTime().Truncate(time.Millisecond)) {
+		return
+	}
+	outcome := breadcrumb.OK
+	if !rec.OK {
+		outcome = breadcrumb.Error
+	}
+	s.note(breadcrumb.Line("build", "compiled", outcome, rec.Took))
+	_ = os.Remove(p)
+}
+
+func (s Service) note(line string) {
+	if s.Timing != nil {
+		s.Timing(line)
+	}
+}
+
+// noteWait reports a wait for the binary by event that began at began,
+// ended by err.
+func (s Service) noteWait(event string, began time.Time, err error) {
+	outcome := breadcrumb.OK
+	switch {
+	case errors.Is(err, build.ErrTimeout):
+		outcome = breadcrumb.Timeout
+	case err != nil:
+		outcome = breadcrumb.Error
+	}
+	s.note(breadcrumb.Line("buildwait", event, outcome, time.Since(began)))
 }
 
 // BuildNow builds the repo's checks binary in this process; when another
 // process is building it, wait says whether to wait for that build, for
-// up to timeout. It returns the key, "" for nothing to build.
+// up to timeout. It returns the key, "" for nothing to build. A binary
+// not there on arrival is a wait, reported under Caller.
 func (s Service) BuildNow(repo, wantKey string, wait bool, timeout time.Duration) (string, error) {
 	key, srcs, err := s.Key(repo)
 	if err != nil {
@@ -73,9 +169,18 @@ func (s Service) BuildNow(repo, wantKey string, wait bool, timeout time.Duration
 	if wantKey != "" && wantKey != key {
 		return "", fmt.Errorf("the packs changed since key %s was computed (now %s)", wantKey, key)
 	}
+	began := time.Now()
+	ready := key == ""
+	if !ready {
+		_, werr := build.Wait(s.Build, key, 0)
+		ready = werr == nil
+	}
 	err = build.Build(s.Build, key, srcs)
 	if errors.Is(err, build.ErrBuilding) && wait {
 		_, err = build.Wait(s.Build, key, timeout)
+	}
+	if !ready && s.Caller != "" {
+		s.noteWait(s.Caller, began, err)
 	}
 	return key, err
 }
@@ -93,19 +198,27 @@ func (s Service) Run(repo, event string, tags []string, pack string, wait time.D
 		return run.Result{}, breadcrumb.Line("checks", event, breadcrumb.OK, time.Since(start))
 	}
 	var binary string
+	ready := false
+	if err == nil {
+		_, werr := build.Wait(s.Build, key, 0)
+		ready = werr == nil
+	}
+	began := time.Now()
 	if err == nil && foreground {
 		err = build.Build(s.Build, key, srcs)
 		if errors.Is(err, build.ErrBuilding) {
 			err = nil
 		}
-	} else if err == nil {
-		if _, werr := build.Wait(s.Build, key, 0); werr != nil {
-			err = build.Start(s.Exe, repo, key)
-		}
+	} else if err == nil && !ready {
+		err = build.Start(s.Exe, repo, key)
 	}
 	if err == nil {
 		binary, err = build.Wait(s.Build, key, wait)
 	}
+	if key != "" && !ready {
+		s.noteWait(event, began, err)
+	}
+	s.reportSessionBuild()
 	if err != nil {
 		outcome := breadcrumb.Error
 		if errors.Is(err, build.ErrTimeout) {
