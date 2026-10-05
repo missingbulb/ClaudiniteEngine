@@ -1756,7 +1756,9 @@ YAML
       grep -F 'acme/nodemember' "$work/fleet.out" | grep -qi 'move' || fail "fleet 12: acme/nodemember not waiting on its move: $(cat "$work/fleet.out")"
       [ "$(gh_count 'st.calls.filter(c=>c.startsWith("put ")).length')" = 1 ] || fail "fleet 12: puts $(gh_count 'st.calls.filter(c=>c.startsWith("put ")).join(";")')"
       grep -q '^\[cn\] fleet pack-seeds ok 1/' "$work/fleet.err" || fail "fleet 12: breadcrumb: $(cat "$work/fleet.err")"
-      step "fleet 12: pack-seeds wrote hello {greeting: hi} into acme/current's packs block; acme/behind waits on its mount, acme/nodemember on its move"
+      grep -qF "Mirror: acme/manager's vendored branch holds" "$work/fleet.out" || fail "fleet 12: no mirror: $(cat "$work/fleet.out")"
+      [ "$(gh_count 'st.calls.filter(c=>c==="git ref vendored").length')" -ge 1 ] || fail "fleet 12: the vendored branch never moved: $(gh_state)"
+      step "fleet 12: pack-seeds mirrored the shelf onto acme/manager's vendored branch and wrote hello {greeting: hi} into acme/current's packs block; acme/behind waits on its mount, acme/nodemember on its move"
 
       mkdir -p "$member/.claudinite/shared/packs/hello"
       cp "$work/fleet/current/.claudinite/shared/packs/hello/pack.json" "$member/.claudinite/shared/packs/hello/pack.json"
