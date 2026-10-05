@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/missingbulb/ClaudiniteEngine/hooks"
-	"github.com/missingbulb/ClaudiniteEngine/license"
 	"github.com/missingbulb/ClaudiniteEngine/lifecycle"
 	"github.com/missingbulb/ClaudiniteEngine/lifecycle/selftest"
 	"github.com/missingbulb/ClaudiniteEngine/shared/breadcrumb"
@@ -18,6 +17,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/shared/paths"
 	"github.com/missingbulb/ClaudiniteEngine/shared/report"
 	"github.com/missingbulb/ClaudiniteEngine/shared/sign"
+	"github.com/missingbulb/ClaudiniteEngine/shared/trust"
 	"github.com/missingbulb/ClaudiniteEngine/shared/version"
 )
 
@@ -284,7 +284,7 @@ func dispatch(args []string, stdin io.Reader, stdout, stderr io.Writer, start ti
 		case len(args) != 1:
 			return report.New(report.Usage, "selftest takes no arguments but --repo DIR")
 		}
-		roots, err := license.Roots()
+		roots, err := trust.Roots()
 		in.RootsErr = err
 		for _, r := range roots {
 			in.RootIDs = append(in.RootIDs, sign.KeyID(r))

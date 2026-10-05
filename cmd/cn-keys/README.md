@@ -41,7 +41,7 @@ standby root.
 9. Delete `CEREMONY_TOKEN` and `CEREMONY_PASSPHRASE` from the `ceremony` environment and revoke
    the token.
 10. The public keys from #5 then become the roots every verifier trusts: ClaudiniteEngine
-    `license/roots/` (whose key ids `license/roots_real_test.go` pins), ClaudinitePacks
+    `shared/trust/roots/` (whose key ids `shared/trust/roots_real_test.go` pins), ClaudinitePacks
     `keys/roots/` (what `release-packs.yml` passes to `--roots`) and ClaudiniteLicenses
     `packages/signing/roots/` (the key Worker's `TRUST_ROOTS`). From the moment the run sets the
     working keys until those land, every Engine release, Packs publish and Licenses deploy signs

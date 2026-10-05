@@ -25,6 +25,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/shared/packindex"
 	"github.com/missingbulb/ClaudiniteEngine/shared/report"
 	"github.com/missingbulb/ClaudiniteEngine/shared/settings"
+	"github.com/missingbulb/ClaudiniteEngine/shared/trust"
 	"github.com/missingbulb/ClaudiniteEngine/tasks/execute"
 	"github.com/missingbulb/ClaudiniteEngine/tasks/world"
 )
@@ -270,7 +271,7 @@ func fleetShelf(log io.Writer) (fleet.Shelf, *packs.Reader, func(), error) {
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	roots, err := license.Roots()
+	roots, err := trust.Roots()
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -283,7 +284,7 @@ func fleetShelf(log io.Writer) (fleet.Shelf, *packs.Reader, func(), error) {
 // with no state file, or a shell with no session, counts as on.
 func fleetLicense(root string, log io.Writer) (on bool, state, notice string) {
 	if os.Getenv("GITHUB_ACTIONS") == "true" || os.Getenv("ACTIONS_ID_TOKEN_REQUEST_URL") != "" {
-		roots, err := license.Roots()
+		roots, err := trust.Roots()
 		if err != nil {
 			return false, license.StateDegraded + ": no embedded roots", "[cn] license: no embedded roots"
 		}

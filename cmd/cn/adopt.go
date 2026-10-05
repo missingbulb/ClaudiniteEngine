@@ -8,12 +8,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/missingbulb/ClaudiniteEngine/license"
 	"github.com/missingbulb/ClaudiniteEngine/lifecycle/adopt"
 	"github.com/missingbulb/ClaudiniteEngine/lifecycle/update"
 	"github.com/missingbulb/ClaudiniteEngine/shared/npmreg"
 	"github.com/missingbulb/ClaudiniteEngine/shared/paths"
 	"github.com/missingbulb/ClaudiniteEngine/shared/report"
+	"github.com/missingbulb/ClaudiniteEngine/shared/trust"
 	"github.com/missingbulb/ClaudiniteEngine/shared/version"
 )
 
@@ -35,7 +35,7 @@ func cmdInit(args []string, stdout, stderr io.Writer) error {
 	if *packList == "" && !*fromNode {
 		return report.New(report.Usage, "init needs --packs ID[,ID]; basics is the usual first pack (it requires claudinite-lifecycle and git-github), and the vendored branch's directory lists the rest")
 	}
-	roots, err := license.Roots()
+	roots, err := trust.Roots()
 	if err != nil {
 		return report.Wrap(report.Internal, "init", err)
 	}
@@ -80,7 +80,7 @@ func cmdAdopt(args []string, stdout io.Writer) error {
 	if err := flags(fs, args[1:]); err != nil {
 		return err
 	}
-	roots, err := license.Roots()
+	roots, err := trust.Roots()
 	if err != nil {
 		return report.Wrap(report.Internal, "adopt", err)
 	}

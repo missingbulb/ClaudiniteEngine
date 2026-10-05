@@ -1,4 +1,4 @@
-package license
+package trust
 
 import (
 	"io/fs"
@@ -16,7 +16,7 @@ import (
 func TestOnlyTheRootsFilesReadTheDevrootsTag(t *testing.T) {
 	constraint := regexp.MustCompile(`(?m)^//go:build .*\bdevroots\b`)
 	var got []string
-	err := filepath.WalkDir("..", func(path string, d fs.DirEntry, err error) error {
+	err := filepath.WalkDir("../..", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -31,7 +31,7 @@ func TestOnlyTheRootsFilesReadTheDevrootsTag(t *testing.T) {
 			return err
 		}
 		if constraint.Match(raw) {
-			got = append(got, filepath.ToSlash(strings.TrimPrefix(path, ".."+string(filepath.Separator))))
+			got = append(got, filepath.ToSlash(strings.TrimPrefix(path, ".."+string(filepath.Separator)+".."+string(filepath.Separator))))
 		}
 		return nil
 	})
@@ -39,7 +39,7 @@ func TestOnlyTheRootsFilesReadTheDevrootsTag(t *testing.T) {
 		t.Fatal(err)
 	}
 	sort.Strings(got)
-	want := "license/roots_dev.go license/roots_dev_test.go license/roots_real.go license/roots_real_test.go"
+	want := "shared/trust/roots_dev.go shared/trust/roots_dev_test.go shared/trust/roots_real.go shared/trust/roots_real_test.go"
 	if strings.Join(got, " ") != want {
 		t.Fatalf("files reading the devroots tag: %v, want %s", got, want)
 	}

@@ -61,10 +61,10 @@ func TestRootsRootOnly(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := r.summary.String()
-	if !hasKey(s, "license/roots/root.pub", rootPub) {
+	if !hasKey(s, "shared/trust/roots/root.pub", rootPub) {
 		t.Errorf("summary lacks the root public key, id or path:\n%s", s)
 	}
-	if !strings.Contains(s, "`license/roots/standby.pub`: missing") || !strings.Contains(s, standbySealedVar) || !strings.Contains(s, passphraseVar) {
+	if !strings.Contains(s, "`shared/trust/roots/standby.pub`: missing") || !strings.Contains(s, standbySealedVar) || !strings.Contains(s, passphraseVar) {
 		t.Errorf("summary does not say the standby is missing and what to add:\n%s", s)
 	}
 	noSecretPrinted(t, r, rootSeed)
@@ -95,7 +95,7 @@ func TestRootsRootAndStandby(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := r.summary.String()
-	if !hasKey(s, "license/roots/root.pub", rootPub) || !hasKey(s, "license/roots/standby.pub", standbyPub) {
+	if !hasKey(s, "shared/trust/roots/root.pub", rootPub) || !hasKey(s, "shared/trust/roots/standby.pub", standbyPub) {
 		t.Errorf("summary lacks a public key, id or path:\n%s", s)
 	}
 	if strings.Contains(s, armorBegin) {
@@ -123,7 +123,7 @@ func TestRootsWrongPassphraseFailsQuietly(t *testing.T) {
 		t.Fatalf("a wrong passphrase: %v", err)
 	}
 	s := r.summary.String()
-	if !hasKey(s, "license/roots/root.pub", rootPub) || !strings.Contains(s, "not recovered") {
+	if !hasKey(s, "shared/trust/roots/root.pub", rootPub) || !strings.Contains(s, "not recovered") {
 		t.Errorf("summary does not keep the root and report the standby:\n%s", s)
 	}
 	out := s + r.log.String() + err.Error()
@@ -145,7 +145,7 @@ func TestRootsCommandReadsTheEnvironment(t *testing.T) {
 		t.Fatal(e)
 	}
 	raw, _ := os.ReadFile(summary)
-	if !hasKey(string(raw), "license/roots/root.pub", rootPub) {
+	if !hasKey(string(raw), "shared/trust/roots/root.pub", rootPub) {
 		t.Errorf("summary file lacks the root:\n%s", raw)
 	}
 	for _, args := range [][]string{{"roots"}, {"roots", "--summary", summary, "--use", "packs"}} {

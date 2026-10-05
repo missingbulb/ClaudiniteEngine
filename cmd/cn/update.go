@@ -23,6 +23,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/shared/npmreg"
 	"github.com/missingbulb/ClaudiniteEngine/shared/paths"
 	"github.com/missingbulb/ClaudiniteEngine/shared/report"
+	"github.com/missingbulb/ClaudiniteEngine/shared/trust"
 	"github.com/missingbulb/ClaudiniteEngine/shared/version"
 	"github.com/missingbulb/ClaudiniteEngine/tasks/execute"
 )
@@ -52,7 +53,7 @@ func updateDepsWith(repo, token string, stdout io.Writer) (update.Deps, error) {
 	if err != nil {
 		return update.Deps{}, report.Wrap(report.IO, "update", err)
 	}
-	roots, err := license.Roots()
+	roots, err := trust.Roots()
 	if err != nil {
 		return update.Deps{}, report.Wrap(report.Internal, "update", err)
 	}

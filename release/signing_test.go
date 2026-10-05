@@ -68,7 +68,7 @@ func unsignedDist(t *testing.T) (string, string) {
 }
 
 func devKeyEnv(t *testing.T) []string {
-	return []string{"RELEASE_KEY=" + repoPath(t, "testkeys/release.key"), "RELEASE_CERT=" + repoPath(t, "testkeys/release.cert.json"), "ROOTS=" + repoPath(t, "license/devroots")}
+	return []string{"RELEASE_KEY=" + repoPath(t, "testkeys/release.key"), "RELEASE_CERT=" + repoPath(t, "testkeys/release.cert.json"), "ROOTS=" + repoPath(t, "shared/trust/devroots")}
 }
 
 func sumsCheck(dist string) (string, error) {
@@ -185,11 +185,11 @@ func TestSignKeySources(t *testing.T) {
 	// which a released cn does not trust: by default its signature fails.
 	dev := []string{"RELEASE_KEY=" + repoPath(t, "testkeys/release.key"), "RELEASE_CERT=" + repoPath(t, "testkeys/release.cert.json"), "ROOTS=", "DIST=" + dist}
 	if out, err := runScript(t, dev, "release/sign.sh"); err == nil {
-		t.Fatalf("sign.sh accepted the development key against license/roots\n%s", out)
+		t.Fatalf("sign.sh accepted the development key against shared/trust/roots\n%s", out)
 	}
 	dist, _ = unsignedDist(t)
 	if out, err := runScript(t, append(devKeyEnv(t), "DIST="+dist), "release/sign.sh"); err != nil {
-		t.Fatalf("sign.sh with the development key against license/devroots: %v\n%s", err, out)
+		t.Fatalf("sign.sh with the development key against shared/trust/devroots: %v\n%s", err, out)
 	}
 }
 
@@ -213,7 +213,7 @@ func TestSignRefusesAnExpiringCertificate(t *testing.T) {
 	certPath := filepath.Join(t.TempDir(), "release.cert.json")
 	raw, _ := json.Marshal(cert)
 	_ = os.WriteFile(certPath, raw, 0o644)
-	out, err := runScript(t, []string{"RELEASE_KEY=" + repoPath(t, "testkeys/release.key"), "RELEASE_CERT=" + certPath, "ROOTS=" + repoPath(t, "license/devroots"), "DIST=" + dist}, "release/sign.sh")
+	out, err := runScript(t, []string{"RELEASE_KEY=" + repoPath(t, "testkeys/release.key"), "RELEASE_CERT=" + certPath, "ROOTS=" + repoPath(t, "shared/trust/devroots"), "DIST=" + dist}, "release/sign.sh")
 	if err == nil {
 		t.Fatalf("sign.sh signed with a certificate expiring in 10 days\n%s", out)
 	}

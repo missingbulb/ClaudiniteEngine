@@ -1,4 +1,4 @@
-package license
+package trust
 
 import (
 	"bytes"
@@ -29,7 +29,7 @@ func TestStableBuildDoesNotEmbedTheDevRoot(t *testing.T) {
 		}
 		for _, r := range roots {
 			if bytes.Equal(r, dev) {
-				t.Errorf("the build embeds the development %s from license/devroots/", name)
+				t.Errorf("the build embeds the development %s from shared/trust/devroots/", name)
 			}
 		}
 	}

@@ -1,4 +1,4 @@
-package license
+package trust
 
 import (
 	"crypto/ed25519"

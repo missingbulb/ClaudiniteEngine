@@ -7,15 +7,15 @@
 # never inside it.
 #
 # RELEASE_KEY and RELEASE_CERT name the release key and its certificate.
-# ROOTS (default license/roots, what a released cn trusts) names the roots
+# ROOTS (default shared/trust/roots, what a released cn trusts) names the roots
 # the signature must verify against; the tests and release/rehearse.sh,
-# which sign with testkeys/, set it to license/devroots.
+# which sign with testkeys/, set it to shared/trust/devroots.
 set -eu
 cd "$(dirname "$0")/.."
 root=$(pwd)
 DIST=${DIST:-dist}
 case $DIST in /*) ;; *) DIST=$root/$DIST ;; esac
-ROOTS=${ROOTS:-license/roots}
+ROOTS=${ROOTS:-shared/trust/roots}
 
 if [ -z "${RELEASE_KEY:-}" ] || [ -z "${RELEASE_CERT:-}" ]; then
   echo "sign: set RELEASE_KEY and RELEASE_CERT to the release key and its certificate" >&2

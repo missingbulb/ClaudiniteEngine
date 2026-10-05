@@ -21,6 +21,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/shared/paths"
 	"github.com/missingbulb/ClaudiniteEngine/shared/report"
 	"github.com/missingbulb/ClaudiniteEngine/shared/taskspec"
+	"github.com/missingbulb/ClaudiniteEngine/shared/trust"
 	"github.com/missingbulb/ClaudiniteEngine/shared/version"
 	"github.com/missingbulb/ClaudiniteEngine/shared/workitem"
 	"github.com/missingbulb/ClaudiniteEngine/tasks/execute"
@@ -188,7 +189,7 @@ func cmdExecuteLoop(args []string, stdout io.Writer, env world.Env) (err error) 
 	if err := gw.EnsureLabels(workitem.QueueLabels); err != nil {
 		return report.New(report.IO, err.Error())
 	}
-	roots, err := license.Roots()
+	roots, err := trust.Roots()
 	if err != nil {
 		return report.Wrap(report.IO, "the embedded license roots", err)
 	}

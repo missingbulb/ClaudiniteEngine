@@ -1,5 +1,5 @@
 //go:build !stable
 
-package license
+package trust
 
 const stableBuild = false

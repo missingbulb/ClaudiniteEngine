@@ -119,7 +119,7 @@ func gate(ver, canariesPath, fixtures string, stdout, stderr io.Writer) error {
 // stableTest runs the license package's stable build check at the
 // candidate's source, which fails while the development roots are embedded.
 func stableTest(source string, stderr io.Writer) error {
-	cmd := exec.Command("go", "test", "-count=1", "-tags", "stable", "./license")
+	cmd := exec.Command("go", "test", "-count=1", "-tags", "stable", "./shared/trust")
 	cmd.Dir = source
 	cmd.Stdout, cmd.Stderr = stderr, stderr
 	return cmd.Run()

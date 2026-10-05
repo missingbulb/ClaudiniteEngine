@@ -14,6 +14,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/growth/userpack"
 	"github.com/missingbulb/ClaudiniteEngine/license"
 	"github.com/missingbulb/ClaudiniteEngine/shared/report"
+	"github.com/missingbulb/ClaudiniteEngine/shared/trust"
 	"github.com/missingbulb/ClaudiniteEngine/shared/workitem"
 	"github.com/missingbulb/ClaudiniteEngine/tasks/execute"
 	"github.com/missingbulb/ClaudiniteEngine/tasks/items"
@@ -79,7 +80,7 @@ func cmdWorkRecordExec(args []string, stdout io.Writer) error {
 }
 
 func cmdWorkValidate(args []string, stdout io.Writer) error {
-	roots, err := license.Roots()
+	roots, err := trust.Roots()
 	if err != nil {
 		return report.Wrap(report.IO, "the embedded license roots", err)
 	}

@@ -24,7 +24,7 @@ import (
 // republished: the manifest's signature against the roots in rootsDir,
 // every platform binary against its manifest entry, the candidate
 // checkout's head against the commit the manifest names, and stableTest,
-// the candidate's `go test -tags stable ./license`. rootsDir is the
+// the candidate's `go test -tags stable ./shared/trust`. rootsDir is the
 // dispatching checkout's, never the candidate's, so the candidate cannot
 // bring its own trust. It returns pass or refuse, why, and the stable
 // test's own verdict (pass, fail, or not-run when the bytes were refused

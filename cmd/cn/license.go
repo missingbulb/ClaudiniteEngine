@@ -23,13 +23,14 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/shared/paths"
 	"github.com/missingbulb/ClaudiniteEngine/shared/report"
 	"github.com/missingbulb/ClaudiniteEngine/shared/settings"
+	"github.com/missingbulb/ClaudiniteEngine/shared/trust"
 	"github.com/missingbulb/ClaudiniteEngine/shared/version"
 )
 
 // licenseEnv is the session license flow over the real clients. log
 // receives the background request's progress.
 func licenseEnv(log io.Writer) (license.Env, error) {
-	roots, err := license.Roots()
+	roots, err := trust.Roots()
 	if err != nil {
 		return license.Env{}, err
 	}

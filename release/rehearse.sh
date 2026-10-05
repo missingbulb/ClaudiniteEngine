@@ -145,7 +145,7 @@ case $update_steps in 4|11) ;; *) fail "UPDATE_STEPS must be 4 or 11, not $updat
 [ -f "$DIST/manifest.integrity" ] || fail "no release in $DIST; run release/build.sh first"
 # rehearsal_sign DIST: signs DIST with the development release key.
 rehearsal_sign() {
-  DIST=$1 RELEASE_KEY=$root/testkeys/release.key RELEASE_CERT=$root/testkeys/release.cert.json ROOTS=$root/license/devroots \
+  DIST=$1 RELEASE_KEY=$root/testkeys/release.key RELEASE_CERT=$root/testkeys/release.cert.json ROOTS=$root/shared/trust/devroots \
     sh release/sign.sh > "$work/sign.out" 2>&1 || fail "signing $1: $(cat "$work/sign.out")"
 }
 DIST=$DIST sh release/smoke.sh
@@ -190,9 +190,9 @@ trap 'exit 1' HUP INT TERM
 # chains: rehearse its source rebuilt at its version and package with the
 # development roots. The host's binary must first be byte for byte this
 # source's plain build, so the rebuild differs from the candidate only in
-# what the devroots tag changes, the embedded roots (license/roots_dev.go;
+# what the devroots tag changes, the embedded roots (shared/trust/roots_dev.go;
 # TestOnlyTheRootsFilesReadTheDevrootsTag holds it to that).
-devroot=$(cat license/devroots/root.pub)
+devroot=$(cat shared/trust/devroots/root.pub)
 for b in "$DIST"/bin/*/*; do
   grep -qF "$devroot" "$b" && continue
   case $(uname -s)-$(uname -m) in

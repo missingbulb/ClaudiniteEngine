@@ -131,7 +131,7 @@ func TestWriteRefusesAMissingPlatform(t *testing.T) {
 func TestVerify(t *testing.T) {
 	dist := fakeDist(t)
 	writeSign(t, dist)
-	roots := filepath.Join(repoRoot(t), "license/devroots")
+	roots := filepath.Join(repoRoot(t), "shared/trust/devroots")
 	if out, e, c := tool(t, "verify", "--dist", dist, "--roots", roots); c != 0 {
 		t.Fatalf("verify: %s %s", out, e)
 	}
