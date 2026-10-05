@@ -7,10 +7,10 @@
 // manager repository's Actions key at the license server's POST
 // /v1/actions-key. The key is verified against the embedded roots and read
 // for its plan and its owner; nothing about the person running the job is
-// sent or read. The run is entitled when the plan is personal or
-// organization, and then reaches only the repos that owner owns. A license
-// server or GitHub that does not answer fails open: the run goes on,
-// unverified, and says so.
+// sent or read. The run is entitled when the plan is personal,
+// organization or internal, and then reaches only the repos that owner
+// owns. A license server or GitHub that does not answer fails open: the
+// run goes on, unverified, and says so.
 package entitlement
 
 import (
@@ -34,9 +34,10 @@ const Audience = "claudinite"
 // KeyDomain prefixes the payload bytes a key's signature covers.
 const KeyDomain = "claudinite-license-v1\n"
 
-// FleetPlans are the plans that pay for a fleet: Personal, per personal
-// GitHub account, and Organization, per user.
-var FleetPlans = []string{"personal", "organization"}
+// FleetPlans are the plans that run a fleet: Personal, per personal
+// GitHub account, Organization, per user, and Internal, the license
+// server's plan for Claudinite's own account.
+var FleetPlans = []string{"personal", "organization", "internal"}
 
 // KeyServer is the license server's Actions key route.
 type KeyServer interface {

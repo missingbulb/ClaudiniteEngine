@@ -78,7 +78,7 @@ func check(t *testing.T, s KeyServer, getenv func(string) string) Verdict {
 }
 
 func TestAFleetPlanOwnersReposRun(t *testing.T) {
-	for _, plan := range []string{"personal", "organization"} {
+	for _, plan := range []string{"personal", "organization", "internal"} {
 		s := &server{key: mint(t, plan, nil)}
 		v := check(t, s, env(inActions))
 		if v.Refused || v.Unverified {
@@ -134,7 +134,7 @@ func TestAnUnreachableServerFailsOpen(t *testing.T) {
 }
 
 func TestANonFleetPlanIsRefused(t *testing.T) {
-	for _, plan := range []string{"public", "private-repo", "internal"} {
+	for _, plan := range []string{"public", "private-repo"} {
 		v := check(t, &server{key: mint(t, plan, nil)}, env(inActions))
 		if !v.Refused || v.Allows("acme/one", 3) {
 			t.Errorf("%s: %+v, want a refused run", plan, v)
