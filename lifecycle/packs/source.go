@@ -29,7 +29,7 @@ import (
 const (
 	DefaultCDN    = "https://packs.claudinite.com"
 	DefaultRepo   = "https://github.com/missingbulb/ClaudinitePacks"
-	VendoredRef   = "vendored"
+	VendoredRef   = packindex.VendoredBranch
 	defaultMaxCDN = 64 << 20
 )
 
@@ -102,11 +102,11 @@ func httpsOnly(client *http.Client) *http.Client {
 
 // Index reads the pair.
 func (c CDN) Index(id string) ([]byte, []byte, error) {
-	ix, err := c.get(id + "/index.json")
+	ix, err := c.get(packindex.IndexFile(id))
 	if err != nil {
 		return nil, nil, err
 	}
-	sig, err := c.get(id + "/index.sig.json")
+	sig, err := c.get(packindex.IndexSigFile(id))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -115,7 +115,7 @@ func (c CDN) Index(id string) ([]byte, []byte, error) {
 
 // Archive reads one version's archive.
 func (c CDN) Archive(id, version string) ([]byte, error) {
-	return c.get(id + "/" + version + ".tar.gz")
+	return c.get(packindex.ArchiveFile(id, version))
 }
 
 // Branch reads the vendored branch of ClaudinitePacks (or the repository
@@ -123,13 +123,21 @@ func (c CDN) Archive(id, version string) ([]byte, error) {
 // temporary folder once per run with no credential. Close removes it.
 type Branch struct {
 	Repo string
-	once sync.Once
-	dir  string
-	err  error
+	// Label names the source in logs and verdicts; "" is "branch", the
+	// shelf's own.
+	Label string
+	once  sync.Once
+	dir   string
+	err   error
 }
 
-// Name is "branch".
-func (*Branch) Name() string { return "branch" }
+// Name is the label, "branch" when there is none.
+func (b *Branch) Name() string {
+	if b.Label != "" {
+		return b.Label
+	}
+	return "branch"
+}
 
 func (b *Branch) clone() error {
 	b.once.Do(func() {
@@ -163,11 +171,11 @@ func (b *Branch) show(rel string) ([]byte, error) {
 
 // Index reads the pair.
 func (b *Branch) Index(id string) ([]byte, []byte, error) {
-	ix, err := b.show(id + "/index.json")
+	ix, err := b.show(packindex.IndexFile(id))
 	if err != nil {
 		return nil, nil, err
 	}
-	sig, err := b.show(id + "/index.sig.json")
+	sig, err := b.show(packindex.IndexSigFile(id))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -176,7 +184,7 @@ func (b *Branch) Index(id string) ([]byte, []byte, error) {
 
 // Archive reads one version's archive.
 func (b *Branch) Archive(id, version string) ([]byte, error) {
-	return b.show(id + "/" + version + ".tar.gz")
+	return b.show(packindex.ArchiveFile(id, version))
 }
 
 // Close removes the clone.
@@ -207,6 +215,9 @@ type Verified struct {
 	From string
 	// KeyID is the packs key that signed it.
 	KeyID string
+	// Raw and Sig are index.json and index.sig.json as read, which a
+	// mirror copies byte for byte.
+	Raw, Sig []byte
 }
 
 func (r *Reader) logf(format string, args ...any) {
@@ -248,7 +259,7 @@ func (r *Reader) fromSource(src Source, id string) (Verified, error) {
 			if v.Index.Pack != id {
 				return Verified{}, fmt.Errorf("the index names pack %q, not %q", v.Index.Pack, id)
 			}
-			v.From = src.Name()
+			v.From, v.Raw, v.Sig = src.Name(), index, sig
 			return v, nil
 		}
 		lastErr = err
@@ -368,10 +379,39 @@ func Sources(httpClient *http.Client) (CDN, *Branch) {
 	return CDN{Base: base, HTTP: httpClient, MaxBytes: defaultMaxCDN}, &Branch{Repo: repo}
 }
 
+// GitHubBase is where a repo source's owner/name is cloned from.
+const GitHubBase = "https://github.com"
+
+// SourcesFor builds a repo's pack sources in order: an https:// entry is a
+// CDN base, any other an owner/name whose vendored branch is read; none
+// is the shelf. close removes every branch's clone.
+func SourcesFor(list []string, httpClient *http.Client) ([]Source, func()) {
+	if len(list) == 0 {
+		cdn, branch := Sources(httpClient)
+		return []Source{cdn, branch}, branch.Close
+	}
+	var srcs []Source
+	var branches []*Branch
+	for _, s := range list {
+		if strings.HasPrefix(s, "https://") {
+			srcs = append(srcs, CDN{Base: s, HTTP: httpClient, MaxBytes: defaultMaxCDN})
+			continue
+		}
+		b := &Branch{Repo: GitHubBase + "/" + s, Label: s}
+		branches = append(branches, b)
+		srcs = append(srcs, b)
+	}
+	return srcs, func() {
+		for _, b := range branches {
+			b.Close()
+		}
+	}
+}
+
 // Catalog paths, beside the pack directories on both sources.
 const (
-	CatalogFile    = "catalog.json"
-	CatalogSigFile = "catalog.sig.json"
+	CatalogFile    = packindex.CatalogFile
+	CatalogSigFile = packindex.CatalogSigFile
 )
 
 // CatalogSource is a source that also serves the shelf's catalog.
@@ -410,9 +450,10 @@ func (b *Branch) Catalog() ([]byte, []byte, error) {
 // VerifiedCatalog is a catalog whose signature, format and serial checked
 // out, and the source whose copy it is.
 type VerifiedCatalog struct {
-	Catalog packindex.Catalog
-	From    string
-	KeyID   string
+	Catalog  packindex.Catalog
+	From     string
+	KeyID    string
+	Raw, Sig []byte
 }
 
 // VerifiedCatalog reads the shelf's catalog from every source that serves
@@ -485,7 +526,7 @@ func (r *Reader) catalogFrom(src CatalogSource) (VerifiedCatalog, error) {
 		if err != nil {
 			return VerifiedCatalog{}, err
 		}
-		return VerifiedCatalog{Catalog: c, From: src.Name(), KeyID: body.KeyID}, nil
+		return VerifiedCatalog{Catalog: c, From: src.Name(), KeyID: body.KeyID, Raw: cat, Sig: sigRaw}, nil
 	}
 	return VerifiedCatalog{}, lastErr
 }

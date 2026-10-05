@@ -66,6 +66,7 @@ func major(t *testing.T) string {
 }
 
 func TestVersionNext(t *testing.T) {
+	t.Parallel()
 	m := major(t)
 	day := version.Today(time.Now())
 	d := strconv.Itoa(day)
@@ -97,6 +98,7 @@ func mustAtoi(t *testing.T, s string) int {
 }
 
 func TestVersionCheck(t *testing.T) {
+	t.Parallel()
 	repo := gitRepo(t, "v1.61002.2")
 	for _, free := range []string{"1.61002.3", "1.61001.1", "2.60101.1"} {
 		if out, code := versionSh(t, repo, "check", free); code != 0 {
@@ -121,6 +123,7 @@ func TestVersionCheck(t *testing.T) {
 }
 
 func TestVersionRefusesAShallowClone(t *testing.T) {
+	t.Parallel()
 	src := gitRepo(t)
 	git(t, src, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "two")
 	shallow := filepath.Join(t.TempDir(), "shallow")
@@ -136,6 +139,7 @@ func TestVersionRefusesAShallowClone(t *testing.T) {
 // updater read. This holds the two equal, on today and on dates whose month
 // or day carries a leading zero.
 func TestVersionDayIsToday(t *testing.T) {
+	t.Parallel()
 	before := version.Today(time.Now().UTC())
 	out, code := versionSh(t, t.TempDir(), "day")
 	after := version.Today(time.Now().UTC())
@@ -160,6 +164,7 @@ func TestVersionDayIsToday(t *testing.T) {
 // check reads the floor from the file the SDK embeds and next computes the
 // day itself, so both run with no Go toolchain on PATH.
 func TestVersionRunsWithoutGo(t *testing.T) {
+	t.Parallel()
 	repo := gitRepo(t, "v1.61002.2")
 	gitBin, err := exec.LookPath("git")
 	if err != nil {

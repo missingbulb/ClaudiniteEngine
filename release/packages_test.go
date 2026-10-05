@@ -29,6 +29,7 @@ func golden(t *testing.T, name, got string) {
 }
 
 func TestPackagesAreExactlyThe7(t *testing.T) {
+	t.Parallel()
 	release := Publisher{Workflow: "release.yml", Environment: "release"}
 	promote := Publisher{Workflow: "promote.yml", Environment: "promote", DistTag: true}
 	want := map[string][]Publisher{
@@ -75,6 +76,7 @@ func TestPackagesAreExactlyThe7(t *testing.T) {
 
 // Every release publishes the same six packages under one dist-tag.
 func TestCLIPackages(t *testing.T) {
+	t.Parallel()
 	got := strings.Join(CLIPackages(), " ")
 	if got != "@claudinite/cli @claudinite/cli-linux-x64 @claudinite/cli-linux-arm64 @claudinite/cli-darwin-x64 @claudinite/cli-darwin-arm64 @claudinite/cli-windows-x64" {
 		t.Errorf("CLIPackages() = %s", got)
@@ -84,6 +86,7 @@ func TestCLIPackages(t *testing.T) {
 // A full release is the rc candidate on all five platforms; a staging
 // build is linux-x64 alone, under its own tag.
 func TestReleaseKinds(t *testing.T) {
+	t.Parallel()
 	for kind, want := range map[string]string{
 		"full":    "rc canary linux-x64 linux-arm64 darwin-x64 darwin-arm64 windows-x64",
 		"staging": "staging staging linux-x64",

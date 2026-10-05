@@ -20,6 +20,7 @@ func heldBy(vs string) map[string]string {
 }
 
 func TestUnpublishCommands(t *testing.T) {
+	t.Parallel()
 	u, err := UnpublishCommands(UnpublishInput{DistTags: tags, Version: "1.60930.3", Versions: heldBy(`["1.60930.2","1.60930.3"]`)})
 	if err != nil || !u.Exists {
 		t.Fatalf("%+v %v", u, err)
@@ -41,6 +42,7 @@ func TestUnpublishCommands(t *testing.T) {
 // Unpublishing a package's last version deletes the package, so one such
 // package refuses the whole dispatch before any command is written.
 func TestUnpublishCommandsRefusesAPackagesOnlyVersion(t *testing.T) {
+	t.Parallel()
 	in := UnpublishInput{DistTags: tags, Version: "1.60930.3", Versions: heldBy(`["1.60930.2","1.60930.3"]`)}
 	in.Versions["@claudinite/cli-darwin-arm64"] = `"1.60930.3"`
 	u, err := UnpublishCommands(in)
@@ -56,6 +58,7 @@ func TestUnpublishCommandsRefusesAPackagesOnlyVersion(t *testing.T) {
 // A version npm does not have is not an error, as for deprecate; a
 // platform package missing it is left out and named.
 func TestUnpublishCommandsForAMissingVersion(t *testing.T) {
+	t.Parallel()
 	u, err := UnpublishCommands(UnpublishInput{DistTags: tags, Version: "1.60930.9", Versions: heldBy(`["1.60930.2","1.60930.3"]`)})
 	if err != nil || u.Exists || len(u.Commands) != 0 || !strings.Contains(u.Notice, "1.60930.9") {
 		t.Errorf("%+v %v", u, err)
@@ -71,6 +74,7 @@ func TestUnpublishCommandsForAMissingVersion(t *testing.T) {
 // The version latest points at is what every stable member is offered;
 // unpublishing it would strand them, so promote another first.
 func TestUnpublishCommandsRefusesLatest(t *testing.T) {
+	t.Parallel()
 	in := UnpublishInput{DistTags: `{"latest":"1.60930.3","rc":"1.60930.3"}`, Version: "1.60930.3", Versions: heldBy(`["1.60930.2","1.60930.3"]`)}
 	if u, err := UnpublishCommands(in); err == nil || len(u.Commands) != 0 || !strings.Contains(err.Error(), "latest") {
 		t.Errorf("%+v %v", u, err)
@@ -84,6 +88,7 @@ func TestUnpublishCommandsRefusesLatest(t *testing.T) {
 }
 
 func TestUnpublishCommandsRefuses(t *testing.T) {
+	t.Parallel()
 	for name, in := range map[string]UnpublishInput{
 		"a shell word":   {DistTags: tags, Version: "1.60930.3; rm -rf", Versions: heldBy(`["1.60930.3; rm -rf","1.60930.4"]`)},
 		"a quote":        {DistTags: tags, Version: "1.60930.3'", Versions: heldBy(`["1.60930.3'","1.60930.4"]`)},
@@ -98,6 +103,7 @@ func TestUnpublishCommandsRefuses(t *testing.T) {
 }
 
 func TestPromoteHasUnpublish(t *testing.T) {
+	t.Parallel()
 	raw, err := os.ReadFile("../.github/workflows/promote.yml")
 	if err != nil {
 		t.Fatal(err)

@@ -39,6 +39,7 @@ func write(t *testing.T, dir, rel, text string) {
 }
 
 func TestTheRepoFlagNamesTheManagerAndEachMember(t *testing.T) {
+	t.Parallel()
 	rs := &repos{home: "acme/member"}
 	for _, v := range []string{"acme/manager", "acme/a=/tmp/a", "acme/old=/tmp/o;archived;fork"} {
 		if err := rs.Set(v); err != nil {
@@ -54,6 +55,7 @@ func TestTheRepoFlagNamesTheManagerAndEachMember(t *testing.T) {
 }
 
 func TestAFleetMemberIsServedFromItsDirectory(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	write(t, dir, ".claudinite/settings.yaml", "engine: {}\n")
 	c, _ := startFleet(t, "acme/a="+dir, "acme/old="+t.TempDir()+";archived")
@@ -90,6 +92,7 @@ func TestAFleetMemberIsServedFromItsDirectory(t *testing.T) {
 }
 
 func TestADispatchLandsTheAdvanceAndStartsARun(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	write(t, dir, ".github/workflows/claudinite-scheduler.yml", "on: {}\n")
 	c, srv := startFleet(t, "acme/a="+dir, "acme/b="+t.TempDir())
@@ -115,6 +118,7 @@ func TestADispatchLandsTheAdvanceAndStartsARun(t *testing.T) {
 }
 
 func TestADispatchCanStartNoRunAndADeniedMemberAnswers403(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	write(t, dir, ".github/workflows/claudinite-scheduler.yml", "on: {}\n")
 	c, srv := startFleet(t, "acme/a="+dir)
@@ -149,6 +153,7 @@ func TestADispatchCanStartNoRunAndADeniedMemberAnswers403(t *testing.T) {
 // A member's issues are its own: an issue filed there, labelled and
 // edited, is not the manager's, and the state lists it under the member.
 func TestAFleetMemberKeepsItsOwnIssues(t *testing.T) {
+	t.Parallel()
 	c, srv := startFleet(t, "acme/a="+t.TempDir())
 	if status, _, err := c.Raw("POST", "/repos/acme/a/labels", map[string]string{"name": "add-packs", "color": "0E8A16"}); err != nil || status != 201 {
 		t.Fatalf("label: %d %v", status, err)
@@ -181,6 +186,7 @@ func TestAFleetMemberKeepsItsOwnIssues(t *testing.T) {
 // A Contents PUT lands in the member's directory when its sha is the
 // file's as it stands, and is refused 409 when the file moved.
 func TestAFleetMemberTakesAShaGuardedWrite(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	write(t, dir, ".claudinite/settings.yaml", "engine: {}\n")
 	c, _ := startFleet(t, "acme/a="+dir)

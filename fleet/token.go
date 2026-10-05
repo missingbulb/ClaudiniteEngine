@@ -42,7 +42,7 @@ var Permissions = []Permission{
 		Permission: "Contents", Access: "read and write",
 		Why:       "every sweep reads each member's declaration; the pack-seed sweep writes one back, so read alone is not enough",
 		Sweeps:    map[string]string{SweepRoster: "read", SweepAddPacks: "read", SweepPackSeeds: "read and write", SweepUpdate: "read"},
-		endpoints: []*regexp.Regexp{regexp.MustCompile(`/contents/`)},
+		endpoints: []*regexp.Regexp{regexp.MustCompile(`/contents/`), regexp.MustCompile(`/git/`)},
 	},
 	{
 		Permission: "Issues", Access: "read and write",

@@ -262,6 +262,9 @@ func (s *stub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	path := strings.TrimPrefix(r.URL.Path, prefix)
+	if s.serveGitData(w, r, path, body) {
+		return
+	}
 	num := func(re *regexp.Regexp) int {
 		m := re.FindStringSubmatch(path)
 		if m == nil {

@@ -48,6 +48,7 @@ func npmWait(t *testing.T, registry, timeout string) (string, error) {
 }
 
 func TestNPMWaitLooksAtTheLauncherURLsOnlyOnceNPMServesThem(t *testing.T) {
+	t.Parallel()
 	f := &fakeNPM{ready: true}
 	srv := httptest.NewServer(f)
 	defer srv.Close()
@@ -76,6 +77,7 @@ func TestNPMWaitLooksAtTheLauncherURLsOnlyOnceNPMServesThem(t *testing.T) {
 }
 
 func TestNPMWaitNeverTouchesALauncherURLBeforeNPMHasTheRelease(t *testing.T) {
+	t.Parallel()
 	if testing.Short() {
 		t.Skip("waits out its timeout; the full run covers it")
 	}

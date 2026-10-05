@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -47,16 +48,27 @@ func setup(m *testing.M) (int, error) {
 	}
 	defer func() { _ = os.RemoveAll(tools) }()
 	pkg := "github.com/missingbulb/ClaudiniteEngine/shared/version"
-	for _, b := range []struct{ out, pkg, ldflags string }{
+	builds := []struct{ out, pkg, ldflags string }{
 		{filepath.Join(tools, hostBin), "./cmd/cn", "-X " + pkg + ".version=" + testVersion},
 		{filepath.Join(tools, "regstub"), "./release/regstub", ""},
-	} {
-		// The development roots, which the tests' signatures chain to.
-		cmd := exec.Command("go", "build", "-tags", "devroots", "-ldflags", b.ldflags, "-o", b.out, b.pkg)
-		cmd.Dir = repoRoot
-		cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
-		if out, err := cmd.CombinedOutput(); err != nil {
-			return 0, fmt.Errorf("build %s: %v\n%s", b.pkg, err, out)
+	}
+	errs := make(chan error, len(builds))
+	for _, b := range builds {
+		go func() {
+			// The development roots, which the tests' signatures chain to.
+			cmd := exec.Command("go", "build", "-tags", "devroots", "-ldflags", b.ldflags, "-o", b.out, b.pkg)
+			cmd.Dir = repoRoot
+			cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
+			if out, err := cmd.CombinedOutput(); err != nil {
+				errs <- fmt.Errorf("build %s: %v\n%s", b.pkg, err, out)
+				return
+			}
+			errs <- nil
+		}()
+	}
+	for range builds {
+		if err := <-errs; err != nil {
+			return 0, err
 		}
 	}
 	return m.Run(), nil
@@ -270,6 +282,7 @@ func TestLauncher(t *testing.T) {
 	rel := makeRelease(t, releaseOpts{})
 
 	t.Run("01 happy path", func(t *testing.T) {
+		t.Parallel()
 		s := startStub(t, rel.dist)
 		m := newMember(t, s)
 		m.settings(t, "settings.yaml", yaml(testVersion, rel.pin))
@@ -307,6 +320,7 @@ func TestLauncher(t *testing.T) {
 	})
 
 	t.Run("02 second run downloads nothing and re-hashes", func(t *testing.T) {
+		t.Parallel()
 		s := startStub(t, rel.dist)
 		m := newMember(t, s)
 		m.settings(t, "settings.yaml", yaml(testVersion, rel.pin))
@@ -325,7 +339,10 @@ func TestLauncher(t *testing.T) {
 		raw, _ := os.ReadFile(bin)
 		raw[len(raw)/2] ^= 0xff
 		_ = os.Chmod(bin, 0o755)
+		// Held off forks: a parallel subtest's child holding this file open makes exec fail.
+		syscall.ForkLock.Lock()
 		_ = os.WriteFile(bin, raw, 0o755)
+		syscall.ForkLock.Unlock()
 		_ = os.Chmod(bin, 0o555)
 		out, _, code = m.run(t, sessionStartStdin, "hook", "session-start")
 		if code != 0 || !strings.Contains(out, "Hello from cn") {
@@ -342,6 +359,7 @@ func TestLauncher(t *testing.T) {
 	})
 
 	t.Run("03 settings formats", func(t *testing.T) {
+		t.Parallel()
 		s := startStub(t, rel.dist)
 		formats := map[string]string{
 			"settings.json": fmt.Sprintf("{\n  \"plan\": \"public\",\n  \"engine\": {\n    \"version\": %q,\n    \"manifest\": %q\n  },\n  \"packs\": [\"basics\"]\n}\n", testVersion, rel.pin),
@@ -380,6 +398,7 @@ func TestLauncher(t *testing.T) {
 	})
 
 	t.Run("04 strict patterns before any request", func(t *testing.T) {
+		t.Parallel()
 		s := startStub(t, rel.dist)
 		bad := map[string]string{
 			"short version":       yaml("1.1", rel.pin),
@@ -421,6 +440,7 @@ func TestLauncher(t *testing.T) {
 	})
 
 	t.Run("05 hash mismatches refuse in every context", func(t *testing.T) {
+		t.Parallel()
 		otherPin := releasefiles.Integrity([]byte("some other manifest"))
 		wrongBin := makeRelease(t, releaseOpts{wrongHostBytes: true})
 		cases := []struct {
@@ -466,6 +486,7 @@ func TestLauncher(t *testing.T) {
 	})
 
 	t.Run("06 unlisted platform", func(t *testing.T) {
+		t.Parallel()
 		r := makeRelease(t, releaseOpts{omitHost: true})
 		s := startStub(t, r.dist)
 		m := newMember(t, s)
@@ -481,6 +502,7 @@ func TestLauncher(t *testing.T) {
 	})
 
 	t.Run("07 download impossible", func(t *testing.T) {
+		t.Parallel()
 		unavailable := startStub(t, rel.dist, "--status", "503")
 		ln, err := net.Listen("tcp", "127.0.0.1:0")
 		if err != nil {
@@ -525,6 +547,7 @@ func TestLauncher(t *testing.T) {
 	})
 
 	t.Run("08 size cap", func(t *testing.T) {
+		t.Parallel()
 		r := makeRelease(t, releaseOpts{padBinary: 4096})
 		s := startStub(t, r.dist)
 		m := newMember(t, s)
@@ -539,6 +562,7 @@ func TestLauncher(t *testing.T) {
 	})
 
 	t.Run("09 cache directory must be private", func(t *testing.T) {
+		t.Parallel()
 		if runtime.GOOS == "windows" {
 			t.Skip("no POSIX modes")
 		}
@@ -560,6 +584,7 @@ func TestLauncher(t *testing.T) {
 	})
 
 	t.Run("10 env install fetches and stops", func(t *testing.T) {
+		t.Parallel()
 		s := startStub(t, rel.dist)
 		m := newMember(t, s)
 		m.settings(t, "settings.yaml", yaml(testVersion, rel.pin))
@@ -576,6 +601,7 @@ func TestLauncher(t *testing.T) {
 	})
 
 	t.Run("11 shellcheck", func(t *testing.T) {
+		t.Parallel()
 		if _, err := exec.LookPath("shellcheck"); err != nil {
 			t.Skip("shellcheck not installed; CI runs it")
 		}
@@ -586,6 +612,7 @@ func TestLauncher(t *testing.T) {
 	})
 
 	t.Run("13 a missing download tool is refused, not an outage", func(t *testing.T) {
+		t.Parallel()
 		s := startStub(t, rel.dist)
 		for _, missing := range []string{"curl", "tar"} {
 			s.reset(t)
@@ -603,6 +630,7 @@ func TestLauncher(t *testing.T) {
 	})
 
 	t.Run("14 HOME unset", func(t *testing.T) {
+		t.Parallel()
 		s := startStub(t, rel.dist)
 		m := newMember(t, s)
 		m.unset = []string{"HOME", "XDG_CACHE_HOME"}
@@ -617,6 +645,7 @@ func TestLauncher(t *testing.T) {
 	})
 
 	t.Run("12 release channel package", func(t *testing.T) {
+		t.Parallel()
 		r := makeRelease(t, releaseOpts{pkg: "@claudinite/cli-rc"})
 		s := startStub(t, r.dist)
 		m := newMember(t, s)

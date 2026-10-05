@@ -13,6 +13,7 @@ import (
 func envOf(m map[string]string) world.Env { return func(k string) string { return m[k] } }
 
 func TestTheHoldExitsBeforeAnyRead(t *testing.T) {
+	t.Parallel()
 	var out bytes.Buffer
 	env := envOf(map[string]string{world.VarsBagEnv: `{"` + world.SuspendAllVar + `": "true"}`})
 	if err := cmdScheduleRun([]string{"--repo", filepath.Join(t.TempDir(), "absent")}, &out, env); err != nil {
@@ -24,6 +25,7 @@ func TestTheHoldExitsBeforeAnyRead(t *testing.T) {
 }
 
 func TestADormantProjectIsNotScheduled(t *testing.T) {
+	t.Parallel()
 	repo := t.TempDir()
 	p := filepath.Join(repo, ".claudinite/settings.yaml")
 	_ = os.MkdirAll(filepath.Dir(p), 0o755)

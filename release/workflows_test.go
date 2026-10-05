@@ -43,6 +43,7 @@ func runBlocks(t *testing.T, path string) []string {
 // An expression expanded inside a run: body is spliced into the script
 // before the shell parses it; through env: it arrives as data.
 func TestNoExpressionInARunBody(t *testing.T) {
+	t.Parallel()
 	for _, wf := range []string{"../.github/workflows/release.yml", "../.github/workflows/promote.yml"} {
 		blocks := runBlocks(t, wf)
 		if len(blocks) == 0 {
@@ -70,6 +71,7 @@ func unpinnedUse(line string) bool {
 }
 
 func TestUnpinnedUse(t *testing.T) {
+	t.Parallel()
 	for line, want := range map[string]bool{
 		"      - uses: actions/checkout@v4":                                                true,
 		"      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1": false,
@@ -85,6 +87,7 @@ func TestUnpinnedUse(t *testing.T) {
 }
 
 func TestEveryActionIsPinnedBySHA(t *testing.T) {
+	t.Parallel()
 	files, _ := filepath.Glob("../.github/workflows/*.yml")
 	if len(files) == 0 {
 		t.Fatal("no workflows found")
@@ -100,6 +103,7 @@ func TestEveryActionIsPinnedBySHA(t *testing.T) {
 }
 
 func TestCIRunsActionlintPinnedBySHA(t *testing.T) {
+	t.Parallel()
 	raw, err := os.ReadFile("../.github/workflows/ci.yml")
 	if err != nil {
 		t.Fatal(err)
@@ -144,6 +148,7 @@ func jobBlock(t *testing.T, wf, name string) string {
 // release.yml's kind is a required choice: a full release candidate, or a
 // staging build.
 func TestReleaseTakesAKind(t *testing.T) {
+	t.Parallel()
 	raw, err := os.ReadFile("../.github/workflows/release.yml")
 	if err != nil {
 		t.Fatal(err)
@@ -170,6 +175,7 @@ func TestReleaseTakesAKind(t *testing.T) {
 // nothing unproven is signed or published, and tags the commit itself. A
 // staging build skips the hop, and only a staging build may.
 func TestReleaseGatesThePublish(t *testing.T) {
+	t.Parallel()
 	const wf = "../.github/workflows/release.yml"
 	hop := jobBlock(t, wf, "hop")
 	if hop == "" {
@@ -235,6 +241,7 @@ func TestReleaseGatesThePublish(t *testing.T) {
 // Every release publishes @claudinite/cli under its kind's dist-tag, and
 // no workflow names the retired rc package.
 func TestWorkflowsPublishOnePackageFamily(t *testing.T) {
+	t.Parallel()
 	files, _ := filepath.Glob("../.github/workflows/*.yml")
 	for _, f := range files {
 		raw, _ := os.ReadFile(f)
@@ -251,6 +258,7 @@ func TestWorkflowsPublishOnePackageFamily(t *testing.T) {
 
 // Promotion moves latest and republishes nothing.
 func TestPromoteMovesLatest(t *testing.T) {
+	t.Parallel()
 	const wf = "../.github/workflows/promote.yml"
 	job := jobBlock(t, wf, "promote")
 	for _, want := range []string{
@@ -276,6 +284,7 @@ func TestPromoteMovesLatest(t *testing.T) {
 // Only stable waits on the full check, run on the promoted version's own
 // commit; a release, staging or rc, never calls it.
 func TestOnlyStableWaitsOnTheFullCheck(t *testing.T) {
+	t.Parallel()
 	full := jobBlock(t, "../.github/workflows/promote.yml", "full")
 	for _, want := range []string{
 		"    uses: ./.github/workflows/full.yml\n",
@@ -299,6 +308,7 @@ func TestOnlyStableWaitsOnTheFullCheck(t *testing.T) {
 // promotion through a release-blocker issue, and in its own workflow nightly
 // and on demand, never on a pull request or a push.
 func TestLivePacksRuns(t *testing.T) {
+	t.Parallel()
 	const wf = "../.github/workflows/release.yml"
 	job := jobBlock(t, wf, "live-packs")
 	if job == "" {
@@ -344,6 +354,7 @@ func TestLivePacksRuns(t *testing.T) {
 // smoke-published waits on npm through release/npm-wait.sh, which keeps the
 // launcher's URLs untouched until npm serves them.
 func TestSmokePublishedWaitsThroughNPMWait(t *testing.T) {
+	t.Parallel()
 	job := jobBlock(t, "../.github/workflows/release.yml", "smoke-published")
 	if job == "" {
 		t.Fatal("release.yml has no smoke-published job")

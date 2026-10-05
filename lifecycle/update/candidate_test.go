@@ -18,6 +18,7 @@ func packument(deprecated, tags map[string]string, versions ...string) *npmreg.P
 }
 
 func TestCandidate(t *testing.T) {
+	t.Parallel()
 	all := []string{"0.0.0", "1.60930.1", "1.60930.2", "1.60930.3", "1.60930.9", "1.60930.10"}
 	tags := func(latest, rc, staging string) map[string]string {
 		m := map[string]string{}
@@ -73,6 +74,7 @@ func TestCandidate(t *testing.T) {
 }
 
 func TestStatesFromPackument(t *testing.T) {
+	t.Parallel()
 	s := StatesFromPackument(packument(map[string]string{"1.1.0": "held: a", "1.2.0": "revoked: b", "1.3.0": "other"}, nil, "1.1.0", "1.2.0", "1.3.0", "1.4.0"))
 	if s.Held["1.1.0"] != "a" || s.Revoked["1.2.0"] != "b" || len(s.Held) != 1 || len(s.Revoked) != 1 {
 		t.Errorf("%+v", s)

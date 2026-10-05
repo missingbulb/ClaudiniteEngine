@@ -16,7 +16,8 @@
 // add-packs work-list issues their own scheduler adopts, and writes one
 // file: PutFile, the pack-seed sweep's sha-guarded settings write, is the
 // only write into a member's tree. Every other write lands on the
-// manager's own issues and labels. The package test lists each function
+// manager's own issues, labels and vendored branch, the mirror its
+// members read packs from. The package test lists each function
 // that writes and holds the list to the source, so a new write toward a
 // member is a reviewed edit to that list.
 package fleet

@@ -27,6 +27,7 @@ var writers = map[string]string{
 	"addpacks.ConvergeSuspected": "member: closes its suspected list when fitted",
 	"addpacks.Run":               "member: the nudge, through FireScheduler",
 	"seeds.member":               "member: its settings file, through PutFile",
+	"mirror.commit":              "manager: its own vendored branch, the shelf's mirror",
 }
 
 func TestEveryWriterIsListed(t *testing.T) {

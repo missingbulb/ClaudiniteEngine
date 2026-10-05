@@ -56,6 +56,7 @@ func tarballRepositoryURLs(t *testing.T, dist string) map[string]string {
 }
 
 func TestBuildNamesEveryTarballOfTheCLIPackage(t *testing.T) {
+	t.Parallel()
 	if testing.Short() {
 		t.Skip("builds a release; the full run covers it")
 	}
@@ -90,6 +91,7 @@ func TestBuildNamesEveryTarballOfTheCLIPackage(t *testing.T) {
 // smoke all name that one platform, and the smoke refuses it as a full
 // release.
 func TestBuildRestrictsPlatforms(t *testing.T) {
+	t.Parallel()
 	if testing.Short() {
 		t.Skip("builds a release; the full run covers it")
 	}

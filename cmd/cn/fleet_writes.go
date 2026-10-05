@@ -12,7 +12,10 @@ import (
 
 	"github.com/missingbulb/ClaudiniteEngine/fleet"
 	"github.com/missingbulb/ClaudiniteEngine/fleet/addpacks"
+	"github.com/missingbulb/ClaudiniteEngine/fleet/mirror"
 	"github.com/missingbulb/ClaudiniteEngine/fleet/seeds"
+	"github.com/missingbulb/ClaudiniteEngine/lifecycle/packs"
+	"github.com/missingbulb/ClaudiniteEngine/shared/packindex"
 	"github.com/missingbulb/ClaudiniteEngine/shared/report"
 )
 
@@ -171,11 +174,6 @@ func fleetPackSeeds(args []string, stdout, stderr io.Writer, start time.Time) er
 		return err
 	}
 	defer s.closer()
-	if len(s.cfg.PackSeeds) == 0 {
-		emit(stdout, seeds.NoSeeds(s.cfg.Owner))
-		s.crumb("pack-seeds", "ok", 0, 0)
-		return nil
-	}
 	repos, err := fleet.Enumerate(s.gh, s.cfg.Owner)
 	if err != nil {
 		s.crumb("pack-seeds", "error", 0, 0)
@@ -185,13 +183,41 @@ func fleetPackSeeds(args []string, stdout, stderr io.Writer, start time.Time) er
 		s.crumb("pack-seeds", "refused", 0, 0)
 		return s.failed(err)
 	}
-	r := seeds.Sweep(s.gh, repos, s.home, s.cfg)
+	r := seeds.Sweep(s.gh, repos, s.home, s.cfg, func(ids []string) (mirror.Result, error) {
+		return mirror.Mirror(s.gh, s.home, mirrorShelf{s.packs}, ids)
+	})
 	emit(stdout, r.Render())
-	members := len(r.Written) + len(r.Already) + len(r.Waiting) + len(r.Node) + len(r.Unknown)
+	members := r.Members + len(r.Node) + len(r.Unknown)
 	if err := r.Err(); err != nil {
-		s.crumb("pack-seeds", "unknown", len(r.Written), members)
+		s.crumb("pack-seeds", "unknown", r.Writes, members)
 		return s.failed(err)
 	}
-	s.crumb("pack-seeds", "ok", len(r.Written), members)
+	s.crumb("pack-seeds", "ok", r.Writes, members)
 	return nil
 }
+
+// mirrorShelf is the shelf the manager's mirror copies, every answer
+// verified by the pack reader.
+type mirrorShelf struct{ r *packs.Reader }
+
+func (m mirrorShelf) Catalog() (mirror.Signed, []string, error) {
+	v, err := m.r.VerifiedCatalog()
+	if err != nil {
+		return mirror.Signed{}, nil, err
+	}
+	ids := make([]string, len(v.Catalog.Packs))
+	for i, p := range v.Catalog.Packs {
+		ids[i] = p.ID
+	}
+	return mirror.Signed{Raw: v.Raw, Sig: v.Sig}, ids, nil
+}
+
+func (m mirrorShelf) Index(id string) (mirror.Signed, packindex.Index, error) {
+	v, err := m.r.VerifiedIndex(id)
+	if err != nil {
+		return mirror.Signed{}, packindex.Index{}, err
+	}
+	return mirror.Signed{Raw: v.Raw, Sig: v.Sig}, v.Index, nil
+}
+
+func (m mirrorShelf) Archive(id string, e packindex.Entry) ([]byte, error) { return m.r.Archive(id, e) }

@@ -1,6 +1,6 @@
-# The fast check every pull request and every push to main waits on: lint, the short tests
-# and the script linters. What takes minutes (the release build and rehearsal, the packs
-# suite against this cn, the latency budgets and the tests short mode skips) is full.yml's.
+# The fast check every pull request and every push to main waits on: lint and the script linters
+# beside the short tests. What takes minutes (the release build and rehearsal, the packs suite
+# against this cn, the latency budgets and the tests short mode skips) is full.yml's.
 name: ci
 
 on:
@@ -16,23 +16,70 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  test:
+  lint:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: "1.24"
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+          cache: false
+      # The build cache main's last rest shard saved, which compiled nearly every package.
+      # setup-go's own cache keys on go.sum alone, so it never refreshes and every run recompiles
+      # whatever changed since go.sum last did.
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          node-version: "22"
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: go-${{ runner.os }}-${{ hashFiles('go.sum') }}-rest-${{ github.sha }}
+          restore-keys: go-${{ runner.os }}-${{ hashFiles('go.sum') }}-rest-
       # The standard linters include govet.
       - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         with:
           version: v2.5.0
-      # The parity harness is off CI: the port it proved is done (design record 135).
-      - run: go list ./... | grep -v /parity | xargs go test -short
-      - run: shellcheck -s sh launcher/launch release/*.sh probe/desktop-timings/run.sh probe/hook-latency/run.sh
+      - run: shellcheck -s sh launcher/launch release/*.sh probe/desktop-timings/run.sh probe/hook-latency/run.sh probe/ci-speed/p75.sh
       # actionlint v1.7.11, the last release that builds on Go 1.24, over the engine's workflows and
       # the member templates; it runs shellcheck over every run: body too.
       - run: go run github.com/rhysd/actionlint/cmd/actionlint@393031adb9afb225ee52ae2ccd7a5af5525e03e8 .github/workflows/*.yml lifecycle/workflows/templates/*.yml
+
+  # Two machines share the tests: the four heaviest packages on one, the rest on the other. A
+  # package not named here lands in the rest.
+  test:
+    strategy:
+      matrix:
+        shard: [heavy, rest]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.24"
+          cache: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+          package-manager-cache: false
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: go-${{ runner.os }}-${{ hashFiles('go.sum') }}-${{ matrix.shard }}-${{ github.sha }}
+          restore-keys: go-${{ runner.os }}-${{ hashFiles('go.sum') }}-${{ matrix.shard }}-
+      # -count=1: a cached pass cannot see the scripts and binaries a test runs as subprocesses.
+      # The parity harness is off CI: the port it proved is done (design record 135).
+      - env:
+          SHARD: ${{ matrix.shard }}
+        run: |
+          heavy='/(lifecycle/update|launcher|cmd/cn|release)$'
+          if [ "$SHARD" = heavy ]; then pick=-E; else pick=-vE; fi
+          go list ./... | grep -v /parity | grep "$pick" "$heavy" | xargs go test -short -count=1
+      # Only main's caches are visible to every branch.
+      - if: github.event_name == 'push'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: go-${{ runner.os }}-${{ hashFiles('go.sum') }}-${{ matrix.shard }}-${{ github.sha }}

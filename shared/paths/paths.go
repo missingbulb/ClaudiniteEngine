@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"syscall"
 )
 
 // CacheRoot is ${XDG_CACHE_HOME:-$HOME/.cache}/claudinite, the same folder
@@ -57,23 +58,33 @@ func CheckPrivateDir(dir string) error {
 
 // PlaceReadOnly writes data to dir/name with mode by rename from a temporary
 // file in the same folder, so readers see the old file or the new, never a
-// partial one.
+// partial one. No fork happens while the file is open for writing: a child
+// forked then would hold it open until its exec, and running the placed
+// binary would fail with "text file busy".
 func PlaceReadOnly(dir, name string, data []byte, mode os.FileMode) error {
-	f, err := os.CreateTemp(dir, "."+name+".tmp-*")
+	syscall.ForkLock.Lock()
+	tmp, err := writeTemp(dir, name, data)
+	syscall.ForkLock.Unlock()
+	if tmp != "" {
+		defer func() { _ = os.Remove(tmp) }()
+	}
 	if err != nil {
-		return err
-	}
-	tmp := f.Name()
-	defer func() { _ = os.Remove(tmp) }()
-	if _, err := f.Write(data); err != nil {
-		_ = f.Close()
-		return err
-	}
-	if err := f.Close(); err != nil {
 		return err
 	}
 	if err := os.Chmod(tmp, mode); err != nil {
 		return err
 	}
 	return os.Rename(tmp, filepath.Join(dir, name))
+}
+
+func writeTemp(dir, name string, data []byte) (string, error) {
+	f, err := os.CreateTemp(dir, "."+name+".tmp-*")
+	if err != nil {
+		return "", err
+	}
+	if _, err := f.Write(data); err != nil {
+		_ = f.Close()
+		return f.Name(), err
+	}
+	return f.Name(), f.Close()
 }

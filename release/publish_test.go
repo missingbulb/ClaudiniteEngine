@@ -48,6 +48,7 @@ func publishLines(t *testing.T, out string) ([]string, map[string]bool) {
 }
 
 func TestPublishDryRunPrintsOneLinePerTarball(t *testing.T) {
+	t.Parallel()
 	for _, tag := range []string{"rc", "staging"} {
 		dist := fakeTarballs(t, "1.61001.1", CLIPackages()...)
 		out, err := runScript(t, []string{"DIST=" + dist, "VERSION=1.61001.1", "PATH=" + noNpmPath(t)}, "release/publish.sh", "--tag", tag, "--dry-run")
@@ -69,6 +70,7 @@ func TestPublishDryRunPrintsOneLinePerTarball(t *testing.T) {
 
 // A staging build publishes the manifest package and linux-x64 alone.
 func TestPublishAStagingBuild(t *testing.T) {
+	t.Parallel()
 	dist := fakeTarballs(t, "1.61005.1", "@claudinite/cli", "@claudinite/cli-linux-x64")
 	out, err := runScript(t, []string{"DIST=" + dist, "VERSION=1.61005.1", "PATH=" + noNpmPath(t)}, "release/publish.sh", "--tag", "staging", "--dry-run")
 	if files, _ := publishLines(t, out); err != nil || strings.Join(files, " ") != "cli-linux-x64-1.61005.1.tgz cli-1.61005.1.tgz" {
@@ -77,6 +79,7 @@ func TestPublishAStagingBuild(t *testing.T) {
 }
 
 func TestPublishRefusesBeforePublishingAnything(t *testing.T) {
+	t.Parallel()
 	cases := map[string]struct {
 		tag  string
 		dist string
@@ -149,6 +152,7 @@ func readCalls(t *testing.T, log string) string {
 }
 
 func TestPublishOIDCRefusalPointsAtTheTrustedPublisher(t *testing.T) {
+	t.Parallel()
 	dist := fakeTarballs(t, "1.61001.1", CLIPackages()...)
 	path, log := fakeNpm(t)
 	out, err := runScript(t, []string{"DIST=" + dist, "VERSION=1.61001.1", "PATH=" + path}, "release/publish.sh", "--tag", "rc", "--auth", "oidc")
@@ -161,6 +165,7 @@ func TestPublishOIDCRefusalPointsAtTheTrustedPublisher(t *testing.T) {
 }
 
 func TestPublishRequiresAnAuthModeToPublish(t *testing.T) {
+	t.Parallel()
 	dist := fakeTarballs(t, "1.61001.1", CLIPackages()...)
 	for _, args := range [][]string{{"--tag", "rc"}, {"--tag", "rc", "--auth", "password"}} {
 		out, err := runScript(t, []string{"DIST=" + dist, "VERSION=1.61001.1", "PATH=" + noNpmPath(t)}, "release/publish.sh", args...)

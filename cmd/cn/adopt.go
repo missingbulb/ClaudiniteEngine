@@ -51,7 +51,10 @@ func cmdInit(args []string, stdout, stderr io.Writer) error {
 	if err != nil {
 		return report.Wrap(report.IO, "init", err)
 	}
-	reader, closeReader := packReader(roots, stdout)
+	reader, closeReader, err := packReader(*repo, roots, stdout)
+	if err != nil {
+		return report.Wrap(report.IO, "init", err)
+	}
 	defer closeReader()
 	in := adopt.Input{
 		Repo: *repo, FullName: initFullName(*repo), Channel: *channel,
@@ -85,7 +88,10 @@ func cmdAdopt(args []string, stdout io.Writer) error {
 	if err != nil {
 		return report.Wrap(report.Internal, "adopt", err)
 	}
-	reader, closeReader := packReader(roots, stdout)
+	reader, closeReader, err := packReader(*repo, roots, stdout)
+	if err != nil {
+		return report.Wrap(report.IO, "adopt", err)
+	}
 	defer closeReader()
 	if err := adopt.Adopt(adopt.AdoptInput{Repo: *repo, IDs: strings.Split(args[0], ","), Answers: answers, Reader: reader, Out: stdout}); err != nil {
 		return report.Wrap(report.IO, "adopt", err)

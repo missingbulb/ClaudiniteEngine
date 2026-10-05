@@ -6,6 +6,7 @@ import (
 )
 
 func TestUpdateCommandArguments(t *testing.T) {
+	t.Parallel()
 	bin := buildCN(t, "")
 	noToken := []string{"GITHUB_TOKEN="}
 	for _, c := range []struct {
@@ -33,6 +34,7 @@ func TestUpdateCommandArguments(t *testing.T) {
 }
 
 func TestWorkflowsDiffCommand(t *testing.T) {
+	t.Parallel()
 	bin := buildCN(t, "")
 	out, _, code := runCN(t, bin, nil, "", "workflows", "diff", "--repo", t.TempDir())
 	if code != 0 || !strings.Contains(out, "+++ b/.github/workflows/claudinite-executor.yml") {

@@ -10,6 +10,7 @@ import (
 )
 
 func TestRehearseModes(t *testing.T) {
+	t.Parallel()
 	if version.Platform() != "linux-x64" {
 		t.Skip("the fixture dist is built on linux-x64")
 	}
@@ -48,6 +49,7 @@ func TestRehearseModes(t *testing.T) {
 // sets CLAUDINITE_OFFLINE=1 and the mode stands aside before it needs a
 // release, with a notice.
 func TestRehearseLivePacksOffline(t *testing.T) {
+	t.Parallel()
 	out, err := runScript(t, []string{"CLAUDINITE_OFFLINE=1", "DIST=" + t.TempDir()}, "release/rehearse.sh", "--mode", "live-packs")
 	if err != nil {
 		t.Fatalf("--mode live-packs offline: %v\n%s", err, out)
