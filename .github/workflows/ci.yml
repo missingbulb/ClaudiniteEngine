@@ -37,7 +37,7 @@ jobs:
       - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         with:
           version: v2.5.0
-      - run: shellcheck -s sh launcher/launch release/*.sh probe/desktop-timings/run.sh probe/hook-latency/run.sh
+      - run: shellcheck -s sh launcher/launch release/*.sh probe/desktop-timings/run.sh probe/hook-latency/run.sh probe/ci-speed/p75.sh
       # actionlint v1.7.11, the last release that builds on Go 1.24, over the engine's workflows and
       # the member templates; it runs shellcheck over every run: body too.
       - run: go run github.com/rhysd/actionlint/cmd/actionlint@393031adb9afb225ee52ae2ccd7a5af5525e03e8 .github/workflows/*.yml lifecycle/workflows/templates/*.yml
