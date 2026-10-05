@@ -81,11 +81,11 @@ func runBin(t *testing.T, m *member, bin string, args ...string) (string, string
 // its signature, and cn init runs (here it stops at the pack sources,
 // which are unreachable, before writing anything).
 func TestBootstrapRunsCnInitFromTheNpxPackage(t *testing.T) {
-	const pkg = "@claudinite/cli-rc"
+	const pkg = "@claudinite/cli"
 	r := makeRelease(t, releaseOpts{pkg: pkg})
 	sig := releaseSig(t, r.manifest)
 	src, _ := os.ReadFile(filepath.Join(repoRoot, "launcher", "launch"))
-	err := releasefiles.WriteTarball(filepath.Join(r.dist, "tarballs", "cli-rc-"+testVersion+".tgz"), []releasefiles.TarFile{
+	err := releasefiles.WriteTarball(filepath.Join(r.dist, "tarballs", "cli-"+testVersion+".tgz"), []releasefiles.TarFile{
 		{Name: "package.json", Mode: 0o644, Data: []byte("{}\n")},
 		{Name: "manifest.json", Mode: 0o644, Data: r.manifest},
 		{Name: "manifest.sig.json", Mode: 0o644, Data: sig},
@@ -99,7 +99,7 @@ func TestBootstrapRunsCnInitFromTheNpxPackage(t *testing.T) {
 	_ = os.RemoveAll(filepath.Join(m.dir, ".claudinite"))
 	bin := npxLayout(t, pkg, map[string][]byte{"manifest.json": r.manifest, "manifest.sig.json": sig})
 
-	out, errOut, code := runBin(t, m, bin, "init", "--packs", "hello", "--channel", "canary", "--package", pkg, "--repo", m.dir)
+	out, errOut, code := runBin(t, m, bin, "init", "--packs", "hello", "--channel", "canary", "--repo", m.dir)
 	if code != 1 || !strings.Contains(errOut, "hello") || !strings.Contains(errOut, "no source answered") {
 		t.Fatalf("exit %d\n%s\n%s", code, out, errOut)
 	}

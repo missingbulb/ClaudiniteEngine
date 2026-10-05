@@ -805,3 +805,35 @@ func TestTheUpdatePRDropsTheRetiredLicenseBlock(t *testing.T) {
 		}
 	}
 }
+
+// A pin on the retired canary package takes the canary tag of the one
+// package, and its update PR moves the package line to the channel line.
+func TestTheUpdatePRMovesALegacyPinToTheCanaryChannel(t *testing.T) {
+	for _, f := range settings.Formats {
+		w := newWorld(t, f)
+		legacy := strings.Replace(settingsFor(f, v1, pin1), pkg, settings.LegacyCanaryPackage, 1)
+		if err := os.WriteFile(filepath.Join(w.repo, settings.RelPath(f)), []byte(legacy), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		gitRun(t, w.repo, "commit", "-q", "-am", "on cli-rc")
+		gitRun(t, w.repo, "push", "-q", "origin", "main")
+		w.mainRun(t, "success")
+		w.publish(t, v2, relOpts{tag: "rc"})
+		v, err := Engine(w.deps(t), Options{})
+		if err != nil || v != "opened #1 for "+v2 {
+			t.Fatalf("%s: %q %v\n%s", f, v, err, w.out)
+		}
+		committed := gitRun(t, w.bare, "show", "claudinite/engine-"+v2+":"+settings.RelPath(f)) + "\n"
+		e, err := settings.ReadEngine([]byte(committed), f)
+		if err != nil || e.Version != v2 || e.Package != pkg || e.HasPackage || e.Channel != settings.ChannelCanary || !e.HasChannel {
+			t.Fatalf("%s: committed settings %+v %v", f, e, err)
+		}
+		bridged, _, _ := settings.FromLegacyPackage([]byte(legacy), f)
+		if want, _ := settings.SetPin(bridged, f, v2, e.Manifest); committed != string(want) {
+			t.Errorf("%s: more than the bridge and the pin:\n%s\nwant\n%s", f, committed, want)
+		}
+		if err := settings.PinOnlyChange([]byte(legacy), []byte(committed), f); err != nil {
+			t.Errorf("%s: Land would refuse the bridge PR: %v", f, err)
+		}
+	}
+}

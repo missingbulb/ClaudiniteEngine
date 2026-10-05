@@ -25,3 +25,4 @@ v8-via-answers mount=ok packs=ok hooks=ok skills=skip scheduler=ok rules=ok
 v9-node-ci-step mount=ok packs=ok hooks=ok skills=skip scheduler=ok rules=ok
 v9-skills-index mount=ok packs=ok hooks=ok skills=ok scheduler=ok rules=ok
 v10-node-floor-beside-cn-floor mount=ok packs=ok hooks=ok skills=ok scheduler=ok rules=ok
+v11-engine-channel mount=skip packs=skip hooks=ok skills=skip scheduler=skip rules=skip

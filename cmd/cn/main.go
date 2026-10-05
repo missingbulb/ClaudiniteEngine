@@ -51,13 +51,13 @@ commands:
                  passes over it; needs GITHUB_TOKEN
   update land --pr N --sha SHA [--repo DIR]
                  merge update PR N (engine or packs), whose CI passed on SHA
-  init --packs ID[,ID] [--answer PACK/Q=TEXT]... [--channel stable|canary]
-                 [--package PKG] [--repo DIR]
+  init --packs ID[,ID] [--answer PACK/Q=TEXT]... [--channel stable|canary|staging]
+                 [--repo DIR]
                  adopt a repo: pin the newest allowed engine, write the
                  member files, vendor the packs and what they require,
                  seed and stamp for them; ends on the QUESTIONS, HANDOVER
                  and NEXT blocks
-  init --from-node [--channel stable|canary] [--package PKG] [--repo DIR]
+  init --from-node [--channel stable|canary|staging] [--repo DIR]
                  move a Node member: pin, import .claudinite-settings.json,
                  vendor its canon packs again, replace the Node hooks and
                  write the workflows; deletes no member file

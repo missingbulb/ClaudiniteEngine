@@ -1,6 +1,9 @@
 package npmreg
 
-import "github.com/missingbulb/ClaudiniteEngine/shared/version"
+import (
+	"github.com/missingbulb/ClaudiniteEngine/shared/settings"
+	"github.com/missingbulb/ClaudiniteEngine/shared/version"
+)
 
 // States lists the versions held and revoked, each with its reason, as
 // npm's deprecation messages say them.
@@ -50,16 +53,41 @@ type Choice struct {
 	Skipped *Skip
 }
 
-// Candidate picks the newest version of the channel package that is newer
-// than pin, not deprecated on npm and not held or revoked.
-func Candidate(pin string, p *Packument, s States) Choice {
+// Tags are the npm dist-tags an engine channel takes releases from: its
+// own and every more stable one's, so a canary repo also takes a promoted
+// release newer than the last candidate. An unknown channel takes none.
+func Tags(channel string) []string {
+	switch channel {
+	case settings.ChannelStable:
+		return []string{"latest"}
+	case settings.ChannelCanary:
+		return []string{"latest", "rc"}
+	case settings.ChannelStaging:
+		return []string{"latest", "rc", "staging"}
+	}
+	return nil
+}
+
+// Candidate picks, among the versions channel's tags point at, the newest
+// that is newer than pin, not deprecated on npm and not held or revoked.
+// A version no tag points at is never a candidate.
+func Candidate(pin, channel string, p *Packument, s States) Choice {
 	var c Choice
 	newer := func(a, b string) bool {
 		n, err := version.Compare(a, b)
 		return err == nil && n > 0
 	}
+	if p == nil {
+		return c
+	}
+	tagged := map[string]bool{}
+	for _, t := range Tags(channel) {
+		if v := p.DistTags[t]; v != "" {
+			tagged[v] = true
+		}
+	}
 	for v, e := range p.Versions {
-		if _, err := version.Parse(v); err != nil {
+		if _, err := version.Parse(v); err != nil || !tagged[v] {
 			continue
 		}
 		reason := ""

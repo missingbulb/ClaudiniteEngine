@@ -23,7 +23,6 @@ func cmdInit(args []string, stdout, stderr io.Writer) error {
 	fs := flag.NewFlagSet("init", flag.ContinueOnError)
 	packList := fs.String("packs", "", "")
 	channel := fs.String("channel", "stable", "")
-	pkg := fs.String("package", adopt.DefaultPackage, "")
 	repo := fs.String("repo", ".", "")
 	fromNode := fs.Bool("from-node", false, "")
 	var answers answerFlags
@@ -55,7 +54,7 @@ func cmdInit(args []string, stdout, stderr io.Writer) error {
 	reader, closeReader := packReader(roots, stdout)
 	defer closeReader()
 	in := adopt.Input{
-		Repo: *repo, FullName: initFullName(*repo), Channel: *channel, Package: *pkg,
+		Repo: *repo, FullName: initFullName(*repo), Channel: *channel,
 		Fetch:  update.FetchInput{Registry: reg, Roots: roots, CacheRoot: paths.CacheRoot(), Platform: version.Platform(), Now: time.Now()},
 		Reader: reader, Timeout: childTimeout, Out: stdout, Answers: answers,
 	}

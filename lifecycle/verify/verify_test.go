@@ -78,7 +78,7 @@ func ids(fs []findings.Finding, class findings.Class) []string {
 // newShape is a member in the shape this release writes: no finding.
 func newShape(t *testing.T) string {
 	t.Helper()
-	dir := copyTree(t, filepath.Join(shapes, "v1-yaml"))
+	dir := copyTree(t, filepath.Join(shapes, "v11-engine-channel"))
 	_ = os.Remove(filepath.Join(dir, ".gitignore"))
 	write(t, dir, ".claudinite/.gitignore", "bin/\n")
 	write(t, dir, ".claudinite/launch", string(launcherBytes(t)))
@@ -137,8 +137,12 @@ func TestRules(t *testing.T) {
 		}, []string{"engine-pin"}, nil},
 		{"bad package", func(t *testing.T, d string) {
 			raw, _ := os.ReadFile(filepath.Join(d, ".claudinite/settings.yaml"))
-			write(t, d, ".claudinite/settings.yaml", strings.Replace(string(raw), `"@claudinite/cli-rc"`, `"@claudinite/cli-beta"`, 1))
+			write(t, d, ".claudinite/settings.yaml", strings.Replace(string(raw), "engine:\n", "engine:\n  package: \"@claudinite/cli-beta\"\n", 1))
 		}, []string{"engine-pin"}, nil},
+		{"a pin on the retired canary package", func(t *testing.T, d string) {
+			raw, _ := os.ReadFile(filepath.Join(d, ".claudinite/settings.yaml"))
+			write(t, d, ".claudinite/settings.yaml", strings.Replace(string(raw), "  channel: \"staging\"\n", "  package: \"@claudinite/cli-rc\"\n", 1))
+		}, nil, []string{"engine-package"}},
 		{"edited launcher", func(t *testing.T, d string) { write(t, d, ".claudinite/launch", string(launcherBytes(t))+"# edited\n") }, []string{"launcher"}, nil},
 		{"no launcher", func(t *testing.T, d string) { _ = os.Remove(filepath.Join(d, ".claudinite/launch")) }, []string{"launcher"}, nil},
 		{"no SessionStart", func(t *testing.T, d string) {

@@ -30,6 +30,14 @@ var Formats = []Format{YAML, TOML, JSON}
 // DefaultPackage is the channel a pin without engine.package reads.
 const DefaultPackage = "@claudinite/cli"
 
+// ChannelStaging is the engine channel of quick linux-only builds, beside
+// ChannelStable and ChannelCanary.
+const ChannelStaging = "staging"
+
+// EngineChannelPattern is engine.channel's values; the launcher reads no
+// channel.
+var EngineChannelPattern = regexp.MustCompile(`^(stable|canary|staging)$`)
+
 // The launcher's strict patterns.
 var (
 	VersionPattern  = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+$`)
@@ -60,6 +68,10 @@ type Engine struct {
 	// HasPackage is false when engine.package is absent and Package is the
 	// default.
 	HasPackage bool
+	// Channel is the npm dist-tag the updater follows, by its channel name;
+	// absent, it is stable.
+	Channel    string
+	HasChannel bool
 }
 
 // span is a byte range of the file holding one "line" of the engine block:
@@ -248,6 +260,17 @@ func ReadEngine(raw []byte, f Format) (Engine, error) {
 	if !e.HasPackage {
 		e.Package = DefaultPackage
 	}
+	if err := get("channel", EngineChannelPattern, `"stable", "canary" or "staging"`, &e.Channel, false); err != nil {
+		return Engine{}, err
+	}
+	e.HasChannel = e.Channel != ""
+	switch {
+	case e.HasChannel:
+	case e.Package == LegacyCanaryPackage:
+		e.Channel = ChannelCanary
+	default:
+		e.Channel = ChannelStable
+	}
 	return e, nil
 }
 
@@ -282,9 +305,20 @@ func SetPin(raw []byte, f Format, version, manifest string) ([]byte, error) {
 }
 
 // PinOnlyChange refuses unless new is old with at most engine.version and
-// engine.manifest changed, both still valid, and the retired license block
-// dropped.
+// engine.manifest changed, both still valid, the retired license block
+// dropped and a legacy package moved to its channel.
 func PinOnlyChange(old, new []byte, f Format) error {
+	err := pinOnlyChange(old, new, f)
+	if err == nil {
+		return nil
+	}
+	if bridged, ok, berr := FromLegacyPackage(old, f); berr == nil && ok && pinOnlyChange(bridged, new, f) == nil {
+		return nil
+	}
+	return err
+}
+
+func pinOnlyChange(old, new []byte, f Format) error {
 	oe, err := ReadEngine(old, f)
 	if err != nil {
 		return fmt.Errorf("the base settings: %w", err)
@@ -295,6 +329,9 @@ func PinOnlyChange(old, new []byte, f Format) error {
 	}
 	if oe.Package != ne.Package || oe.HasPackage != ne.HasPackage {
 		return errors.New("engine.package changed")
+	}
+	if oe.Channel != ne.Channel || oe.HasChannel != ne.HasChannel {
+		return errors.New("engine.channel changed")
 	}
 	moved, err := SetPin(old, f, ne.Version, ne.Manifest)
 	if err != nil {
