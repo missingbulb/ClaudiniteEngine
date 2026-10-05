@@ -1,15 +1,18 @@
 // Command pipeline prints what the release workflows need from package
-// release: package names, the release kind, the publish mode, and the
-// bodies of the comments and issues they post.
+// release: package names, the release kind, the publish mode, the bodies
+// of the comments and issues they post, and whether npm holds what a
+// release published.
 package main
 
 import (
 	"flag"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/missingbulb/ClaudiniteEngine/release"
 )
@@ -22,6 +25,7 @@ const usage = `usage:
   pipeline publish-mode --tag rc|staging --signing release --dry-run true|false --npm-versions FILE
   pipeline deprecate-commands --action hold|revoke|release --version V [--reason R] --versions-dir DIR
   pipeline unpublish-commands --version V --versions-dir DIR --dist-tags FILE
+  pipeline npm-holds --dist DIR --version V [--registry URL] [--timeout DURATION]
 
 A --versions-dir holds each CLI package's ` + "`npm view <pkg> versions --json`" + ` at
 <DIR>/<package name>.json.
@@ -64,6 +68,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return deprecateCommands(args[1:], stdout, stderr)
 	case "unpublish-commands":
 		return unpublishCommands(args[1:], stdout, stderr)
+	case "npm-holds":
+		return npmHolds(args[1:], stdout, stderr)
 	}
 	fmt.Fprintf(stderr, "pipeline: unknown command %q\n%s", args[0], usage)
 	return 2
@@ -95,6 +101,27 @@ func publishMode(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "::notice::publish %s: %s\n", m.Name, m.Notice)
 	}
 	fmt.Fprintf(stdout, "mode=%s\n", m.Name)
+	return 0
+}
+
+// npmHolds exits 0 once the registry names the integrity of every
+// tarball the dist holds.
+func npmHolds(args []string, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("npm-holds", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	in := release.HoldsInput{HTTP: &http.Client{Timeout: 30 * time.Second}, Every: 5 * time.Second, Log: stdout}
+	fs.StringVar(&in.Dist, "dist", "", "")
+	fs.StringVar(&in.Version, "version", "", "")
+	fs.StringVar(&in.Registry, "registry", "https://registry.npmjs.org", "")
+	fs.DurationVar(&in.Timeout, "timeout", 3*time.Minute, "")
+	if err := fs.Parse(args); err != nil || fs.NArg() != 0 || in.Dist == "" || in.Version == "" {
+		fmt.Fprint(stderr, usage)
+		return 2
+	}
+	if err := release.NPMHolds(in); err != nil {
+		fmt.Fprintln(stderr, err)
+		return 1
+	}
 	return 0
 }
 

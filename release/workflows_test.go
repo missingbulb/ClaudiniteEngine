@@ -221,7 +221,7 @@ func TestReleaseGatesThePublish(t *testing.T) {
 	}
 	// The order a signed candidate is published in: the bytes build hashed,
 	// the signature, the key gone, the signature verified, then npm.
-	order := []string{"name: the files build hashed", "release/sign.sh", "run: rm -f \"$RUNNER_TEMP/release.key\"", "go run ./release/manifest verify", "publish-mode", "release/publish.sh", "git push origin \"v$VERSION\""}
+	order := []string{"name: the files build hashed", "release/sign.sh", "run: rm -f \"$RUNNER_TEMP/release.key\"", "go run ./release/manifest verify", "publish-mode", "release/publish.sh", "pipeline npm-holds --dist dist", "git push origin \"v$VERSION\""}
 	last, prev := -1, "the start"
 	for _, step := range order {
 		i := strings.Index(publish, step)
@@ -233,8 +233,21 @@ func TestReleaseGatesThePublish(t *testing.T) {
 	if !strings.Contains(publish, "      - if: steps.mode.outputs.mode == 'real'\n        name: tag the commit\n") {
 		t.Errorf("the publish job does not tag only after a real publish:\n%s", publish)
 	}
-	if !strings.Contains(jobBlock(t, wf, "smoke-published"), "    if: ${{ !cancelled() && needs.publish.result == 'success' && needs.publish.outputs.mode == 'real' }}\n") {
-		t.Error("smoke-published does not run only after a real publish")
+	if !strings.Contains(publish, "      - if: steps.mode.outputs.mode == 'real'\n        name: npm holds the bytes this run built\n") {
+		t.Errorf("the publish job does not check npm's integrity only after a real publish:\n%s", publish)
+	}
+	fromNPM := jobBlock(t, wf, "from-npm")
+	for _, want := range []string{
+		"    if: ${{ !cancelled() && needs.publish.result == 'success' && needs.publish.outputs.mode == 'real' }}\n",
+		"    permissions:\n      actions: write\n    steps:",
+		"gh workflow run from-npm.yml --repo \"$GITHUB_REPOSITORY\" --ref \"v$VERSION\"",
+	} {
+		if !strings.Contains(fromNPM, want) {
+			t.Errorf("the from-npm job lacks %q:\n%s", want, fromNPM)
+		}
+	}
+	if strings.Contains(fromNPM, "npm-wait") || jobBlock(t, wf, "smoke-published") != "" {
+		t.Error("release.yml still waits for npm to serve its tarballs")
 	}
 }
 
@@ -351,18 +364,24 @@ func TestLivePacksRuns(t *testing.T) {
 	}
 }
 
-// smoke-published waits on npm through release/npm-wait.sh, which keeps the
-// launcher's URLs untouched until npm serves them.
-func TestSmokePublishedWaitsThroughNPMWait(t *testing.T) {
+// from-npm.yml waits on npm through release/npm-wait.sh, which keeps the
+// launcher's URLs untouched until npm serves them, then installs the
+// release on a clean repo and opens a release-blocker issue on failure.
+func TestFromNPMWaitsThroughNPMWait(t *testing.T) {
 	t.Parallel()
-	job := jobBlock(t, "../.github/workflows/release.yml", "smoke-published")
+	job := jobBlock(t, "../.github/workflows/from-npm.yml", "from-npm")
 	if job == "" {
-		t.Fatal("release.yml has no smoke-published job")
+		t.Fatal("from-npm.yml has no from-npm job")
 	}
 	if !regexp.MustCompile(`(?m)^\s*run: sh release/npm-wait\.sh --package @claudinite/cli --version `).MatchString(job) {
-		t.Errorf("smoke-published does not wait through release/npm-wait.sh:\n%s", job)
+		t.Errorf("from-npm does not wait through release/npm-wait.sh:\n%s", job)
+	}
+	for _, want := range []string{"release/smoke-platform.sh --registry https://registry.npmjs.org", "release/pipeline blocker-issue", "      issues: write\n"} {
+		if !strings.Contains(job, want) {
+			t.Errorf("from-npm lacks %q:\n%s", want, job)
+		}
 	}
 	if strings.Contains(job, "curl ") {
-		t.Errorf("smoke-published looks at npm itself:\n%s", job)
+		t.Errorf("from-npm looks at npm itself:\n%s", job)
 	}
 }
