@@ -1,7 +1,7 @@
 # The full check: every test short mode skips, the rehearsal's release built, signed, smoked
 # and rehearsed, the ported packs' suites against this cn, and the per-call hooks' latency
-# budgets. Nightly and on demand; a release calls it before stable. A red nightly opens, or
-# comments on, one issue.
+# budgets. Nightly and on demand, and promote.yml runs it on the version it is about to make
+# stable. A red nightly opens, or comments on, one issue.
 name: full
 
 on:
@@ -9,6 +9,11 @@ on:
     - cron: "17 2 * * *"
   workflow_dispatch:
   workflow_call:
+    inputs:
+      ref:
+        description: The commit to check; empty is the calling run's own
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -18,6 +23,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref }}
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: "1.24"
@@ -31,6 +38,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref }}
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: "1.24"
@@ -67,6 +76,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref }}
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: "1.24"
@@ -94,6 +105,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref }}
       # The hook-latency probe's payloads are the frozen Node shelf's packs.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

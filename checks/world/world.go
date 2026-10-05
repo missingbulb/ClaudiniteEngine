@@ -167,7 +167,7 @@ func guard(in Input) error {
 // the launcher. On a repo whose base holds neither, it is the adoption (or
 // the move from the Node engine) writing the first pin, which must verify.
 // Otherwise the person may change anything in the settings file but its
-// engine block, and never the launcher.
+// engine block, save engine.channel, and never the launcher.
 func personGuard(in Input, base string, pinFiles []string) error {
 	refuse := func() error {
 		return fmt.Errorf("%s changes %s; only the update bot (%s) may move the engine pin or the launcher, through its update PR", in.PRAuthor, strings.Join(pinFiles, " and "), Bot)
@@ -235,7 +235,13 @@ func personGuard(in Input, base string, pinFiles []string) error {
 			return err
 		}
 		now, err := settings.ReadEngine(cur, format)
-		if err != nil || now != was {
+		if err != nil {
+			return refuse()
+		}
+		// The channel is the person's choice of which releases to take; the
+		// update bot still moves the pin.
+		now.Channel, now.HasChannel = was.Channel, was.HasChannel
+		if now != was {
 			return refuse()
 		}
 	}

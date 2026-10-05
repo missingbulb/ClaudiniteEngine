@@ -17,9 +17,6 @@ import (
 // their config, its dormancy and each vendored canon pack's version.
 const MemberFile = ".claudinite/flat/member.GENERATED.json"
 
-// canaryPackage is the engine package published on the canary channel.
-const canaryPackage = "@claudinite/cli-rc"
-
 // MemberEngine is the pin as the member file states it.
 type MemberEngine struct {
 	Package string `json:"package"`
@@ -52,14 +49,6 @@ type Member struct {
 	Held    map[string]string `json:"held"`
 }
 
-// engineChannel is the channel a pin's package is published on.
-func engineChannel(pkg string) string {
-	if pkg == canaryPackage {
-		return settings.ChannelCanary
-	}
-	return settings.ChannelStable
-}
-
 // ReadMember is the member file's content for repo: false when the repo
 // keeps no .claudinite/settings.* (a Node member, or the shelf). packs
 // are the loaded packs, whose canon versions are the held ones.
@@ -75,7 +64,7 @@ func ReadMember(repo string, packs []packset.Pack) (Member, bool, error) {
 	m := Member{Version: Version, Held: map[string]string{}}
 	m.Settings.Path, m.Settings.Format = settings.RelPath(f), string(f)
 	if e, err := settings.ReadEngine(raw, f); err == nil {
-		m.Engine = &MemberEngine{Package: e.Package, Version: e.Version, Channel: engineChannel(e.Package)}
+		m.Engine = &MemberEngine{Package: e.Package, Version: e.Version, Channel: e.Channel}
 	}
 	declared, err := settings.ReadPacks(raw, f)
 	if err != nil {

@@ -4,6 +4,7 @@ import (
 	"flag"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -27,26 +28,22 @@ func golden(t *testing.T, name, got string) {
 	}
 }
 
-func TestPackagesAreExactlyThe13(t *testing.T) {
+func TestPackagesAreExactlyThe7(t *testing.T) {
 	t.Parallel()
-	want := map[string][2]string{
-		"@claudinite/cli":                 {"promote.yml", "promote"},
-		"@claudinite/cli-linux-x64":       {"promote.yml", "promote"},
-		"@claudinite/cli-linux-arm64":     {"promote.yml", "promote"},
-		"@claudinite/cli-darwin-x64":      {"promote.yml", "promote"},
-		"@claudinite/cli-darwin-arm64":    {"promote.yml", "promote"},
-		"@claudinite/cli-windows-x64":     {"promote.yml", "promote"},
-		"@claudinite/sdk":                 {"promote.yml", "promote"},
-		"@claudinite/cli-rc":              {"release.yml", "release"},
-		"@claudinite/cli-rc-linux-x64":    {"release.yml", "release"},
-		"@claudinite/cli-rc-linux-arm64":  {"release.yml", "release"},
-		"@claudinite/cli-rc-darwin-x64":   {"release.yml", "release"},
-		"@claudinite/cli-rc-darwin-arm64": {"release.yml", "release"},
-		"@claudinite/cli-rc-windows-x64":  {"release.yml", "release"},
+	release := Publisher{Workflow: "release.yml", Environment: "release"}
+	promote := Publisher{Workflow: "promote.yml", Environment: "promote", DistTag: true}
+	want := map[string][]Publisher{
+		"@claudinite/cli":              {release, promote},
+		"@claudinite/cli-linux-x64":    {release},
+		"@claudinite/cli-linux-arm64":  {release},
+		"@claudinite/cli-darwin-x64":   {release},
+		"@claudinite/cli-darwin-arm64": {release},
+		"@claudinite/cli-windows-x64":  {release},
+		"@claudinite/sdk":              {{Workflow: "promote.yml", Environment: "promote"}},
 	}
 	got := Packages()
-	if len(got) != 13 {
-		t.Fatalf("%d packages, want 13", len(got))
+	if len(got) != 7 {
+		t.Fatalf("%d packages, want 7", len(got))
 	}
 	seen := map[string]bool{}
 	for _, p := range got {
@@ -59,16 +56,49 @@ func TestPackagesAreExactlyThe13(t *testing.T) {
 			t.Errorf("%s listed twice", p.Name)
 		}
 		seen[p.Name] = true
-		if p.Workflow != w[0] || p.Environment != w[1] {
-			t.Errorf("%s: publisher %s/%s, want %s/%s", p.Name, p.Workflow, p.Environment, w[0], w[1])
+		same := len(p.Publishers) == len(w)
+		for i := 0; same && i < len(w); i++ {
+			same = p.Publishers[i] == w[i]
+		}
+		if !same {
+			t.Errorf("%s: publishers %+v, want %+v", p.Name, p.Publishers, w)
 		}
 		if !ValidPackageName(p.Name) {
 			t.Errorf("%s fails ValidPackageName", p.Name)
 		}
 	}
-	for _, bad := range []string{"@claudinite/cli-win32-x64", "@claudinite/cli-rc-linux-x86", "@evil/cli", "@claudinite/sdk-linux-x64x", "@claudinite/cli-rc-"} {
+	for _, bad := range []string{"@claudinite/cli-win32-x64", "@claudinite/cli-rc", "@claudinite/cli-rc-linux-x64", "@evil/cli", "@claudinite/sdk-linux-x64x", "@claudinite/cli-windows-arm64"} {
 		if ValidPackageName(bad) {
 			t.Errorf("ValidPackageName(%q) = true", bad)
+		}
+	}
+}
+
+// Every release publishes the same six packages under one dist-tag.
+func TestCLIPackages(t *testing.T) {
+	t.Parallel()
+	got := strings.Join(CLIPackages(), " ")
+	if got != "@claudinite/cli @claudinite/cli-linux-x64 @claudinite/cli-linux-arm64 @claudinite/cli-darwin-x64 @claudinite/cli-darwin-arm64 @claudinite/cli-windows-x64" {
+		t.Errorf("CLIPackages() = %s", got)
+	}
+}
+
+// A full release is the rc candidate on all five platforms; a staging
+// build is linux-x64 alone, under its own tag.
+func TestReleaseKinds(t *testing.T) {
+	t.Parallel()
+	for kind, want := range map[string]string{
+		"full":    "rc canary linux-x64 linux-arm64 darwin-x64 darwin-arm64 windows-x64",
+		"staging": "staging staging linux-x64",
+	} {
+		k, err := ReleaseKindOf(kind)
+		if got := k.Tag + " " + k.Channel + " " + strings.Join(k.Platforms, " "); err != nil || got != want {
+			t.Errorf("ReleaseKindOf(%q) = %q, %v; want %q", kind, got, err, want)
+		}
+	}
+	for _, bad := range []string{"", "latest", "rc", "stable"} {
+		if k, err := ReleaseKindOf(bad); err == nil {
+			t.Errorf("ReleaseKindOf(%q) = %+v, want an error", bad, k)
 		}
 	}
 }

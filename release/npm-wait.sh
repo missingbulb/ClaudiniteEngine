@@ -1,6 +1,6 @@
 #!/bin/sh
 # Waits until registry.npmjs.org serves the tarballs the launcher fetches for
-# one release and platform: the channel package's and the platform package's.
+# one release and platform: the manifest package's and the platform package's.
 #
 #   release/npm-wait.sh --package NAME --version V --platform P [--timeout SECONDS] [--registry URL]
 #

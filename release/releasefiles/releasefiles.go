@@ -125,10 +125,10 @@ func HashFile(path string) (string, int64, error) {
 	return hex.EncodeToString(h.Sum(nil)), n, nil
 }
 
-// ScanBinaries reads dist/bin/<platform>/<binary> for all five platforms.
-func ScanBinaries(dist string) (map[string]Binary, error) {
+// ScanBinaries reads dist/bin/<platform>/<binary> for each of platforms.
+func ScanBinaries(dist string, platforms []string) (map[string]Binary, error) {
 	out := map[string]Binary{}
-	for _, p := range version.Platforms {
+	for _, p := range platforms {
 		name := BinaryName(p)
 		sum, size, err := HashFile(filepath.Join(dist, "bin", p, name))
 		if err != nil {

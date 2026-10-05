@@ -14,38 +14,32 @@ import (
 	"strings"
 	"time"
 
-	"github.com/missingbulb/ClaudiniteEngine/release"
 	"github.com/missingbulb/ClaudiniteEngine/release/releasefiles"
 	"github.com/missingbulb/ClaudiniteEngine/shared/sign"
 	"github.com/missingbulb/ClaudiniteEngine/shared/version"
 )
 
-// Check verifies the downloaded rc tarballs of ver in dir before they are
-// republished: the manifest's signature against the roots in rootsDir,
-// every platform binary against its manifest entry, the candidate
-// checkout's head against the commit the manifest names, and stableTest,
-// the candidate's `go test -tags stable ./shared/trust`. rootsDir is the
-// dispatching checkout's, never the candidate's, so the candidate cannot
-// bring its own trust. It returns pass or refuse, why, and the stable
-// test's own verdict (pass, fail, or not-run when the bytes were refused
-// first), which the publish job hands to publish-mode.
+// Check verifies the downloaded @claudinite/cli tarballs of ver in dir
+// before latest moves onto them: the manifest's signature against the
+// roots in rootsDir, all five platforms listed and every binary against
+// its manifest entry, the candidate checkout's head against the commit the
+// manifest names, and stableTest, the candidate's `go test -tags stable
+// ./shared/trust`. rootsDir is the dispatching checkout's, never the
+// candidate's, so the candidate cannot bring its own trust. It returns
+// pass or refuse, why, and the stable test's own verdict (pass, fail, or
+// not-run when the bytes were refused first).
 func Check(dir, ver, rootsDir, head string, stableTest func() error) (string, string, string) {
 	if reason := checkBytes(dir, ver, rootsDir, head); reason != "" {
 		return "refuse", reason, "not-run"
 	}
-	result := "pass"
 	if err := stableTest(); err != nil {
-		result = "fail"
+		return "refuse", "go test -tags stable ./shared/trust does not pass at this commit: latest never points at a build embedding the development roots", "fail"
 	}
-	m := release.PublishMode(release.ModeInput{Channel: "stable", Signing: "release", NpmVersions: `"` + ver + `"`, StableTest: result})
-	if m.Name == "refuse" {
-		return "refuse", m.Notice, result
-	}
-	return "pass", fmt.Sprintf("%s: signature, five binaries and the stable build check verified", ver), result
+	return "pass", fmt.Sprintf("%s: signature, five binaries and the stable build check verified", ver), "pass"
 }
 
 func checkBytes(dir, ver, rootsDir, head string) string {
-	channel := filepath.Join(dir, "cli-rc-"+ver+".tgz")
+	channel := filepath.Join(dir, "cli-"+ver+".tgz")
 	manifest, err := tarFile(channel, "package/manifest.json")
 	if err != nil {
 		return err.Error()
@@ -72,15 +66,21 @@ func checkBytes(dir, ver, rootsDir, head string) string {
 	if m.Version != ver {
 		return fmt.Sprintf("the manifest is for %s, not %s", m.Version, ver)
 	}
+	var lacks []string
+	for _, p := range version.Platforms {
+		if _, ok := m.Binaries[p]; !ok {
+			lacks = append(lacks, p)
+		}
+	}
+	if len(lacks) > 0 {
+		return fmt.Sprintf("%s is a staging build: its manifest lists no %s binary, and only a full release, built for all five platforms, is promoted", ver, strings.Join(lacks, ", "))
+	}
 	if len(m.Commit) < 7 || !strings.HasPrefix(head, m.Commit) {
 		return fmt.Sprintf("the candidate checkout is at %s, but the manifest was built from %s; the v%s tag moved", head, m.Commit, ver)
 	}
 	for _, p := range version.Platforms {
-		e, ok := m.Binaries[p]
-		if !ok {
-			return "the manifest lists no " + p + " binary"
-		}
-		bin, err := tarFile(filepath.Join(dir, "cli-rc-"+p+"-"+ver+".tgz"), "package/bin/"+e.File)
+		e := m.Binaries[p]
+		bin, err := tarFile(filepath.Join(dir, "cli-"+p+"-"+ver+".tgz"), "package/bin/"+e.File)
 		if err != nil {
 			return p + ": " + err.Error()
 		}

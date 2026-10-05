@@ -1,64 +1,95 @@
 // Package release holds the release pipeline's decisions as data and pure
 // functions, so the workflows and scripts read them rather than restate
-// them: the npm packages and their trusted publishers, the publish mode,
-// and the text the pipeline posts.
+// them: the npm packages and their trusted publishers, the release kinds,
+// and the publish mode.
 package release
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 
 	"github.com/missingbulb/ClaudiniteEngine/shared/version"
 )
 
-// Package is one npm package the pipeline publishes, with the one
-// (workflow, environment) pair npmjs.com trusts to publish it.
+// CLI is the engine's one npm package: it carries the manifest and the
+// launcher, and each platform's binary is CLI-<platform>. Its channels are
+// npm dist-tags, all on the same versions.
+const CLI = "@claudinite/cli"
+
+// The dist-tags: a release publishes under TagRC or TagStaging, and
+// promotion moves TagLatest onto an rc version it verified.
+const (
+	TagRC      = "rc"
+	TagStaging = "staging"
+	TagLatest  = "latest"
+)
+
+// Package is one npm package the pipeline publishes, with the (workflow,
+// environment) pairs npmjs.com trusts to publish it.
 type Package struct {
-	Name        string
-	Channel     string // "rc" or "stable"
-	Workflow    string
-	Environment string
+	Name       string
+	Publishers []Publisher
 }
 
-var packageName = regexp.MustCompile(`^@claudinite/(cli|cli-rc|sdk)(-(linux|darwin|windows)-(x64|arm64))?$`)
+// Publisher is one trusted publisher; DistTag also grants it npm dist-tag,
+// which promotion needs and publishing does not.
+type Publisher struct {
+	Workflow    string
+	Environment string
+	DistTag     bool
+}
+
+var packageName = regexp.MustCompile(`^@claudinite/(cli|sdk)(-(linux|darwin|windows)-(x64|arm64))?$`)
 
 // ValidPackageName reports whether name is one the pipeline may publish.
 func ValidPackageName(name string) bool {
-	return packageName.MatchString(name) && !strings.HasPrefix(name, "@claudinite/sdk-") && name != "@claudinite/cli-windows-arm64" && name != "@claudinite/cli-rc-windows-arm64"
+	return packageName.MatchString(name) && !strings.HasPrefix(name, "@claudinite/sdk-") && name != "@claudinite/cli-windows-arm64"
 }
 
-// ChannelOf is "rc" for @claudinite/cli-rc and its platform packages, else
-// "stable".
-func ChannelOf(name string) string {
-	if name == "@claudinite/cli-rc" || strings.HasPrefix(name, "@claudinite/cli-rc-") {
-		return "rc"
+// CLIPackages are the six packages every release publishes: CLI, then its
+// platform packages in manifest order.
+func CLIPackages() []string {
+	names := []string{CLI}
+	for _, p := range version.Platforms {
+		names = append(names, CLI+"-"+p)
 	}
-	return "stable"
+	return names
 }
 
-// Packages are the 13 @claudinite npm packages and the trusted publisher of
-// each: each channel's manifest package and five platform packages, and the
-// SDK.
+// ReleaseKind is what one release.yml dispatch builds, the dist-tag it
+// publishes under, and the engine channel (settings' engine.channel) whose
+// members take that tag.
+type ReleaseKind struct {
+	Tag       string
+	Channel   string
+	Platforms []string
+}
+
+// ReleaseKindOf maps release.yml's kind input: full is a release candidate
+// on all five platforms, which canaries take from rc; staging is a quick
+// linux-x64 build only the owner's opted-in repos take.
+func ReleaseKindOf(kind string) (ReleaseKind, error) {
+	switch kind {
+	case "full":
+		return ReleaseKind{Tag: TagRC, Channel: "canary", Platforms: version.Platforms}, nil
+	case "staging":
+		return ReleaseKind{Tag: TagStaging, Channel: "staging", Platforms: []string{"linux-x64"}}, nil
+	}
+	return ReleaseKind{}, fmt.Errorf("kind %q is neither full nor staging", kind)
+}
+
+// Packages are the @claudinite npm packages and the trusted publishers of
+// each: the CLI packages and the SDK.
 func Packages() []Package {
+	release := Publisher{Workflow: "release.yml", Environment: "release"}
 	var out []Package
-	for _, base := range []string{"@claudinite/cli-rc", "@claudinite/cli"} {
-		names := []string{base}
-		for _, p := range version.Platforms {
-			names = append(names, base+"-"+p)
+	for _, n := range CLIPackages() {
+		p := Package{Name: n, Publishers: []Publisher{release}}
+		if n == CLI {
+			p.Publishers = append(p.Publishers, Publisher{Workflow: "promote.yml", Environment: "promote", DistTag: true})
 		}
-		if base == "@claudinite/cli" {
-			names = append(names, "@claudinite/sdk")
-		}
-		for _, n := range names {
-			out = append(out, publisherOf(n))
-		}
+		out = append(out, p)
 	}
-	return out
-}
-
-func publisherOf(name string) Package {
-	if ChannelOf(name) == "rc" {
-		return Package{Name: name, Channel: "rc", Workflow: "release.yml", Environment: "release"}
-	}
-	return Package{Name: name, Channel: "stable", Workflow: "promote.yml", Environment: "promote"}
+	return append(out, Package{Name: "@claudinite/sdk", Publishers: []Publisher{{Workflow: "promote.yml", Environment: "promote"}}})
 }

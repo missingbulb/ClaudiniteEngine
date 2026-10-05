@@ -107,3 +107,66 @@ func TestPinOnlyChange(t *testing.T) {
 		t.Errorf("unchanged: %v", err)
 	}
 }
+
+// engine.channel names the releases the updater follows; absent, stable.
+func TestReadEngineChannel(t *testing.T) {
+	base := "engine:\n  version: \"1.1.0\"\n  manifest: \"" + pin1 + "\"\n"
+	for body, want := range map[string]string{
+		base:                              ChannelStable,
+		base + "  channel: \"canary\"\n":  ChannelCanary,
+		base + "  channel: \"staging\"\n": ChannelStaging,
+	} {
+		e, err := ReadEngine([]byte(body), YAML)
+		if err != nil || e.Channel != want || e.HasChannel != (want != ChannelStable) {
+			t.Errorf("%q: channel %q (has %v), %v; want %q", body, e.Channel, e.HasChannel, err, want)
+		}
+	}
+	if _, err := ReadEngine([]byte(base+"  channel: \"rc\"\n"), YAML); err == nil {
+		t.Error("an npm dist-tag name passed as a channel")
+	}
+	staged := base + "  channel: \"staging\"\n"
+	if err := PinOnlyChange([]byte(base), []byte(staged), YAML); err == nil {
+		t.Error("the update bot's pin change may not move the channel")
+	}
+}
+
+// A pin on the retired canary package reads as the canary channel, and the
+// update that moves it turns the package line into the channel line.
+func TestFromLegacyPackage(t *testing.T) {
+	legacy := map[Format]string{
+		YAML: "# mine\nengine:\n  package: \"@claudinite/cli-rc\"\n  version: \"1.1.0\"\n  manifest: \"" + pin1 + "\"\n",
+		TOML: "[engine]\npackage = \"@claudinite/cli-rc\"\nversion = \"1.1.0\"\nmanifest = \"" + pin1 + "\"\n",
+		JSON: "{\"engine\": {\"package\": \"@claudinite/cli-rc\", \"version\": \"1.1.0\", \"manifest\": \"" + pin1 + "\"}}\n",
+	}
+	for f, s := range legacy {
+		e, err := ReadEngine([]byte(s), f)
+		if err != nil || e.Channel != ChannelCanary || e.HasChannel {
+			t.Errorf("%s: %+v %v", f, e, err)
+		}
+		out, ok, err := FromLegacyPackage([]byte(s), f)
+		want := strings.Replace(strings.Replace(s, "package", "channel", 1), LegacyCanaryPackage, "canary", 1)
+		if err != nil || !ok || string(out) != want {
+			t.Errorf("%s: %v %v\ngot  %q\nwant %q", f, ok, err, out, want)
+		}
+		e, err = ReadEngine(out, f)
+		if err != nil || e.Package != DefaultPackage || e.HasPackage || e.Channel != ChannelCanary || !e.HasChannel {
+			t.Errorf("%s: moved %+v %v", f, e, err)
+		}
+		moved, _ := SetPin(out, f, "1.2.0", pin2)
+		if err := PinOnlyChange([]byte(s), moved, f); err != nil {
+			t.Errorf("%s: the bridge update refused: %v", f, err)
+		}
+		staged := strings.Replace(string(moved), "canary", "staging", 1)
+		if err := PinOnlyChange([]byte(s), []byte(staged), f); err == nil {
+			t.Errorf("%s: the bridge moved to a channel other than canary", f)
+		}
+	}
+	for _, s := range []string{
+		"engine:\n  version: \"1.1.0\"\n  manifest: \"" + pin1 + "\"\n",
+		"engine:\n  package: \"@claudinite/cli\"\n  version: \"1.1.0\"\n  manifest: \"" + pin1 + "\"\n",
+	} {
+		if out, ok, err := FromLegacyPackage([]byte(s), YAML); ok || err != nil || string(out) != s {
+			t.Errorf("not legacy, moved: %q %v", out, err)
+		}
+	}
+}

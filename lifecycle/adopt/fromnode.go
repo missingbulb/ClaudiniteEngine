@@ -81,7 +81,7 @@ func FromNode(in Input) error {
 	if err != nil {
 		return err
 	}
-	cfg, err := movedSettings(in.Package, got.Version, got.Integrity, in.Channel, decl)
+	cfg, err := movedSettings(in.Channel, got.Version, got.Integrity, decl)
 	if err != nil {
 		return err
 	}
@@ -89,7 +89,7 @@ func FromNode(in Input) error {
 	if err != nil {
 		return fmt.Errorf("the imported settings do not read back: %w", err)
 	}
-	chosen, err := resolve(in.Reader, declared.Declared, nil, in.Channel, got.Version, in.Out)
+	chosen, err := resolve(in.Reader, declared.Declared, nil, packsChannel(in.Channel), got.Version, in.Out)
 	if err != nil {
 		return err
 	}
@@ -181,15 +181,11 @@ func halfMoved(repo string, cause error) error {
 // movedSettings is the pinned settings file a moved member starts from:
 // the engine block, then the imported packs block with the channel first,
 // then the imported checks block.
-func movedSettings(pkg, version, integrity, channel string, decl node.Decl) ([]byte, error) {
+func movedSettings(channel, version, integrity string, decl node.Decl) ([]byte, error) {
 	var b bytes.Buffer
-	b.WriteString("engine:\n")
-	if pkg != DefaultPackage {
-		fmt.Fprintf(&b, "  package: %q\n", pkg)
-	}
-	fmt.Fprintf(&b, "  version: %q\n  manifest: %q\n", version, integrity)
+	b.WriteString(engineBlock(channel, version, integrity))
 	p := settings.NewOrdered()
-	p.Set("channel", channel)
+	p.Set("channel", packsChannel(channel))
 	if decl.Packs != nil {
 		for _, k := range decl.Packs.Keys() {
 			if k == "channel" {

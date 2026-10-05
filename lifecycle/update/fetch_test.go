@@ -11,7 +11,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/shared/version"
 )
 
-const pkg = "@claudinite/cli-rc"
+const pkg = "@claudinite/cli"
 
 func fetchIn(t *testing.T, r *registry, ver string) FetchInput {
 	t.Helper()

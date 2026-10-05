@@ -26,9 +26,9 @@ import (
 )
 
 const usage = `usage:
-  manifest write --dist DIR --version V --commit SHA --source REPO
+  manifest write --dist DIR --version V --commit SHA --source REPO [--platforms "P ..."]
   manifest sign --dist DIR --key RELEASE.key --cert RELEASE.cert.json
-  manifest verify --dist DIR --roots DIR
+  manifest verify --dist DIR --roots DIR [--platforms "P ..."]
   manifest sums --dist DIR
   manifest integrity FILE
 `
@@ -49,6 +49,11 @@ func run(args []string, stdout, stderr io.Writer) int {
 	cert := fs.String("cert", "", "")
 	roots := fs.String("roots", "", "")
 	source := fs.String("source", "", "")
+	platforms := version.Platforms
+	fs.Func("platforms", "", func(v string) (err error) {
+		platforms, err = parsePlatforms(v)
+		return err
+	})
 	if err := fs.Parse(args[1:]); err != nil {
 		fmt.Fprintf(stderr, "manifest: %v\n%s", err, usage)
 		return 2
@@ -56,11 +61,11 @@ func run(args []string, stdout, stderr io.Writer) int {
 	var err error
 	switch args[0] {
 	case "write":
-		err = write(*dist, *ver, *commit, *source)
+		err = write(*dist, *ver, *commit, *source, platforms)
 	case "sign":
 		err = signManifest(*dist, *key, *cert)
 	case "verify":
-		err = verify(*dist, *roots, stdout)
+		err = verify(*dist, *roots, platforms, stdout)
 	case "sums":
 		err = writeSums(*dist)
 	case "integrity":
@@ -83,6 +88,32 @@ func run(args []string, stdout, stderr io.Writer) int {
 	return 0
 }
 
+// parsePlatforms reads --platforms: release platforms separated by spaces
+// or commas, each once. Without the flag a release carries all five; a
+// staging build names linux-x64 alone.
+func parsePlatforms(v string) ([]string, error) {
+	known := map[string]bool{}
+	for _, p := range version.Platforms {
+		known[p] = true
+	}
+	var out []string
+	seen := map[string]bool{}
+	for _, p := range strings.FieldsFunc(v, func(r rune) bool { return r == ' ' || r == ',' }) {
+		if !known[p] {
+			return nil, fmt.Errorf("%q is not a release platform (%s)", p, strings.Join(version.Platforms, ", "))
+		}
+		if seen[p] {
+			return nil, fmt.Errorf("%s is named twice", p)
+		}
+		seen[p] = true
+		out = append(out, p)
+	}
+	if len(out) == 0 {
+		return nil, errors.New("--platforms names no platform")
+	}
+	return out, nil
+}
+
 func builtAt() string {
 	if s := os.Getenv("SOURCE_DATE_EPOCH"); s != "" {
 		if n, err := strconv.ParseInt(s, 10, 64); err == nil {
@@ -92,14 +123,14 @@ func builtAt() string {
 	return time.Now().UTC().Format(time.RFC3339)
 }
 
-func write(dist, ver, commit, source string) error {
+func write(dist, ver, commit, source string, platforms []string) error {
 	if dist == "" || commit == "" || source == "" {
 		return errors.New("write needs --dist, --version, --commit and --source")
 	}
 	if _, err := version.Parse(ver); err != nil {
 		return err
 	}
-	bins, err := releasefiles.ScanBinaries(dist)
+	bins, err := releasefiles.ScanBinaries(dist, platforms)
 	if err != nil {
 		return err
 	}
@@ -145,7 +176,7 @@ func signManifest(dist, keyPath, certPath string) error {
 	return os.WriteFile(filepath.Join(dist, "manifest.sig.json"), append(out, '\n'), 0o644)
 }
 
-func verify(dist, rootsDir string, stdout io.Writer) error {
+func verify(dist, rootsDir string, platforms []string, stdout io.Writer) error {
 	if dist == "" || rootsDir == "" {
 		return errors.New("verify needs --dist and --roots")
 	}
@@ -185,10 +216,10 @@ func verify(dist, rootsDir string, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
-	if len(m.Binaries) != len(version.Platforms) {
-		return fmt.Errorf("manifest lists %d binaries, want %d", len(m.Binaries), len(version.Platforms))
+	if len(m.Binaries) != len(platforms) {
+		return fmt.Errorf("manifest lists %d binaries, want %d", len(m.Binaries), len(platforms))
 	}
-	for _, p := range version.Platforms {
+	for _, p := range platforms {
 		e, ok := m.Binaries[p]
 		if !ok {
 			return fmt.Errorf("manifest lacks %s", p)

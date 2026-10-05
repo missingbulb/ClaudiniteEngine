@@ -256,10 +256,9 @@ func (n nodeFresh) adapt() fleet.FreshIn {
 		in.Held[id] = v
 	}
 	if in.Pin != "" && n.Canon.EngineVersion != nil {
-		p := &npmreg.Packument{Versions: map[string]npmreg.Version{}}
 		c := engine3(n.Canon.EngineVersion)
-		p.Versions[c] = npmreg.Version{Version: c}
-		in.EngineNext = npmreg.Candidate(in.Pin, p, npmreg.StatesFromPackument(p)).Version
+		p := &npmreg.Packument{Versions: map[string]npmreg.Version{c: {Version: c}}, DistTags: map[string]string{"latest": c}}
+		in.EngineNext = npmreg.Candidate(in.Pin, settings.ChannelStable, p, npmreg.StatesFromPackument(p)).Version
 	}
 	// Every pin meets the canon entry's floor: the stamps carry none.
 	pin := in.Pin

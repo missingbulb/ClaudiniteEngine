@@ -5,10 +5,11 @@
 # Stop), then cn selftest, then proves a one-character change to the pin is
 # refused and leaves nothing cached. Needs node and curl.
 #
-#   release/smoke-platform.sh --registry URL --package NAME --version V --pin SHA512
+#   release/smoke-platform.sh --registry URL --channel C --version V --pin SHA512
 #                             [--dist DIR] [--platform P] [--keep]
 #
-# --dist is the release the registry serves, checked for this platform's
+# The member is pinned to @claudinite/cli V on the engine channel C
+# (stable, canary or staging). --dist is the release the registry serves, checked for this platform's
 # binary first; --platform names the leg (default: this host's); --keep
 # leaves the temp dir for debugging. A registry with a self-signed
 # certificate needs the caller to make curl trust it: CURL_CA_BUNDLE, or on
@@ -18,16 +19,16 @@ cd "$(dirname "$0")/.."
 
 fail() { echo "smoke-platform: FAIL: $*" >&2; exit 1; }
 step() { echo "smoke-platform: $*"; }
-usage() { fail "usage: release/smoke-platform.sh --registry URL --package NAME --version V --pin SHA512 [--dist DIR] [--platform P] [--keep]"; }
+usage() { fail "usage: release/smoke-platform.sh --registry URL --channel C --version V --pin SHA512 [--dist DIR] [--platform P] [--keep]"; }
 
-registry='' package='' version='' pin='' dist='' platform='' keep=false
+registry='' channel='' version='' pin='' dist='' platform='' keep=false
 while [ $# -gt 0 ]; do
   case $1 in
-    --registry|--package|--version|--pin|--dist|--platform)
+    --registry|--channel|--version|--pin|--dist|--platform)
       [ $# -ge 2 ] || usage
       case $1 in
         --registry) registry=$2 ;;
-        --package) package=$2 ;;
+        --channel) channel=$2 ;;
         --version) version=$2 ;;
         --pin) pin=$2 ;;
         --dist) dist=$2 ;;
@@ -38,7 +39,7 @@ while [ $# -gt 0 ]; do
     *) usage ;;
   esac
 done
-for v in "$registry" "$package" "$version" "$pin"; do
+for v in "$registry" "$channel" "$version" "$pin"; do
   [ -n "$v" ] || usage
 done
 
@@ -61,7 +62,7 @@ if [ -n "$dist" ]; then
   [ -f "$dist/bin/$platform/$bin" ] || fail "no $platform binary in $dist/bin/$platform"
 fi
 [ "$platform" = "$host" ] || fail "the $platform leg runs on a $platform host; this is $host"
-step "leg $platform ($(uname -s) $(uname -m)), $package $version from $registry"
+step "leg $platform ($(uname -s) $(uname -m)), @claudinite/cli $version ($channel) from $registry"
 
 work=$(mktemp -d)
 cleanup() {
@@ -77,7 +78,7 @@ trap 'exit 1' HUP INT TERM
 
 member=$work/member
 mkdir -p "$work/home" "$work/cache"
-sh release/member-fixture.sh "$member" "$version" "$pin" "$package"
+sh release/member-fixture.sh "$member" "$version" "$pin" "$channel"
 
 # The environment of a Claude Code session on this fixture.
 unset GITHUB_ACTIONS
@@ -145,4 +146,4 @@ left=$(ls -A "$XDG_CACHE_HOME/claudinite/$version")
 [ -z "$left" ] || fail "cache for $version still holds: $left"
 step "pin change refused"
 
-step "ok ($platform, $package $version, $pin)"
+step "ok ($platform, @claudinite/cli $version, $pin)"

@@ -56,7 +56,8 @@ JSON
     ;;
   manager)
     settings=$dir/.claudinite/settings.yaml
-    grep -v '^  channel: "canary"$' "$settings" > "$settings.tmp"
+    # The packs channel only: the engine block has a channel of its own.
+    awk '/^[a-z]/ { block = $0 } !(block == "packs:" && $0 == "  channel: \"canary\"")' "$settings" > "$settings.tmp"
     mv "$settings.tmp" "$settings"
     printf '    - id: claudinite-dashboard\n      config:\n        mode: "fleet"\n        owner: "acme"\n' >> "$settings"
     sheepdog=$dir/.claudinite/shared/packs/claudinite-fleet-sheepdog

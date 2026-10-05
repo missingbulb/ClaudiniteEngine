@@ -32,7 +32,7 @@ import (
 )
 
 const (
-	pkg = "@claudinite/cli-rc"
+	pkg = "@claudinite/cli"
 	ver = "1.61001.1"
 )
 
@@ -100,7 +100,7 @@ func registry(t *testing.T) npmreg.Client {
 		}
 		if strings.Replace(strings.TrimPrefix(r.URL.EscapedPath(), "/"), "%2f", "/", 1) == pkg {
 			s := sha512.Sum512(channel)
-			p := npmreg.Packument{Name: pkg, Versions: map[string]npmreg.Version{}}
+			p := npmreg.Packument{Name: pkg, Versions: map[string]npmreg.Version{}, DistTags: map[string]string{"latest": ver, "rc": ver}}
 			var v npmreg.Version
 			v.Version = ver
 			v.Dist.Tarball, v.Dist.Integrity = srv.URL+path, "sha512-"+base64.StdEncoding.EncodeToString(s[:])
@@ -159,7 +159,7 @@ func newPacks(t *testing.T) *fakePacks {
 
 func input(t *testing.T, repo string, ids ...string) (Input, *bytes.Buffer) {
 	var out bytes.Buffer
-	return Input{Repo: repo, Packs: ids, Channel: "canary", Package: pkg, Reader: newPacks(t), Timeout: 10 * time.Second, Out: &out,
+	return Input{Repo: repo, Packs: ids, Channel: "canary", Reader: newPacks(t), Timeout: 10 * time.Second, Out: &out,
 		Fetch: update.FetchInput{Registry: registry(t), Roots: []ed25519.PublicKey{root.Public().(ed25519.PublicKey)},
 			CacheRoot: filepath.Join(t.TempDir(), "claudinite"), Platform: version.Platform(), Now: now}}, &out
 }
@@ -203,7 +203,7 @@ func TestInitAdoptsAnEmptyRepo(t *testing.T) {
 	}
 	raw, _ := os.ReadFile(filepath.Join(repo, ".claudinite/settings.yaml"))
 	e, err := settings.ReadEngine(raw, settings.YAML)
-	if err != nil || e.Version != ver || e.Package != pkg {
+	if err != nil || e.Version != ver || e.Package != pkg || e.HasPackage || e.Channel != "canary" {
 		t.Errorf("pin %+v %v", e, err)
 	}
 	p, err := settings.ReadPacks(raw, settings.YAML)

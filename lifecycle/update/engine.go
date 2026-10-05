@@ -191,6 +191,10 @@ func Engine(d Deps, o Options) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	// The update PR that moves a legacy pin also moves it to its channel.
+	if raw, _, err = settings.FromLegacyPackage(raw, f); err != nil {
+		return "", err
+	}
 	pin, err := settings.ReadEngine(raw, f)
 	if err != nil {
 		return "", err
@@ -225,7 +229,7 @@ func Engine(d Deps, o Options) (string, error) {
 // or its verify breaks this repo, opens its update PR. It returns the
 // candidate, empty for none, and the verdict.
 func propose(d Deps, o Options, f settings.Format, raw []byte, pin settings.Engine, p *npmreg.Packument, states States, prev *githubapi.PR, prevState string) (string, string, error) {
-	c := Candidate(pin.Version, p, states)
+	c := Candidate(pin.Version, pin.Channel, p, states)
 	if c.Skipped != nil {
 		fmt.Fprintf(d.Out, "%s skipped: %s\n", c.Skipped.Version, c.Skipped.Reason)
 	}

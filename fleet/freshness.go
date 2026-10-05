@@ -93,7 +93,7 @@ type FreshIn struct {
 }
 
 // Measure reads, for a covered awake member, what its own update would
-// decide: npmreg.Candidate over the pinned package's packument, and
+// decide: npmreg.Candidate over the release package's packument, and
 // packindex.Select over each declared pack's index. Only the reads the
 // classification needs are made.
 func Measure(m Member, hasScheduler bool, s Shelf) (FreshIn, error) {
@@ -102,11 +102,11 @@ func Measure(m Member, hasScheduler bool, s Shelf) (FreshIn, error) {
 		return in, nil
 	}
 	if in.Pin != "" {
-		p, err := s.Packument(m.Pin.Package)
+		p, err := s.Packument(settings.DefaultPackage)
 		if err != nil {
-			return in, fmt.Errorf("reading %s from npm: %v", m.Pin.Package, err)
+			return in, fmt.Errorf("reading %s from npm: %v", settings.DefaultPackage, err)
 		}
-		in.EngineNext = npmreg.Candidate(in.Pin, p, npmreg.StatesFromPackument(p)).Version
+		in.EngineNext = npmreg.Candidate(in.Pin, m.Pin.Channel, p, npmreg.StatesFromPackument(p)).Version
 	}
 	channel := m.Packs.Channel
 	if channel == "" {

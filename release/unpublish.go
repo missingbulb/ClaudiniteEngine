@@ -1,23 +1,23 @@
 package release
 
 import (
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"strings"
-
-	"github.com/missingbulb/ClaudiniteEngine/shared/version"
 )
 
-// UnpublishInput is an unpublish dispatch of promote.yml and what npm says
-// each package of UnpublishPackages holds: its `npm view <pkg> versions
-// --json`, keyed by package name.
+// UnpublishInput is an unpublish dispatch of promote.yml and what npm says:
+// each CLI package's `npm view <pkg> versions --json`, keyed by package
+// name, and `npm view @claudinite/cli dist-tags --json`.
 type UnpublishInput struct {
 	Version  string
 	Versions map[string]string
+	DistTags string
 }
 
 // Unpublishing is what the unpublish job does: the npm unpublish commands
-// for every rc package holding the version, or, when @claudinite/cli-rc has
+// for every CLI package holding the version, or, when @claudinite/cli has
 // no such version, a notice and nothing.
 type Unpublishing struct {
 	Exists   bool
@@ -25,43 +25,41 @@ type Unpublishing struct {
 	Notice   string
 }
 
-// UnpublishPackages are the packages an unpublish removes a version from:
-// @claudinite/cli-rc and its platform packages, in deprecate's order.
-func UnpublishPackages() []string {
-	names := []string{"@claudinite/cli-rc"}
-	for _, p := range version.Platforms {
-		names = append(names, "@claudinite/cli-rc-"+p)
-	}
-	return names
-}
-
 // npmVersion is the shape of an npm version string: no format this engine
 // reads is required, since a version in a retired format is one an
 // unpublish exists to remove.
 var npmVersion = regexp.MustCompile(`^[0-9A-Za-z.+-]+$`)
 
-// UnpublishCommands renders the removal of an rc version from npm. It
-// refuses, writing no command, when the version is the only one a package
-// holds: npm deletes a package whose last version is unpublished.
+// UnpublishCommands renders the removal of a version from npm. It refuses,
+// writing no command, when the version is the only one a package holds,
+// since npm deletes a package whose last version is unpublished; when it
+// is the version latest points at, which every member on the stable
+// channel is offered; and when npm's dist-tags cannot be read.
 func UnpublishCommands(in UnpublishInput) (Unpublishing, error) {
 	if !npmVersion.MatchString(in.Version) {
 		return Unpublishing{}, fmt.Errorf("version %q is not an npm version: want letters, digits, '.', '+' and '-'", in.Version)
 	}
 	held := map[string]map[string]bool{}
-	for _, n := range UnpublishPackages() {
+	for _, n := range CLIPackages() {
 		vs, err := npmVersions(in.Versions[n])
 		if err != nil {
 			return Unpublishing{}, fmt.Errorf("%s: %w", n, err)
 		}
 		held[n] = vs
 	}
-	base := UnpublishPackages()[0]
-	if !held[base][in.Version] {
-		return Unpublishing{Notice: fmt.Sprintf("%s has no version %s; nothing to unpublish", base, in.Version)}, nil
+	if !held[CLI][in.Version] {
+		return Unpublishing{Notice: fmt.Sprintf("%s has no version %s; nothing to unpublish", CLI, in.Version)}, nil
+	}
+	var tags map[string]string
+	if err := json.Unmarshal([]byte(strings.TrimSpace(in.DistTags)), &tags); err != nil {
+		return Unpublishing{}, fmt.Errorf("%s's dist-tags are unreadable, so whether %s is latest is unknown: %.80s", CLI, in.Version, in.DistTags)
+	}
+	if tags[TagLatest] == in.Version {
+		return Unpublishing{}, fmt.Errorf("refusing to unpublish %s, the version %s's latest tag points at: promote another version first", in.Version, CLI)
 	}
 	var only, missing []string
 	u := Unpublishing{Exists: true}
-	for _, n := range UnpublishPackages() {
+	for _, n := range CLIPackages() {
 		switch {
 		case !held[n][in.Version]:
 			missing = append(missing, n)

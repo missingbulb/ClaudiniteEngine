@@ -78,6 +78,7 @@ type relOpts struct {
 	deprecated  string
 	binary      []byte // the host binary's bytes
 	launcher    []byte // package/launch; default a stand-in naming ver
+	tag         string // the dist-tag that moves to ver when it is newer; default latest
 }
 
 // registry is a TLS stand-in for npm serving packuments and tarballs.
@@ -180,4 +181,13 @@ func (r *registry) publish(t *testing.T, pkg, ver string, o relOpts) {
 	v.Version, v.Deprecated = ver, o.deprecated
 	v.Dist.Tarball, v.Dist.Integrity = r.srv.URL+path, integrity(channel)
 	p.Versions[ver] = v
+	if o.tag == "" {
+		o.tag = "latest"
+	}
+	if p.DistTags == nil {
+		p.DistTags = map[string]string{}
+	}
+	if c, err := version.Compare(ver, p.DistTags[o.tag]); p.DistTags[o.tag] == "" || (err == nil && c > 0) {
+		p.DistTags[o.tag] = ver
+	}
 }
