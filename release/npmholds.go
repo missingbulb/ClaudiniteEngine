@@ -27,7 +27,7 @@ type HoldsInput struct {
 	Log      io.Writer
 }
 
-// NPMHolds proves the registry holds exactly the tarballs in Dist: for each
+// NPMHolds proves the registry holds exactly the tarballs in Dist/tarballs: for each
 // CLI package Dist has a tarball of, it polls the registry's version
 // document, which npm serves within seconds of a publish while the tarball
 // itself can answer 404 for minutes, until it names that tarball's
@@ -36,7 +36,7 @@ func NPMHolds(in HoldsInput) error {
 	start := time.Now()
 	checked := 0
 	for i, pkg := range CLIPackages() {
-		file := filepath.Join(in.Dist, strings.TrimPrefix(pkg, "@claudinite/")+"-"+in.Version+".tgz")
+		file := filepath.Join(in.Dist, "tarballs", strings.TrimPrefix(pkg, "@claudinite/")+"-"+in.Version+".tgz")
 		raw, err := os.ReadFile(file)
 		if errors.Is(err, os.ErrNotExist) && i > 0 {
 			continue
