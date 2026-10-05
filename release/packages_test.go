@@ -4,7 +4,6 @@ import (
 	"flag"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
@@ -28,7 +27,7 @@ func golden(t *testing.T, name, got string) {
 	}
 }
 
-func TestPlaceholdersAreExactlyThe13Packages(t *testing.T) {
+func TestPackagesAreExactlyThe13(t *testing.T) {
 	want := map[string][2]string{
 		"@claudinite/cli":                 {"promote.yml", "promote"},
 		"@claudinite/cli-linux-x64":       {"promote.yml", "promote"},
@@ -44,9 +43,9 @@ func TestPlaceholdersAreExactlyThe13Packages(t *testing.T) {
 		"@claudinite/cli-rc-darwin-arm64": {"release.yml", "release"},
 		"@claudinite/cli-rc-windows-x64":  {"release.yml", "release"},
 	}
-	got := Placeholders()
+	got := Packages()
 	if len(got) != 13 {
-		t.Fatalf("%d placeholders, want 13", len(got))
+		t.Fatalf("%d packages, want 13", len(got))
 	}
 	seen := map[string]bool{}
 	for _, p := range got {
@@ -71,12 +70,4 @@ func TestPlaceholdersAreExactlyThe13Packages(t *testing.T) {
 			t.Errorf("ValidPackageName(%q) = true", bad)
 		}
 	}
-}
-
-func TestBootstrapComment(t *testing.T) {
-	body := BootstrapComment()
-	if n := strings.Count(body, "- [ ] "); n != 2*13+1 {
-		t.Errorf("%d checkboxes, want %d", n, 2*13+1)
-	}
-	golden(t, "bootstrap-comment.md", body)
 }

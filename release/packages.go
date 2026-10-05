@@ -5,7 +5,6 @@
 package release
 
 import (
-	"fmt"
 	"regexp"
 	"strings"
 
@@ -37,9 +36,10 @@ func ChannelOf(name string) string {
 	return "stable"
 }
 
-// Placeholders are the 13 packages npm-bootstrap.yml reserves at 0.0.0:
-// each channel's manifest package and five platform packages, and the SDK.
-func Placeholders() []Package {
+// Packages are the 13 @claudinite npm packages and the trusted publisher of
+// each: each channel's manifest package and five platform packages, and the
+// SDK.
+func Packages() []Package {
 	var out []Package
 	for _, base := range []string{"@claudinite/cli-rc", "@claudinite/cli"} {
 		names := []string{base}
@@ -61,21 +61,4 @@ func publisherOf(name string) Package {
 		return Package{Name: name, Channel: "rc", Workflow: "release.yml", Environment: "release"}
 	}
 	return Package{Name: name, Channel: "stable", Workflow: "promote.yml", Environment: "promote"}
-}
-
-// BootstrapComment is the handover npm-bootstrap.yml posts on #2 once the
-// placeholders exist: what Ariel sets on npmjs.com, which has no CLI or API
-// for trusted publishers.
-func BootstrapComment() string {
-	var b strings.Builder
-	b.WriteString("The 13 `@claudinite` packages are reserved at `0.0.0`. Each needs its trusted publisher and token refusal set on npmjs.com:\n\n")
-	for _, p := range Placeholders() {
-		fmt.Fprintf(&b, "- [ ] `%s` trusted publisher: GitHub Actions, organization or user `missingbulb`, repository `ClaudiniteEngine`, workflow filename `%s`, environment `%s`\n", p.Name, p.Workflow, p.Environment)
-		fmt.Fprintf(&b, "- [ ] `%s` Publishing access: Require two-factor authentication and disallow tokens\n", p.Name)
-	}
-	b.WriteString("- [ ] delete `NPM_BOOTSTRAP_TOKEN` from Actions secrets and revoke it on npm\n\n")
-	b.WriteString("Both boxes of a package are on its page at `https://www.npmjs.com/package/<name>/access`. " +
-		"Until a package's publisher is attached, a real `release.yml` or `promote.yml` publish of it is a red run whose last line names its box here; " +
-		"before the placeholders existed those runs were dry runs. npm has no CLI or API for trusted publishers (https://docs.npmjs.com/trusted-publishers), so these are clicks.\n")
-	return b.String()
 }
