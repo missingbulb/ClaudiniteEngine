@@ -15,7 +15,7 @@ func BlockerIssue(version, leg, runURL, log string) (string, string) {
 	title := fmt.Sprintf("@claudinite/cli %s fails the post-publish smoke on %s", version, leg)
 	tail := logTail(log)
 	var b strings.Builder
-	fmt.Fprintf(&b, "`@claudinite/cli %s` is published, and the %s leg of `smoke-published` failed against registry.npmjs.org: a member pinned to it on %s cannot run its engine.\n\n", version, leg, leg)
+	fmt.Fprintf(&b, "`@claudinite/cli %s` is published, and the %s leg of `from-npm.yml` failed against registry.npmjs.org: a member pinned to it on %s cannot run its engine.\n\n", version, leg, leg)
 	fmt.Fprintf(&b, "While this issue is open with the `release-blocker` label, `promote.yml` refuses to promote %s. Close it once the failure is understood; the fix ships as a new version, since nothing is republished.\n\n", version)
 	fmt.Fprintf(&b, "Run: %s\n\nThe last %d lines of the leg's log:\n\n~~~~\n%s\n~~~~\n", runURL, blockerLogLines, tail)
 	return title, b.String()
