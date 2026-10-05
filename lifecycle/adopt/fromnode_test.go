@@ -345,8 +345,8 @@ func (f *fakePacks) add(id string, files map[string][]byte) {
 func TestFromNodeFailurePartWayLeavesARerunnableRepo(t *testing.T) {
 	repo := nodeMember(t)
 	// The rules index cannot be written under a file.
-	_ = os.RemoveAll(filepath.Join(repo, ".claudinite", "flat"))
-	if err := os.WriteFile(filepath.Join(repo, ".claudinite", "flat"), nil, 0o644); err != nil {
+	_ = os.RemoveAll(filepath.Join(repo, ".claudinite", "cache"))
+	if err := os.WriteFile(filepath.Join(repo, ".claudinite", "cache"), nil, 0o644); err != nil {
 		t.Fatal(err)
 	}
 	in, out := input(t, repo)

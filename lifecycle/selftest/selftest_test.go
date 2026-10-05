@@ -217,7 +217,7 @@ func TestEachMemberProbeFails(t *testing.T) {
 			}
 		}},
 		{"rules", "is stale", func(t *testing.T, repo string) {
-			write(t, filepath.Join(repo, ".claudinite/flat/claudinite-rules.GENERATED.md"), "stale\n")
+			write(t, filepath.Join(repo, ".claudinite/cache/claudinite-rules.GENERATED.md"), "stale\n")
 		}},
 	}
 	for _, c := range cases {

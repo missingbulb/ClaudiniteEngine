@@ -104,10 +104,16 @@ func TestPinGuard(t *testing.T) {
 			return func(dir string) { movePin(t)(dir); write(t, dir, "RULES.md", "- a changed rule\n") }
 		}, bot, nil, 1, "RULES.md", false},
 		{"the bot moves the pin and restates it in the member file", func(t *testing.T) func(string) {
+			return func(dir string) { movePin(t)(dir); write(t, dir, ".claudinite/cache/member.GENERATED.json", "{}\n") }
+		}, bot, nil, 0, "", true},
+		{"the bot moves the pin and restates it in a member file still under the legacy directory", func(t *testing.T) func(string) {
 			return func(dir string) { movePin(t)(dir); write(t, dir, ".claudinite/flat/member.GENERATED.json", "{}\n") }
 		}, bot, nil, 0, "", true},
-		{"the bot moves the pin and the task flat file", func(t *testing.T) func(string) {
+		{"the bot moves the pin and a legacy task flat file", func(t *testing.T) func(string) {
 			return func(dir string) { movePin(t)(dir); write(t, dir, ".claudinite/flat/tasks.GENERATED.json", "{}\n") }
+		}, bot, nil, 1, "tasks.GENERATED.json", false},
+		{"the bot moves the pin and the task flat file", func(t *testing.T) func(string) {
+			return func(dir string) { movePin(t)(dir); write(t, dir, ".claudinite/cache/tasks.GENERATED.json", "{}\n") }
 		}, bot, nil, 1, "tasks.GENERATED.json", false},
 		{"the bot moves the pin to a held version", movePin, bot, errors.New("1.2.0 is held: canary red"), 1, "held", true},
 		{"the bot edits the launcher", func(t *testing.T) func(string) {

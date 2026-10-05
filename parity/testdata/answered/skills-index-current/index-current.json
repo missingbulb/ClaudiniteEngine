@@ -6,7 +6,13 @@
     ".claudinite/shared/packs/basics/skills/demo/SKILL.md": "---\nname: demo\ndescription: A skill a declared pack bundles.\n---\n\n# demo\n"
   },
   "cnShape": "v9-skills-index",
-  "cnFiles": {},
+  "cnFiles": {
+    ".claudinite/cache/claudinite-rules.GENERATED.md": "@../shared/packs/basics/RULES.md\n",
+    ".claudinite/cache/claudinite-skills.GENERATED.md": "<!-- GENERATED — do not hand-edit; every update rewrites it. Edit a skill's SKILL.md frontmatter. -->\n# Skills mounted here, and what loads each one\n\nA skill loads when the session's activity matches its description. A skill that names files\nunder `force-load-on-file-edits-paths` is also forced for them: a file tool aimed there is held\nby the PreToolUse guard until the skill is loaded (the Skill tool, or a Read of its SKILL.md),\nand an edit made another way is caught at Stop.\n\n## By activity\n\n| Skill | Pack | Loads when |\n|---|---|---|\n| `demo` | basics | A skill a declared pack bundles. |\n",
+    ".claudinite/flat/claudinite-rules.GENERATED.md": null,
+    ".claudinite/flat/claudinite-skills.GENERATED.md": null,
+    "CLAUDE.md": "@.claudinite/cache/claudinite-rules.GENERATED.md\n"
+  },
   "answeredBy": "skills-index-current",
   "nodeFires": false
 }

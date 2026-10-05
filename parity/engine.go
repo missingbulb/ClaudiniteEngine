@@ -319,8 +319,8 @@ func (c Cn) Settings(dir string, node map[string]any) (string, error) {
 }
 
 const (
-	indexRel  = ".claudinite/flat/claudinite-rules.GENERATED.md"
-	skillsRel = ".claudinite/flat/claudinite-skills.GENERATED.md"
+	indexRel  = ".claudinite/cache/claudinite-rules.GENERATED.md"
+	skillsRel = ".claudinite/cache/claudinite-skills.GENERATED.md"
 )
 
 func (c Cn) sessionStart(dir string) error {
@@ -342,7 +342,7 @@ func (c Cn) Flat(dir string) (string, error) {
 }
 
 // MemberFileRel is the flat file only cn writes, stating the member.
-const MemberFileRel = ".claudinite/flat/member.GENERATED.json"
+const MemberFileRel = ".claudinite/cache/member.GENERATED.json"
 
 // WriteMemberFile writes the member file cn produces for dir, as an
 // adoption would leave it beside the settings file.

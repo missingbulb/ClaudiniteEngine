@@ -130,7 +130,7 @@ func flatMember(e Cn, dir string, input json.RawMessage) (any, error) {
 	if code != 0 {
 		return nil, fmt.Errorf("cn tasks flat --write exited %d: %s", code, strings.TrimSpace(stderr))
 	}
-	raw, err := os.ReadFile(filepath.Join(repo, ".claudinite", "flat", "member.GENERATED.json"))
+	raw, err := os.ReadFile(filepath.Join(repo, ".claudinite", "cache", "member.GENERATED.json"))
 	if err != nil {
 		return nil, err
 	}

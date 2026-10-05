@@ -18,13 +18,14 @@ func writeFlat(repo string) ([]string, error) {
 }
 
 // writeMemberFile writes the member file alone, for the engine update PR,
-// which moves the pin and nothing a task or descriptor copy reads. A
-// declaration the parser refuses leaves the file alone: the pin still
-// moves, and verify names the declaration's fault.
-func writeMemberFile(repo string) (bool, error) {
+// which moves the pin and nothing a task or descriptor copy reads,
+// returning the path written or "". A declaration the parser refuses
+// leaves the file alone: the pin still moves, and verify names the
+// declaration's fault.
+func writeMemberFile(repo string) (string, error) {
 	set, err := packset.Load(repo, pinVersion(repo), false)
 	if err != nil || len(set.Packs) == 0 {
-		return false, nil
+		return "", nil
 	}
 	return flatdecl.WriteMember(repo, set.Packs)
 }
@@ -38,4 +39,10 @@ func isFlatFile(file string) bool {
 		}
 	}
 	return false
+}
+
+// isMemberFile reports whether file is the member file where a member
+// may hold it.
+func isMemberFile(file string) bool {
+	return file == flatdecl.MemberFile || file == flatdecl.LegacyPath(flatdecl.MemberFile)
 }

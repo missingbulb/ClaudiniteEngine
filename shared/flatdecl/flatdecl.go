@@ -1,6 +1,6 @@
 // Package flatdecl writes and reads the flat declarations: every active
 // pack's task declarations and dashboard descriptor, one file each under
-// .claudinite/flat/, so the dashboard reading a member over the API and a
+// .claudinite/cache/, so the dashboard reading a member over the API and a
 // session asking what runs here read one file rather than every task
 // folder; and, beside them, the member file a cn member states its
 // declaration, pin and held versions in. Each entry carries the source's parsed value as written (no
@@ -17,18 +17,71 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/missingbulb/ClaudiniteEngine/shared/descriptor"
 	"github.com/missingbulb/ClaudiniteEngine/shared/jsjson"
 	"github.com/missingbulb/ClaudiniteEngine/shared/packset"
 )
 
+// Dir holds every file cn generates for a member: the rules and skills
+// indexes, the flat declarations and the member file.
+const Dir = ".claudinite/cache"
+
+// LegacyDir is where an engine before Dir wrote those files. A member
+// whose engine update lands before its next converge still holds them
+// there, so they are read and rewritten where they are until a converge
+// moves them.
+//
+// @legacy-tolerance advisory:rules-index-current retire:#94
+const LegacyDir = ".claudinite/flat"
+
 // The two files, relative to the repo root.
 const (
-	TasksFile     = ".claudinite/flat/tasks.GENERATED.json"
-	DashboardFile = ".claudinite/flat/dashboard.GENERATED.json"
+	TasksFile     = Dir + "/tasks.GENERATED.json"
+	DashboardFile = Dir + "/dashboard.GENERATED.json"
 	Version       = 1
 )
+
+// LegacyPath is rel, a path under Dir, under LegacyDir; any other path is
+// itself.
+func LegacyPath(rel string) string {
+	if rest, ok := strings.CutPrefix(rel, Dir+"/"); ok {
+		return LegacyDir + "/" + rest
+	}
+	return rel
+}
+
+// Canonical is rel, a path under LegacyDir, under Dir; any other path is
+// itself.
+func Canonical(rel string) string {
+	if rest, ok := strings.CutPrefix(rel, LegacyDir+"/"); ok {
+		return Dir + "/" + rest
+	}
+	return rel
+}
+
+// Held is where the repo keeps rel, a path under Dir: rel itself, or its
+// LegacyPath when only that exists, or when neither does and the repo
+// holds LegacyDir and no Dir, so a file a legacy member gains joins the
+// others until they move together.
+func Held(rel string, exists func(string) bool) string {
+	switch {
+	case exists(rel):
+		return rel
+	case exists(LegacyPath(rel)), exists(LegacyDir) && !exists(Dir):
+		return LegacyPath(rel)
+	}
+	return rel
+}
+
+// HeldIn is Held over the repo's working tree.
+func HeldIn(repo, rel string) string {
+	return Held(rel, func(r string) bool {
+		_, err := os.Stat(filepath.Join(repo, filepath.FromSlash(r)))
+		return err == nil
+	})
+}
 
 // TaskDescriptor is the task declaration's descriptor name, and
 // DashboardDescriptor the dashboard descriptor's file.
@@ -160,19 +213,21 @@ func Content(repo string, packs []packset.Pack) (map[string]string, error) {
 	return out, nil
 }
 
-// Write writes whichever file changed and returns the paths written.
+// Write writes whichever file changed where the repo holds it (Held) and
+// returns the paths written.
 func Write(repo string, packs []packset.Pack) ([]string, error) {
 	content, err := Content(repo, packs)
 	if err != nil || content == nil {
 		return nil, err
 	}
 	var written []string
-	for _, rel := range Files {
-		if _, ok := content[rel]; !ok {
+	for _, f := range Files {
+		if _, ok := content[f]; !ok {
 			continue
 		}
+		rel := HeldIn(repo, f)
 		p := filepath.Join(repo, filepath.FromSlash(rel))
-		if old, err := os.ReadFile(p); err == nil && bytes.Equal(old, []byte(content[rel])) {
+		if old, err := os.ReadFile(p); err == nil && bytes.Equal(old, []byte(content[f])) {
 			continue
 		} else if err != nil && !errors.Is(err, os.ErrNotExist) {
 			return written, err
@@ -180,7 +235,7 @@ func Write(repo string, packs []packset.Pack) ([]string, error) {
 		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
 			return written, err
 		}
-		if err := os.WriteFile(p, []byte(content[rel]), 0o644); err != nil {
+		if err := os.WriteFile(p, []byte(content[f]), 0o644); err != nil {
 			return written, err
 		}
 		written = append(written, rel)

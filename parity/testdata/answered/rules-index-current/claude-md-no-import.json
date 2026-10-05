@@ -7,6 +7,8 @@
   },
   "cnShape": "v6-shared-constants-entry",
   "cnFiles": {
+    ".claudinite/cache/claudinite-rules.GENERATED.md": "@../shared/packs/basics/RULES.md\n",
+    ".claudinite/flat/claudinite-rules.GENERATED.md": null,
     "CLAUDE.md": "# project\n"
   },
   "answeredBy": "claude-md-import",

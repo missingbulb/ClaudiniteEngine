@@ -9,6 +9,7 @@ import (
 
 	"github.com/missingbulb/ClaudiniteEngine/shared/descriptor"
 	"github.com/missingbulb/ClaudiniteEngine/shared/findings"
+	"github.com/missingbulb/ClaudiniteEngine/shared/flatdecl"
 	"github.com/missingbulb/ClaudiniteEngine/shared/packset"
 	"github.com/missingbulb/ClaudiniteEngine/shared/settings"
 	"github.com/missingbulb/ClaudiniteEngine/shared/settings/node"
@@ -139,7 +140,7 @@ func checkNodeLeftovers(in Input) []findings.Finding {
 	for _, name := range []string{"claudinite-rules.GENERATED.md", "claudinite-skills.GENERATED.md"} {
 		rel := ".claudinite/" + name
 		if _, ok := read(in, rel); ok {
-			out = append(out, dep("node-leftovers", rel, "an index at its path from before .claudinite/flat/, which nothing writes any more; delete it"))
+			out = append(out, dep("node-leftovers", rel, "an index at its path from before "+flatdecl.Dir+"/, which nothing writes any more; delete it"))
 		}
 	}
 	workflows, _ := filepath.Glob(filepath.Join(in.Repo, ".github", "workflows", "*.y*ml"))

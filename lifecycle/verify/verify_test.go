@@ -244,15 +244,33 @@ func TestRules(t *testing.T) {
 		{"a stale index", func(t *testing.T, d string) {
 			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "1.60930.1"}`)
 			write(t, d, ".claudinite/shared/packs/acme-pack/RULES.md", "- r\n")
-			write(t, d, ".claudinite/flat/claudinite-rules.GENERATED.md", "@../shared/packs/other/RULES.md\n")
-			write(t, d, "CLAUDE.md", "@.claudinite/flat/claudinite-rules.GENERATED.md\n")
+			write(t, d, ".claudinite/cache/claudinite-rules.GENERATED.md", "@../shared/packs/other/RULES.md\n")
+			write(t, d, "CLAUDE.md", "@.claudinite/cache/claudinite-rules.GENERATED.md\n")
 		}, []string{"rules-index-current"}, nil},
 		{"a current index", func(t *testing.T, d string) {
 			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "1.60930.1"}`)
 			write(t, d, ".claudinite/shared/packs/acme-pack/RULES.md", "- r\n")
+			write(t, d, ".claudinite/cache/claudinite-rules.GENERATED.md", "@../shared/packs/acme-pack/RULES.md\n")
+			write(t, d, "CLAUDE.md", "# mine\n@.claudinite/cache/claudinite-rules.GENERATED.md\n")
+		}, nil, nil},
+		{"a current index under the legacy directory", func(t *testing.T, d string) {
+			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "1.60930.1"}`)
+			write(t, d, ".claudinite/shared/packs/acme-pack/RULES.md", "- r\n")
 			write(t, d, ".claudinite/flat/claudinite-rules.GENERATED.md", "@../shared/packs/acme-pack/RULES.md\n")
 			write(t, d, "CLAUDE.md", "# mine\n@.claudinite/flat/claudinite-rules.GENERATED.md\n")
-		}, nil, nil},
+		}, nil, []string{"rules-index-current"}},
+		{"a stale index under the legacy directory", func(t *testing.T, d string) {
+			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "1.60930.1"}`)
+			write(t, d, ".claudinite/shared/packs/acme-pack/RULES.md", "- r\n")
+			write(t, d, ".claudinite/flat/claudinite-rules.GENERATED.md", "@../shared/packs/other/RULES.md\n")
+			write(t, d, "CLAUDE.md", "@.claudinite/flat/claudinite-rules.GENERATED.md\n")
+		}, []string{"rules-index-current"}, []string{"rules-index-current"}},
+		{"a CLAUDE.md still importing the legacy index", func(t *testing.T, d string) {
+			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "1.60930.1"}`)
+			write(t, d, ".claudinite/shared/packs/acme-pack/RULES.md", "- r\n")
+			write(t, d, ".claudinite/cache/claudinite-rules.GENERATED.md", "@../shared/packs/acme-pack/RULES.md\n")
+			write(t, d, "CLAUDE.md", "@.claudinite/flat/claudinite-rules.GENERATED.md\n")
+		}, nil, []string{"rules-index-current"}},
 		{"retired license block", func(t *testing.T, d string) {
 			raw, _ := os.ReadFile(filepath.Join(d, ".claudinite/settings.yaml"))
 			write(t, d, ".claudinite/settings.yaml", string(raw)+"license:\n  plan: \"public\"\n")
@@ -330,13 +348,13 @@ func TestRules(t *testing.T) {
 		{"a skills index missing a held skill", func(t *testing.T, d string) {
 			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "1.60930.1"}`)
 			write(t, d, ".claudinite/shared/packs/acme-pack/skills/demo/SKILL.md", "---\nname: demo\ndescription: d\n---\n")
-			write(t, d, ".claudinite/flat/claudinite-skills.GENERATED.md", "| `other` | acme-pack | o |\n")
+			write(t, d, ".claudinite/cache/claudinite-skills.GENERATED.md", "| `other` | acme-pack | o |\n")
 		}, []string{"skills-index-current"}, nil},
 		{"a skill outside its pack's manifest subset, unnamed", func(t *testing.T, d string) {
 			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "1.60930.1", "skills": ["demo"]}`)
 			write(t, d, ".claudinite/shared/packs/acme-pack/skills/demo/SKILL.md", "---\nname: demo\ndescription: d\n---\n")
 			write(t, d, ".claudinite/shared/packs/acme-pack/skills/draft/SKILL.md", "---\nname: draft\ndescription: d\n---\n")
-			write(t, d, ".claudinite/flat/claudinite-skills.GENERATED.md", "| `demo` | acme-pack | d |\n")
+			write(t, d, ".claudinite/cache/claudinite-skills.GENERATED.md", "| `demo` | acme-pack | d |\n")
 		}, nil, nil},
 		{"hooks naming the Node engine", func(t *testing.T, d string) {
 			write(t, d, ".claude/settings.json", `{"hooks": {"SessionStart": [{"hooks": [{"type": "command", "command": "node .claudinite/shared/engine/hooks/run-session-start.mjs"}]}]}}`)

@@ -142,7 +142,7 @@ func TestSessionStartAssemblesDeclaredPacksInOrder(t *testing.T) {
 // an index that imports nothing (temp packs' prose is never imported), it
 // says nothing, as verify does.
 func TestSessionStartNamesAMissingClaudeMDImport(t *testing.T) {
-	const missing = `[cn] rules not loaded: CLAUDE.md does not import .claudinite/flat/claudinite-rules.GENERATED.md; add the line "@.claudinite/flat/claudinite-rules.GENERATED.md"`
+	const missing = `[cn] rules not loaded: CLAUDE.md does not import .claudinite/cache/claudinite-rules.GENERATED.md; add the line "@.claudinite/cache/claudinite-rules.GENERATED.md"`
 	withProse := member(t, []string{"zeta"}, map[string]map[string]string{
 		"zeta": {"pack.json": `{"version": "1.0"}`, "RULES.md": "- zeta rule\n"},
 	})

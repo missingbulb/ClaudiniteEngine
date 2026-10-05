@@ -6,7 +6,8 @@
   },
   "cnShape": "v6-shared-constants-entry",
   "cnFiles": {
-    ".claudinite/flat/claudinite-rules.GENERATED.md": null
+    ".claudinite/flat/claudinite-rules.GENERATED.md": null,
+    "CLAUDE.md": "@.claudinite/cache/claudinite-rules.GENERATED.md\n"
   },
   "answeredBy": "rules-index-current",
   "nodeFires": true

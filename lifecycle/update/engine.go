@@ -324,8 +324,8 @@ func openPR(d Deps, f settings.Format, raw []byte, got Fetched, self, verifyOut 
 		if err != nil {
 			return err
 		}
-		if member {
-			rels = append(rels, flatdecl.MemberFile)
+		if member != "" {
+			rels = append(rels, member)
 		}
 		if err := d.Git.Commit(EngineTitle(got.Version), rels...); err != nil {
 			return err
@@ -433,24 +433,25 @@ func Land(d Deps, n int, sha string) (string, error) {
 	// The PR changes the settings file, and restates the member file
 	// beside it when the declaration renders one.
 	var f settings.Format
-	member := false
+	member := ""
 	for _, ff := range settings.Formats {
 		rel := settings.RelPath(ff)
 		switch {
 		case len(files) == 1 && files[0] == rel:
 			f = ff
-		case len(files) == 2 && files[0] == flatdecl.MemberFile && files[1] == rel,
-			len(files) == 2 && files[1] == flatdecl.MemberFile && files[0] == rel:
-			f, member = ff, true
+		case len(files) == 2 && isMemberFile(files[0]) && files[1] == rel:
+			f, member = ff, files[0]
+		case len(files) == 2 && isMemberFile(files[1]) && files[0] == rel:
+			f, member = ff, files[1]
 		}
 	}
 	if f == "" {
 		return "", fmt.Errorf("#%d changes %v, not only the settings file and the member file", n, files)
 	}
 	rel := settings.RelPath(f)
-	if member {
-		if err := flatRendered(d.Git, sha, flatdecl.MemberFile); err != nil {
-			return "", fmt.Errorf("#%d: %s %w", n, flatdecl.MemberFile, err)
+	if member != "" {
+		if err := flatRendered(d.Git, sha, member); err != nil {
+			return "", fmt.Errorf("#%d: %s %w", n, member, err)
 		}
 	}
 	mb, err := d.Git.MergeBase(base, sha)

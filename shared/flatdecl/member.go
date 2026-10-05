@@ -15,7 +15,7 @@ import (
 // with no YAML or TOML parser and no wish to read a manifest per pack:
 // the settings file it keeps, its engine pin, its declared packs with
 // their config, its dormancy and each vendored canon pack's version.
-const MemberFile = ".claudinite/flat/member.GENERATED.json"
+const MemberFile = Dir + "/member.GENERATED.json"
 
 // MemberEngine is the pin as the member file states it.
 type MemberEngine struct {
@@ -104,23 +104,25 @@ func MemberContent(m Member) (string, error) {
 	return b.String(), nil
 }
 
-// WriteMember writes the member file alone when it changed, reporting
-// whether it did; a repo with no .claudinite/settings.* writes nothing.
-func WriteMember(repo string, packs []packset.Pack) (bool, error) {
+// WriteMember writes the member file alone, where the repo holds it
+// (Held), when it changed, returning the path written or ""; a repo with
+// no .claudinite/settings.* writes nothing.
+func WriteMember(repo string, packs []packset.Pack) (string, error) {
 	m, ok, err := ReadMember(repo, packs)
 	if err != nil || !ok {
-		return false, err
+		return "", err
 	}
 	text, err := MemberContent(m)
 	if err != nil {
-		return false, err
+		return "", err
 	}
-	p := filepath.Join(repo, filepath.FromSlash(MemberFile))
+	rel := HeldIn(repo, MemberFile)
+	p := filepath.Join(repo, filepath.FromSlash(rel))
 	if old, err := os.ReadFile(p); err == nil && string(old) == text {
-		return false, nil
+		return "", nil
 	}
 	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
-		return false, err
+		return "", err
 	}
-	return true, os.WriteFile(p, []byte(text), 0o644)
+	return rel, os.WriteFile(p, []byte(text), 0o644)
 }

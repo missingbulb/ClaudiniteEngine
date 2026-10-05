@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/missingbulb/ClaudiniteEngine/lifecycle/rulesindex"
+	"github.com/missingbulb/ClaudiniteEngine/shared/flatdecl"
 	"github.com/missingbulb/ClaudiniteEngine/shared/packset"
 	"github.com/missingbulb/ClaudiniteEngine/shared/settings"
 	"github.com/missingbulb/ClaudiniteEngine/shared/version"
@@ -186,14 +187,12 @@ func TerminalFor(o *Outcome) Terminal {
 }
 
 // IsConvergeBookkeeping reports whether a pack PR may change file: the
-// vendored packs, the flat files cn derives from them, and CLAUDE.md for
-// the rules index import. Anything else is a change a pack update never
-// makes.
+// vendored packs, the files cn generates from them (and their old
+// directory, which a pack PR empties), and CLAUDE.md for the rules index
+// import. Anything else is a change a pack update never makes.
 func IsConvergeBookkeeping(file string) bool {
-	return strings.HasPrefix(file, packset.Dir+"/") || strings.HasPrefix(file, flatDir) || file == rulesindex.ClaudeMD
+	return strings.HasPrefix(file, packset.Dir+"/") || strings.HasPrefix(file, flatdecl.Dir+"/") || strings.HasPrefix(file, flatdecl.LegacyDir+"/") || file == rulesindex.ClaudeMD
 }
-
-const flatDir = ".claudinite/flat/"
 
 // PinOnlyEdit reports whether an edit of a settings file moved the engine
 // pin and nothing else; anything it cannot read is false.

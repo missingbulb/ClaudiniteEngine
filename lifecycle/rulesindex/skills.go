@@ -8,6 +8,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/missingbulb/ClaudiniteEngine/shared/flatdecl"
 	"github.com/missingbulb/ClaudiniteEngine/shared/packset"
 	"github.com/missingbulb/ClaudiniteEngine/shared/skillfm"
 )
@@ -16,7 +17,7 @@ import (
 // the active packs bundle and what loads it. CLAUDE.md does not import
 // it; the harness already carries each mounted skill's description. The
 // bytes are the Node engine's generate-skills-index.mjs's.
-const SkillsFile = ".claudinite/flat/claudinite-skills.GENERATED.md"
+const SkillsFile = flatdecl.Dir + "/claudinite-skills.GENERATED.md"
 
 // SkillRow is one mounted skill.
 type SkillRow struct {
@@ -160,14 +161,15 @@ func SkillsContent(repo, engine string) (string, error) {
 	return RenderSkills(SkillRows(s)), nil
 }
 
-// WriteSkills writes the skills index when it changed and removes one
-// when no skill is mounted, reporting whether the file moved.
+// WriteSkills writes the skills index, where the repo holds it, when it
+// changed and removes one when no skill is mounted, reporting whether the
+// file moved.
 func WriteSkills(repo, engine string) (bool, error) {
 	want, err := SkillsContent(repo, engine)
 	if err != nil {
 		return false, err
 	}
-	path := filepath.Join(repo, filepath.FromSlash(SkillsFile))
+	path := filepath.Join(repo, filepath.FromSlash(flatdecl.HeldIn(repo, SkillsFile)))
 	have, err := os.ReadFile(path)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return false, err
