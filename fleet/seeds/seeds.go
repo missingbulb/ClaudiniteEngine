@@ -26,10 +26,12 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/shared/version"
 )
 
-// SourcesSince is the first engine that reads packs.sources; an older one
-// refuses a settings file carrying it, so a member pinned below it is not
-// pointed at its manager until its own update moves the pin.
-const SourcesSince = "1.61005.2"
+// SourcesSince is the first engine that reads packs.sources: the first
+// build of the day after the key landed, the earliest whole day every
+// release carries it. An older engine refuses a settings file carrying
+// the key, so a member pinned below it is not pointed at its manager until
+// its own update moves the pin.
+const SourcesSince = "1.61006.1"
 
 // MirrorFunc brings the manager's mirror level with the shelf for the
 // packs the fleet carries.
@@ -247,7 +249,7 @@ func Sweep(gh fleet.GH, repos []fleet.Repo, home string, cfg fleet.Config, mirro
 		r.Unknown = append(r.Unknown, home+" (its mirror) — "+err.Error())
 		r.Grant = r.Grant || fleet.IsGrant(err)
 	} else {
-		r.Mirror, mirrored = res.Summary(home), true
+		r.Mirror, mirrored = res.Summary(home), res.Remaining == 0
 	}
 	for _, rd := range members {
 		if err := member(gh, rd, home, cfg.PackSeeds, mirrored, &r); err != nil {

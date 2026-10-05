@@ -89,3 +89,19 @@ func TestAddDeclaredBesideSources(t *testing.T) {
 		}
 	}
 }
+
+func TestSetSourcesAddsAPacksBlockWhereThereIsNone(t *testing.T) {
+	for f, s := range pinSamples {
+		out, err := SetSources([]byte(s), f, []string{"acme/fleet"})
+		if err != nil {
+			t.Fatalf("%s: %v", f, err)
+		}
+		p, err := ReadPacks(out, f)
+		if err != nil || len(p.Sources) != 1 || p.Sources[0] != "acme/fleet" || len(p.Declared) != 0 {
+			t.Errorf("%s: %+v %v\n%s", f, p, err, out)
+		}
+		if f != JSON && !strings.HasPrefix(string(out), s) {
+			t.Errorf("%s: a byte already there moved\n%s", f, out)
+		}
+	}
+}

@@ -5,9 +5,10 @@
 // own: a member verifies it against the embedded roots as it would the
 // shelf.
 //
-// One run is one commit through the git data API over the fleet token: a
-// blob for each file that moved, one tree on the branch's last, one commit
-// and one ref move that never forces. An archive the branch already holds
+// A run commits through the git data API over the fleet token, a blob for
+// each file that moved, a tree on the branch's last, a commit and a ref
+// move that never forces, in commits of at most a hundred files, so a run
+// cut short keeps what it wrote. An archive the branch already holds
 // is never read again, since a published version is never rewritten.
 // Blob writes are spaced a second apart, under GitHub's 80 content
 // writes a minute, since a first mirror writes every archive on the shelf
@@ -48,7 +49,7 @@ type Shelf interface {
 	Archive(id string, e packindex.Entry) ([]byte, error)
 }
 
-// Result is one run: the commit it made ("" when the branch already
+// Result is one run: the last commit it made ("" when the branch already
 // matched), how many files moved, and each pack only a member declares
 // that the shelf did not answer for, with why.
 type Result struct {
@@ -56,6 +57,9 @@ type Result struct {
 	Changed int
 	Packs   int
 	Missing []string
+	// Remaining is the files left for the next run, 0 once the branch is
+	// level with the shelf.
+	Remaining int
 }
 
 // Summary is the run in one line.
@@ -65,6 +69,9 @@ func (r Result) Summary(home string) string {
 		s += fmt.Sprintf("; this run wrote %d files (commit %s)", r.Changed, r.Commit)
 	} else {
 		s += "; nothing moved"
+	}
+	if r.Remaining > 0 {
+		s += fmt.Sprintf("; %d files are left for the next run, and no member is pointed at it until none are", r.Remaining)
 	}
 	if len(r.Missing) > 0 {
 		s += fmt.Sprintf("; not on the shelf: %v", r.Missing)
@@ -111,14 +118,15 @@ func Mirror(gh fleet.GH, home string, shelf Shelf, declared []string) (Result, e
 		return Result{}, err
 	}
 	var r Result
-	changes := map[string][]byte{}
-	keep := func(path string, data []byte) {
-		if tree[path] != blobSHA(data) {
-			changes[path] = data
+	// Units land whole, archives first, then each index pair, then the
+	// catalog pair, so a member reading mid-run never meets an index
+	// naming an archive the branch lacks, nor half a signed pair.
+	var archives, pairs []unit
+	signed := func(rawPath, sigPath string, pair Signed) {
+		if tree[rawPath] != blobSHA(pair.Raw) || tree[sigPath] != blobSHA(pair.Sig) {
+			pairs = append(pairs, unit{{path: rawPath, data: pair.Raw}, {path: sigPath, data: pair.Sig}})
 		}
 	}
-	keep(packindex.CatalogFile, cat.Raw)
-	keep(packindex.CatalogSigFile, cat.Sig)
 	for _, id := range sorted {
 		pair, ix, err := shelf.Index(id)
 		if err != nil {
@@ -134,22 +142,61 @@ func Mirror(gh fleet.GH, home string, shelf Shelf, declared []string) (Result, e
 			if _, held := tree[path]; held {
 				continue
 			}
-			data, err := shelf.Archive(id, e)
-			if err != nil {
-				return Result{}, err
-			}
-			changes[path] = data
+			archives = append(archives, unit{{path: path, load: func() ([]byte, error) { return shelf.Archive(id, e) }}})
 		}
-		keep(packindex.IndexFile(id), pair.Raw)
-		keep(packindex.IndexSigFile(id), pair.Sig)
+		signed(packindex.IndexFile(id), packindex.IndexSigFile(id), pair)
 	}
-	if len(changes) == 0 {
-		return r, nil
+	signed(packindex.CatalogFile, packindex.CatalogSigFile, cat)
+	units := append(archives, pairs...)
+	files := 0
+	for i, u := range units {
+		if files+len(u) > perRun {
+			for _, rest := range units[i:] {
+				r.Remaining += len(rest)
+			}
+			units = units[:i]
+			break
+		}
+		files += len(u)
 	}
-	r.Commit, err = commit(gh, home, parent, baseTree, changes)
-	r.Changed = len(changes)
-	return r, err
+	for len(units) > 0 {
+		n, size := 0, 0
+		for n < len(units) && (n == 0 || size+len(units[n]) <= perCommit) {
+			size += len(units[n])
+			n++
+		}
+		var chunk []file
+		for _, u := range units[:n] {
+			chunk = append(chunk, u...)
+		}
+		units = units[n:]
+		sha, treeSHA, err := commit(gh, home, parent, baseTree, chunk)
+		if err != nil {
+			return r, err
+		}
+		r.Commit, r.Changed = sha, r.Changed+len(chunk)
+		parent, baseTree = sha, treeSHA
+	}
+	return r, nil
 }
+
+// file is one path to write, its bytes or how to read them.
+type file struct {
+	path string
+	data []byte
+	load func() ([]byte, error)
+}
+
+// unit is files that land in one commit or not at all.
+type unit []file
+
+// perCommit and perRun bound one commit's files and one run's: a run that
+// stops short has committed what it wrote, and the next goes on from
+// there, under GitHub's 500 content writes an hour.
+var (
+	perCommit = 100
+	perRun    = 400
+)
 
 // readBranch is the branch's head commit, its tree and the tree's blobs
 // by path, "" and none when the branch does not exist yet.
@@ -213,29 +260,32 @@ func decode(r fleet.Response, path string, v any) error {
 	return nil
 }
 
-// commit writes changes as one commit on parent ("" for a new branch),
-// over its tree, and moves the branch to it, never forcing.
-func commit(gh fleet.GH, home, parent, baseTree string, changes map[string][]byte) (string, error) {
+// commit writes files as one commit on parent ("" for a new branch),
+// over its tree, and moves the branch to it, never forcing; it returns the
+// commit and its tree.
+func commit(gh fleet.GH, home, parent, baseTree string, files []file) (string, string, error) {
 	base := "/repos/" + home + "/git/"
-	paths := make([]string, 0, len(changes))
-	for p := range changes {
-		paths = append(paths, p)
-	}
-	sort.Strings(paths)
 	var entries []map[string]string
-	for i, p := range paths {
+	for i, f := range files {
+		data := f.data
+		if f.load != nil {
+			var err error
+			if data, err = f.load(); err != nil {
+				return "", "", err
+			}
+		}
 		if i > 0 {
 			time.Sleep(writeGap)
 		}
-		r, err := fleet.Expect(gh, "POST", base+"blobs", map[string]string{"content": base64.StdEncoding.EncodeToString(changes[p]), "encoding": "base64"}, 201)
+		r, err := fleet.Expect(gh, "POST", base+"blobs", map[string]string{"content": base64.StdEncoding.EncodeToString(data), "encoding": "base64"}, 201)
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
 		sha, err := shaOf(r)
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
-		entries = append(entries, map[string]string{"path": p, "mode": "100644", "type": "blob", "sha": sha})
+		entries = append(entries, map[string]string{"path": f.path, "mode": "100644", "type": "blob", "sha": sha})
 	}
 	treeBody := map[string]any{"tree": entries}
 	parents := []string{}
@@ -245,29 +295,29 @@ func commit(gh fleet.GH, home, parent, baseTree string, changes map[string][]byt
 	}
 	r, err := fleet.Expect(gh, "POST", base+"trees", treeBody, 201)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	tree, err := shaOf(r)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	r, err = fleet.Expect(gh, "POST", base+"commits", map[string]any{
 		"message": "Mirror the shelf's packs for this fleet\n\nWritten by the claudinite-fleet-sheepdog pack's fleet-pack-seeds sweep.",
 		"tree":    tree, "parents": parents,
 	}, 201)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	sha, err := shaOf(r)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	if parent == "" {
 		_, err = fleet.Expect(gh, "POST", base+"refs", map[string]any{"ref": "refs/heads/" + Branch, "sha": sha}, 201)
 	} else {
 		_, err = fleet.Expect(gh, "PATCH", base+"refs/heads/"+Branch, map[string]any{"sha": sha, "force": false}, 200)
 	}
-	return sha, err
+	return sha, tree, err
 }
 
 func shaOf(r fleet.Response) (string, error) {

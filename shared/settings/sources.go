@@ -63,18 +63,28 @@ func parseSources(raw any) ([]string, error) {
 	return list, nil
 }
 
-// SetSources sets packs.sources, rewriting the packs block in its place.
+// SetSources sets packs.sources, rewriting the packs block in its place,
+// or adding one where the file holds none.
 func SetSources(raw []byte, f Format, list []string) ([]byte, error) {
 	if err := checkSources(list); err != nil {
-		return nil, err
-	}
-	packs, err := orderedPacks(raw, f)
-	if err != nil {
 		return nil, err
 	}
 	items := make([]any, len(list))
 	for i, s := range list {
 		items[i] = s
+	}
+	p, err := ReadPacks(raw, f)
+	if err != nil {
+		return nil, err
+	}
+	if !p.Present {
+		block := NewOrdered()
+		block.Set("sources", items)
+		return SpliceBlocks(raw, f, []Block{{Name: "packs", Value: block}})
+	}
+	packs, err := orderedPacks(raw, f)
+	if err != nil {
+		return nil, err
 	}
 	packs.Set("sources", items)
 	return replacePacks(raw, f, packs)

@@ -226,3 +226,42 @@ func TestAMirrorTheTokenCannotWriteIsAGrantError(t *testing.T) {
 		t.Errorf("%v", err)
 	}
 }
+
+// A run past its cap commits whole units in small commits, archives
+// first, and leaves the rest, every index pair among it, for the next.
+func TestAMirrorPastItsCapKeepsWhatItWrote(t *testing.T) {
+	defer mirror.SetLimits(2, 4)()
+	a, s := &api{}, newShelf()
+	var trees []map[string]string
+	var refs []string
+	gh := func(method, path string, body any) (fleet.Response, error) {
+		r, err := a.gh(method, path, body)
+		switch {
+		case strings.HasSuffix(path, "/git/trees") && method == "POST":
+			trees = append(trees, a.written)
+		case strings.Contains(path, "/git/refs"):
+			refs = append(refs, method)
+		}
+		return r, err
+	}
+	r, err := mirror.Mirror(gh, "acme/fleet", s, []string{"acme-pack"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.Changed != 3 || r.Remaining != 6 || r.Commit == "" {
+		t.Errorf("%+v", r)
+	}
+	if len(trees) != 2 || len(trees[0]) != 2 || len(trees[1]) != 1 || strings.Join(refs, ",") != "POST,PATCH" {
+		t.Errorf("trees %v refs %v", trees, refs)
+	}
+	for _, tr := range trees {
+		for p := range tr {
+			if !strings.HasSuffix(p, ".tar.gz") {
+				t.Errorf("wrote %s before every archive was in", p)
+			}
+		}
+	}
+	if !strings.Contains(r.Summary("acme/fleet"), "6 files are left") {
+		t.Error(r.Summary("acme/fleet"))
+	}
+}

@@ -155,3 +155,31 @@ func TestASeedAndTheSourcesLandTogether(t *testing.T) {
 		t.Errorf("mirrored %v; a seed is a pack the fleet will carry", declared)
 	}
 }
+
+// A mirror still filling points no member yet, and is not a failure: the
+// next run goes on from what this one committed.
+func TestAMirrorStillFillingPointsNoMemberYet(t *testing.T) {
+	tr := &tree{files: map[string]string{"acme/new:.claudinite/settings.yaml": settingsAt("1.61006.1")}}
+	filling := func([]string) (mirror.Result, error) { return mirror.Result{Changed: 400, Remaining: 12}, nil }
+	r := seeds.Sweep(tr.gh, []fleet.Repo{repo("acme/new")}, "acme/fleet", cfg(), filling)
+	if err := r.Err(); err != nil {
+		t.Fatal(err)
+	}
+	if len(tr.puts) != 0 {
+		t.Errorf("pointed a member at a mirror still filling: %v", tr.puts)
+	}
+}
+
+// A member whose settings hold no packs block gets one.
+func TestAMemberWithNoPacksBlockIsPointed(t *testing.T) {
+	bare := "engine:\n  version: \"1.61006.1\"\n  manifest: \"sha512-" + strings.Repeat("A", 86) + "==\"\n"
+	tr := &tree{files: map[string]string{"acme/new:.claudinite/settings.yaml": bare}}
+	var declared []string
+	if err := seeds.Sweep(tr.gh, []fleet.Repo{repo("acme/new")}, "acme/fleet", cfg(), mirrored(&declared)).Err(); err != nil {
+		t.Fatal(err)
+	}
+	p, err := settings.ReadPacks([]byte(tr.puts["acme/new:.claudinite/settings.yaml"]), settings.YAML)
+	if err != nil || len(p.Sources) != 1 {
+		t.Errorf("%+v %v", p, err)
+	}
+}
