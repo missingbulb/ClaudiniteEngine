@@ -53,6 +53,9 @@ func tarballRepositoryURLs(t *testing.T, dist string) map[string]string {
 }
 
 func TestBuildNamesEveryTarballForItsChannel(t *testing.T) {
+	if testing.Short() {
+		t.Skip("builds two releases; the full run covers it")
+	}
 	for _, pkg := range []string{"@claudinite/cli", "@claudinite/cli-rc"} {
 		dist := filepath.Join(t.TempDir(), "dist")
 		env := []string{"VERSION=0.0.0", "PACKAGE=" + pkg, "DIST=" + dist}
