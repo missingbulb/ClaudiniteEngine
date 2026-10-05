@@ -41,6 +41,9 @@ type Packs struct {
 	Entries []PackEntry
 	// Present is false when the file holds no packs block.
 	Present bool
+	// Sources are where new pack versions are read, in order; nil reads
+	// the shelf.
+	Sources []string
 }
 
 // packsLayout is the block as read, with the offsets an edit needs.
@@ -375,7 +378,7 @@ func AddDeclared(raw []byte, f Format, id string) ([]byte, error) {
 			return nil, fmt.Errorf("%s is already declared", id)
 		}
 	}
-	if object {
+	if object || p.Sources != nil {
 		return appendDeclared(raw, f, id)
 	}
 	l, err := readPacksLayout(raw, f)

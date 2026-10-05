@@ -208,7 +208,7 @@ func openSweep(name, event, sweepID, missingDetail, repo, api string, stderr io.
 		api = githubapi.DefaultBase
 	}
 	s.gh = fleet.NewGH(api, token)
-	shelf, reader, closer, err := fleetShelf(stderr)
+	shelf, reader, closer, err := fleetShelf(root, stderr)
 	if err != nil {
 		s.crumb(event, "error", 0, 0)
 		return nil, report.Wrap(report.IO, name, err)
@@ -290,7 +290,7 @@ func (s shelfReader) Index(id string) (packindex.Index, bool, error) {
 	return v.Index, true, nil
 }
 
-func fleetShelf(log io.Writer) (fleet.Shelf, *packs.Reader, func(), error) {
+func fleetShelf(root string, log io.Writer) (fleet.Shelf, *packs.Reader, func(), error) {
 	reg, err := npmreg.FromEnv()
 	if err != nil {
 		return nil, nil, nil, err
@@ -299,7 +299,10 @@ func fleetShelf(log io.Writer) (fleet.Shelf, *packs.Reader, func(), error) {
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	r, closer := packReader(roots, log)
+	r, closer, err := packReader(root, roots, log)
+	if err != nil {
+		return nil, nil, nil, err
+	}
 	return shelfReader{npm: reg, packs: r}, r, closer, nil
 }
 
