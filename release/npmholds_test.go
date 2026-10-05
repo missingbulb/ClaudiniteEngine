@@ -42,10 +42,13 @@ func (f *docNPM) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func holdsDist(t *testing.T) (string, map[string]string) {
 	t.Helper()
 	dir := t.TempDir()
+	if err := os.Mkdir(filepath.Join(dir, "tarballs"), 0o755); err != nil {
+		t.Fatal(err)
+	}
 	want := map[string]string{}
 	for pkg, file := range map[string]string{"@claudinite/cli": "cli-1.61005.9.tgz", "@claudinite/cli-linux-x64": "cli-linux-x64-1.61005.9.tgz"} {
 		body := []byte("tarball of " + pkg)
-		if err := os.WriteFile(filepath.Join(dir, file), body, 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(dir, "tarballs", file), body, 0o644); err != nil {
 			t.Fatal(err)
 		}
 		sum := sha512.Sum512(body)
@@ -111,7 +114,7 @@ func TestNPMHoldsGivesUpAtItsTimeout(t *testing.T) {
 func TestNPMHoldsNeedsTheManifestPackage(t *testing.T) {
 	t.Parallel()
 	dist, want := holdsDist(t)
-	if err := os.Remove(filepath.Join(dist, "cli-1.61005.9.tgz")); err != nil {
+	if err := os.Remove(filepath.Join(dist, "tarballs", "cli-1.61005.9.tgz")); err != nil {
 		t.Fatal(err)
 	}
 	srv := httptest.NewServer(&docNPM{seen: map[string]int{}, integrity: want})
