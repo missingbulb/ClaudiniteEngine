@@ -213,7 +213,7 @@ func loadOne(repo string, kind Kind, id, rel, engine string) (Pack, string) {
 			// A Node engine floor was vendored before the shelf named the cn
 			// floor: the pack keeps running until the update replaces it,
 			// and verify names it.
-			// @legacy-tolerance advisory:pack-min-engine retire:#18
+			// @legacy-tolerance advisory:pack-min-engine retire:#108
 			min, err := version.ParseMinEngineVersion(m.MinEngineVersion)
 			if err != nil && !errors.Is(err, version.ErrNodeEngine) {
 				return Pack{}, err.Error()
