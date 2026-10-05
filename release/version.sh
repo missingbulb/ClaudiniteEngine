@@ -5,12 +5,15 @@
 #   release/version.sh next       print the next version for today (UTC)
 #   release/version.sh check V    exit 0 if v<V> is free, 1 if it is taken;
 #                                 a V below the engine floor is refused
+#   release/version.sh day [DATE] print the <day> of DATE (YYYY-MM-DD,
+#                                 default today, UTC)
 #
 # <major> is release/major, the one number a person raises by hand. <day>
-# comes from `cn version --day`, the one implementation of the format, and
-# <n> counts today's builds of this major from 1. check runs no Go: the
-# floor is checksdk/engine_floor.txt, the file the SDK's EngineFloor is held
-# equal to (`cn version --floor` prints the same).
+# is (year - 2020)*10000 + month*100 + day, as shared/version's Today
+# computes it; TestVersionDayIsToday holds the two equal. <n> counts today's
+# builds of this major from 1. Nothing here runs Go: the floor is
+# checksdk/engine_floor.txt, the file the SDK's EngineFloor is held equal to
+# (`cn version --floor` prints the same).
 set -eu
 here=$(cd "$(dirname "$0")/.." && pwd)
 fail() { echo "version: $*" >&2; exit 2; }
@@ -19,6 +22,22 @@ day_re='([1-9][0-9]*(0[1-9]|1[0-2])|[1-9]|1[0-2])(0[1-9]|[12][0-9]|3[01])'
 version_re="(0|[1-9][0-9]*)\.$day_re\.[1-9][0-9]*"
 shaped() { printf '%s\n' "$1" | grep -Eqx "$version_re"; }
 part() { echo "$1" | cut -d. -f"$2"; }
+
+# day DATE: the <day> of DATE, YYYY-MM-DD. Each part loses its leading
+# zero first, since shell arithmetic reads 08 as octal.
+day() {
+  printf '%s\n' "$1" | grep -Eqx '20[2-9][0-9]-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])' || fail "$1 is not a YYYY-MM-DD date from 2020 on"
+  y=$(echo "$1" | cut -d- -f1)
+  m=$(echo "$1" | cut -d- -f2 | sed 's/^0//')
+  d=$(echo "$1" | cut -d- -f3 | sed 's/^0//')
+  echo $(((y - 2020) * 10000 + m * 100 + d))
+}
+
+if [ "${1:-}" = day ]; then
+  [ $# -le 2 ] || fail "usage: release/version.sh day [YYYY-MM-DD]"
+  day "${2:-$(date -u +%Y-%m-%d)}"
+  exit 0
+fi
 
 if [ "$(git rev-parse --is-shallow-repository)" = true ]; then
   fail "this is a shallow clone, whose tags are incomplete; check out with fetch-depth: 0"
@@ -29,8 +48,7 @@ case ${1:-} in
     [ $# -eq 1 ] || fail "usage: release/version.sh next"
     major=$(cat "$here/release/major")
     printf '%s\n' "$major" | grep -Eqx '0|[1-9][0-9]*' || fail "release/major holds $major, not one number"
-    day=$(cd "$here" && go run ./cmd/cn version --day)
-    printf '%s\n' "$day" | grep -Eqx '[1-9][0-9]*' || fail "cn version --day printed $day"
+    day=$(day "$(date -u +%Y-%m-%d)")
     last=$(git tag --list "v$major.$day.*" | sed -n "s/^v$major\.$day\.\([1-9][0-9]*\)\$/\1/p" | sort -n | tail -n 1)
     echo "$major.$day.$((${last:-0} + 1))"
     ;;
@@ -54,5 +72,5 @@ case ${1:-} in
       exit 1
     fi
     ;;
-  *) fail "usage: release/version.sh next | check VERSION" ;;
+  *) fail "usage: release/version.sh next | check VERSION | day [YYYY-MM-DD]" ;;
 esac

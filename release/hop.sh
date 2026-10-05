@@ -3,7 +3,7 @@
 # build of the same source at the next ordinal is v2, and the candidate's
 # own cn update engine must move a member from v1 to v2 through a merged
 # update PR, against regstub and release/ghstub: the rehearsal's update
-# mode, steps 1 to 4. release.yml runs it before sign, so a candidate that
+# mode, steps 1 to 4. release.yml runs it before publish, so a candidate that
 # cannot update away from itself is never published. A candidate trusts
 # only the ceremony's roots, so release/rehearse.sh runs it rebuilt with the
 # development roots, which no other byte of it depends on.

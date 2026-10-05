@@ -1,7 +1,7 @@
 // Command promote is the promotion gate of promote.yml: gate decides from
-// npm, GitHub issues and the canaries' workflow conclusions whether an rc
-// version may become @claudinite/cli; check verifies the downloaded rc
-// bytes before they are republished.
+// npm, GitHub issues and the canaries' workflow conclusions whether a
+// version of @claudinite/cli may take the latest dist-tag; check verifies
+// the version's downloaded bytes before the tag moves onto them.
 //
 //	promote gate --version V --canaries FILE [--fixtures DIR]
 //	promote check --version V --tarballs DIR --roots DIR --source DIR
@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/missingbulb/ClaudiniteEngine/release"
 	"github.com/missingbulb/ClaudiniteEngine/release/releasefiles"
 )
 
@@ -74,7 +75,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		}
 		result, reason, stable := Check(*tarballs, *ver, *roots, strings.TrimSpace(string(head)), func() error { return stableTest(*source, stderr) })
 		fmt.Fprintf(stderr, "promote check: %s: %s\n", result, reason)
-		fmt.Fprintf(stdout, "check=%s\nstable_test=%s\n", result, stable)
+		fmt.Fprintf(stdout, "check=%s\nstable_test=%s\nreason=%s\n", result, stable, strings.ReplaceAll(reason, "\n", " "))
 		return 0
 	}
 	fmt.Fprintf(stderr, "promote: unknown command %q\n%s", args[0], usage)
@@ -111,7 +112,7 @@ func gate(ver, canariesPath, fixtures string, stdout, stderr io.Writer) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(stderr, "promote gate: %s %s: %s; %s\n", rcPackage, ver, v.Result, v.Reason)
+	fmt.Fprintf(stderr, "promote gate: %s %s: %s; %s\n", release.CLI, ver, v.Result, v.Reason)
 	fmt.Fprintf(stdout, "verdict=%s\nhop=%s\n", v.Result, v.Hop)
 	return nil
 }
@@ -127,7 +128,8 @@ func stableTest(source string, stderr io.Writer) error {
 
 // fixture is a recorded world for the gate: registry, issues, runs, clock.
 type fixture struct {
-	Now      time.Time `json:"now"`
+	Now      time.Time                    `json:"now"`
+	Tags     map[string]map[string]string `json:"distTags"`
 	Packages map[string]map[string]struct {
 		PublishedAt time.Time       `json:"publishedAt"`
 		Manifest    json.RawMessage `json:"manifest"`
@@ -161,13 +163,7 @@ func (f *fixture) Manifest(pkg, ver string) (releasefiles.Manifest, error) {
 	return releasefiles.ParseManifest(p.Manifest)
 }
 
-func (f *fixture) Versions(pkg string) ([]string, error) {
-	var out []string
-	for v := range f.Packages[pkg] {
-		out = append(out, v)
-	}
-	return out, nil
-}
+func (f *fixture) DistTags(pkg string) (map[string]string, error) { return f.Tags[pkg], nil }
 
 func (f *fixture) OpenIssues(label string) ([]Issue, error) {
 	var out []Issue
@@ -193,6 +189,7 @@ type npmRegistry struct {
 }
 
 type packument struct {
+	DistTags map[string]string `json:"dist-tags"`
 	Time     map[string]string `json:"time"`
 	Versions map[string]struct {
 		Dist struct {
@@ -259,16 +256,12 @@ func (r npmRegistry) Manifest(pkg, ver string) (releasefiles.Manifest, error) {
 	return releasefiles.ParseManifest(raw)
 }
 
-func (r npmRegistry) Versions(pkg string) ([]string, error) {
+func (r npmRegistry) DistTags(pkg string) (map[string]string, error) {
 	p, err := r.packument(pkg)
 	if err != nil {
 		return nil, err
 	}
-	var out []string
-	for v := range p.Versions {
-		out = append(out, v)
-	}
-	return out, nil
+	return p.DistTags, nil
 }
 
 // githubAPI reads issues and workflow runs over the REST API.

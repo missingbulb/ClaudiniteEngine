@@ -169,6 +169,37 @@ func TestVerify(t *testing.T) {
 	}
 }
 
+// A staging build carries linux-x64 alone: write lists exactly the named
+// platforms, and verify holds the manifest to the set it is told, so a
+// staging manifest never passes as a full one.
+func TestWriteAndVerifyANamedPlatformSet(t *testing.T) {
+	dist := fakeDist(t)
+	root := repoRoot(t)
+	roots := filepath.Join(root, "shared/trust/devroots")
+	if _, e, c := tool(t, "write", "--dist", dist, "--version", "1.61001.1", "--commit", "abc1234", "--source", root, "--platforms", "linux-x64"); c != 0 {
+		t.Fatalf("write: %s", e)
+	}
+	raw, _ := os.ReadFile(filepath.Join(dist, "manifest.json"))
+	m, err := releasefiles.ParseManifest(raw)
+	if err != nil || len(m.Binaries) != 1 || m.Binaries["linux-x64"].File != "cn" {
+		t.Fatalf("manifest %+v %v", m.Binaries, err)
+	}
+	if _, e, c := tool(t, "sign", "--dist", dist, "--key", filepath.Join(root, "testkeys/release.key"), "--cert", filepath.Join(root, "testkeys/release.cert.json")); c != 0 {
+		t.Fatalf("sign: %s", e)
+	}
+	if _, e, c := tool(t, "verify", "--dist", dist, "--roots", roots, "--platforms", "linux-x64"); c != 0 {
+		t.Errorf("verify --platforms linux-x64: %s", e)
+	}
+	if _, e, c := tool(t, "verify", "--dist", dist, "--roots", roots); c == 0 || !strings.Contains(e, "1 binaries, want 5") {
+		t.Errorf("a one-platform manifest verified as a full release: exit %d %s", c, e)
+	}
+	for _, bad := range []string{"linux-x86", "linux-x64 linux-x64", ""} {
+		if _, _, c := tool(t, "write", "--dist", dist, "--version", "1.61001.1", "--commit", "abc1234", "--source", root, "--platforms", bad); c == 0 {
+			t.Errorf("write --platforms %q passed", bad)
+		}
+	}
+}
+
 func TestIntegrity(t *testing.T) {
 	p := filepath.Join(t.TempDir(), "f")
 	_ = os.WriteFile(p, []byte("abc"), 0o644)

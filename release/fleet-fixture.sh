@@ -18,11 +18,12 @@
 #   nodemember   a Node engine declaration, with its scheduler
 #   forked       pinned to LATEST, served as a fork
 #
-# Every pin names manifest INTEGRITY. It prints the ghstub --repo flags, one per line.
-# usage: release/fleet-fixture.sh WORK MANAGER VERSION LATEST BEHIND INTEGRITY PACKAGE
+# Every pin names @claudinite/cli, manifest INTEGRITY and the engine
+# channel CHANNEL. It prints the ghstub --repo flags, one per line.
+# usage: release/fleet-fixture.sh WORK MANAGER VERSION LATEST BEHIND INTEGRITY CHANNEL
 set -eu
-[ $# -eq 7 ] || { echo "usage: release/fleet-fixture.sh WORK MANAGER VERSION LATEST BEHIND INTEGRITY PACKAGE" >&2; exit 2; }
-work=$1 manager=$2 version=$3 latest=$4 behind=$5 integrity=$6 package=$7
+[ $# -eq 7 ] || { echo "usage: release/fleet-fixture.sh WORK MANAGER VERSION LATEST BEHIND INTEGRITY CHANNEL" >&2; exit 2; }
+work=$1 manager=$2 version=$3 latest=$4 behind=$5 integrity=$6 channel=$7
 
 for p in claudinite-fleet-sheepdog claudinite-tasks; do
   mkdir -p "$manager/.claudinite/shared/packs/$p"
@@ -79,7 +80,8 @@ member() {
   mkdir -p "$d/.claudinite"
   cat > "$d/.claudinite/settings.yaml" <<YAML
 engine:
-  package: "$package"
+  package: "@claudinite/cli"
+  channel: "$channel"
   version: "$2"
   manifest: "$integrity"
 YAML

@@ -10,16 +10,17 @@ import (
 )
 
 // DeprecateInput is a hold, revoke or release dispatch of promote.yml and what npm
-// says exists: each channel's `npm view <pkg> versions --json`, which is
-// empty or an E404 error object when the package has no versions.
+// says exists: each CLI package's `npm view <pkg> versions --json`, keyed
+// by package name, which is empty or an E404 error object when the package
+// has no versions.
 type DeprecateInput struct {
-	Action, Version, Reason    string
-	RCVersions, StableVersions string
+	Action, Version, Reason string
+	Versions                map[string]string
 }
 
 // Deprecation is what the deprecate job does: the npm deprecate commands
-// for every package of the version, or, when npm has no such version, a
-// notice and nothing.
+// for every package holding the version, or, when @claudinite/cli has no
+// such version, a notice and nothing.
 type Deprecation struct {
 	Exists   bool
 	Commands []string
@@ -62,9 +63,9 @@ func shellQuote(s string) string { return "'" + strings.ReplaceAll(s, "'", `'\''
 
 // DeprecateCommands renders the hold or revoke of a version as the held:
 // or revoked: deprecation every reader of npm's deprecated field
-// understands, or its release as an empty deprecation, on the channel
-// package and its platform packages, and on the stable ones when the
-// version was promoted.
+// understands, or its release as an empty deprecation, on @claudinite/cli
+// and each platform package holding the version: a staging build has
+// linux-x64 alone.
 func DeprecateCommands(in DeprecateInput) (Deprecation, error) {
 	prefix, ok := map[string]string{"hold": "held: ", "revoke": "revoked: ", "release": ""}[in.Action]
 	switch {
@@ -80,34 +81,44 @@ func DeprecateCommands(in DeprecateInput) (Deprecation, error) {
 	if _, err := version.Parse(in.Version); err != nil {
 		return Deprecation{}, err
 	}
-	rc, err := npmVersions(in.RCVersions)
+	held, missing, err := holding(in.Version, in.Versions)
 	if err != nil {
 		return Deprecation{}, err
 	}
-	stable, err := npmVersions(in.StableVersions)
-	if err != nil {
-		return Deprecation{}, err
-	}
-	if !rc[in.Version] {
-		return Deprecation{Notice: fmt.Sprintf("@claudinite/cli-rc has no version %s; nothing to %s", in.Version, in.Action)}, nil
+	if len(held) == 0 {
+		return Deprecation{Notice: fmt.Sprintf("%s has no version %s; nothing to %s", CLI, in.Version, in.Action)}, nil
 	}
 	d := Deprecation{Exists: true}
-	bases := []string{"@claudinite/cli-rc"}
-	if stable[in.Version] {
-		bases = append(bases, "@claudinite/cli")
-	}
 	msg := "''"
 	if in.Action != "release" {
 		msg = shellQuote(prefix + strings.TrimSpace(in.Reason))
 	}
-	for _, base := range bases {
-		names := []string{base}
-		for _, p := range version.Platforms {
-			names = append(names, base+"-"+p)
-		}
-		for _, n := range names {
-			d.Commands = append(d.Commands, "npm deprecate "+shellQuote(n+"@"+in.Version)+" "+msg)
-		}
+	for _, n := range held {
+		d.Commands = append(d.Commands, "npm deprecate "+shellQuote(n+"@"+in.Version)+" "+msg)
+	}
+	if len(missing) > 0 {
+		d.Notice = fmt.Sprintf("%s has no version %s; left out", strings.Join(missing, ", "), in.Version)
 	}
 	return d, nil
+}
+
+// holding splits CLIPackages into those whose npm view answer in versions
+// lists ver and those that lack it. It returns none held when CLI itself
+// lacks ver, which then has nothing to act on.
+func holding(ver string, versions map[string]string) (held, missing []string, err error) {
+	for _, n := range CLIPackages() {
+		vs, err := npmVersions(versions[n])
+		if err != nil {
+			return nil, nil, fmt.Errorf("%s: %w", n, err)
+		}
+		if vs[ver] {
+			held = append(held, n)
+		} else {
+			missing = append(missing, n)
+		}
+	}
+	if len(held) == 0 || held[0] != CLI {
+		return nil, nil, nil
+	}
+	return held, missing, nil
 }

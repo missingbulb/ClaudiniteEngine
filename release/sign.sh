@@ -1,6 +1,6 @@
 #!/bin/sh
 # Signs the release in $DIST (default dist/) that release/build.sh wrote:
-# writes manifest.sig.json, copies it into the channel's npm package beside
+# writes manifest.sig.json, copies it into the npm package carrying
 # manifest.json, re-packs that one tarball, rewrites SHA256SUMS, verifies
 # the signature against $ROOTS and prints the integrity string, which
 # signing leaves unchanged since the signature travels beside the manifest,
@@ -9,13 +9,16 @@
 # RELEASE_KEY and RELEASE_CERT name the release key and its certificate.
 # ROOTS (default shared/trust/roots, what a released cn trusts) names the roots
 # the signature must verify against; the tests and release/rehearse.sh,
-# which sign with testkeys/, set it to shared/trust/devroots.
+# which sign with testkeys/, set it to shared/trust/devroots. PLATFORMS
+# (default all five) is the platforms the manifest must list, as for
+# release/build.sh.
 set -eu
 cd "$(dirname "$0")/.."
 root=$(pwd)
 DIST=${DIST:-dist}
 case $DIST in /*) ;; *) DIST=$root/$DIST ;; esac
 ROOTS=${ROOTS:-shared/trust/roots}
+PLATFORMS=${PLATFORMS:-linux-x64 linux-arm64 darwin-x64 darwin-arm64 windows-x64}
 
 if [ -z "${RELEASE_KEY:-}" ] || [ -z "${RELEASE_CERT:-}" ]; then
   echo "sign: set RELEASE_KEY and RELEASE_CERT to the release key and its certificate" >&2
@@ -43,7 +46,7 @@ version=$(sed -n 's/^  "version": "\(.*\)",$/\1/p' "$DIST/manifest.json")
 name=$(basename "$(dirname "$pkg")")
 rm -f "$DIST/tarballs/$name-$version.tgz"
 sh release/npmpack.sh "$pkg" "$DIST/tarballs"
-"$tools/manifest" verify --dist "$DIST" --roots "$ROOTS" >&2
+"$tools/manifest" verify --dist "$DIST" --roots "$ROOTS" --platforms "$PLATFORMS" >&2
 "$tools/manifest" sums --dist "$DIST"
 
 integrity=$("$tools/manifest" integrity "$pkg/manifest.json")

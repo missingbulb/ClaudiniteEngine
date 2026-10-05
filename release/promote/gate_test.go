@@ -11,7 +11,7 @@ import (
 type fakeRegistry struct {
 	published map[string]time.Time // "pkg@version"
 	manifests map[string]releasefiles.Manifest
-	versions  map[string][]string
+	tags      map[string]map[string]string
 }
 
 func (f fakeRegistry) PublishedAt(pkg, ver string) (time.Time, bool, error) {
@@ -23,7 +23,7 @@ func (f fakeRegistry) Manifest(pkg, ver string) (releasefiles.Manifest, error) {
 	return f.manifests[pkg+"@"+ver], nil
 }
 
-func (f fakeRegistry) Versions(pkg string) ([]string, error) { return f.versions[pkg], nil }
+func (f fakeRegistry) DistTags(pkg string) (map[string]string, error) { return f.tags[pkg], nil }
 
 type fakeIssues struct {
 	issues []Issue
@@ -52,15 +52,17 @@ var now = time.Date(2026, 10, 2, 12, 0, 0, 0, time.UTC)
 func world() (fakeRegistry, fakeIssues) {
 	reg := fakeRegistry{
 		published: map[string]time.Time{
-			"@claudinite/cli-rc@1.60930.1": now.Add(-25 * time.Hour),
-			"@claudinite/cli-rc@1.61001.1": now.Add(-2 * time.Hour),
+			"@claudinite/cli@1.60930.1": now.Add(-25 * time.Hour),
+			"@claudinite/cli@1.61001.1": now.Add(-2 * time.Hour),
 		},
 		manifests: map[string]releasefiles.Manifest{
-			"@claudinite/cli-rc@1.60930.1": {Version: "1.60930.1", Commit: "abc1234", UpdaterDigest: "d1"},
-			"@claudinite/cli@1.60920.1":    {Version: "1.60920.1", Commit: "0000001", UpdaterDigest: "d0"},
-			"@claudinite/cli@1.60925.2":    {Version: "1.60925.2", Commit: "0000002", UpdaterDigest: "d1"},
+			"@claudinite/cli@1.60930.1": {Version: "1.60930.1", Commit: "abc1234", UpdaterDigest: "d1"},
+			"@claudinite/cli@1.60920.1": {Version: "1.60920.1", Commit: "0000001", UpdaterDigest: "d0"},
+			"@claudinite/cli@1.60925.2": {Version: "1.60925.2", Commit: "0000002", UpdaterDigest: "d1"},
+			"@claudinite/cli@1.60928.1": {Version: "1.60928.1", Commit: "0000003", UpdaterDigest: "d3"},
 		},
-		versions: map[string][]string{"@claudinite/cli": {"0.0.0", "1.60920.1", "1.60925.2"}},
+		// rc and staging run ahead of latest; only latest was promoted.
+		tags: map[string]map[string]string{"@claudinite/cli": {"latest": "1.60925.2", "rc": "1.61001.1", "staging": "1.60928.1"}},
 	}
 	return reg, fakeIssues{runs: map[string]map[string]string{}}
 }
@@ -136,12 +138,12 @@ func TestGateHop(t *testing.T) {
 	clock := func() time.Time { return now }
 	v, _ := Gate(reg, gh, clock, "1.60930.1", twoCanaries)
 	if v.Hop != "hop:proven-by 1.60925.2" {
-		t.Errorf("same digest as the newest promoted: %q", v.Hop)
+		t.Errorf("same digest as the version latest points at: %q", v.Hop)
 	}
 
-	m := reg.manifests["@claudinite/cli-rc@1.60930.1"]
+	m := reg.manifests["@claudinite/cli@1.60930.1"]
 	m.UpdaterDigest = "d2"
-	reg.manifests["@claudinite/cli-rc@1.60930.1"] = m
+	reg.manifests["@claudinite/cli@1.60930.1"] = m
 	v, _ = Gate(reg, gh, clock, "1.60930.1", twoCanaries)
 	if v.Hop != "hop:needed" {
 		t.Errorf("changed digest: %q", v.Hop)
@@ -151,18 +153,26 @@ func TestGateHop(t *testing.T) {
 		t.Errorf("hop:needed blocked promotion: %s", v.Result)
 	}
 
-	m.UpdaterDigest = reg.manifests["@claudinite/cli@1.60925.2"].UpdaterDigest
-	reg.manifests["@claudinite/cli-rc@1.60930.1"] = m
-	reg.versions["@claudinite/cli"] = []string{"0.0.0", "60920.1.0", "1.60920.1", "1.60925.2"}
-	v, _ = Gate(reg, gh, clock, "1.60930.1", twoCanaries)
-	if v.Hop != "hop:proven-by 1.60925.2" {
-		t.Errorf("a retired-format version first on the registry: %q", v.Hop)
-	}
-
-	reg.versions["@claudinite/cli"] = []string{"0.0.0"}
+	// The staging build shares the digest, but nobody was promoted onto it.
+	m.UpdaterDigest = "d3"
+	reg.manifests["@claudinite/cli@1.60930.1"] = m
 	v, _ = Gate(reg, gh, clock, "1.60930.1", twoCanaries)
 	if v.Hop != "hop:needed" {
-		t.Errorf("nothing promoted yet: %q", v.Hop)
+		t.Errorf("a digest only a staging build carries: %q", v.Hop)
+	}
+
+	m.UpdaterDigest = "d1"
+	reg.manifests["@claudinite/cli@1.60930.1"] = m
+	for name, tags := range map[string]map[string]string{
+		"latest on the 0.0.0 reservation": {"latest": "0.0.0", "rc": "1.61001.1"},
+		"no latest tag":                   {"rc": "1.61001.1"},
+		"no tags":                         nil,
+	} {
+		reg.tags["@claudinite/cli"] = tags
+		v, _ = Gate(reg, gh, clock, "1.60930.1", twoCanaries)
+		if v.Hop != "hop:needed" {
+			t.Errorf("%s: %q", name, v.Hop)
+		}
 	}
 }
 
