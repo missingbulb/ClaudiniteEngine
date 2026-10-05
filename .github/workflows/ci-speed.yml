@@ -1,0 +1,58 @@
+# The fast check's speed budget: daily, the p75 wall time of ci.yml's successful runs over the
+# last seven days against 60 seconds. Over it, one issue is opened or commented on, for the
+# routine that works it; back under it, that issue closes.
+name: ci-speed
+
+on:
+  schedule:
+    - cron: "23 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  p75:
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - id: p75
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          since=$(date -u -d '7 days ago' +%Y-%m-%d)
+          # Runs before the fast check's first full day timed a different workflow.
+          [ "$since" \> 2026-10-05 ] || since=2026-10-06
+          curl -fsS -H "Authorization: Bearer $GH_TOKEN" \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?status=completed&created=%3E%3D$since&per_page=100" > runs.json
+          sh probe/ci-speed/p75.sh --budget 60 < runs.json | tee report.md >> "$GITHUB_STEP_SUMMARY"
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          VERDICT: ${{ steps.p75.outputs.verdict }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          api="$GITHUB_API_URL/repos/$GITHUB_REPOSITORY"
+          title="Engine CI p75 is over 60s"
+          curl -fsS -H "Authorization: Bearer $GH_TOKEN" "$api/issues?state=open&creator=github-actions%5Bbot%5D&per_page=100" > open.json
+          number=$(jq -r --arg t "$title" 'map(select(.title == $t and (.pull_request | not))) | first | .number // empty' open.json)
+          body="$(cat report.md)
+
+          $RUN_URL"
+          case $VERDICT in
+            over)
+              if [ -n "$number" ]; then
+                jq -n --arg b "$body" '{body: $b}' | curl -fsS -H "Authorization: Bearer $GH_TOKEN" -X POST "$api/issues/$number/comments" -d @- > /dev/null
+              else
+                jq -n --arg t "$title" --arg b "$body" '{title: $t, body: $b}' | curl -fsS -H "Authorization: Bearer $GH_TOKEN" -X POST "$api/issues" -d @- > /dev/null
+              fi ;;
+            under)
+              if [ -n "$number" ]; then
+                jq -n --arg b "Back under budget. $body" '{body: $b}' | curl -fsS -H "Authorization: Bearer $GH_TOKEN" -X POST "$api/issues/$number/comments" -d @- > /dev/null
+                curl -fsS -H "Authorization: Bearer $GH_TOKEN" -X PATCH "$api/issues/$number" -d '{"state":"closed","state_reason":"completed"}' > /dev/null
+              fi ;;
+            # too-few: a quiet week says nothing about speed.
+          esac
