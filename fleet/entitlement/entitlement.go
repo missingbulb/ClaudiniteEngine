@@ -154,6 +154,8 @@ func Check(in In) Verdict {
 
 // key is what the check reads of a key's signed payload.
 type key struct {
+	Typ        string `json:"typ"`
+	State      string `json:"state"`
 	Kid        string `json:"kid"`
 	RepoID     int64  `json:"repo_id"`
 	OwnerID    int64  `json:"owner_id"`
@@ -193,6 +195,12 @@ func verify(wire []byte, roots []ed25519.PublicKey, now time.Time) (key, error) 
 	}
 	if now.Unix() >= k.Exp {
 		return key{}, errors.New("expired")
+	}
+	if k.Typ != "actions" {
+		return key{}, fmt.Errorf("a %q key, not an Actions key", k.Typ)
+	}
+	if k.State != "ok" {
+		return key{}, fmt.Errorf("its state is %q, not ok", k.State)
 	}
 	return k, nil
 }

@@ -190,6 +190,12 @@ func TestAnAnswerThatIsNotAFleetKeyIsRefused(t *testing.T) {
 		"expired":       {key: mint(t, "personal", map[string]any{"exp": testNow.Add(-time.Minute).Unix()})},
 		"another repo":  {key: mint(t, "personal", map[string]any{"repo_id": 12})},
 		"tampered plan": {key: strings.Replace(mint(t, "public", nil), `"payload":"`, `"payload":"x`, 1)},
+		"session key":   {key: mint(t, "personal", map[string]any{"typ": "session"})},
+		"grant":         {key: mint(t, "personal", map[string]any{"typ": "grant"})},
+		"no type":       {key: mint(t, "personal", map[string]any{"typ": nil})},
+		"degraded":      {key: mint(t, "personal", map[string]any{"state": "degraded"})},
+		"grace":         {key: mint(t, "personal", map[string]any{"state": "grace"})},
+		"no state":      {key: mint(t, "personal", map[string]any{"state": nil})},
 	} {
 		v := check(t, s, env(inActions))
 		if !v.Refused || v.Allows("acme/one", 3) {

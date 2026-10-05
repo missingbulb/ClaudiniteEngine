@@ -117,7 +117,7 @@ func (s *stub) mint(id identity, ttl time.Duration) (string, error) {
 	now := s.now()
 	p := map[string]any{"v": 1, "typ": "actions", "kid": sign.KeyID(s.issuing.Public().(ed25519.PublicKey)),
 		"repo_id": id.RepoID, "owner_id": id.OwnerID, "owner_type": id.OwnerType, "owner_login": id.OwnerLogin,
-		"plan": s.plan(id), "iat": now.Unix(), "exp": now.Add(ttl).Unix()}
+		"plan": s.plan(id), "state": "ok", "iat": now.Unix(), "exp": now.Add(ttl).Unix()}
 	payload, err := json.Marshal(p)
 	if err != nil {
 		return "", err
