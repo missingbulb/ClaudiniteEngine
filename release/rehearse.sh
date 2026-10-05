@@ -738,7 +738,7 @@ for mode in $modes; do
       [ -f "$member/.claude/skills/hello/SKILL.md" ] || fail "packs 2: the skill is not mounted"
       cn_member check build --wait > "$work/build.out" 2>&1 || fail "packs 2: check build: $(cat "$work/build.out")"
       checks=$XDG_CACHE_HOME/claudinite/checks
-      keys=$(find "$checks" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')
+      keys=$(find "$checks" -mindepth 1 -maxdepth 1 -type d ! -name sessions | wc -l | tr -d ' ')
       [ "$keys" = 1 ] || fail "packs 2: $keys checks binaries"
       buildlog=$(find "$checks" -name build.log)
       [ -x "$(dirname "$buildlog")/checks" ] || fail "packs 2: no checks binary beside $buildlog"
