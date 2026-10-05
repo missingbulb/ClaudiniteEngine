@@ -114,13 +114,10 @@ func TestAnUnreachableServerFailsOpen(t *testing.T) {
 	for name, in := range map[string]In{
 		"server down": {Server: &server{err: errors.New("dial tcp: connection refused")}, OIDC: func() (string, error) { return "t", nil }},
 		"server 503":  {Server: &server{err: &licenseapi.Refusal{Status: 503}}, OIDC: func() (string, error) { return "t", nil }},
-		"no client":   {OIDC: func() (string, error) { return "t", nil }},
-		"no OIDC":     {Server: &server{key: mint(t, "personal", nil)}, OIDC: func() (string, error) { return "", githubapi.ErrNoOIDC }},
-		"GitHub down": {Server: &server{key: mint(t, "personal", nil)}, OIDC: func() (string, error) { return "", errors.New("OIDC token: 502 Bad Gateway") }},
 	} {
 		in.Getenv, in.Roots, in.Now = env(inActions), testRoots(), testNow
 		v := Check(in)
-		if v.Refused || !v.Unverified {
+		if v.Refused || v.Transient || !v.Unverified {
 			t.Errorf("%s: %+v, want an unverified run", name, v)
 			continue
 		}
@@ -129,6 +126,47 @@ func TestAnUnreachableServerFailsOpen(t *testing.T) {
 		}
 		if !strings.Contains(v.Notice, "unverified") {
 			t.Errorf("%s: notice %q does not say the run is unverified", name, v.Notice)
+		}
+	}
+}
+
+// Only the license server's own silence fails open: whatever the fleet's
+// owner controls (the workflow's permissions, its environment, its
+// endpoint) refuses.
+func TestWhatTheOwnerControlsNeverFailsOpen(t *testing.T) {
+	actions := map[string]string{"GITHUB_REPOSITORY_ID": "11", "GITHUB_ACTIONS": "true"}
+	for name, c := range map[string]struct {
+		in   In
+		want string
+	}{
+		"no client":           {In{OIDC: func() (string, error) { return "t", nil }, Getenv: env(actions)}, "license server"},
+		"no id-token: write":  {In{Server: &server{key: mint(t, "personal", nil)}, OIDC: func() (string, error) { return "", githubapi.ErrNoOIDC }, Getenv: env(actions)}, "id-token: write"},
+		"not in Actions":      {In{Server: &server{key: mint(t, "personal", nil)}, OIDC: func() (string, error) { return "", githubapi.ErrNoOIDC }, Getenv: env(nil)}, "GitHub Actions"},
+		"OIDC endpoint fails": {In{Server: &server{key: mint(t, "personal", nil)}, OIDC: func() (string, error) { return "", errors.New("OIDC token: 502 Bad Gateway") }, Getenv: env(actions)}, "OIDC"},
+	} {
+		c.in.Roots, c.in.Now = testRoots(), testNow
+		v := Check(c.in)
+		if !v.Refused || v.Unverified || v.Allows("acme/one", 3) {
+			t.Errorf("%s: %+v, want a refused run", name, v)
+		}
+		if !strings.Contains(v.Notice, c.want) {
+			t.Errorf("%s: notice %q does not name %q", name, v.Notice, c.want)
+		}
+	}
+}
+
+// A refusal the server may lift on a retry is the run's error, not a
+// person's to act on.
+func TestATransientRefusalIsARunError(t *testing.T) {
+	for _, status := range []int{408, 413, 429} {
+		v := check(t, &server{err: &licenseapi.Refusal{Status: status, Reason: "rate-limited"}}, env(inActions))
+		if !v.Transient || v.Refused || v.Unverified || v.Allows("acme/one", 3) {
+			t.Errorf("%d: %+v, want a transient run error", status, v)
+		}
+	}
+	for _, status := range []int{401, 403} {
+		if v := check(t, &server{err: &licenseapi.Refusal{Status: status, Reason: "no-plan"}}, env(inActions)); !v.Refused || v.Transient {
+			t.Errorf("%d: %+v, want a refusal", status, v)
 		}
 	}
 }

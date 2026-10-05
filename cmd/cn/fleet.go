@@ -139,8 +139,12 @@ func (s *sweep) failed(err error) error {
 
 // crumb is the sweep's one breadcrumb, `[cn] fleet <event> <outcome>
 // <n>/<m> <ms>ms`: a count of what the sweep reached, which the shared
-// line has no field for.
+// line has no field for. An unverified run's ok is `unverified`, so it can
+// be counted.
 func (s *sweep) crumb(event, outcome string, n, m int) {
+	if outcome == "ok" && s.entitled.Unverified {
+		outcome = "unverified"
+	}
 	fmt.Fprintf(s.stderr, "[cn] fleet %s %s %d/%d %dms\n", event, outcome, n, m, time.Since(s.start).Milliseconds())
 }
 
@@ -165,8 +169,14 @@ func openSweep(name, event, sweepID, missingDetail, repo, api string, stderr io.
 		s.crumb(event, "refused", 0, 0)
 		return nil, report.Said(report.IO)
 	}
+	if v.Transient {
+		fmt.Fprintln(stderr, v.Notice)
+		s.crumb(event, "error", 0, 0)
+		return nil, report.Said(report.IO)
+	}
 	if v.Unverified {
 		fmt.Fprintln(stderr, v.Notice)
+		appendSummary(v.Notice)
 	}
 	s.entitled = v
 	token := os.Getenv(fleet.TokenEnv)
@@ -306,11 +316,16 @@ func fleetEntitlement() (entitlement.Verdict, error) {
 		OIDC: func() (string, error) {
 			return githubapi.OIDCToken(&http.Client{Timeout: 10 * time.Second}, os.Getenv, entitlement.Audience)
 		}}
-	if c, err := licenseapi.FromEnv(); err == nil {
-		in.Server = c
+	c, err := licenseClient()
+	if err != nil {
+		return entitlement.Verdict{}, err
 	}
+	in.Server = c
 	return entitlement.Check(in), nil
 }
+
+// licenseClient builds the license server's client; a test replaces it.
+var licenseClient = licenseapi.FromEnv
 
 // reach is repos cut to the ones the run's entitlement covers, each other
 // one named on stderr; nil with an error when it covers none of them.
@@ -332,9 +347,14 @@ func (s *sweep) reach(repos []fleet.Repo) ([]fleet.Repo, error) {
 // emit prints the report and appends it to the step summary.
 func emit(stdout io.Writer, summary string) {
 	fmt.Fprintln(stdout, summary)
+	appendSummary(summary)
+}
+
+// appendSummary appends text to the step summary, when the job has one.
+func appendSummary(text string) {
 	if p := os.Getenv("GITHUB_STEP_SUMMARY"); p != "" {
 		if f, err := os.OpenFile(p, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644); err == nil {
-			fmt.Fprintln(f, summary)
+			fmt.Fprintln(f, text)
 			_ = f.Close()
 		}
 	}

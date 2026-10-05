@@ -9,8 +9,9 @@
 // for its plan and its owner; nothing about the person running the job is
 // sent or read. The run is entitled when the plan is personal,
 // organization or internal, and then reaches only the repos that owner
-// owns. A license server or GitHub that does not answer fails open: the
-// run goes on, unverified, and says so.
+// owns. A license server that does not answer, or answers 5xx, fails
+// open: the run goes on, unverified, and says so. A job without an OIDC
+// token is refused, and a 408, 413 or 429 is the run's error.
 package entitlement
 
 import (
@@ -61,9 +62,12 @@ type In struct {
 // the repos OwnerLogin (OwnerID) owns.
 type Verdict struct {
 	Refused, Unverified bool
-	Plan                string
-	OwnerID             int64
-	OwnerLogin          string
+	// Transient is a refusal the server may lift on a retry: the run's
+	// error, reaching nothing, with nothing for a person to do.
+	Transient  bool
+	Plan       string
+	OwnerID    int64
+	OwnerLogin string
 	// Notice is the one sentence a refused or unverified run prints.
 	Notice string
 }
@@ -100,22 +104,32 @@ func refused(why string) Verdict {
 	return Verdict{Refused: true, Notice: "[cn] fleet: refused: " + why + "; a fleet needs the Personal or Organization plan on the account that owns its repos"}
 }
 
-// Check asks the license server once for the run's key and judges it.
+// transient are the refusals the server may lift on a retry.
+var transient = []int{408, 413, 429}
+
+// Check asks the license server once for the run's key and judges it. Only
+// the server's own silence (no answer, or a 5xx) fails open; what the
+// fleet's owner controls, the job's permissions and environment, refuses.
 func Check(in In) Verdict {
 	if in.Server == nil {
-		return unverified("no license server client")
+		return refused("no license server client")
 	}
 	tok, err := in.OIDC()
 	if errors.Is(err, githubapi.ErrNoOIDC) {
-		return unverified("no Actions OIDC token: the run is not a GitHub Actions job with permissions: id-token: write")
+		if in.Getenv("GITHUB_ACTIONS") == "true" {
+			return refused("the job has no Actions OIDC token: its workflow must grant permissions: id-token: write")
+		}
+		return refused("a fleet runs as a GitHub Actions job with permissions: id-token: write, and this is not one")
 	}
 	if err != nil {
-		return unverified("no Actions OIDC token: " + err.Error())
+		return refused("the job's Actions OIDC token could not be read (" + err.Error() + ")")
 	}
 	ans, err := in.Server.ActionsKey(tok, in.Engine)
 	var ref *licenseapi.Refusal
 	switch {
 	case err == nil:
+	case errors.As(err, &ref) && slices.Contains(transient, ref.Status):
+		return Verdict{Transient: true, Notice: "[cn] fleet: the license server asked to retry later (" + ref.Error() + "); this run reaches nothing"}
 	case errors.As(err, &ref) && ref.Status < 500:
 		why := ref.Reason
 		if why == "" {

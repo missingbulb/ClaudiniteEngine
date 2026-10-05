@@ -109,7 +109,7 @@ Nothing else touches them: not the engine or pack update, the task runner, growt
 | Hooks | Each hook firing: event, outcome, duration | Every session's hooks fire and none ends in an engine error |
 | Lifecycle | The loading self-check at SessionStart: packs declared, packs loaded, rules loaded per pack | Loaded matches declared for every pack |
 | Check engine | Each check run: check id, declarative or coded, result (pass, finding, error, timeout) | No check errors or timeouts |
-| Fleet | Each sweep: verb, outcome (a refused or unverified run says so on stderr), duration | Every sweep reaches its owner's repos, or names why not |
+| Fleet | Each sweep: verb, outcome (`unverified` for a run the license server could not answer; a refused or unverified run says so on stderr), duration | Every sweep reaches its owner's repos, or names why not |
 | SDK server | Each pack JavaScript call: pack id, action, outcome | No handshake failures or killed children |
 | Task runner | Each work item's phase start and end, with outcome, in the routine's conversation | Every claimed item converges or says why it stopped |
 | Growth | Each lesson captured and what it became | Every captured lesson ends in a PR or a recorded skip |
@@ -213,11 +213,11 @@ The same hooks run the same launcher, which picks the macOS, Linux or Windows bi
 
 ## Licensing
 
-A single repository, public or private, is free, and the engine asks it for nothing: no session, hook, `cn init`, task item or update checks a license, and nothing about a license is committed (record row 2026-10-05). Only a fleet is paid. The Personal fleet plan is $9 per personal GitHub account; the Organization fleet plan is $99 per user. The license server's own design (plans, billing, the signing chain) lives with ClaudiniteLicenses; this section says only where the engine meets it.
+A single repository, public or private, is free, and the engine asks it for nothing: no session, hook, `cn init`, task item or update checks a license, and nothing about a license is committed (record row 131). Only a fleet is paid. The Personal fleet plan is $9 per personal GitHub account; the Organization fleet plan is $99 per user. The license server's own design (plans, billing, the signing chain) lives with ClaudiniteLicenses; this section says only where the engine meets it.
 
 - **Who is checked.** The owner of the repositories a fleet works with, never the person running it. A fleet run's job exchanges its GitHub Actions OIDC token (audience `claudinite`, so the workflow needs `id-token: write`) for the manager repository's key at the license server's `POST /v1/actions-key`, once per run. The key names the repository, its owner (id and login) and that owner's plan; nothing about the person is sent or read.
 - **What it allows.** A key whose plan is `personal` or `organization`, or `internal` (the license server's plan for Claudinite's own account), lets the run reach only the repositories that owner owns, compared by owner id where both the key and GitHub's listing carry one and by login otherwise; every other repository is skipped with a notice naming it. Any other plan refuses the run before it reads a member, with the `action` needs-human marker.
-- **When it cannot tell.** A license server or GitHub that does not answer, a 5xx, or a job with no OIDC token fails open: the run reaches every repository it would have, and says it is unverified.
+- **When it cannot tell.** Only the license server's own silence fails open: when it does not answer or answers 5xx, the run reaches every repository it would have and says it is unverified, on stderr, in the step summary and as its sweep crumb's `unverified` outcome. Everything the fleet's owner controls refuses instead: a run with no OIDC token (outside Actions, or a workflow without `id-token: write`) or no license client parks `action`. A 408, 413 or 429 is the run's error, reaching nothing and asking no one. Only a development build (`devroots`) takes `CLAUDINITE_LICENSE_API`; a release binary always asks the real server.
 - **Verification.** A key is checked offline: the binary embeds a long-lived root key and a standby root (`shared/trust`) and accepts 90-day issuing keys certified by either, so rotating an issuing key never needs an engine release. The check lives in `fleet/entitlement`.
 
 A retired `license` block in a member's settings still parses: verify names it as a retired shape (`license-plan`, a deprecation), and the next engine update PR drops it.

@@ -336,13 +336,14 @@ start_ghstub() {
   done
   gh=$(cat "$work/gh-ready")
 }
-# start_licstub: the license server stand-in a fleet run asks for its
-# owner's plan; sets lic and CLAUDINITE_LICENSE_API.
+# start_licstub [FLAGS]: the license server stand-in a fleet run asks for
+# its owner's plan, given licstub's FLAGS; sets lic and
+# CLAUDINITE_LICENSE_API.
 start_licstub() {
   [ -x "$work/licstub" ] || go build -o "$work/licstub" ./release/licstub
   [ -n "$lic_pid" ] && kill "$lic_pid" 2>/dev/null
   rm -f "$work/lic-ready"
-  "$work/licstub" --root-key testkeys/root.key --ready "$work/lic-ready" --ca-out "$work/lic-ca.pem" &
+  "$work/licstub" --root-key testkeys/root.key --ready "$work/lic-ready" --ca-out "$work/lic-ca.pem" "$@" &
   lic_pid=$!
   tries=0
   until [ -f "$work/lic-ready" ]; do
@@ -381,8 +382,8 @@ main_run() { ctl /_stub/run "{\"ref\":\"main\",\"conclusion\":\"$1\"}"; }
 
 # fleet_rig NAME ROOT: the manager NAME declaring claudinite-fleet-sheepdog
 # over release/fleet-fixture.sh's eight acme repositories under
-# ROOT/fleet/, served by ghstub and licstub, the sweep environment a
-# desktop runs it in, and fleet_cn.
+# ROOT/fleet/, served by ghstub and licstub on acme's Personal plan, the
+# sweep environment an Actions job runs it in, and fleet_cn.
 fleet_rig() {
   warm_member "$1"
   # The newest release the registry serves: earlier modes may have
@@ -402,10 +403,8 @@ fleet_rig() {
   set -- $flags
   IFS=$oldifs
   start_ghstub "$origin" "$@" --repo acme/manager
-  start_licstub
-  # Steps 1 to 5 sweep from a desktop; an earlier mode's Actions
-  # identity would name a stub that is gone.
-  unset ACTIONS_ID_TOKEN_REQUEST_URL ACTIONS_ID_TOKEN_REQUEST_TOKEN GITHUB_REPOSITORY_ID GITHUB_REPOSITORY_OWNER_ID GITHUB_REPOSITORY_OWNER
+  start_licstub --plan personal
+  actions_env
   cat "$work/ca.pem" "$work/gh-ca.pem" "$work/lic-ca.pem" > "$work/cas.pem"
   SSL_CERT_FILE=$work/cas.pem CURL_CA_BUNDLE=$work/cas.pem
   GITHUB_REPOSITORY=acme/manager CLAUDINITE_GITHUB_API=$gh FLEET_GITHUB_TOKEN=rehearsal-token CLAUDINITE_FLEET_POLL_MS=50
@@ -1671,9 +1670,12 @@ YAML
       [ "$(gh_count 'st.dispatches.filter(d=>d.repo&&d.inputs.wake==="update").length')" = 3 ] || fail "fleet 5: dispatches $(gh_state)"
       step "fleet 5: live, behind updated, current already current, nodemember moved, noscheduler's dispatch failed; exit 1"
 
-      actions_env
       member_reads() { gh_count 'st.calls.filter(c=>c.startsWith("member ")).length'; }
       calls=$(member_calls)
+      (unset ACTIONS_ID_TOKEN_REQUEST_URL ACTIONS_ID_TOKEN_REQUEST_TOKEN; fleet_cn roster) && fail "fleet 6: a sweep with no OIDC token ran"
+      grep -q '^claudinite-needs-human: action — \[cn\] fleet: refused: a fleet runs as a GitHub Actions job' "$work/fleet.err" || fail "fleet 6: no OIDC notice: $(cat "$work/fleet.err")"
+      [ "$(member_calls)" = "$calls" ] || fail "fleet 6: a sweep with no OIDC token reached a member"
+      licctl '{"plan":"public"}'
       if fleet_cn roster; then fail "fleet 6: a public plan swept"; fi
       grep -q "^claudinite-needs-human: action — \[cn\] fleet: refused: acme is on the public plan, which does not include a fleet" "$work/fleet.err" || fail "fleet 6: no plan notice: $(cat "$work/fleet.err")"
       [ "$(member_calls)" = "$calls" ] || fail "fleet 6: a public plan reached a member"
@@ -1685,7 +1687,7 @@ YAML
       licctl '{"owner_login":""}'
       fleet_cn roster || fail "fleet 6: the paid owner's roster: $(cat "$work/fleet.out" "$work/fleet.err")"
       if grep -q 'unverified\|not reached' "$work/fleet.err"; then fail "fleet 6: the paid owner's roster: $(cat "$work/fleet.err")"; fi
-      step "fleet 6: a public plan parks action and reaches no member; a key naming another account reads none of acme's repos; acme's Personal plan sweeps"
+      step "fleet 6: a sweep with no OIDC token and a public plan each park action and reach no member; a key naming another account reads none of acme's repos; acme's Personal plan sweeps"
 
       execute() { (cd "$member" && GITHUB_TOKEN=rehearsal-token .claudinite/bin/cn execute loop) > "$work/exec.out" 2>&1; }
       item() { gh_count 'Math.max(0,...st.issues.filter(i=>i.title==="'"$1"'").map(i=>i.number))'; }
