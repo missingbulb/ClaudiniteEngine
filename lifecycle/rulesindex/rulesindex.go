@@ -219,38 +219,46 @@ func RepointImport(raw []byte) []byte {
 }
 
 // Converge moves the generated files out of flatdecl.LegacyDir, then
-// writes the index, the skills index and the flat declarations beside it,
-// returning the paths changed: the same pack set produces both, so every
-// writer of one writes the other.
+// refreshes them (Refresh), returning the paths changed.
 func Converge(repo, engine string) ([]string, error) {
 	written, err := Move(repo)
 	if err != nil {
 		return written, err
 	}
+	refreshed, err := Refresh(repo, engine)
+	for _, f := range refreshed {
+		if !slices.Contains(written, f) {
+			written = append(written, f)
+		}
+	}
+	return written, err
+}
+
+// Refresh writes the index, the skills index and the flat declarations
+// beside it where the repo holds them, moving nothing and leaving
+// CLAUDE.md alone, returning the paths written: the same pack set
+// produces both, so every writer of one writes the other.
+func Refresh(repo, engine string) ([]string, error) {
+	var written []string
 	changed, err := Write(repo, engine)
 	if err != nil {
 		return nil, err
 	}
-	if changed && !slices.Contains(written, File) {
-		written = append(written, File)
+	if changed {
+		written = append(written, flatdecl.HeldIn(repo, File))
 	}
 	if changed, err = WriteSkills(repo, engine); err != nil {
 		return written, err
 	}
-	if changed && !slices.Contains(written, SkillsFile) {
-		written = append(written, SkillsFile)
+	if changed {
+		written = append(written, flatdecl.HeldIn(repo, SkillsFile))
 	}
 	s, err := packset.Load(repo, engine, false)
 	if err != nil {
 		return written, err
 	}
 	flat, err := flatdecl.Write(repo, s.Packs)
-	for _, f := range flat {
-		if !slices.Contains(written, f) {
-			written = append(written, f)
-		}
-	}
-	return written, err
+	return append(written, flat...), err
 }
 
 // HasImport reports whether the repo's CLAUDE.md carries the import line on
@@ -265,6 +273,25 @@ func HasImport(repo string) bool {
 func HasImportIn(raw []byte) bool {
 	for _, l := range strings.Split(string(raw), "\n") {
 		if strings.TrimSpace(l) == Import {
+			return true
+		}
+	}
+	return false
+}
+
+// ImportsHeldIndex reports whether the repo's CLAUDE.md imports the
+// index where the repo holds it: the Import line, or LegacyImport while
+// the index is still under flatdecl.LegacyDir.
+func ImportsHeldIndex(repo string) bool {
+	if flatdecl.HeldIn(repo, File) == File {
+		return HasImport(repo)
+	}
+	raw, err := os.ReadFile(filepath.Join(repo, ClaudeMD))
+	if err != nil {
+		return false
+	}
+	for _, l := range strings.Split(string(raw), "\n") {
+		if strings.TrimSpace(l) == LegacyImport {
 			return true
 		}
 	}

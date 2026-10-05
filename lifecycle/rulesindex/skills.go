@@ -161,14 +161,15 @@ func SkillsContent(repo, engine string) (string, error) {
 	return RenderSkills(SkillRows(s)), nil
 }
 
-// WriteSkills writes the skills index when it changed and removes one
-// when no skill is mounted, reporting whether the file moved.
+// WriteSkills writes the skills index, where the repo holds it, when it
+// changed and removes one when no skill is mounted, reporting whether the
+// file moved.
 func WriteSkills(repo, engine string) (bool, error) {
 	want, err := SkillsContent(repo, engine)
 	if err != nil {
 		return false, err
 	}
-	path := filepath.Join(repo, filepath.FromSlash(SkillsFile))
+	path := filepath.Join(repo, filepath.FromSlash(flatdecl.HeldIn(repo, SkillsFile)))
 	have, err := os.ReadFile(path)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return false, err

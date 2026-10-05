@@ -56,3 +56,38 @@ func TestTheMissingImportLineNamesTheWritersIndex(t *testing.T) {
 		t.Errorf("hooks.MissingImport %q drifted from %s / %s", hooks.MissingImport, rulesindex.File, rulesindex.Import)
 	}
 }
+
+// SessionStart's writer refreshes a legacy member's files where they are
+// and moves nothing: no CLAUDE.md edit lands in the session's tree, and
+// the old import still counts as the import.
+func TestTheHookWriterLeavesALegacyMemberInPlace(t *testing.T) {
+	repo := t.TempDir()
+	for rel, body := range map[string]string{
+		".claudinite/settings.yaml":                      "packs:\n  declared:\n    - hello\n",
+		".claudinite/shared/packs/hello/pack.json":       `{"version": "1.0", "minEngineVersion": "0.0.0"}`,
+		".claudinite/shared/packs/hello/RULES.md":        "- hi\n",
+		".claudinite/flat/claudinite-rules.GENERATED.md": "@../shared/packs/stale/RULES.md\n",
+		"CLAUDE.md": "# mine\n" + rulesindex.LegacyImport + "\n",
+	} {
+		p := filepath.Join(repo, rel)
+		_ = os.MkdirAll(filepath.Dir(p), 0o755)
+		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if !(hookIndex{}).HasImport(repo) {
+		t.Error("the legacy import does not count while the index is under the legacy directory")
+	}
+	if _, err := (hookIndex{}).Write(repo, "0.0.0"); err != nil {
+		t.Fatal(err)
+	}
+	if raw, _ := os.ReadFile(filepath.Join(repo, "CLAUDE.md")); string(raw) != "# mine\n"+rulesindex.LegacyImport+"\n" {
+		t.Errorf("the hook edited CLAUDE.md: %q", raw)
+	}
+	if _, err := os.Stat(filepath.Join(repo, ".claudinite/cache")); err == nil {
+		t.Error("the hook created .claudinite/cache")
+	}
+	if raw, _ := os.ReadFile(filepath.Join(repo, ".claudinite/flat/claudinite-rules.GENERATED.md")); string(raw) != "@../shared/packs/hello/RULES.md\n" {
+		t.Errorf("the legacy index was not refreshed in place: %q", raw)
+	}
+}

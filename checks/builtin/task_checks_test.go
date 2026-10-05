@@ -180,7 +180,7 @@ func TestFlatDeclarationsCurrent(t *testing.T) {
 	// A member still holding the files under the legacy directory is
 	// judged there until a converge moves them.
 	expect(t, repo{base: map[string]string{taskDir + "task.json": goodTask, ".claudinite/flat/member.GENERATED.json": memberFlat}}.run(t, "flat-declarations-current"),
-		want{path: ".claudinite/cache/tasks.GENERATED.json", what: "is missing or unreadable$"})
+		want{path: ".claudinite/flat/tasks.GENERATED.json", what: "is missing or unreadable$"})
 	legacyFlat := "{\n  \"version\": 1,\n  \"tasks\": {\n    \"local/mypack/nightly\": {\n      \"path\": \"" + taskDir + "task.json\",\n      \"declaration\": " + strings.TrimSpace(goodTask) + "\n    }\n  }\n}\n"
 	expect(t, repo{base: map[string]string{taskDir + "task.json": goodTask, ".claudinite/flat/tasks.GENERATED.json": legacyFlat, ".claudinite/flat/member.GENERATED.json": memberFlat}}.run(t, "flat-declarations-current"))
 	expect(t, repo{base: map[string]string{taskDir + "task.json": goodTask, ".claudinite/flat/tasks.GENERATED.json": flat, ".claudinite/flat/member.GENERATED.json": stale}}.run(t, "flat-declarations-current"),

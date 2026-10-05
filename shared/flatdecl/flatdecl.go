@@ -61,10 +61,15 @@ func Canonical(rel string) string {
 	return rel
 }
 
-// Held is where a reader finds rel, a path under Dir: rel itself, or its
-// LegacyPath when only that exists.
+// Held is where the repo keeps rel, a path under Dir: rel itself, or its
+// LegacyPath when only that exists, or when neither does and the repo
+// holds LegacyDir and no Dir, so a file a legacy member gains joins the
+// others until they move together.
 func Held(rel string, exists func(string) bool) string {
-	if !exists(rel) && exists(LegacyPath(rel)) {
+	switch {
+	case exists(rel):
+		return rel
+	case exists(LegacyPath(rel)), exists(LegacyDir) && !exists(Dir):
 		return LegacyPath(rel)
 	}
 	return rel
