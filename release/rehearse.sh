@@ -707,7 +707,7 @@ for mode in $modes; do
       done
       verify_out=$(cd "$member" && sh .claudinite/launch verify) || fail "packs 1: verify: $verify_out"
       [ -z "$verify_out" ] || fail "packs 1: verify reported: $verify_out"
-      grep -q "installations/new" "$work/init.out" || fail "packs 1: init with no origin ends on no install link: $(cat "$work/init.out")"
+      if grep -q "installations/new" "$work/init.out"; then fail "packs 1: init still hands over the App install: $(cat "$work/init.out")"; fi
       (cd "$member" && git init -q -b main && git add -A && git -c user.name=rehearse -c user.email=r@x -c commit.gpgsign=false commit -q -m adopt) \
         || fail "packs 1: git setup"
       github_origin "$origin"
