@@ -29,6 +29,7 @@ type Git interface {
 	MergeBase(a, b string) (string, error)
 	ChangedFiles(base, head string) ([]string, error)
 	Show(ref, path string) ([]byte, bool, error)
+	Regular(ref, path string) (bool, error)
 }
 
 // Input is one world run.
@@ -99,6 +100,20 @@ func guard(in Input) error {
 	if len(pinFiles) == 0 {
 		return nil
 	}
+	// The launcher follows a symlink that Show reads as its target's path.
+	for _, p := range pinFiles {
+		_, there, err := in.Git.Show("HEAD", p)
+		if err != nil {
+			return err
+		}
+		regular, err := in.Git.Regular("HEAD", p)
+		if err != nil {
+			return err
+		}
+		if there && !regular {
+			return fmt.Errorf("%s is not a regular file", p)
+		}
+	}
 	if in.PRAuthor != Bot {
 		return personGuard(in, base, pinFiles)
 	}
@@ -161,6 +176,19 @@ func personGuard(in Input, base string, pinFiles []string) error {
 		adopted = adopted || ok
 	}
 	if !adopted {
+		written := 0
+		for _, p := range settingsPaths() {
+			_, ok, err := in.Git.Show("HEAD", p)
+			if err != nil {
+				return err
+			}
+			if ok {
+				written++
+			}
+		}
+		if written > 1 {
+			return fmt.Errorf("the adoption writes %d settings files; the launcher reads one settings file", written)
+		}
 		for _, p := range pinFiles {
 			if p == ".claudinite/launch" {
 				continue

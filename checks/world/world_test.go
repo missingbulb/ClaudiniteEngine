@@ -232,6 +232,21 @@ func TestPinGuardLetsAPersonAdoptAndEditTheirSettings(t *testing.T) {
 		{"a person edits the launcher of an adopted repo", func(t *testing.T) string {
 			return member(t, func(dir string) { write(t, dir, ".claudinite/launch", "#!/bin/sh\n# edited\n") })
 		}, nil, 1, "pin-guard", false},
+		{"a person swaps the settings file for a symlink whose target text restates the pin", func(t *testing.T) string {
+			return member(t, symlinkSettings(t, settingsBody("1.1.0", pin1)))
+		}, nil, 1, "not a regular file", false},
+		{"a person's adoption PR writes the settings file as a symlink", func(t *testing.T) string {
+			return unadopted(t, func(dir string) {
+				symlinkSettings(t, settingsBody("1.2.0", pin2))(dir)
+				write(t, dir, ".claudinite/launch", "#!/bin/sh\n")
+			})
+		}, nil, 1, "not a regular file", false},
+		{"a person's adoption PR writes two settings files", func(t *testing.T) string {
+			return unadopted(t, func(dir string) {
+				adopt(t)(dir)
+				write(t, dir, ".claudinite/settings.json", `{"engine":{"version":"1.3.0"}}`)
+			})
+		}, nil, 1, "one settings file", false},
 	}
 	for _, c := range cases {
 		pc := &pinCheck{err: c.pinErr}
@@ -241,6 +256,22 @@ func TestPinGuardLetsAPersonAdoptAndEditTheirSettings(t *testing.T) {
 		}
 		if (len(pc.called) > 0) != c.checked {
 			t.Errorf("%s: pin verified %d times", c.name, len(pc.called))
+		}
+	}
+}
+
+// symlinkSettings replaces the settings file with a symlink to a file that
+// pins 1.9.0, its target path spelled as engine, the block a guard reading
+// the link rather than the file would see.
+func symlinkSettings(t *testing.T, engine string) func(string) {
+	return func(dir string) {
+		t.Helper()
+		target := engine + "/evil.yaml"
+		write(t, dir, ".claudinite/"+target, settingsBody("1.9.0", pin2))
+		p := filepath.Join(dir, ".claudinite", "settings.yaml")
+		_ = os.Remove(p)
+		if err := os.Symlink(target, p); err != nil {
+			t.Fatal(err)
 		}
 	}
 }
