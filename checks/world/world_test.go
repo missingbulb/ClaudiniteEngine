@@ -173,13 +173,74 @@ func TestPinGuardLetsTheUpdateDropTheRetiredLicenseBlock(t *testing.T) {
 		{"the bot moves the pin and keeps the license block", settingsBody("1.2.0", pin2) + "license:\n  plan: \"public\"\n", bot, 0, ""},
 		{"the bot drops only the license block", settingsBody("1.1.0", pin1), bot, 0, ""},
 		{"the bot moves the pin and changes the plan", settingsBody("1.2.0", pin2) + "license:\n  plan: \"private-repo\"\n", bot, 1, "pin-guard"},
-		{"a person drops the license block", settingsBody("1.1.0", pin1), "someone", 1, "pin-guard"},
+		{"a person drops the license block, leaving the engine block alone", settingsBody("1.1.0", pin1), "someone", 0, ""},
+		{"a person drops the license block and moves the pin", settingsBody("1.2.0", pin2), "someone", 1, "pin-guard"},
 	}
 	for _, c := range cases {
 		dir := memberOn(t, retired, func(dir string) { write(t, dir, ".claudinite/settings.yaml", c.body) })
 		code, out := runWorld(t, dir, c.author, &pinCheck{}, nil)
 		if code != c.code || !strings.Contains(out, c.want) {
 			t.Errorf("%s: exit %d, want %d; output lacks %q:\n%s", c.name, code, c.code, c.want, out)
+		}
+	}
+}
+
+// unadopted is a repo whose main holds no settings file and no launcher,
+// checked out on a branch that the change function edits and commits.
+func unadopted(t *testing.T, change func(dir string)) string {
+	t.Helper()
+	dir := t.TempDir()
+	git(t, dir, "init", "-q", "-b", "main")
+	write(t, dir, ".claudinite-settings.json", "{}\n")
+	git(t, dir, "add", "-A")
+	git(t, dir, "commit", "-q", "-m", "base")
+	git(t, dir, "checkout", "-q", "-b", "change")
+	change(dir)
+	git(t, dir, "add", "-A")
+	git(t, dir, "commit", "-q", "--allow-empty", "-m", "change")
+	return dir
+}
+
+func TestPinGuardLetsAPersonAdoptAndEditTheirSettings(t *testing.T) {
+	adopt := func(t *testing.T) func(string) {
+		return func(dir string) {
+			write(t, dir, ".claudinite/settings.yaml", settingsBody("1.2.0", pin2)+"packs:\n  declared:\n    - \"basics\"\n")
+			write(t, dir, ".claudinite/launch", "#!/bin/sh\n")
+		}
+	}
+	declare := func(t *testing.T) func(string) {
+		return func(dir string) {
+			write(t, dir, ".claudinite/settings.yaml", settingsBody("1.1.0", pin1)+"packs:\n  declared:\n    - \"basics\"\n")
+		}
+	}
+	cases := []struct {
+		name    string
+		repo    func(t *testing.T) string
+		pinErr  error
+		code    int
+		want    string
+		checked bool
+	}{
+		{"a person's adoption PR writes the first pin and the launcher", func(t *testing.T) string { return unadopted(t, adopt(t)) }, nil, 0, "", true},
+		{"a person's adoption PR whose first pin does not verify", func(t *testing.T) string { return unadopted(t, adopt(t)) }, errors.New("1.2.0 is revoked"), 1, "does not verify", true},
+		{"a person declares a pack and leaves the engine block alone", func(t *testing.T) string { return member(t, declare(t)) }, nil, 0, "", false},
+		{"a person declares a pack and moves the pin", func(t *testing.T) string {
+			return member(t, func(dir string) {
+				write(t, dir, ".claudinite/settings.yaml", settingsBody("1.2.0", pin2)+"packs:\n  declared:\n    - \"basics\"\n")
+			})
+		}, nil, 1, "pin-guard", false},
+		{"a person edits the launcher of an adopted repo", func(t *testing.T) string {
+			return member(t, func(dir string) { write(t, dir, ".claudinite/launch", "#!/bin/sh\n# edited\n") })
+		}, nil, 1, "pin-guard", false},
+	}
+	for _, c := range cases {
+		pc := &pinCheck{err: c.pinErr}
+		code, out := runWorld(t, c.repo(t), "someone", pc, nil)
+		if code != c.code || !strings.Contains(out, c.want) {
+			t.Errorf("%s: exit %d, want %d; output lacks %q:\n%s", c.name, code, c.code, c.want, out)
+		}
+		if (len(pc.called) > 0) != c.checked {
+			t.Errorf("%s: pin verified %d times", c.name, len(pc.called))
 		}
 	}
 }
