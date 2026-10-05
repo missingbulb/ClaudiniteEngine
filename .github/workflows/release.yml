@@ -28,11 +28,6 @@ on:
         description: Build, gate and sign, but publish nothing
         type: boolean
         default: false
-      # @legacy-tolerance advisory:engine-package retire:#97
-      bridge_cli_rc:
-        description: Full releases only. Also publish the candidate's bytes to the retired @claudinite/cli-rc, for members whose updater predates the dist-tags
-        type: boolean
-        default: false
 
 permissions:
   contents: read
@@ -68,12 +63,7 @@ jobs:
       - id: kind
         env:
           KIND: ${{ inputs.kind }}
-          BRIDGE: ${{ inputs.bridge_cli_rc }}
         run: |
-          if [ "$BRIDGE" = true ] && [ "$KIND" != full ]; then
-            echo "::error::bridge_cli_rc republishes a release candidate, and a $KIND build is none; dispatch it with kind full"
-            exit 1
-          fi
           go run ./release/pipeline release-kind --kind "$KIND" > "$RUNNER_TEMP/kind"
           cat "$RUNNER_TEMP/kind" >> "$GITHUB_OUTPUT"
           echo "PLATFORMS=$(sed -n 's/^platforms=//p' "$RUNNER_TEMP/kind")" >> "$GITHUB_ENV"
@@ -99,7 +89,7 @@ jobs:
 
   smoke:
     needs: build
-    name: smoke (${{ matrix.leg }})
+    name: Test Initial Adoption on Clean Repo (${{ matrix.leg }})
     strategy:
       fail-fast: false
       matrix:
@@ -289,18 +279,6 @@ jobs:
         run: |
           release/publish.sh --tag "$TAG" --dry-run
           echo "::notice::nothing was published, so tag and smoke-published do not run"
-      # @legacy-tolerance advisory:engine-package retire:#97
-      - name: bridge the candidate to @claudinite/cli-rc
-        if: inputs.bridge_cli_rc && inputs.kind == 'full'
-        env:
-          MODE: ${{ steps.mode.outputs.mode }}
-        run: |
-          release/repack.sh dist/tarballs bridge/tarballs
-          if [ "$MODE" = real ]; then
-            DIST=bridge release/publish.sh --legacy-cli-rc --auth oidc
-          else
-            DIST=bridge release/publish.sh --legacy-cli-rc --dry-run
-          fi
 
   tag:
     needs: [build, publish]
@@ -319,7 +297,7 @@ jobs:
   smoke-published:
     needs: [build, publish]
     if: ${{ !cancelled() && needs.publish.result == 'success' && needs.publish.outputs.mode == 'real' }}
-    name: smoke-published (${{ matrix.leg }})
+    name: Test Initial Adoption on Clean Repo, from npm (${{ matrix.leg }})
     strategy:
       fail-fast: false
       matrix:

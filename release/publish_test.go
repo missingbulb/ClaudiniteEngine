@@ -67,30 +67,6 @@ func TestPublishDryRunPrintsOneLinePerTarball(t *testing.T) {
 	}
 }
 
-// The bridge for members pinned to the retired rc package publishes its
-// names under latest, as each of its versions always was, and nothing else.
-func TestPublishTheCLIRCBridge(t *testing.T) {
-	var rc []string
-	for _, n := range CLIPackages() {
-		rc = append(rc, strings.Replace(n, "@claudinite/cli", "@claudinite/cli-rc", 1))
-	}
-	dist := fakeTarballs(t, "1.61005.1", rc...)
-	out, err := runScript(t, []string{"DIST=" + dist, "VERSION=1.61005.1", "PATH=" + noNpmPath(t)}, "release/publish.sh", "--legacy-cli-rc", "--dry-run")
-	files, tags := publishLines(t, out)
-	if err != nil || len(files) != 6 || files[5] != "cli-rc-1.61005.1.tgz" || len(tags) != 1 || !tags["latest"] {
-		t.Errorf("err %v\n%s", err, out)
-	}
-	for _, args := range [][]string{{"--legacy-cli-rc", "--dry-run"}, {"--legacy-cli-rc", "--tag", "rc", "--dry-run"}} {
-		d := dist
-		if len(args) == 2 {
-			d = fakeTarballs(t, "1.61005.1", CLIPackages()...)
-		}
-		if out, err := runScript(t, []string{"DIST=" + d, "VERSION=1.61005.1", "PATH=" + noNpmPath(t)}, "release/publish.sh", args...); err == nil || strings.Contains(out, "npm publish") {
-			t.Errorf("%v: err %v\n%s", args, err, out)
-		}
-	}
-}
-
 // A staging build publishes the manifest package and linux-x64 alone.
 func TestPublishAStagingBuild(t *testing.T) {
 	dist := fakeTarballs(t, "1.61005.1", "@claudinite/cli", "@claudinite/cli-linux-x64")

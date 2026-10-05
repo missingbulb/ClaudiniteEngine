@@ -9,12 +9,8 @@
 #
 #   release/publish.sh --tag rc|staging --auth oidc
 #   release/publish.sh --tag rc|staging --dry-run
-#   release/publish.sh --legacy-cli-rc --auth oidc | --dry-run
 #
 # latest is never published: promote.yml moves it onto a verified rc version.
-# --legacy-cli-rc instead publishes release/repack.sh's renamed copies to
-# the retired @claudinite/cli-rc packages under latest, where an updater
-# from before the dist-tags reads them; nothing else may carry those names.
 # --dry-run prints each npm publish line and runs nothing. --auth oidc is
 # trusted publishing from the release workflows, the only way npm accepts
 # these packages; a refusal names the trusted publisher to attach.
@@ -26,14 +22,11 @@ fail() { echo "publish: $*" >&2; exit 1; }
 tag=
 auth=
 dry=false
-legacy=false
 while [ $# -gt 0 ]; do
   case $1 in
     --tag) [ $# -ge 2 ] || fail "--tag needs rc or staging"; tag=$2; shift 2 ;;
     --auth) [ $# -ge 2 ] || fail "--auth needs oidc"; auth=$2; shift 2 ;;
     --dry-run) dry=true; shift ;;
-    # @legacy-tolerance advisory:engine-package retire:#97
-    --legacy-cli-rc) legacy=true; shift ;;
     *) fail "usage: release/publish.sh --tag rc|staging --auth oidc | --dry-run" ;;
   esac
 done
@@ -42,23 +35,16 @@ case $auth in
   '') [ "$dry" = true ] || fail "--auth must name oidc for a real publish" ;;
   *) fail "--auth must be oidc, not $auth" ;;
 esac
-if [ "$legacy" = true ]; then
-  [ -z "$tag" ] || fail "--legacy-cli-rc publishes under latest and takes no --tag"
-  tag=latest
-else
-  case $tag in
-    rc|staging) ;;
-    latest) fail "nothing publishes under latest: promote.yml moves it onto an rc version it verified" ;;
-    *) fail "--tag must be rc or staging" ;;
-  esac
-fi
+case $tag in
+  rc|staging) ;;
+  latest) fail "nothing publishes under latest: promote.yml moves it onto an rc version it verified" ;;
+  *) fail "--tag must be rc or staging" ;;
+esac
 if [ -z "${VERSION:-}" ]; then
   [ -f "$DIST/manifest.json" ] || fail "set VERSION; there is no $DIST/manifest.json to read it from"
   VERSION=$(sed -n 's/^  "version": "\(.*\)",$/\1/p' "$DIST/manifest.json")
 fi
 allowed='@claudinite/cli(-(linux|darwin|windows)-x64|-(linux|darwin)-arm64)?'
-# @legacy-tolerance advisory:engine-package retire:#97
-[ "$legacy" = true ] && allowed='@claudinite/cli-rc(-(linux|darwin|windows)-x64|-(linux|darwin)-arm64)?'
 
 list=$(mktemp)
 trap 'rm -f "$list"' EXIT
@@ -67,7 +53,7 @@ for tgz in "$DIST"/tarballs/*.tgz; do
   pj=$(tar -xzOf "$tgz" package/package.json) || fail "$tgz holds no package/package.json"
   name=$(printf '%s\n' "$pj" | sed -n 's/^  "name": "\(.*\)",$/\1/p')
   version=$(printf '%s\n' "$pj" | sed -n 's/^  "version": "\(.*\)",\{0,1\}$/\1/p')
-  printf '%s\n' "$name" | grep -Eqx "$allowed" || fail "$tgz is $name, which this publish may not carry (@claudinite/cli and its platform packages, or with --legacy-cli-rc the cli-rc ones)"
+  printf '%s\n' "$name" | grep -Eqx "$allowed" || fail "$tgz is $name, which this publish may not carry (@claudinite/cli and its platform packages)"
   [ "$version" = "$VERSION" ] || fail "$tgz is $name $version, not $VERSION"
   [ "$(basename "$tgz")" = "${name#@claudinite/}-$version.tgz" ] || fail "$tgz holds $name $version"
   case $name in

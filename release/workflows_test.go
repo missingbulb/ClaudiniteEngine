@@ -225,30 +225,18 @@ func TestReleaseGatesThePublish(t *testing.T) {
 	}
 }
 
-// Every release publishes @claudinite/cli under its kind's dist-tag; the
-// separate rc package is retired, and only the bridge for members still
-// pinned to it, marked for removal, names it.
+// Every release publishes @claudinite/cli under its kind's dist-tag, and
+// no workflow names the retired rc package.
 func TestWorkflowsPublishOnePackageFamily(t *testing.T) {
-	const marker = "# @legacy-tolerance advisory:engine-package retire:#97"
 	files, _ := filepath.Glob("../.github/workflows/*.yml")
 	for _, f := range files {
 		raw, _ := os.ReadFile(f)
-		lines := strings.Split(string(raw), "\n")
-		for i, l := range lines {
-			if strings.Contains(l, "release/publish.sh") && !strings.Contains(l, "--tag ") && !strings.Contains(l, "--legacy-cli-rc") {
+		for i, l := range strings.Split(string(raw), "\n") {
+			if strings.Contains(l, "release/publish.sh") && !strings.Contains(l, "--tag ") {
 				t.Errorf("%s publishes without an explicit --tag: %s", f, strings.TrimSpace(l))
 			}
-			if !strings.Contains(l, "cli-rc") {
-				continue
-			}
-			// The step or input holding the line: the nearest line above
-			// at six spaces' indent, which the marker must precede.
-			j := i
-			for j > 0 && (!strings.HasPrefix(lines[j], "      ") || strings.HasPrefix(lines[j], "       ")) {
-				j--
-			}
-			if j == 0 || strings.TrimSpace(lines[j-1]) != marker {
-				t.Errorf("%s:%d names the retired @claudinite/cli-rc outside the marked bridge: %s", f, i+1, strings.TrimSpace(l))
+			if strings.Contains(l, "cli-rc") {
+				t.Errorf("%s:%d names the retired @claudinite/cli-rc: %s", f, i+1, strings.TrimSpace(l))
 			}
 		}
 	}
@@ -271,7 +259,7 @@ func TestPromoteMovesLatest(t *testing.T) {
 		}
 	}
 	raw, _ := os.ReadFile(wf)
-	for _, not := range []string{"npm publish", "release/publish.sh", "repack", "secrets.NPM_TOKEN"} {
+	for _, not := range []string{"npm publish", "release/publish.sh", "secrets.NPM_TOKEN"} {
 		if strings.Contains(string(raw), not) {
 			t.Errorf("promote.yml has %q", not)
 		}
