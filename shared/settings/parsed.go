@@ -117,7 +117,7 @@ var topSchema = descriptor.Schema{Name: "settings", Keys: map[string]descriptor.
 }}
 
 var packsSchema = descriptor.Schema{Name: "packs", Keys: map[string]descriptor.Kind{
-	"channel": descriptor.String, "declared": descriptor.Any,
+	"channel": descriptor.String, "declared": descriptor.Any, "sources": descriptor.Any,
 }}
 
 var checksSchema = descriptor.Schema{Name: "checks", Keys: map[string]descriptor.Kind{
@@ -174,8 +174,8 @@ func joinErrs(errs []error) error {
 	return errors.New(strings.Join(s, "; "))
 }
 
-func parsePacks(obj map[string]any, retired *[]RetiredOverride) (Packs, error) {
-	p := Packs{Channel: ChannelStable}
+func parsePacks(obj map[string]any, retired *[]RetiredOverride) (p Packs, err error) {
+	p = Packs{Channel: ChannelStable}
 	raw, present := obj["packs"]
 	if !present {
 		return p, nil
@@ -190,6 +190,11 @@ func parsePacks(obj map[string]any, retired *[]RetiredOverride) (Packs, error) {
 			return Packs{}, fmt.Errorf("packs.channel must be \"stable\" or \"canary\", not %q", c)
 		}
 		p.Channel = c
+	}
+	if raw, ok := block["sources"]; ok {
+		if p.Sources, err = parseSources(raw); err != nil {
+			return Packs{}, err
+		}
 	}
 	list, ok := block["declared"].([]any)
 	if !ok && block["declared"] != nil {
