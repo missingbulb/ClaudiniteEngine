@@ -92,6 +92,10 @@ func Expected(name string, have []byte) []byte {
 		}
 		if len(stamped) > 0 {
 			want = strings.Replace(want, SecretsMarker+"\n", SecretsMarker+"\n"+strings.Join(stamped, ""), 1)
+			// Re-stamping drops a name the template already passes.
+			if out, ok := Stamp([]byte(want), StampedSecrets([]byte(want))); ok {
+				want = string(out)
+			}
 		}
 	}
 	return []byte(want)
