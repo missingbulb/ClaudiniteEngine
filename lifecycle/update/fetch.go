@@ -66,7 +66,8 @@ type manifest struct {
 }
 
 // Fetch downloads a version's manifest, signature and this platform's
-// binary by the launcher's tarball URLs, checks the channel tarball against
+// binary by the launcher's tarball URLs, or from the mirror as the launcher
+// would, checks the channel tarball against
 // the packument's integrity, the signature against the roots and the binary
 // against its manifest entry, and only then places manifest.json (0444) and
 // the binary (0555) in <cache>/<version>/ beside manifest.sig.json, where the launcher looks, so a
@@ -78,7 +79,7 @@ func Fetch(in FetchInput) (Fetched, error) {
 		return Fetched{}, fmt.Errorf("%s has no %s", in.Package, in.Version)
 	}
 	channelURL := npmreg.TarballURL(in.Registry.Registry, in.Package, in.Version)
-	channel, err := in.Registry.Download(channelURL)
+	channel, err := in.Registry.DownloadTarball(channelURL, in.Version)
 	if err != nil {
 		return Fetched{}, fmt.Errorf("download: %w", err)
 	}
@@ -113,7 +114,7 @@ func Fetch(in FetchInput) (Fetched, error) {
 		return Fetched{}, fmt.Errorf("%s %s lists no binary for %s", in.Package, in.Version, in.Platform)
 	}
 	binURL := npmreg.PlatformTarballURL(in.Registry.Registry, in.Package, in.Platform, in.Version)
-	platformTgz, err := in.Registry.Download(binURL)
+	platformTgz, err := in.Registry.DownloadTarball(binURL, in.Version)
 	if err != nil {
 		return Fetched{}, fmt.Errorf("download: %w", err)
 	}

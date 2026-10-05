@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -21,6 +22,13 @@ import (
 
 // DefaultRegistry is the public npm registry.
 const DefaultRegistry = "https://registry.npmjs.org"
+
+// DefaultMirror holds a copy of each fresh release's tarballs at
+// <mirror>/v<version>/<tarball file name>, for the minutes after a publish
+// when npm lists a version but answers 404 for its tarballs. Whatever it
+// serves is checked as the registry's tarballs are, so its identity is as
+// immaterial to integrity as the registry's.
+const DefaultMirror = "https://github.com/missingbulb/ClaudiniteMirror/releases/download"
 
 // DefaultMaxBytes is the launcher's download cap.
 const DefaultMaxBytes = 64 << 20
@@ -87,20 +95,27 @@ type Packument struct {
 	Versions map[string]Version `json:"versions"`
 }
 
-// Client reads one registry.
+// Client reads one registry and, when Mirror is set, its mirror.
 type Client struct {
 	Registry string
+	Mirror   string
 	HTTP     *http.Client
 	MaxBytes int64
 }
 
 // FromEnv is a client for CLAUDINITE_REGISTRY (default the public
-// registry) under CLAUDINITE_MAX_DOWNLOAD_BYTES (default 64 MiB), the
-// launcher's two overrides.
+// registry) and CLAUDINITE_MIRROR under CLAUDINITE_MAX_DOWNLOAD_BYTES
+// (default 64 MiB), the launcher's overrides. The default mirror copies the
+// public registry, so another registry has none unless CLAUDINITE_MIRROR
+// names one.
 func FromEnv() (Client, error) {
-	c := Client{Registry: DefaultRegistry, HTTP: &http.Client{Timeout: 5 * time.Minute}, MaxBytes: DefaultMaxBytes}
+	c := Client{Registry: DefaultRegistry, Mirror: DefaultMirror, HTTP: &http.Client{Timeout: 5 * time.Minute}, MaxBytes: DefaultMaxBytes}
 	if r := os.Getenv("CLAUDINITE_REGISTRY"); r != "" {
 		c.Registry = strings.TrimRight(r, "/")
+		c.Mirror = ""
+	}
+	if m := os.Getenv("CLAUDINITE_MIRROR"); m != "" {
+		c.Mirror = strings.TrimRight(m, "/")
 	}
 	if m := os.Getenv("CLAUDINITE_MAX_DOWNLOAD_BYTES"); m != "" {
 		n, err := strconv.ParseInt(m, 10, 64)
@@ -162,6 +177,26 @@ func (c Client) Download(u string) ([]byte, error) {
 		max = DefaultMaxBytes
 	}
 	return c.get(u, max)
+}
+
+// MirrorURL is where mirror holds the tarball at registry URL u.
+func MirrorURL(mirror, version, u string) string {
+	return mirror + "/v" + version + "/" + path.Base(u)
+}
+
+// DownloadTarball downloads version's tarball at u, or, when the registry
+// does not answer it, the mirror's copy. Neither is trusted: the caller
+// checks the bytes either way.
+func (c Client) DownloadTarball(u, version string) ([]byte, error) {
+	data, err := c.Download(u)
+	if err == nil || c.Mirror == "" {
+		return data, err
+	}
+	data, merr := c.Download(MirrorURL(c.Mirror, version, u))
+	if merr != nil {
+		return nil, fmt.Errorf("%w; mirror: %v", err, merr)
+	}
+	return data, nil
 }
 
 // CheckIntegrity compares data's SHA-512 with an npm integrity string.

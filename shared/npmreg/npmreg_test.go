@@ -18,7 +18,7 @@ func TestTarballURLsAreTheLaunchers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	vars := map[string]string{"registry": "https://r.example", "package": "@claudinite/cli-rc", "name": "cli-rc", "version": "1.60930.1", "platform": "linux-arm64"}
+	vars := map[string]string{"registry": "https://r.example", "mirror": "https://m.example", "package": "@claudinite/cli-rc", "name": "cli-rc", "version": "1.60930.1", "platform": "linux-arm64"}
 	eval := func(name string) string {
 		m := regexp.MustCompile(`(?m)^\s*` + name + `=(\S+)$`).FindStringSubmatch(string(raw))
 		if m == nil {
@@ -33,6 +33,15 @@ func TestTarballURLsAreTheLaunchers(t *testing.T) {
 	}
 	if got, want := PlatformTarballURL("https://r.example", "@claudinite/cli-rc", "linux-arm64", "1.60930.1"), eval("binary_url"); got != want {
 		t.Errorf("PlatformTarballURL %s, launcher %s", got, want)
+	}
+	if got, want := MirrorURL("https://m.example", "1.60930.1", TarballURL("https://r.example", "@claudinite/cli-rc", "1.60930.1")), eval("manifest_mirror_url"); got != want {
+		t.Errorf("MirrorURL of the manifest %s, launcher %s", got, want)
+	}
+	if got, want := MirrorURL("https://m.example", "1.60930.1", PlatformTarballURL("https://r.example", "@claudinite/cli-rc", "linux-arm64", "1.60930.1")), eval("binary_mirror_url"); got != want {
+		t.Errorf("MirrorURL of the binary %s, launcher %s", got, want)
+	}
+	if !strings.Contains(string(raw), "mirror=${CLAUDINITE_MIRROR:-"+DefaultMirror+"}\n") {
+		t.Errorf("the launcher's default mirror is not DefaultMirror, %s", DefaultMirror)
 	}
 }
 
@@ -96,5 +105,26 @@ func TestGetPackumentAndDownload(t *testing.T) {
 	}
 	if _, err := c.Packument("@claudinite/missing"); err == nil || !strings.Contains(err.Error(), "404") {
 		t.Errorf("missing package: %v", err)
+	}
+}
+
+// The default mirror copies the public registry, so overriding the registry
+// drops it unless CLAUDINITE_MIRROR names one.
+func TestFromEnvMirror(t *testing.T) {
+	for _, c := range []struct{ registry, mirror, want string }{
+		{"", "", DefaultMirror},
+		{"https://127.0.0.1:9", "", ""},
+		{"https://127.0.0.1:9", "https://127.0.0.1:8/", "https://127.0.0.1:8"},
+		{"", "https://127.0.0.1:8", "https://127.0.0.1:8"},
+	} {
+		t.Setenv("CLAUDINITE_REGISTRY", c.registry)
+		t.Setenv("CLAUDINITE_MIRROR", c.mirror)
+		got, err := FromEnv()
+		if err != nil || got.Mirror != c.want {
+			t.Errorf("registry %q mirror %q: %q %v, want %q", c.registry, c.mirror, got.Mirror, err, c.want)
+		}
+	}
+	if got := MirrorURL("https://m", "1.61005.9", TarballURL(DefaultRegistry, "@claudinite/cli", "1.61005.9")); got != "https://m/v1.61005.9/cli-1.61005.9.tgz" {
+		t.Errorf("MirrorURL %s", got)
 	}
 }

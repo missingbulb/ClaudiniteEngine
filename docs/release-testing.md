@@ -60,7 +60,7 @@ An engine version is built once and published to `@claudinite/cli` under the `rc
 - **full** builds the five binaries, checks the linux-x64 build reproduces, runs every job below and publishes under the `rc` dist-tag. It is the only kind that can be promoted.
 - **staging** builds linux-x64 alone, runs only the secret scan and the platform smoke, and publishes under the `staging` dist-tag, which only repos whose settings set `engine.channel: "staging"` read; the owner opts his own repos in to try a change on real work within minutes. Its manifest lists one platform, so promotion refuses it.
 
-Both kinds tag the commit just before publishing, so a run that fails after npm took its version never hands that version to the next run. Right after publishing they check that npm's version documents name the tarballs they built, then start `from-npm.yml`, which installs the release from npm once npm serves its tarballs, minutes later, and opens a release-blocker issue if that fails. The release does not wait for it (Record decision 24).
+Both kinds tag the commit and copy their tarballs to the mirror (release/mirror.sh, record row 138) just before publishing, so a run that fails after npm took its version never hands that version to the next run. Right after publishing they check that npm's version documents name the tarballs they built, then start `from-npm.yml`, which installs the release from npm once npm serves its tarballs, minutes later, and opens a release-blocker issue if that fails. The release does not wait for it (Record decision 24).
 
 ### Per release candidate
 

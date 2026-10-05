@@ -226,7 +226,7 @@ func TestReleaseGatesThePublish(t *testing.T) {
 	// the signature, the key gone, the signature verified, the version's tag,
 	// then npm. The tag comes first so a run that fails after npm took the
 	// version never leaves the next run to compute it again.
-	order := []string{"name: the files build hashed", "release/sign.sh", "run: rm -f \"$RUNNER_TEMP/release.key\"", "go run ./release/manifest verify", "publish-mode", "git push origin \"v$VERSION\"", "release/publish.sh", "pipeline npm-holds --dist dist"}
+	order := []string{"name: the files build hashed", "release/sign.sh", "run: rm -f \"$RUNNER_TEMP/release.key\"", "go run ./release/manifest verify", "publish-mode", "git push origin \"v$VERSION\"", "release/mirror.sh put \"$VERSION\" dist", "release/publish.sh", "pipeline npm-holds --dist dist"}
 	last, prev := -1, "the start"
 	for _, step := range order {
 		i := strings.Index(publish, step)
@@ -234,6 +234,9 @@ func TestReleaseGatesThePublish(t *testing.T) {
 			t.Errorf("the publish job does not run %q after %q", step, prev)
 		}
 		last, prev = i, step
+	}
+	if !strings.Contains(publish, "      - if: steps.mode.outputs.mode == 'real'\n        name: mirror the tarballs for the minutes npm answers 404\n        env:\n          GH_TOKEN: ${{ secrets.MIRROR_TOKEN }}\n") {
+		t.Errorf("the publish job does not mirror only a real publish, with the mirror's token:\n%s", publish)
 	}
 	if !strings.Contains(publish, "      - if: steps.mode.outputs.mode == 'real'\n        name: tag the commit\n") {
 		t.Errorf("the publish job does not tag only after a real publish:\n%s", publish)
@@ -388,5 +391,14 @@ func TestFromNPMWaitsThroughNPMWait(t *testing.T) {
 	}
 	if strings.Contains(job, "curl ") {
 		t.Errorf("from-npm looks at npm itself:\n%s", job)
+	}
+	// Once npm serves the release the mirror's copy goes, and failing to
+	// drop it is no reason to hold the release back.
+	drop := strings.Index(job, "run: release/mirror.sh drop \"$VERSION\"")
+	if drop < 0 || drop < strings.Index(job, "release/smoke-platform.sh") || !strings.Contains(job, "          GH_TOKEN: ${{ secrets.MIRROR_TOKEN }}\n        run: release/mirror.sh drop") {
+		t.Errorf("from-npm does not drop the mirror's copy after installing from npm:\n%s", job)
+	}
+	if !strings.Contains(job, "        if: failure() && steps.drop.outcome != 'failure'\n") {
+		t.Errorf("a failed drop opens a release-blocker issue:\n%s", job)
 	}
 }

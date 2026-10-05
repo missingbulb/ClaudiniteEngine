@@ -718,3 +718,59 @@ func TestLauncherStalledRegistry(t *testing.T) {
 	}
 	m.cachedNothing(t)
 }
+
+// In the minutes after a publish npm lists a version but answers 404 for its
+// tarballs; the launcher then takes them from the mirror, checked as the
+// registry's would be.
+func TestLauncherFallsBackToTheMirror(t *testing.T) {
+	t.Parallel()
+	rel := makeRelease(t, releaseOpts{})
+	bad := makeRelease(t, releaseOpts{wrongHostBytes: true})
+	notYet := startStub(t, rel.dist, "--status", "404")
+	both := func(t *testing.T, mirror stub) *member {
+		t.Helper()
+		m := newMember(t, notYet)
+		m.ca = filepath.Join(t.TempDir(), "ca.pem")
+		var pem []byte
+		for _, f := range []string{notYet.ca, mirror.ca} {
+			b, err := os.ReadFile(f)
+			if err != nil {
+				t.Fatal(err)
+			}
+			pem = append(pem, b...)
+		}
+		if err := os.WriteFile(m.ca, pem, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		m.env = []string{"CLAUDINITE_MIRROR=" + mirror.url + "/"}
+		return m
+	}
+
+	mirror := startStub(t, rel.dist)
+	m := both(t, mirror)
+	m.settings(t, "settings.yaml", yaml(testVersion, rel.pin))
+	out, e, code := m.run(t, sessionStartStdin, "hook", "session-start")
+	if code != 0 || !strings.Contains(out, "Hello from cn") {
+		t.Fatalf("exit %d\nstdout %s\nstderr %s", code, out, e)
+	}
+	want := []string{"/v" + testVersion + "/cli-" + testVersion + ".tgz", "/v" + testVersion + "/cli-" + host + "-" + testVersion + ".tgz"}
+	if got := mirror.requests(t); strings.Join(got, " ") != strings.Join(want, " ") {
+		t.Errorf("mirror requests %v, want %v", got, want)
+	}
+
+	// A binary the mirror serves is checked against the manifest.
+	m = both(t, startStub(t, bad.dist))
+	m.settings(t, "settings.yaml", yaml(testVersion, bad.pin))
+	if _, e, code := m.run(t, "", "env", "install"); code == 0 || !strings.Contains(e, "does not match its manifest entry") {
+		t.Errorf("wrong bytes from the mirror: exit %d, stderr %q", code, e)
+	}
+	m.cachedNothing(t)
+
+	// Neither answering is the registry being unreachable, naming both.
+	m = both(t, startStub(t, rel.dist, "--status", "404"))
+	m.settings(t, "settings.yaml", yaml(testVersion, rel.pin))
+	if _, e, code := m.run(t, "", "env", "install"); code == 0 || !strings.Contains(e, "could not fetch the engine from "+notYet.url) || !strings.Contains(e, " or https://") {
+		t.Errorf("neither answers: exit %d, stderr %q", code, e)
+	}
+	m.cachedNothing(t)
+}

@@ -2,8 +2,9 @@
 # once npm serves its tarballs, which can take minutes after the publish.
 # release.yml starts it after a real publish and finishes without it: the
 # release's publish job already proved npm holds the bytes it built and
-# tested. A failure opens a release-blocker issue, which holds the version
-# back from promotion.
+# tested. Once npm serves the release it drops the mirror's copy. A failure
+# to install opens a release-blocker issue, which holds the version back from
+# promotion.
 name: Test Initial Adoption on Clean Repo, from npm
 
 on:
@@ -60,8 +61,13 @@ jobs:
           echo "uname -s: $(uname -s), uname -m: $(uname -m)"
           sh release/smoke-platform.sh --registry https://registry.npmjs.org --channel "$CHANNEL" \
             --version "$VERSION" --pin "$INTEGRITY" --platform "$LEG" 2>&1 | tee "$RUNNER_TEMP/smoke.log"
+      - id: drop
+        name: drop the mirror's copy, which npm now serves
+        env:
+          GH_TOKEN: ${{ secrets.MIRROR_TOKEN }}
+        run: release/mirror.sh drop "$VERSION"
       - name: open a release-blocker issue
-        if: failure()
+        if: failure() && steps.drop.outcome != 'failure'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

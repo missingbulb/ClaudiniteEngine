@@ -5,6 +5,8 @@
 //	/@claudinite/<name>/-/<name>-<version>.tgz  ->  <dist>/tarballs/<name>-<version>.tgz
 //	/@claudinite%2f<name> (or /@claudinite/<name>)  ->  a packument of every
 //	                                                  <name>-<version>.tgz served
+//	/v<version>/<name>-<version>.tgz            ->  <dist>/tarballs/<name>-<version>.tgz,
+//	                                                the mirror's shape
 //
 // --dist may repeat; the first folder holding the tarball serves it.
 // --deprecations names a JSON file {"<version>": "<message>"}, read on every
@@ -44,6 +46,7 @@ import (
 var (
 	tarballPath   = regexp.MustCompile(`^/@claudinite(?:/|%2[fF])([a-z0-9-]+)/-/([a-z0-9.-]+\.tgz)$`)
 	packumentPath = regexp.MustCompile(`^/@claudinite(?:/|%2[fF])([a-z0-9-]+)$`)
+	mirrorPath    = regexp.MustCompile(`^/v([0-9.]+)/([a-z0-9.-]+\.tgz)$`)
 	versionRe     = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+$`)
 )
 
@@ -99,13 +102,18 @@ func main() {
 			servePackument(w, r, dists, pm[1], *deprecations, tags)
 			return
 		}
-		m := tarballPath.FindStringSubmatch(r.URL.EscapedPath())
-		if m == nil || !strings.HasPrefix(m[2], m[1]+"-") {
+		file := ""
+		if m := tarballPath.FindStringSubmatch(r.URL.EscapedPath()); m != nil && strings.HasPrefix(m[2], m[1]+"-") {
+			file = m[2]
+		} else if m := mirrorPath.FindStringSubmatch(r.URL.EscapedPath()); m != nil && strings.HasSuffix(m[2], "-"+m[1]+".tgz") {
+			file = m[2]
+		}
+		if file == "" {
 			http.NotFound(w, r)
 			return
 		}
 		for _, d := range dists {
-			p := filepath.Join(d, "tarballs", m[2])
+			p := filepath.Join(d, "tarballs", file)
 			if _, err := os.Stat(p); err == nil {
 				http.ServeFile(w, r, p)
 				return

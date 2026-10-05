@@ -176,7 +176,7 @@ npm is the only publish target. We may later publish to other public package reg
 
 1. Read `engine.version` and `engine.manifest` from whichever of .claudinite/settings.yaml, .toml or .json exists (none, or more than one, stops with an error), and check both against a strict pattern before they reach a URL or a path. Work out the platform from `uname`.
 2. Look in `${XDG_CACHE_HOME:-~/.cache}/claudinite/<version>/`. If the manifest hashes to the pin and the binary hashes to its manifest entry, go to step 5. Hashes are recomputed on every run rather than trusting a marker. This costs about 25–50 ms of one core per launcher run (SHA-256 over a binary of roughly 15–30 MB with CPU SHA instructions; about 100–150 ms on older CPUs without them), and the launcher runs only at SessionStart and in each Actions job's download step.
-3. Download `manifest.json` and the platform binary by exact tarball URL from `registry.npmjs.org`, HTTPS only, with a size cap.
+3. Download `manifest.json` and the platform binary by exact tarball URL from `registry.npmjs.org`, HTTPS only, with a size cap. A tarball npm does not answer yet, as in the minutes after a publish, comes from the mirror's release `v<version>` instead (record row 138); it is checked exactly as npm's is.
 4. Check the manifest against the pin and the binary against the manifest. On a mismatch, delete both and stop; on a match, move the binary into place atomically, read-only and executable.
 5. Link `.claudinite/bin/cn`, a git-ignored path, to the cached binary, unpack the embedded runner script and SDK beside it on first run, and `exec` the binary.
 

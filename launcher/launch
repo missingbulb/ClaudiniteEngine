@@ -9,8 +9,11 @@
 # .toml or .json, downloads that release's manifest.json and this platform's
 # binary from the npm registry, checks the manifest against the pin and the
 # binary against the manifest, caches the binary read-only, links
-# .claudinite/bin/cn to it and execs it. Nothing is trusted that the pin
-# does not cover; the registry's identity is immaterial to integrity.
+# .claudinite/bin/cn to it and execs it. A tarball the registry does not
+# answer, as in the minutes after a publish while npm lists the version but
+# serves 404, comes from the mirror instead. Nothing is trusted that the pin
+# does not cover; the registry's and the mirror's identities are immaterial
+# to integrity.
 #
 # Only SessionStart and the Actions download step invoke it; every other hook
 # runs .claudinite/bin/cn directly. Wired to Stop, its exit 2 on a refusal
@@ -25,11 +28,19 @@
 # signature before it writes anything. Windows is not covered: npm's shim
 # for a sh script there is the desktop work.
 #
-# CLAUDINITE_REGISTRY overrides the registry and CLAUDINITE_MAX_DOWNLOAD_BYTES
-# the download size cap; both exist for tests and the rehearsal.
+# CLAUDINITE_REGISTRY overrides the registry, CLAUDINITE_MIRROR the mirror
+# and CLAUDINITE_MAX_DOWNLOAD_BYTES the download size cap; they exist for
+# tests and the rehearsal. The default mirror copies the public registry, so
+# another registry has none unless CLAUDINITE_MIRROR names one.
 set -u
 
 registry=${CLAUDINITE_REGISTRY:-https://registry.npmjs.org}
+if [ -n "${CLAUDINITE_REGISTRY:-}" ]; then
+  mirror=${CLAUDINITE_MIRROR:-}
+else
+  mirror=${CLAUDINITE_MIRROR:-https://github.com/missingbulb/ClaudiniteMirror/releases/download}
+fi
+mirror=${mirror%/}
 max_bytes=${CLAUDINITE_MAX_DOWNLOAD_BYTES:-67108864}
 
 if [ "${GITHUB_ACTIONS:-}" = true ]; then
@@ -291,24 +302,35 @@ if ! cached_ok; then
   [ "$max_time" -ge 30 ] || max_time=30
   tmp=$(mktemp -d "$vdir/.download.XXXXXX") || refuse "cannot create a temporary folder in $vdir"
 
-  fetch() {
+  # try_fetch URL FILE: 0 once FILE holds URL's answer, 1 when there is none.
+  try_fetch() {
     curl --proto =https --proto-redir =https --tlsv1.2 --fail --silent --show-error --location \
       --connect-timeout 20 --max-time "$max_time" --max-filesize "$max_bytes" --output "$2" "$1" < /dev/null
     status=$?
     if [ "$status" -eq 63 ]; then
       refuse "$1 is larger than the $max_bytes-byte download cap"
     elif [ "$status" -ne 0 ]; then
-      unreachable "$1"
+      return 1
     fi
     size=$(wc -c < "$2" | tr -d ' ')
     [ "$size" -le "$max_bytes" ] || refuse "$1 is larger than the $max_bytes-byte download cap"
   }
 
+  # fetch URL MIRROR_URL FILE: the registry's tarball, else the mirror's.
+  fetch() {
+    try_fetch "$1" "$3" && return 0
+    [ -n "$mirror" ] || unreachable "$1"
+    say "$1 did not answer; fetching $2"
+    try_fetch "$2" "$3" || unreachable "$1 or $2"
+  }
+
   name=${package#@claudinite/}
   manifest_url=$registry/$package/-/$name-$version.tgz
   binary_url=$registry/$package-$platform/-/$name-$platform-$version.tgz
+  manifest_mirror_url=$mirror/v$version/$name-$version.tgz
+  binary_mirror_url=$mirror/v$version/$name-$platform-$version.tgz
 
-  fetch "$manifest_url" "$tmp/manifest.tgz"
+  fetch "$manifest_url" "$manifest_mirror_url" "$tmp/manifest.tgz"
   tar -xzf "$tmp/manifest.tgz" -C "$tmp" package/manifest.json 2>/dev/null \
     || refuse "$manifest_url holds no package/manifest.json"
 
@@ -320,7 +342,7 @@ if ! cached_ok; then
   [ -n "$want" ] || refuse "$package $version lists no binary for $platform"
 
   mkdir "$tmp/platform" || refuse "cannot unpack into $tmp"
-  fetch "$binary_url" "$tmp/platform.tgz"
+  fetch "$binary_url" "$binary_mirror_url" "$tmp/platform.tgz"
   tar -xzf "$tmp/platform.tgz" -C "$tmp/platform" "package/bin/$bin" 2>/dev/null \
     || refuse "$binary_url holds no package/bin/$bin"
   [ "$(sha256 "$tmp/platform/package/bin/$bin")" = "$want" ] \
