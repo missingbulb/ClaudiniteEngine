@@ -60,8 +60,8 @@ type Verdict struct {
 	// advisory until phase 2's cn update engine builds the second release
 	// a needed hop asks for.
 	Hop string
-	// SecurityFix would skip the soak; it is always false until phase 4
-	// carries the flag in the license keys behind a protected environment.
+	// SecurityFix would skip the soak; nothing carries the flag yet, so it
+	// is always false.
 	SecurityFix bool
 	Reason      string
 }

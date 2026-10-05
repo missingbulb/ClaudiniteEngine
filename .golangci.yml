@@ -25,7 +25,6 @@ linters:
           list-mode: strict
           files:
             - "**/hooks/**"
-            - "**/license/**"
             - "**/sdkserver/**"
             - "**/shared/**"
             - "!**/shared/descriptor/**"

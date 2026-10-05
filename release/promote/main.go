@@ -116,7 +116,7 @@ func gate(ver, canariesPath, fixtures string, stdout, stderr io.Writer) error {
 	return nil
 }
 
-// stableTest runs the license package's stable build check at the
+// stableTest runs the trust roots' stable build check at the
 // candidate's source, which fails while the development roots are embedded.
 func stableTest(source string, stderr io.Writer) error {
 	cmd := exec.Command("go", "test", "-count=1", "-tags", "stable", "./shared/trust")
