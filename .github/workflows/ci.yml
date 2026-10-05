@@ -31,7 +31,7 @@ jobs:
         with:
           version: v2.5.0
       # The parity harness is off CI: the port it proved is done (design record 135).
-      - run: go test -short $(go list ./... | grep -v /parity)
+      - run: go list ./... | grep -v /parity | xargs go test -short
       - run: shellcheck -s sh launcher/launch release/*.sh probe/desktop-timings/run.sh probe/hook-latency/run.sh
       # actionlint v1.7.11, the last release that builds on Go 1.24, over the engine's workflows and
       # the member templates; it runs shellcheck over every run: body too.

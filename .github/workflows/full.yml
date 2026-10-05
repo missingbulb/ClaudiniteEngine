@@ -25,7 +25,7 @@ jobs:
         with:
           node-version: "22"
       # The parity harness is off CI: the port it proved is done (design record 135).
-      - run: go test $(go list ./... | grep -v /parity)
+      - run: go list ./... | grep -v /parity | xargs go test
 
   build:
     runs-on: ubuntu-24.04
