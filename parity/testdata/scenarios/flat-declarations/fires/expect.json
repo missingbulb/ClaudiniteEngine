@@ -1,5 +1,14 @@
 {
+  "world": [
+    "flat-declarations-current .claudinite/flat/dashboard.GENERATED.json block",
+    "flat-declarations-current .claudinite/flat/tasks.GENERATED.json block"
+  ],
   "only": [
     "flat-declarations-current"
+  ],
+  "divergence": "record-135",
+  "cnWorld": [
+    "flat-declarations-current .claudinite/cache/dashboard.GENERATED.json block",
+    "flat-declarations-current .claudinite/cache/tasks.GENERATED.json block"
   ]
 }
