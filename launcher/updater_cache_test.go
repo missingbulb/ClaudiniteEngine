@@ -69,7 +69,7 @@ func TestUpdaterPlacementNeedsNoDownload(t *testing.T) {
 	}
 	var roots []ed25519.PublicKey
 	for _, name := range []string{"root.pub", "standby.pub"} {
-		r, err := sign.ParsePublicKey(readFile(t, filepath.Join(repoRoot, "license", "devroots", name)))
+		r, err := sign.ParsePublicKey(readFile(t, filepath.Join(repoRoot, "shared", "trust", "devroots", name)))
 		if err != nil {
 			t.Fatal(err)
 		}
