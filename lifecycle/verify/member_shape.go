@@ -151,10 +151,16 @@ func checkNodeLeftovers(in Input) []findings.Finding {
 		}
 	}
 	if text, ok := read(in, ".gitignore"); ok {
+		hookLog, temp := false, false
 		for _, l := range strings.Split(string(text), "\n") {
-			if strings.HasPrefix(strings.TrimSpace(l), "/.claudinite-hooks.log") {
-				out = append(out, dep("node-leftovers", ".gitignore", "ignores the Node engine's hook log ("+strings.TrimSpace(l)+"), which cn never writes; the move pull request drops the line"))
-				break
+			l = strings.TrimSpace(l)
+			if !hookLog && strings.HasPrefix(l, "/.claudinite-hooks.log") {
+				hookLog = true
+				out = append(out, dep("node-leftovers", ".gitignore", "ignores the Node engine's hook log ("+l+"), which cn never writes; the move pull request drops the line"))
+			}
+			if !temp && strings.TrimSuffix(strings.TrimPrefix(l, "/"), "/") == ".claudinite/temp" {
+				temp = true
+				out = append(out, dep("node-leftovers", ".gitignore", "ignores the session pack root ("+l+") from the repo root; .claudinite/.gitignore holds /temp/, so the move pull request drops the line and the comment above it"))
 			}
 		}
 	}
