@@ -154,8 +154,7 @@ func FromNode(in Input) error {
 	if _, err := rulesindex.EnsureImport(in.Repo); err != nil {
 		return halfMoved(in.Repo, err)
 	}
-	g := requestKey(in, cfg)
-	err = finish(finishInput{Repo: in.Repo, Engine: got.Version, Answers: in.Answers, Core: true, Key: g, NoSeed: true,
+	err = finish(finishInput{Repo: in.Repo, Engine: got.Version, Answers: in.Answers, Core: true, NoSeed: true,
 		First: []string{"git rm " + node.File + " (the Node declaration, now read into .claudinite/settings.yaml)"}, Out: in.Out})
 	if err != nil {
 		return halfMoved(in.Repo, err)
@@ -319,27 +318,4 @@ func writeFiles(repo string, files []memberFile) error {
 		}
 	}
 	return nil
-}
-
-// requestKey makes init's one key request and writes the plan a key
-// names into the settings file.
-func requestKey(in Input, cfg []byte) KeyGrant {
-	g := KeyGrant{Reason: "no key request"}
-	if in.Key != nil {
-		g = in.Key(in.Repo)
-	}
-	if g.Plan == "" {
-		return g
-	}
-	moved, err := settings.SetPlan(cfg, settings.YAML, g.Plan)
-	if err != nil {
-		fmt.Fprintf(in.Out, "plan: %s, not written: %v\n", g.Plan, err)
-		return g
-	}
-	if err := os.WriteFile(filepath.Join(in.Repo, ".claudinite", "settings.yaml"), moved, 0o644); err != nil {
-		fmt.Fprintf(in.Out, "plan: %s, not written: %v\n", g.Plan, err)
-		return g
-	}
-	fmt.Fprintf(in.Out, "plan: %s\n", g.Plan)
-	return g
 }

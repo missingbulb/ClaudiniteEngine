@@ -113,7 +113,7 @@ func TestFromNodeMovesANodeMember(t *testing.T) {
 	}
 	s := out.String()
 	for _, want := range []string{"mapped packs", "pack: hello 1.0\n", "pack: base 2.0\n", "NEXT: git rm .claudinite-settings.json",
-		"[ ] (cn) In the repository's Settings > Actions > General", "[ ] (cn) Install the Claudinite GitHub App"} {
+		"[ ] (cn) In the repository's Settings > Actions > General"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("output lacks %q:\n%s", want, s)
 		}

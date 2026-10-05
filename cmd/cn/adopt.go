@@ -1,9 +1,11 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -55,7 +57,7 @@ func cmdInit(args []string, stdout, stderr io.Writer) error {
 	in := adopt.Input{
 		Repo: *repo, FullName: initFullName(*repo), Channel: *channel, Package: *pkg,
 		Fetch:  update.FetchInput{Registry: reg, Roots: roots, CacheRoot: paths.CacheRoot(), Platform: version.Platform(), Now: time.Now()},
-		Reader: reader, Timeout: childTimeout, Out: stdout, Key: initKey(stderr), Answers: answers,
+		Reader: reader, Timeout: childTimeout, Out: stdout, Answers: answers,
 	}
 	if *fromNode {
 		err = adopt.FromNode(in)
@@ -90,6 +92,15 @@ func cmdAdopt(args []string, stdout io.Writer) error {
 		return report.Wrap(report.IO, "adopt", err)
 	}
 	return nil
+}
+
+// originOf is the checkout's configured origin URL, unrewritten.
+func originOf(dir string) (string, error) {
+	out, err := exec.Command("git", "-C", dir, "config", "--get", "remote.origin.url").Output()
+	if err != nil {
+		return "", errors.New("the checkout has no origin remote")
+	}
+	return strings.TrimSpace(string(out)), nil
 }
 
 // initFullName is the repo's name off its origin, or its directory's.

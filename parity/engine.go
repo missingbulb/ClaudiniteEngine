@@ -20,7 +20,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 )
 
 // Finding is one finding as both engines' reports name it.
@@ -432,29 +431,7 @@ func (c Cn) Mounts(dir string) (map[string]string, error) {
 // SessionID is the session every scenario's payloads name.
 const SessionID = "parity"
 
-// pending writes the session's license state as a request in flight, the
-// state in which every surface runs: the harness has no key, and forced
-// skill loading is gated on one (the hooks read the file fresh, so it is
-// written before each call).
-func (c Cn) pending() error {
-	dir := filepath.Join(c.Cache, "claudinite", "sessions")
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return err
-	}
-	if err := os.Chmod(filepath.Join(c.Cache, "claudinite"), 0o700); err != nil {
-		return err
-	}
-	state := fmt.Sprintf(`{"v":1,"session_id":%q,"repo":"","mode":"web","nonce":"parity","requested_at":%q,"state":"pending"}`,
-		SessionID, time.Now().UTC().Format(time.RFC3339Nano))
-	path := filepath.Join(dir, SessionID+".json")
-	_ = os.Remove(path)
-	return os.WriteFile(path, []byte(state), 0o600)
-}
-
 func (c Cn) Hook(dir, event, payload string) (Verdict, error) {
-	if err := c.pending(); err != nil {
-		return Verdict{}, err
-	}
 	out, stderr, code, err := run(dir, c.env(dir), payload, c.Binary, "hook", event)
 	if err != nil {
 		return Verdict{}, err
@@ -491,9 +468,8 @@ func (c Cn) World(dir string) ([]Finding, error) {
 	return parseCn(out), nil
 }
 
-// Work runs the work-tagged checks through cn check --tag work: the Stop
-// hook runs the same selection, behind the license gate a harness has no
-// key for.
+// Work runs the work-tagged checks through cn check --tag work, the
+// selection the Stop hook runs.
 func (c Cn) Work(dir, transcript string) ([]Finding, error) {
 	args := []string{"check", "--tag", "work", "--repo", dir}
 	if transcript != "" {

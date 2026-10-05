@@ -207,14 +207,11 @@ func (s *Set) IDs() []string {
 
 // Selection is which checks one run takes: every check whose tags
 // include all of Tags, from Pack when set. Session is the session's
-// transcript, nil for none (CI, cn check world). SkipForcedLoading is the
-// license gate's forced-skill-loading row turned off, which turns off the
-// Stop-time half of forced loading.
+// transcript, nil for none (CI, cn check world).
 type Selection struct {
-	Tags              []string
-	Pack              string
-	Session           *transcript.Session
-	SkipForcedLoading bool
+	Tags    []string
+	Pack    string
+	Session *transcript.Session
 }
 
 func (sel Selection) takes(tags []string, pack string) bool {
@@ -275,9 +272,6 @@ func (s *Set) Run(sel Selection, now time.Time, stderr io.Writer) ([]findings.Fi
 	var builtins []Builtin
 	for _, b := range s.Builtins {
 		if !sel.takes(b.Tags, b.Pack) || s.Config.Rule(b.Pack, b.ID) == "off" || contains(b.Tags, "action") || b.Run == nil {
-			continue
-		}
-		if b.ID == BuiltinSkillLoaded && sel.SkipForcedLoading {
 			continue
 		}
 		builtins = append(builtins, b)

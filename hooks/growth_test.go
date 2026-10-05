@@ -43,7 +43,7 @@ func TestSessionEndCapturesUnderTheSessionIssue(t *testing.T) {
 	repo := member(t, []string{GrowthPack}, nil)
 	g := &fakeGrowth{outcome: breadcrumb.OK, say: "captured 3 entries → x on conversation-logs"}
 	t.Setenv("CLAUDINITE_SESSION_ISSUE", "772")
-	out, errOut := hook(t, Handler{ProjectDir: repo, Growth: g, License: &fakeLicense{hook: LicenseStatus{Growth: true}}}, "session-end", endIn)
+	out, errOut := hook(t, Handler{ProjectDir: repo, Growth: g}, "session-end", endIn)
 	endsClean(t, out)
 	if len(g.calls) != 1 || g.calls[0] != "s1 /t/s1.jsonl 772" {
 		t.Fatalf("calls %v", g.calls)
@@ -74,20 +74,6 @@ func TestACaptureOverItsBoundIsLeftBehind(t *testing.T) {
 	out, errOut := hook(t, Handler{ProjectDir: repo, Growth: g}, "session-end", endIn)
 	endsClean(t, out)
 	if !strings.Contains(errOut, "did not finish within") || !strings.Contains(errOut, "[cn] growth capture timeout ") {
-		t.Fatalf("stderr %q", errOut)
-	}
-}
-
-func TestADegradedKeyCapturesNothingAndSaysWhy(t *testing.T) {
-	repo := member(t, []string{GrowthPack}, nil)
-	g := &fakeGrowth{}
-	fl := &fakeLicense{hook: LicenseStatus{State: "degraded: revoked"}}
-	out, errOut := hook(t, Handler{ProjectDir: repo, Growth: g, License: fl}, "session-end", endIn)
-	endsClean(t, out)
-	if len(g.calls) != 0 {
-		t.Fatalf("captured under a degraded key: %v", g.calls)
-	}
-	if !strings.Contains(errOut, GrowthOff("degraded: revoked")) || !strings.Contains(errOut, "[cn] growth capture skip ") {
 		t.Fatalf("stderr %q", errOut)
 	}
 }

@@ -76,11 +76,6 @@ func growthDeclared(repo string) bool {
 	return false
 }
 
-// GrowthOff is the line a capture the license turns off says.
-func GrowthOff(state string) string {
-	return fmt.Sprintf("[cn] growth: capture is off under this key (%s)", state)
-}
-
 // sessionEnd is the capture event: where the growth pack is declared it
 // captures the session under CLAUDINITE_SESSION_ISSUE or issue 0. A
 // session must never fail to end because of it, so every failure is one
@@ -98,17 +93,6 @@ func (h Handler) sessionEnd(in hookInput, parsed bool, stdout, stderr io.Writer,
 		return nil
 	}
 	began := time.Now()
-	if h.License != nil {
-		st := h.License.Hook(repo, sessionKey(in.SessionID))
-		for _, c := range st.Crumbs {
-			fmt.Fprintln(stderr, c)
-		}
-		if !st.Growth {
-			fmt.Fprintln(stderr, GrowthOff(st.State))
-			fmt.Fprintln(stderr, breadcrumb.Line("growth", "capture", breadcrumb.Skip, time.Since(began)))
-			return nil
-		}
-	}
 	issue := SessionIssue(os.Getenv("CLAUDINITE_SESSION_ISSUE"))
 	done := make(chan breadcrumb.Outcome, 1)
 	var said strings.Builder

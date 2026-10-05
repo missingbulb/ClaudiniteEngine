@@ -111,3 +111,11 @@ func TestUnknownEventIsUsage(t *testing.T) {
 		t.Fatalf("stdout %q", out)
 	}
 }
+
+// A session asks no license server and says nothing of a license.
+func TestSessionStartSaysNothingOfALicense(t *testing.T) {
+	ctx, _ := sessionStart(t, `{"session_id":"abc","cwd":"/repo","hook_event_name":"SessionStart","source":"startup"}`)
+	if strings.Contains(strings.ToLower(ctx), "license") {
+		t.Errorf("SessionStart mentions a license: %q", ctx)
+	}
+}

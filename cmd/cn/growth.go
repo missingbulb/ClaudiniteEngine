@@ -67,8 +67,7 @@ func cmdGrowth(args []string, stdout, stderr io.Writer, start time.Time) error {
 }
 
 // growthCapture is `cn growth capture`: the merge-to-main skill's and a
-// routine session's capture, and a person's. The session's license gates
-// it as it gates the session-end hook.
+// routine session's capture, and a person's.
 func growthCapture(args []string, stdout, stderr io.Writer, start time.Time) error {
 	wd, err := os.Getwd()
 	if err != nil {
@@ -89,11 +88,6 @@ func growthCapture(args []string, stdout, stderr io.Writer, start time.Time) err
 	}
 	if session == "" {
 		session = "unknown"
-	}
-	if st := (hookLicense{}).Hook(req.Dir, session); !st.Growth {
-		fmt.Fprintln(stderr, hooks.GrowthOff(st.State))
-		crumb(breadcrumb.Skip)
-		return nil
 	}
 	res := capture.Run(req, capture.FromProcess(), stdout, stderr)
 	crumb(crumbOf(res.Outcome))

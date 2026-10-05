@@ -81,14 +81,6 @@ func (h Handler) perCall(event string, raw []byte, readErr error, stdout, stderr
 	var in callInput
 	parseErr := json.Unmarshal(raw, &in)
 	repo := h.projectDir(hookInput{Cwd: in.Cwd})
-	var lic *LicenseStatus
-	if h.License != nil {
-		st := h.License.Hook(repo, sessionKey(in.SessionID))
-		lic = &st
-		for _, c := range st.Crumbs {
-			fmt.Fprintln(stderr, c)
-		}
-	}
 	fail := func(outcome breadcrumb.Outcome, notes ...string) error {
 		for _, n := range notes {
 			fmt.Fprintln(stderr, n)
@@ -110,7 +102,6 @@ func (h Handler) perCall(event string, raw []byte, readErr error, stdout, stderr
 	if p, ok := in.Prompt.(string); ok {
 		call.Prompt = p
 	}
-	forced := lic == nil || lic.ForcedLoading
 	limit := hookDeadline()
 	deadline := start.Add(limit)
 	done := make(chan verdict, 1)
@@ -120,16 +111,13 @@ func (h Handler) perCall(event string, raw []byte, readErr error, stdout, stderr
 				done <- verdict{outcome: breadcrumb.Error, notes: []string{fmt.Sprintf("[cn] hooks: the %s judge failed: %v", event, r)}}
 			}
 		}()
-		done <- h.judge(repo, call, forced, deadline)
+		done <- h.judge(repo, call, deadline)
 	}()
 	var v verdict
 	select {
 	case v = <-done:
 	case <-time.After(time.Until(deadline)):
 		return fail(breadcrumb.Deadline, fmt.Sprintf("[cn] hooks: no verdict within %v; the call goes through", limit))
-	}
-	if lic != nil && !lic.ForcedLoading {
-		v.notes = append(v.notes, fmt.Sprintf("[cn] license: forced skill loading off (%s)", lic.State))
 	}
 	if v.outcome == breadcrumb.Error && len(v.block) == 0 && len(v.context) == 0 {
 		return fail(breadcrumb.Error, v.notes...)
@@ -146,9 +134,6 @@ func (h Handler) perCall(event string, raw []byte, readErr error, stdout, stderr
 		v.context = append(append([]string{}, v.block...), v.context...)
 		v.notes = append(v.notes, fmt.Sprintf("[cn] hooks: a block on %s cannot block; it is passed on as context", event))
 		v.outcome = breadcrumb.Error
-	}
-	if lic != nil && lic.Notice != "" {
-		v.context = append(v.context, lic.Notice)
 	}
 	answer := "{}"
 	if len(v.context) > 0 {
@@ -177,14 +162,11 @@ func present(raw json.RawMessage) json.RawMessage {
 	return raw
 }
 
-// judge is the event's verdict: forced-loading holds and nudges when the
-// license allows them, then the guards.
-func (h Handler) judge(repo string, call Call, forced bool, deadline time.Time) verdict {
+// judge is the event's verdict: forced-loading holds and nudges, then the
+// guards.
+func (h Handler) judge(repo string, call Call, deadline time.Time) verdict {
 	v := verdict{outcome: breadcrumb.OK}
-	var triggers *derived
-	if forced {
-		triggers = derive(repo, h.engine())
-	}
+	triggers := derive(repo, h.engine())
 	switch call.Event {
 	case "pre-tool-use":
 		if hold := triggers.hold(repo, call); hold != "" {

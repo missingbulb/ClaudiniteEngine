@@ -255,9 +255,6 @@ func TestSkillLoadedBeforeEditing(t *testing.T) {
 	if !strings.Contains(fs[0].Sentence, "changed under docs/**, which the acme-pack pack's `guide` skill forces itself for") {
 		t.Error(fs[0].Sentence)
 	}
-	if fs, _ := runSet(t, dir, Selection{Tags: []string{"work"}, Session: transcript.NewSession(p), SkipForcedLoading: true}, time.Now()); len(fs) != 0 {
-		t.Errorf("license off: %+v", fs)
-	}
 	loaded := writeTranscript(t, useEntry(t, "a", "Skill", map[string]any{"skill": "guide"}, true), useEntry(t, "b", "Bash", map[string]any{"command": "make deploy"}, false))
 	if fs, _ := runSet(t, dir, Selection{Tags: []string{"work"}, Session: transcript.NewSession(loaded)}, time.Now()); len(fs) != 0 {
 		t.Errorf("loaded: %+v", fs)

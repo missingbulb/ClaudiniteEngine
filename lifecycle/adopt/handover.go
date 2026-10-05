@@ -18,10 +18,8 @@ type Step struct {
 
 // HandoverInput is what the block is built from.
 type HandoverInput struct {
-	// Core adds the rows every adoption owes: the Actions setting and,
-	// when no key came, the App install or the plan.
+	// Core adds the row every adoption owes: the Actions setting.
 	Core bool
-	Key  KeyGrant
 	// Tasks adds the executor routine's token row.
 	Tasks bool
 	// Newly are the packs this run vendored, whose adoptionHandover steps
@@ -37,23 +35,6 @@ func Handover(in HandoverInput) []Step {
 			"In the repository's Settings > Actions > General, allow GitHub Actions to create and approve pull requests",
 			"the nightly update and every task that opens a pull request fail at the open",
 			"the first engine/update item's pull request exists"})
-		switch {
-		case in.Key.Plan != "":
-		case in.Key.Checkout != "":
-			out = append(out, Step{"cn",
-				"Pick a plan for this private repo: " + in.Key.Checkout,
-				"sessions run degraded (" + in.Key.Reason + "); the Public plan covers public repos only",
-				"a session's SessionStart reports a key naming the plan"})
-		default:
-			link := in.Key.Link
-			if link == "" {
-				link = InstallURL
-			}
-			out = append(out, Step{"cn",
-				"Install the Claudinite GitHub App on this account: " + link,
-				"sessions run degraded (no license key came: " + in.Key.Reason + ")",
-				"a session's SessionStart reports a key"})
-		}
 	}
 	if in.Tasks {
 		out = append(out, Step{workitem.TasksPackID,

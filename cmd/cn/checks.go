@@ -41,7 +41,7 @@ func (hookChecks) Start(repo string) error { return checksService().Start(repo) 
 
 func (hookChecks) Run(repo, event string, scope hooks.RunScope, wait time.Duration) hooks.CheckResult {
 	var notes bytes.Buffer
-	sel := declared.Selection{Tags: scope.Tags, Session: transcript.NewSession(scope.Transcript), SkipForcedLoading: scope.SkipForcedLoading}
+	sel := declared.Selection{Tags: scope.Tags, Session: transcript.NewSession(scope.Transcript)}
 	o := checksService().RunAll(repo, event, sel, wait, false, &notes)
 	crumb := strings.TrimRight(notes.String()+o.DeclaredCrumb+"\n"+o.Crumb+"\n"+o.SDKCrumb, "\n")
 	return hooks.CheckResult{Findings: o.Findings, Errors: o.Errors, Err: o.Err, Crumb: crumb}

@@ -51,20 +51,6 @@ type Input struct {
 	Out     io.Writer
 	// Answers are recorded once the packs are declared.
 	Answers []AnswerFlag
-	// Key makes init's one key request for the repo, in the foreground
-	// within the cut; nil makes none.
-	Key func(repo string) KeyGrant
-}
-
-// KeyGrant is what init's key request came to: the plan the key names,
-// or why no key came and the link that wants.
-type KeyGrant struct {
-	Plan   string
-	Reason string
-	Link   string
-	// Checkout is the plan checkout a no-plan or refused-private refusal
-	// carried, "" when none came.
-	Checkout string
 }
 
 // vendored is one pack chosen and read, ready to unpack.
@@ -205,22 +191,7 @@ func Init(in Input) error {
 	if _, err := rulesindex.EnsureImport(in.Repo); err != nil {
 		return err
 	}
-	g := KeyGrant{Reason: "no key request"}
-	if in.Key != nil {
-		g = in.Key(in.Repo)
-	}
-	if g.Plan != "" {
-		p := filepath.Join(in.Repo, ".claudinite", "settings.yaml")
-		moved, err := settings.SetPlan(cfg.Bytes(), settings.YAML, g.Plan)
-		if err != nil {
-			return err
-		}
-		if err := os.WriteFile(p, moved, 0o644); err != nil {
-			return err
-		}
-		fmt.Fprintf(in.Out, "plan: %s\n", g.Plan)
-	}
-	return finish(finishInput{Repo: in.Repo, Engine: got.Version, Newly: ids, Answers: in.Answers, Core: true, Key: g, Out: in.Out})
+	return finish(finishInput{Repo: in.Repo, Engine: got.Version, Newly: ids, Answers: in.Answers, Core: true, Out: in.Out})
 }
 
 // pickEngine settles in's channel and package, then picks, fetches and
@@ -271,9 +242,8 @@ type finishInput struct {
 	// Newly are the packs this run vendored, in the order it chose them.
 	Newly   []string
 	Answers []AnswerFlag
-	// Core adds the core HANDOVER rows; Key is the key request's answer.
+	// Core adds the core HANDOVER rows.
 	Core bool
-	Key  KeyGrant
 	// First are NEXT's steps before the commit's.
 	First []string
 	// Seed writes the new packs' seedOps; a move seeds nothing.
@@ -312,17 +282,12 @@ func finish(in finishInput) error {
 		}
 	}
 	pending, _ := interview.State(set)
-	steps := Handover(HandoverInput{Core: in.Core, Key: in.Key, Tasks: newly[workitem.TasksPackID], Newly: packs})
+	steps := Handover(HandoverInput{Core: in.Core, Tasks: newly[workitem.TasksPackID], Newly: packs})
 	writeQuestions(in.Out, pending)
 	writeHandover(in.Out, steps)
 	writeNext(in.Out, NextInput{First: in.First, Routine: newly[workitem.TasksPackID], Handover: len(steps) > 0})
 	return nil
 }
-
-// InstallURL is the Claudinite App's install page; the license package's
-// own constant names the same App (a drift guard in cmd/cn's tests keeps
-// the two equal).
-const InstallURL = "https://github.com/apps/claudinite/installations/new"
 
 // mergeHooks returns .claude/settings.json with the six hook wirings
 // added where missing, creating the object when the file is absent; keys
