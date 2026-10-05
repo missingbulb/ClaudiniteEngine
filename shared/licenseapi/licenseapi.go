@@ -4,9 +4,9 @@
 //
 //	POST /v1/actions-key          ActionsKey        (Bearer OIDC token)
 //
-// CLAUDINITE_LICENSE_API overrides the base for the rehearsal's stub. The
-// base is HTTPS, or plain HTTP on loopback only; every answer is capped at
-// MaxBody and every call at Timeout.
+// CLAUDINITE_LICENSE_API overrides the base for the rehearsal's stub, in a
+// devroots build only. The base is HTTPS, or plain HTTP on loopback only;
+// every answer is capped at MaxBody and every call at Timeout.
 package licenseapi
 
 import (
@@ -63,11 +63,14 @@ func loopback(host string) bool {
 	return ip != nil && ip.IsLoopback()
 }
 
-// FromEnv is New(CLAUDINITE_LICENSE_API, else DefaultBase).
+// FromEnv is New(DefaultBase); a development build takes
+// CLAUDINITE_LICENSE_API instead when it is set.
 func FromEnv() (*Client, error) {
-	base := os.Getenv("CLAUDINITE_LICENSE_API")
-	if base == "" {
-		base = DefaultBase
+	base := DefaultBase
+	if baseOverride != "" {
+		if b := os.Getenv(baseOverride); b != "" {
+			base = b
+		}
 	}
 	return New(base)
 }
