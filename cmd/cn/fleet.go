@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -15,17 +16,19 @@ import (
 
 	"github.com/missingbulb/ClaudiniteEngine/fleet"
 	"github.com/missingbulb/ClaudiniteEngine/fleet/decide"
+	"github.com/missingbulb/ClaudiniteEngine/fleet/entitlement"
 	"github.com/missingbulb/ClaudiniteEngine/fleet/roster"
 	"github.com/missingbulb/ClaudiniteEngine/fleet/update"
-	"github.com/missingbulb/ClaudiniteEngine/license"
 	"github.com/missingbulb/ClaudiniteEngine/lifecycle/packs"
 	"github.com/missingbulb/ClaudiniteEngine/shared/gitcmd"
 	"github.com/missingbulb/ClaudiniteEngine/shared/githubapi"
+	"github.com/missingbulb/ClaudiniteEngine/shared/licenseapi"
 	"github.com/missingbulb/ClaudiniteEngine/shared/npmreg"
 	"github.com/missingbulb/ClaudiniteEngine/shared/packindex"
 	"github.com/missingbulb/ClaudiniteEngine/shared/report"
 	"github.com/missingbulb/ClaudiniteEngine/shared/settings"
 	"github.com/missingbulb/ClaudiniteEngine/shared/trust"
+	"github.com/missingbulb/ClaudiniteEngine/shared/version"
 	"github.com/missingbulb/ClaudiniteEngine/tasks/execute"
 	"github.com/missingbulb/ClaudiniteEngine/tasks/world"
 )
@@ -108,18 +111,20 @@ func fleetDecide(args []string, stdout io.Writer) error {
 }
 
 // sweep is what every fleet sweep reads before it touches a member: the
-// license, the token, the manager and its config, the API and the shelf.
+// owner's entitlement, the token, the manager and its config, the API and
+// the shelf.
 type sweep struct {
-	name   string
-	gh     fleet.GH
-	home   string
-	root   string
-	cfg    fleet.Config
-	shelf  fleet.Shelf
-	packs  *packs.Reader
-	stderr io.Writer
-	start  time.Time
-	closer func()
+	name     string
+	entitled entitlement.Verdict
+	gh       fleet.GH
+	home     string
+	root     string
+	cfg      fleet.Config
+	shelf    fleet.Shelf
+	packs    *packs.Reader
+	stderr   io.Writer
+	start    time.Time
+	closer   func()
 }
 
 // failed prints a failure; a grant error also prints the action marker,
@@ -139,7 +144,7 @@ func (s *sweep) crumb(event, outcome string, n, m int) {
 	fmt.Fprintf(s.stderr, "[cn] fleet %s %s %d/%d %dms\n", event, outcome, n, m, time.Since(s.start).Milliseconds())
 }
 
-// openSweep checks the license, the token and the config, in that order,
+// openSweep checks the entitlement, the token and the config, in that order,
 // reading nothing of any member until all three pass.
 func openSweep(name, event, sweepID, missingDetail, repo, api string, stderr io.Writer, start time.Time) (*sweep, error) {
 	s := &sweep{name: name, stderr: stderr, start: start, closer: func() {}}
@@ -149,12 +154,21 @@ func openSweep(name, event, sweepID, missingDetail, repo, api string, stderr io.
 		return nil, report.Wrap(report.IO, name, err)
 	}
 	s.root = root
-	if on, state, notice := fleetLicense(root, stderr); !on {
-		fmt.Fprintf(stderr, "[cn] fleet: off under this key (%s)\n", state)
-		fmt.Fprintf(stderr, "claudinite-needs-human: %s — %s\n", fleet.Triage, notice)
+	v, err := fleetCheck()
+	if err != nil {
 		s.crumb(event, "error", 0, 0)
+		return nil, report.Wrap(report.Internal, name, err)
+	}
+	if v.Refused {
+		fmt.Fprintln(stderr, v.Notice)
+		fmt.Fprintf(stderr, "claudinite-needs-human: %s — %s\n", fleet.Triage, v.Notice)
+		s.crumb(event, "refused", 0, 0)
 		return nil, report.Said(report.IO)
 	}
+	if v.Unverified {
+		fmt.Fprintln(stderr, v.Notice)
+	}
+	s.entitled = v
 	token := os.Getenv(fleet.TokenEnv)
 	if token == "" {
 		fmt.Fprintf(stderr, "%s failed: %s\n", name, fleet.MissingTokenError(sweepID, missingDetail))
@@ -279,44 +293,40 @@ func fleetShelf(log io.Writer) (fleet.Shelf, *packs.Reader, func(), error) {
 	return shelfReader{npm: reg, packs: r}, r, closer, nil
 }
 
-// fleetLicense is the fleet surface under the key cn update reads: the
-// Actions key in a job, the session's key on a desktop, where a session
-// with no state file, or a shell with no session, counts as on.
-func fleetLicense(root string, log io.Writer) (on bool, state, notice string) {
-	if os.Getenv("GITHUB_ACTIONS") == "true" || os.Getenv("ACTIONS_ID_TOKEN_REQUEST_URL") != "" {
-		roots, err := trust.Roots()
-		if err != nil {
-			return false, license.StateDegraded + ": no embedded roots", "[cn] license: no embedded roots"
-		}
-		r := sharedActionsKey(roots, log).Key()
-		if r.Key == nil {
-			return false, license.StateDegraded + ": " + string(r.Cause), license.NoticeFor(nil, r.Cause, r.Detail, r.Link)
-		}
-		return license.Gate(r.Key, false).On(license.SurfaceFleet), r.Key.State, fleetNotice(r.Key)
-	}
-	session := os.Getenv("CLAUDE_CODE_SESSION_ID")
-	if session == "" {
-		return true, "no session", ""
-	}
-	e, err := licenseEnv(nil)
+// fleetCheck is the run's one license check; a test replaces it.
+var fleetCheck = fleetEntitlement
+
+// fleetEntitlement is the license check over the job's Actions key.
+func fleetEntitlement() (entitlement.Verdict, error) {
+	roots, err := trust.Roots()
 	if err != nil {
-		return false, license.StateDegraded + ": no embedded roots", "[cn] license: no embedded roots"
+		return entitlement.Verdict{}, err
 	}
-	s := e.Hook(root, session)
-	n := s.Notice
-	if n == "" && s.Verdict.Key != nil {
-		n = fleetNotice(s.Verdict.Key)
+	in := entitlement.In{Getenv: os.Getenv, Roots: roots, Now: time.Now(), Engine: version.Version(),
+		OIDC: func() (string, error) {
+			return githubapi.OIDCToken(&http.Client{Timeout: 10 * time.Second}, os.Getenv, entitlement.Audience)
+		}}
+	if c, err := licenseapi.FromEnv(); err == nil {
+		in.Server = c
 	}
-	return s.Gates.On(license.SurfaceFleet) || s.Verdict.NoFile, stateName(s.Verdict), n
+	return entitlement.Check(in), nil
 }
 
-// fleetNotice is the key's own notice, or, for a key in good standing
-// whose plan does not list fleet, what to tell the person.
-func fleetNotice(k *license.KeyPayload) string {
-	if n := license.NoticeFor(k, "", "", ""); n != "" {
-		return n
+// reach is repos cut to the ones the run's entitlement covers, each other
+// one named on stderr; nil with an error when it covers none of them.
+func (s *sweep) reach(repos []fleet.Repo) ([]fleet.Repo, error) {
+	var out []fleet.Repo
+	for _, r := range repos {
+		if s.entitled.Allows(r.FullName, r.Owner.ID) {
+			out = append(out, r)
+			continue
+		}
+		fmt.Fprintln(s.stderr, s.entitled.RepoNotice(r.FullName))
 	}
-	return fmt.Sprintf("[cn] fleet: %s's %s plan does not include fleet sweeps; tell the person that someone who manages %s's plan can move it to one that does", k.OwnerLogin, k.Plan, k.OwnerLogin)
+	if len(out) == 0 && len(repos) > 0 {
+		return nil, &fleet.GrantError{Msg: fmt.Sprintf("the fleet's plan covers none of its %d repo(s): they are owned by an account other than %s", len(repos), s.entitled.OwnerLogin)}
+	}
+	return out, nil
 }
 
 // emit prints the report and appends it to the step summary.
@@ -350,6 +360,10 @@ func fleetRoster(args []string, stdout, stderr io.Writer, start time.Time) error
 			err = fmt.Errorf("%w; refusing to run a sweep that would close every adoption issue as stale", err)
 		}
 		s.crumb("roster", "error", 0, 0)
+		return s.failed(err)
+	}
+	if repos, err = s.reach(repos); err != nil {
+		s.crumb("roster", "refused", 0, 0)
 		return s.failed(err)
 	}
 	r := roster.Build(s.gh, repos, s.home, s.cfg, s.shelf)
@@ -446,6 +460,10 @@ func fleetUpdate(args []string, stdout, stderr io.Writer, start time.Time) error
 		s.crumb("update", "error", 0, 0)
 		return s.failed(err)
 	}
+	if repos, err = s.reach(repos); err != nil {
+		s.crumb("update", "refused", 0, 0)
+		return s.failed(err)
+	}
 	fired, skipped, failed := update.Force(s.gh, repos, s.cfg, s.shelf, o)
 	var followed []update.Followed
 	if !o.DryRun && len(fired) > 0 {
@@ -514,6 +532,10 @@ func fleetJudge(args []string, stdout, stderr io.Writer, start time.Time) error 
 	if err != nil {
 		s.crumb("judge", "error", 0, 1)
 		return s.failed(err)
+	}
+	if _, err := s.reach([]fleet.Repo{r}); err != nil {
+		s.crumb("judge", "refused", 0, 1)
+		return report.Said(report.IO)
 	}
 	v := fleet.JudgeRepo(s.gh, r, s.home, s.cfg, s.shelf)
 	if *asJSON {

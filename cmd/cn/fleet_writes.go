@@ -129,6 +129,10 @@ func fleetAddPacks(args []string, stdout, stderr io.Writer, start time.Time) err
 		s.crumb("add-packs", "error", 0, 0)
 		return s.failed(err)
 	}
+	if repos, err = s.reach(repos); err != nil {
+		s.crumb("add-packs", "refused", 0, 0)
+		return s.failed(err)
+	}
 	o, err := addpacks.Run(s.gh, repos, s.home, s.cfg, p, corpus)
 	for _, l := range o.Logs {
 		fmt.Fprintln(stdout, l)
@@ -175,6 +179,10 @@ func fleetPackSeeds(args []string, stdout, stderr io.Writer, start time.Time) er
 	repos, err := fleet.Enumerate(s.gh, s.cfg.Owner)
 	if err != nil {
 		s.crumb("pack-seeds", "error", 0, 0)
+		return s.failed(err)
+	}
+	if repos, err = s.reach(repos); err != nil {
+		s.crumb("pack-seeds", "refused", 0, 0)
 		return s.failed(err)
 	}
 	r := seeds.Sweep(s.gh, repos, s.home, s.cfg)
