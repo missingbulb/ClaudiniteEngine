@@ -131,9 +131,35 @@ func TestVersionRefusesAShallowClone(t *testing.T) {
 	}
 }
 
-// check reads the floor from the file the SDK embeds, so it runs with no
-// Go toolchain on PATH.
-func TestVersionCheckRunsWithoutGo(t *testing.T) {
+// The day is computed twice: by version.sh day, so the release job's first
+// step compiles no Go, and by shared/version's Today, which cn and the
+// updater read. This holds the two equal, on today and on dates whose month
+// or day carries a leading zero.
+func TestVersionDayIsToday(t *testing.T) {
+	before := version.Today(time.Now().UTC())
+	out, code := versionSh(t, t.TempDir(), "day")
+	after := version.Today(time.Now().UTC())
+	got, err := strconv.Atoi(strings.TrimSpace(out))
+	if code != 0 || err != nil || (got != before && got != after) {
+		t.Fatalf("version.sh day: exit %d, %q, want %d", code, out, before)
+	}
+	for _, d := range []string{"2026-10-05", "2026-08-09", "2027-01-31", "2020-12-01", "2031-09-08"} {
+		want, _ := time.Parse("2006-01-02", d)
+		out, code := versionSh(t, t.TempDir(), "day", d)
+		if code != 0 || strings.TrimSpace(out) != strconv.Itoa(version.Today(want)) {
+			t.Errorf("version.sh day %s: exit %d, %q, want %d", d, code, out, version.Today(want))
+		}
+	}
+	for _, bad := range []string{"2026-13-01", "2026-1-5", "yesterday", "2019-12-31"} {
+		if out, code := versionSh(t, t.TempDir(), "day", bad); code == 0 {
+			t.Errorf("version.sh day %s: exit 0, %q", bad, out)
+		}
+	}
+}
+
+// check reads the floor from the file the SDK embeds and next computes the
+// day itself, so both run with no Go toolchain on PATH.
+func TestVersionRunsWithoutGo(t *testing.T) {
 	repo := gitRepo(t, "v1.61002.2")
 	gitBin, err := exec.LookPath("git")
 	if err != nil {
@@ -156,5 +182,10 @@ func TestVersionCheckRunsWithoutGo(t *testing.T) {
 	}
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("check with no go on PATH: %v\n%s", err, out)
+	}
+	next := exec.Command("/bin/sh", script, "next")
+	next.Dir, next.Env = repo, cmd.Env
+	if out, err := next.CombinedOutput(); err != nil {
+		t.Fatalf("next with no go on PATH: %v\n%s", err, out)
 	}
 }
