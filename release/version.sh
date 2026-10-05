@@ -2,7 +2,11 @@
 # The release version, <major>.<day>.<n>, from the v* tags of the repository
 # in the working directory.
 #
-#   release/version.sh next       print the next version for today (UTC)
+#   release/version.sh next [--taken FILE]
+#                                 print the next version for today (UTC),
+#                                 past any FILE names (npm view's versions
+#                                 JSON), since npm can hold a version its
+#                                 run failed to tag
 #   release/version.sh check V    exit 0 if v<V> is free, 1 if it is taken;
 #                                 a V below the engine floor is refused
 #   release/version.sh day [DATE] print the <day> of DATE (YYYY-MM-DD,
@@ -45,12 +49,22 @@ fi
 
 case ${1:-} in
   next)
-    [ $# -eq 1 ] || fail "usage: release/version.sh next"
+    taken=
+    if [ $# -eq 3 ] && [ "$2" = --taken ]; then
+      [ -f "$3" ] || fail "--taken $3 is not a file"
+      taken=$3
+    elif [ $# -ne 1 ]; then
+      fail "usage: release/version.sh next [--taken FILE]"
+    fi
     major=$(cat "$here/release/major")
     printf '%s\n' "$major" | grep -Eqx '0|[1-9][0-9]*' || fail "release/major holds $major, not one number"
     day=$(day "$(date -u +%Y-%m-%d)")
     last=$(git tag --list "v$major.$day.*" | sed -n "s/^v$major\.$day\.\([1-9][0-9]*\)\$/\1/p" | sort -n | tail -n 1)
-    echo "$major.$day.$((${last:-0} + 1))"
+    n=$((${last:-0} + 1))
+    if [ -n "$taken" ]; then
+      while grep -Fq "\"$major.$day.$n\"" "$taken"; do n=$((n + 1)); done
+    fi
+    echo "$major.$day.$n"
     ;;
   check)
     [ $# -eq 2 ] || fail "usage: release/version.sh check VERSION"
@@ -72,5 +86,5 @@ case ${1:-} in
       exit 1
     fi
     ;;
-  *) fail "usage: release/version.sh next | check VERSION | day [YYYY-MM-DD]" ;;
+  *) fail "usage: release/version.sh next [--taken FILE] | check VERSION | day [YYYY-MM-DD]" ;;
 esac
