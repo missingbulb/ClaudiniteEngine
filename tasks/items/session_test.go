@@ -1,7 +1,6 @@
 package items
 
 import (
-	"errors"
 	"reflect"
 	"slices"
 	"strings"
@@ -243,19 +242,9 @@ func sessionTask() taskspec.Task {
 func validSession() Session {
 	return Session{
 		Item:     held(nil),
-		Comments: []world.Comment{{ID: 5, Body: workitem.HandoffMarker + "\nHanded off by executor `E1` — invocation nonce `7-old`."}, {ID: 9, Body: workitem.HandoffMarker + "\nHanded off by executor `E1` — invocation nonce `7-new`."}, {ID: 10, Body: "GRANT g"}},
+		Comments: []world.Comment{{ID: 5, Body: workitem.HandoffMarker + "\nHanded off by executor `E1` — invocation nonce `7-old`."}, {ID: 9, Body: workitem.HandoffMarker + "\nHanded off by executor `E1` — invocation nonce `7-new`."}},
 		Nonce:    "7-new",
 		Tasks:    []taskspec.Task{sessionTask()},
-		GrantOf: func(b string) (string, bool) {
-			g, ok := strings.CutPrefix(b, "GRANT ")
-			return g, ok
-		},
-		VerifyGrant: func(g string, issue int) error {
-			if g != "g" || issue != 7 {
-				return errors.New("bad grant")
-			}
-			return nil
-		},
 	}
 }
 
@@ -270,10 +259,7 @@ func TestTheSessionGateNamesTheCheckThatFailed(t *testing.T) {
 		"does not carry":                   func(s *Session) { s.Item.Labels = []string{workitem.StatusRunningExecutor} },
 		"this fire's nonce":                func(s *Session) { s.Nonce = "7-old" },
 		"no hand-off":                      func(s *Session) { s.Comments = s.Comments[2:] },
-		"no item grant follows":            func(s *Session) { s.Comments = s.Comments[:2] },
-		"does not verify":                  func(s *Session) { s.Comments[2].Body = "GRANT forged" },
 		"names no task path":               func(s *Session) { s.Item.Body = "" },
-		"no grant verifier":                func(s *Session) { s.VerifyGrant = nil },
 	}
 	for want, mutate := range cases {
 		s := validSession()
@@ -282,12 +268,6 @@ func TestTheSessionGateNamesTheCheckThatFailed(t *testing.T) {
 		if _, err := Validate(s); err == nil || !strings.Contains(err.Error(), want) || !strings.HasPrefix(err.Error(), "not this item's session") {
 			t.Errorf("%s: %v", want, err)
 		}
-	}
-	// A grant from before the newest hand-off belongs to an earlier episode.
-	s := validSession()
-	s.Comments = []world.Comment{{ID: 4, Body: "GRANT g"}, s.Comments[1]}
-	if _, err := Validate(s); err == nil {
-		t.Error("an earlier episode's grant was accepted")
 	}
 }
 

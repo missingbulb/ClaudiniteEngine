@@ -363,9 +363,9 @@ func TestWhatCodeWorkSaidClosesTheItem(t *testing.T) {
 	}
 }
 
-// The engine's own update runs from its item at the engine's path, with no
-// license key (its own gate reads one), and closes on its verdicts.
-func TestTheEnginesUpdateRunsKeylessAndClosesOnItsVerdicts(t *testing.T) {
+// The engine's own update runs from its item at the engine's path and
+// closes on its verdicts.
+func TestTheEnginesUpdateRunsAndClosesOnItsVerdicts(t *testing.T) {
 	all, errs := taskspec.Discover(t.TempDir(), nil)
 	if len(errs) > 0 {
 		t.Fatal(errs)
@@ -375,12 +375,6 @@ func TestTheEnginesUpdateRunsKeylessAndClosesOnItsVerdicts(t *testing.T) {
 		Body: taskspec.UpdateTaskPath + "\n\nExecute the Claudinite task above.\n", Labels: []string{workitem.StatusReady}}})
 	var ran []string
 	h.drive(all, func(in *In) {
-		in.License = func(t taskspec.Task) string {
-			if KeyNeedOf(t).Any() {
-				return "this run has no license key"
-			}
-			return ""
-		}
 		in.CodeWork = func(t taskspec.Task, _ Work) CodeWorkResult {
 			ran = append(ran, t.Path())
 			return CodeWorkResult{OK: true, Said: []string{"cn update engine: up to date", "cn update packs: up to date"}}
@@ -603,40 +597,6 @@ func TestAHandOffSwapsToRunningAgentAndInvokesExactlyOnce(t *testing.T) {
 	}
 }
 
-func TestTheGrantIsPostedBeforeTheFire(t *testing.T) {
-	h := newLoop(t)
-	h.item(1, "a")
-	var order []string
-	h.drive([]taskspec.Task{loopTask("a", nil)}, func(in *In) {
-		in.Grant = func(taskspec.Task, workitem.Issue) (string, error) {
-			order = append(order, "grant")
-			return "<!-- claudinite-grant -->\ng", nil
-		}
-		in.Invoke = func(taskspec.Task, workitem.Issue, string) Invocation {
-			c := h.get(1).Comments
-			order = append(order, "fire after "+strings.SplitN(c[len(c)-1].Body, "\n", 2)[0])
-			return Invocation{OK: true, Answered: true}
-		}
-	})
-	if !reflect.DeepEqual(order, []string{"grant", "fire after <!-- claudinite-grant -->"}) {
-		t.Error(order)
-	}
-}
-
-func TestAGrantThatCannotBeHadParksAtActionAndNeverFires(t *testing.T) {
-	h := newLoop(t)
-	h.item(1, "a")
-	fired := 0
-	done := h.drive([]taskspec.Task{loopTask("a", nil)}, func(in *In) {
-		in.Grant = func(taskspec.Task, workitem.Issue) (string, error) { return "", fmt.Errorf("the license is not valid") }
-		in.Invoke = func(taskspec.Task, workitem.Issue, string) Invocation { fired++; return Invocation{OK: true} }
-	})
-	if fired != 0 || !reflect.DeepEqual(done, settled(1, OutcomeNeedsHuman)) {
-		t.Error(fired, done)
-	}
-	h.wants(1, "open", workitem.StatusNeedsHumanAction)
-}
-
 func TestARefusedInvocationParks(t *testing.T) {
 	h := newLoop(t)
 	h.item(1, "a")
@@ -761,23 +721,6 @@ func TestAnItemPointingElsewhereIsRefused(t *testing.T) {
 	done := h.drive([]taskspec.Task{loopTask("a", nil)})
 	if !reflect.DeepEqual(done, settled(1, OutcomeNeedsHuman)) || !strings.Contains(h.last(1), "somewhere/else/task.md") {
 		t.Error(done, h.last(1))
-	}
-}
-
-func TestAnUnlicensedTaskParksAtActionAndNothingRuns(t *testing.T) {
-	h := newLoop(t)
-	h.item(1, "a")
-	ran := 0
-	h.drive([]taskspec.Task{agentless("a")}, func(in *In) {
-		in.License = func(taskspec.Task) string { return "This pack is not covered by the license." }
-		in.CodeWork = func(taskspec.Task, Work) CodeWorkResult { ran++; return CodeWorkResult{OK: true} }
-	})
-	if ran != 0 {
-		t.Error("ran")
-	}
-	h.wants(1, "open", workitem.StatusNeedsHumanAction)
-	if !strings.Contains(h.last(1), "not covered") {
-		t.Error(h.last(1))
 	}
 }
 

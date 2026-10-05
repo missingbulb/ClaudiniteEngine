@@ -158,21 +158,3 @@ func (iv Invoker) Invoke(t taskspec.Task, item workitem.Issue, nonce string) Inv
 	}
 	return Invocation{Answered: true, Error: msg}
 }
-
-// GrantComment posts an item's grant, in its wire form, on the item.
-func GrantComment(grant string) string {
-	return workitem.GrantMarker + "\nThis item's grant from the license server. The routine session verifies it before acting and never takes a seat.\n\n```json\n" + grant + "\n```"
-}
-
-// GrantFromComment reads the grant's wire form back off its comment.
-func GrantFromComment(body string) (string, bool) {
-	if !strings.HasPrefix(body, workitem.GrantMarker) {
-		return "", false
-	}
-	_, rest, ok := strings.Cut(body, "```json\n")
-	if !ok {
-		return "", false
-	}
-	grant, _, ok := strings.Cut(rest, "\n```")
-	return grant, ok
-}

@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -86,36 +85,25 @@ func sessionRepo(t *testing.T) string {
 	return repo
 }
 
-func TestValidateGatesTheSessionOnTheNonceAndTheGrant(t *testing.T) {
+func TestValidateGatesTheSessionOnTheNonce(t *testing.T) {
 	repo, dir := sessionRepo(t), t.TempDir()
 	item := writeJSON(t, dir, "item.json", heldItem())
 	comments := writeJSON(t, dir, "comments.json", []world.Comment{
 		{ID: 1, Body: execute.HandoffComment("E1", "7-n")},
-		{ID: 2, Body: execute.GrantComment(`{"g":1}`)},
 	})
-	verify := func(grant string, issue int) error {
-		if grant != `{"g":1}` || issue != 7 {
-			return errors.New("forged")
-		}
-		return nil
-	}
 	var out bytes.Buffer
 	args := []string{"--repo", repo, "--issue", "7", "--nonce", "7-n", "--item-file", item, "--comments-file", comments}
-	if err := workValidate(args, &out, verify); err != nil {
+	if err := cmdWorkValidate(args, &out); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(out.String(), "acme-pack/a") || !strings.Contains(out.String(), sessionTaskPath) {
 		t.Error(out.String())
 	}
-	err := workValidate([]string{"--repo", repo, "--issue", "7", "--nonce", "7-old", "--item-file", item, "--comments-file", comments}, &out, verify)
+	err := cmdWorkValidate([]string{"--repo", repo, "--issue", "7", "--nonce", "7-old", "--item-file", item, "--comments-file", comments}, &out)
 	if report.CodeOf(err) != report.Verify || !strings.Contains(err.Error(), "not this item's session") {
 		t.Error(err)
 	}
-	err = workValidate(args, &out, func(string, int) error { return errors.New("bad signature") })
-	if report.CodeOf(err) != report.Verify || !strings.Contains(err.Error(), "bad signature") {
-		t.Error(err)
-	}
-	err = workValidate([]string{"--repo", repo, "--issue", "7", "--item-file", item, "--comments-file", comments}, &out, verify)
+	err = cmdWorkValidate([]string{"--repo", repo, "--issue", "7", "--item-file", item, "--comments-file", comments}, &out)
 	if report.CodeOf(err) != report.Usage {
 		t.Error("the nonce is required:", err)
 	}
