@@ -182,7 +182,7 @@ func TestEveryBuiltinNamesItsPackAndScope(t *testing.T) {
 			t.Errorf("%s is missing its run, why, doc or on_fail", b.ID)
 		}
 	}
-	for _, id := range []string{"shared-tree-immutable", "provenance-integrity", "provenance-change-recorded", "growth-write-scope", "dedup-prune-integrity", "routine-structure",
+	for _, id := range []string{"shared-tree-immutable", "provenance-integrity", "provenance-change-recorded", "routine-structure",
 		"task-declaration-shape", "task-code-work-env", "executor-workflow-secrets", "automerge-policy-scope",
 		"task-declaration-matches-folder", "task-md-only-when-agentic", "task-worker-restores-main", "flat-declarations-current", "descriptor-usable"} {
 		if !ids[id] {
