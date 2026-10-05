@@ -111,7 +111,9 @@ func TestNPMHoldsGivesUpAtItsTimeout(t *testing.T) {
 func TestNPMHoldsNeedsTheManifestPackage(t *testing.T) {
 	t.Parallel()
 	dist, want := holdsDist(t)
-	os.Remove(filepath.Join(dist, "cli-1.61005.9.tgz"))
+	if err := os.Remove(filepath.Join(dist, "cli-1.61005.9.tgz")); err != nil {
+		t.Fatal(err)
+	}
 	srv := httptest.NewServer(&docNPM{seen: map[string]int{}, integrity: want})
 	defer srv.Close()
 	if err := NPMHolds(holdsInput(dist, srv.URL, &bytes.Buffer{})); err == nil {

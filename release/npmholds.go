@@ -81,7 +81,7 @@ func registryIntegrity(in HoldsInput, pkg string) (string, string, error) {
 	if err != nil {
 		return "", "error", err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		return "", strconv.Itoa(resp.StatusCode), fmt.Errorf("HTTP %d", resp.StatusCode)
 	}
