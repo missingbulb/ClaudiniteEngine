@@ -87,6 +87,7 @@ func lastLine(s string) string {
 }
 
 func TestBuildWritesAnUnsignedManifestAndSums(t *testing.T) {
+	t.Parallel()
 	dist, out := unsignedDist(t)
 	if _, err := os.Stat(filepath.Join(dist, "manifest.sig.json")); err == nil {
 		t.Error("build.sh wrote manifest.sig.json")
@@ -137,6 +138,7 @@ func TestBuildWritesAnUnsignedManifestAndSums(t *testing.T) {
 }
 
 func TestSignSignsCopiesAndRepacks(t *testing.T) {
+	t.Parallel()
 	dist, buildOut := unsignedDist(t)
 	out, err := runScript(t, append(devKeyEnv(t), "DIST="+dist), "release/sign.sh")
 	if err != nil {
@@ -176,6 +178,7 @@ func TestSignSignsCopiesAndRepacks(t *testing.T) {
 }
 
 func TestSignKeySources(t *testing.T) {
+	t.Parallel()
 	dist, _ := unsignedDist(t)
 	out, err := runScript(t, []string{"RELEASE_KEY=", "RELEASE_CERT=", "ROOTS=", "DIST=" + dist}, "release/sign.sh")
 	if err == nil {
@@ -197,6 +200,7 @@ func TestSignKeySources(t *testing.T) {
 }
 
 func TestSignRefusesAnExpiringCertificate(t *testing.T) {
+	t.Parallel()
 	dist, _ := unsignedDist(t)
 	rootRaw, _ := os.ReadFile(repoPath(t, "testkeys/root.key"))
 	root, err := sign.ParsePrivateKey(string(rootRaw))

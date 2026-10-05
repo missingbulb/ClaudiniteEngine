@@ -28,6 +28,7 @@ func golden(t *testing.T, name, got string) {
 }
 
 func TestPackagesAreExactlyThe13(t *testing.T) {
+	t.Parallel()
 	want := map[string][2]string{
 		"@claudinite/cli":                 {"promote.yml", "promote"},
 		"@claudinite/cli-linux-x64":       {"promote.yml", "promote"},

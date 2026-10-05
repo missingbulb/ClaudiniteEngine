@@ -111,6 +111,7 @@ func (w *world) publish(t *testing.T, ver string, o relOpts) {
 }
 
 func TestRedMainSkipsBeforeAnyNpmRead(t *testing.T) {
+	t.Parallel()
 	for state, reason := range map[string]string{"failure": "failure", "cancelled": "cancelled", "in_progress": "in_progress", "none": "no run"} {
 		w := newWorld(t, settings.YAML)
 		w.publish(t, v2, relOpts{})
@@ -131,6 +132,7 @@ func TestRedMainSkipsBeforeAnyNpmRead(t *testing.T) {
 
 // A gated pull_request run the job token's PR left behind is not CI.
 func TestRedMainIgnoresActionRequiredRuns(t *testing.T) {
+	t.Parallel()
 	w := newWorld(t, settings.YAML)
 	w.publish(t, v2, relOpts{})
 	sha := w.head(t)
@@ -141,6 +143,7 @@ func TestRedMainIgnoresActionRequiredRuns(t *testing.T) {
 }
 
 func TestProposeOpensAPinOnlyPR(t *testing.T) {
+	t.Parallel()
 	for _, f := range settings.Formats {
 		w := newWorld(t, f)
 		w.publish(t, v2, relOpts{})
@@ -196,6 +199,7 @@ func TestProposeOpensAPinOnlyPR(t *testing.T) {
 }
 
 func TestVerifyBreakOpensNoPR(t *testing.T) {
+	t.Parallel()
 	w := newWorld(t, settings.YAML)
 	w.publish(t, v2, relOpts{binary: cnScript(v2, `echo "break rehearsal .: this repo is deliberately broken"; exit 1`, "")})
 	v, err := Engine(w.deps(t), Options{})
@@ -214,6 +218,7 @@ func TestVerifyBreakOpensNoPR(t *testing.T) {
 }
 
 func TestForceSkipsVerifyAndSaysSo(t *testing.T) {
+	t.Parallel()
 	w := newWorld(t, settings.YAML)
 	w.publish(t, v2, relOpts{binary: cnScript(v2, `echo "break x .: y"; exit 1`, "")})
 	v, err := Engine(w.deps(t), Options{Force: true})
@@ -226,6 +231,7 @@ func TestForceSkipsVerifyAndSaysSo(t *testing.T) {
 }
 
 func TestASelftestFailureOpensNoPR(t *testing.T) {
+	t.Parallel()
 	w := newWorld(t, settings.YAML)
 	w.publish(t, v2, relOpts{binary: cnScript(v1, "exit 0", "")})
 	if _, err := Engine(w.deps(t), Options{}); err == nil || !strings.Contains(err.Error(), "selftest") {
@@ -239,6 +245,7 @@ func TestASelftestFailureOpensNoPR(t *testing.T) {
 // A candidate whose selftest fails a probe over the member opens nothing,
 // forced or not, and the verdict names the probe.
 func TestAFailedProbeSkipsTheUpdateForcedOrNot(t *testing.T) {
+	t.Parallel()
 	for _, force := range []bool{false, true} {
 		w := newWorld(t, settings.YAML)
 		bin := []byte("#!/bin/sh\ncase \"$1 $2 $3\" in\n" +
@@ -259,6 +266,7 @@ func TestAFailedProbeSkipsTheUpdateForcedOrNot(t *testing.T) {
 }
 
 func TestUpToDateNamesTheSkip(t *testing.T) {
+	t.Parallel()
 	w := newWorld(t, settings.YAML)
 	w.publish(t, v1, relOpts{})
 	w.publish(t, v2, relOpts{deprecated: "held: canary red"})
@@ -309,6 +317,7 @@ func (w *world) openUpdatePR(t *testing.T, n int, ver, ciConclusion string) stri
 }
 
 func TestLandsAGreenUpdatePRFirst(t *testing.T) {
+	t.Parallel()
 	w := newWorld(t, settings.YAML)
 	w.publish(t, v2, relOpts{})
 	w.publish(t, v3, relOpts{})
@@ -334,6 +343,7 @@ func TestLandsAGreenUpdatePRFirst(t *testing.T) {
 // Only the run the updater dispatched counts: a gated pull_request run on
 // the same head is not a verdict.
 func TestAnUpdatePRWithOnlyAGatedRunWaits(t *testing.T) {
+	t.Parallel()
 	w := newWorld(t, settings.YAML)
 	w.publish(t, v2, relOpts{})
 	sha := w.openUpdatePR(t, 4, v2, "")
@@ -345,6 +355,7 @@ func TestAnUpdatePRWithOnlyAGatedRunWaits(t *testing.T) {
 }
 
 func TestAFailedUpdatePRStaysOpen(t *testing.T) {
+	t.Parallel()
 	w := newWorld(t, settings.YAML)
 	w.publish(t, v2, relOpts{})
 	w.openUpdatePR(t, 4, v2, "failure")
@@ -358,6 +369,7 @@ func TestAFailedUpdatePRStaysOpen(t *testing.T) {
 }
 
 func TestTwoUpdatePRsIsAnError(t *testing.T) {
+	t.Parallel()
 	w := newWorld(t, settings.YAML)
 	w.publish(t, v3, relOpts{})
 	w.openUpdatePR(t, 4, v2, "failure")
@@ -368,6 +380,7 @@ func TestTwoUpdatePRsIsAnError(t *testing.T) {
 }
 
 func TestANewerCandidateSupersedesTheOpenPR(t *testing.T) {
+	t.Parallel()
 	w := newWorld(t, settings.YAML)
 	w.publish(t, v3, relOpts{})
 	w.openUpdatePR(t, 4, v2, "failure")
@@ -387,6 +400,7 @@ func TestANewerCandidateSupersedesTheOpenPR(t *testing.T) {
 }
 
 func TestLand(t *testing.T) {
+	t.Parallel()
 	w := newWorld(t, settings.YAML)
 	w.publish(t, v2, relOpts{})
 	sha := w.openUpdatePR(t, 4, v2, "")
@@ -403,6 +417,7 @@ func TestLand(t *testing.T) {
 }
 
 func TestLandRefusesWhatIsNotAPinOnlyUpdatePR(t *testing.T) {
+	t.Parallel()
 	cases := map[string]func(w *world, t *testing.T){
 		"a person's PR": func(w *world, t *testing.T) { w.hub.pulls[0].Author = "someone" },
 		"no label":      func(w *world, t *testing.T) { w.hub.pulls[0].Labels = nil },
@@ -446,6 +461,7 @@ func TestLandRefusesWhatIsNotAPinOnlyUpdatePR(t *testing.T) {
 // A plan correction PR an earlier engine opened has nothing left to land:
 // the refusal tells the person to close it.
 func TestLandTellsAPersonToCloseARetiredPlanPR(t *testing.T) {
+	t.Parallel()
 	w := newWorld(t, settings.YAML)
 	w.publish(t, v2, relOpts{})
 	w.openUpdatePR(t, 4, v2, "")
@@ -462,6 +478,7 @@ func TestLandTellsAPersonToCloseARetiredPlanPR(t *testing.T) {
 // The verdict is the last stdout line and takes one of these forms; T9's
 // live steps and the workflow's summary read it.
 func TestVerdictForms(t *testing.T) {
+	t.Parallel()
 	want := []string{`^landed \S+$`, `^opened #\d+ for \S+$`, `^landed packs .+$`, `^opened #\d+ for packs .+$`, `^no PR: .+$`, `^skipped: .+$`, `^up to date$`}
 	if strings.Join(VerdictForms, " ") != strings.Join(want, " ") {
 		t.Errorf("forms %v", VerdictForms)
@@ -480,6 +497,7 @@ func TestVerdictForms(t *testing.T) {
 const sampleDiff = "--- a/.github/workflows/claudinite-ci.yml\n+++ b/.github/workflows/claudinite-ci.yml\n@@ -1,1 +1,1 @@\n-old\n+new\n"
 
 func TestAWorkflowChangeIsFiledAsAnIssue(t *testing.T) {
+	t.Parallel()
 	w := newWorld(t, settings.YAML)
 	w.publish(t, v2, relOpts{binary: cnScript(v2, "exit 0", sampleDiff)})
 	if v, err := Engine(w.deps(t), Options{}); err != nil || v != "opened #1 for "+v2 {
@@ -498,6 +516,7 @@ func TestAWorkflowChangeIsFiledAsAnIssue(t *testing.T) {
 }
 
 func TestAnOpenWorkflowIssueIsUpdatedNotDuplicated(t *testing.T) {
+	t.Parallel()
 	w := newWorld(t, settings.YAML)
 	w.publish(t, v2, relOpts{binary: cnScript(v2, "exit 0", sampleDiff)})
 	w.hub.issues = []githubapi.Issue{{Number: 9, Title: "Claudinite engine " + v2 + " needs a workflow change", Body: "stale"}}
@@ -511,6 +530,7 @@ func TestAnOpenWorkflowIssueIsUpdatedNotDuplicated(t *testing.T) {
 }
 
 func TestEqualWorkflowsFileNoIssue(t *testing.T) {
+	t.Parallel()
 	w := newWorld(t, settings.YAML)
 	w.publish(t, v2, relOpts{})
 	if _, err := Engine(w.deps(t), Options{}); err != nil {
@@ -522,6 +542,7 @@ func TestEqualWorkflowsFileNoIssue(t *testing.T) {
 }
 
 func TestARevokedPinFilesOneIssue(t *testing.T) {
+	t.Parallel()
 	w := newWorld(t, settings.YAML)
 	w.publish(t, v1, relOpts{deprecated: "revoked: leaks a token"})
 	w.publish(t, v2, relOpts{})
@@ -549,6 +570,7 @@ func TestARevokedPinFilesOneIssue(t *testing.T) {
 }
 
 func TestARevokedPinWithNothingNewerStillFilesTheIssue(t *testing.T) {
+	t.Parallel()
 	w := newWorld(t, settings.YAML)
 	w.publish(t, v1, relOpts{deprecated: "revoked: rehearsal"})
 	w.publish(t, v2, relOpts{deprecated: "held: rehearsal"})
@@ -561,6 +583,7 @@ func TestARevokedPinWithNothingNewerStillFilesTheIssue(t *testing.T) {
 }
 
 func TestAPinNotRevokedFilesNoRevocationIssue(t *testing.T) {
+	t.Parallel()
 	w := newWorld(t, settings.YAML)
 	w.publish(t, v1, relOpts{})
 	w.publish(t, v2, relOpts{deprecated: "revoked: x"})
@@ -575,6 +598,7 @@ func TestAPinNotRevokedFilesNoRevocationIssue(t *testing.T) {
 // Land checks trust, not only shape: the version must be newer than main's
 // pin and pass the world guard's pin check.
 func TestLandRefusesAnUntrustedPin(t *testing.T) {
+	t.Parallel()
 	cases := map[string]func(w *world, t *testing.T) string{
 		"held": func(w *world, t *testing.T) string {
 			w.publish(t, v2, relOpts{deprecated: "held: canary red"})
@@ -607,6 +631,7 @@ func TestLandRefusesAnUntrustedPin(t *testing.T) {
 }
 
 func TestAnUpdatePRWhoseCIDidNotRunIsDispatchedAgain(t *testing.T) {
+	t.Parallel()
 	for _, state := range []string{"", "cancelled", "timed_out"} {
 		w := newWorld(t, settings.YAML)
 		w.publish(t, v2, relOpts{})
@@ -628,6 +653,7 @@ func TestAnUpdatePRWhoseCIDidNotRunIsDispatchedAgain(t *testing.T) {
 }
 
 func TestAnUnlabelledUpdatePRIsRelabelledNotDuplicated(t *testing.T) {
+	t.Parallel()
 	w := newWorld(t, settings.YAML)
 	w.publish(t, v2, relOpts{})
 	w.openUpdatePR(t, 4, v2, "failure")
@@ -653,6 +679,7 @@ func TestAnUnlabelledUpdatePRIsRelabelledNotDuplicated(t *testing.T) {
 }
 
 func TestAnUpdatePRForAVersionNowHeldIsClosed(t *testing.T) {
+	t.Parallel()
 	for reason, kind := range map[string]string{"held: canary red": "held", "revoked: leak": "revoked", "old": "deprecated"} {
 		w := newWorld(t, settings.YAML)
 		w.publish(t, v2, relOpts{deprecated: reason})
@@ -676,6 +703,7 @@ func TestAnUpdatePRForAVersionNowHeldIsClosed(t *testing.T) {
 // The member file states the pin, so the engine update PR restates it
 // beside the settings edit.
 func TestProposeRestatesTheMemberFile(t *testing.T) {
+	t.Parallel()
 	w := newWorld(t, settings.YAML)
 	declareHello(t, w)
 	w.publish(t, v2, relOpts{})
@@ -695,6 +723,7 @@ func TestProposeRestatesTheMemberFile(t *testing.T) {
 // An engine update PR that restates the member file lands once green, and
 // one whose member file is not the render of its own tree does not.
 func TestLandAnUpdatePRRestatingTheMemberFile(t *testing.T) {
+	t.Parallel()
 	propose := func(t *testing.T) (*world, string) {
 		w := newWorld(t, settings.YAML)
 		declareHello(t, w)
@@ -773,6 +802,7 @@ func withLicense(f settings.Format, ver, pin string) string {
 }
 
 func TestTheUpdatePRDropsTheRetiredLicenseBlock(t *testing.T) {
+	t.Parallel()
 	for _, f := range settings.Formats {
 		w := newWorld(t, f)
 		if err := os.WriteFile(filepath.Join(w.repo, settings.RelPath(f)), []byte(withLicense(f, v1, pin1)), 0o644); err != nil {
