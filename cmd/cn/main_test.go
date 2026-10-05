@@ -24,6 +24,12 @@ func TestMain(m *testing.M) {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+	// Tests point XDG_CACHE_HOME at a temporary folder, which would move the Go build cache
+	// there too and make every checks build start cold.
+	if err := pinGoCache(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 	code := m.Run()
 	_ = os.RemoveAll(buildRoot)
 	os.Exit(code)
@@ -151,4 +157,15 @@ func runInProc(args []string, stdin string) (string, string, int) {
 	var out, errb bytes.Buffer
 	code := run(args, strings.NewReader(stdin), &out, &errb)
 	return out.String(), errb.String(), code
+}
+
+func pinGoCache() error {
+	if os.Getenv("GOCACHE") != "" {
+		return nil
+	}
+	out, err := exec.Command("go", "env", "GOCACHE").Output()
+	if err != nil {
+		return fmt.Errorf("go env GOCACHE: %w", err)
+	}
+	return os.Setenv("GOCACHE", strings.TrimSpace(string(out)))
 }

@@ -3,6 +3,7 @@ package builtin
 import "testing"
 
 func TestRoutineStructure(t *testing.T) {
+	t.Parallel()
 	r := repo{base: map[string]string{
 		"tasks/x/task.md":           "# x\n\nRun `bash tasks/x/x.sh` first,\nthen `sh missing.sh`.\n",
 		"tasks/x/x.sh":              "#!/bin/sh\necho x\n",

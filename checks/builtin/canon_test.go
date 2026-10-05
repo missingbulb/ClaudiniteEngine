@@ -18,6 +18,7 @@ func canon(base map[string]string) repo {
 const usageBlock = "---\nname: s\ndescription: d\nmetadata:\n  usage:\n    expect: judgment\n---\n"
 
 func TestPackNoEnforcementNarration(t *testing.T) {
+	t.Parallel()
 	r := canon(map[string]string{
 		"packs/acme-pack/pack.json":  `{"version": "1.0", "prose": "RULES.md"}` + "\n",
 		"packs/acme-pack/RULES.md":   "# acme\n\n- run node engine/checks/run.mjs first\n- acme-check guards this\n- not-acme-check-ish is another word\n",
@@ -32,6 +33,7 @@ func TestPackNoEnforcementNarration(t *testing.T) {
 }
 
 func TestSkillNoEnforcementNarration(t *testing.T) {
+	t.Parallel()
 	r := canon(map[string]string{
 		"packs/acme-pack/skills/acme-skill/SKILL.md":        usageBlock + "\nRun checks/run.mjs.\nacme-skill-check fires on it.\n",
 		"packs/acme-pack/skills/acme-skill/checks.mjs":      "export default { id: 'acme-skill-check' };\n",
@@ -44,6 +46,7 @@ func TestSkillNoEnforcementNarration(t *testing.T) {
 }
 
 func TestSkillUsageDeclared(t *testing.T) {
+	t.Parallel()
 	r := canon(map[string]string{
 		"packs/acme-pack/skills/a/SKILL.md": "---\nname: a\ndescription: d\n---\n",
 		"packs/acme-pack/skills/b/SKILL.md": "---\nname: b\ndescription: d\nmetadata:\n  usage:\n    expect: triggered\n---\n",
@@ -62,6 +65,7 @@ func TestSkillUsageDeclared(t *testing.T) {
 }
 
 func TestPackVersionLogOrdered(t *testing.T) {
+	t.Parallel()
 	r := canon(map[string]string{
 		"packs/acme-pack/provenance/VERSIONS.md":  "# Version history\n\n| Version | Date | What changed |\n| --- | --- | --- |\n| 61003.2 | d | x |\n| 61003.1 | d | x |\n| 61002.4 | d | x |\n| 61003.3 | d | x |\n| 1.0 | d | not a version |\n| 60900.1 | d | x |\n",
 		"packs/good-pack/provenance/VERSIONS.md":  "| 61003.2 | d | x |\n| 61003.1 | d | x |\n",
@@ -78,6 +82,7 @@ func TestPackVersionLogOrdered(t *testing.T) {
 // as a literal ID or through a helper registering by its first parameter
 // is the pack's own rule too; a test file's ids never count.
 func TestPackNoEnforcementNarrationGoChecks(t *testing.T) {
+	t.Parallel()
 	r := canon(map[string]string{
 		"packs/acme-pack/pack.json":               `{"version": "1.0", "prose": "RULES.md"}` + "\n",
 		"packs/acme-pack/RULES.md":                "# acme\n\n- go-check guards this\n- helper-check too\n- test-only-check is a word\n- acme-go-check-ish is another\n",

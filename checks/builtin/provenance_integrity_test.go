@@ -60,17 +60,20 @@ const guidelines = "---\nname: rules\nmetadata:\n  body: guidelines\n---\n\n- **
 const sharedRules = "- **Doing a thing** — the settled way. (doing-thing)\n\n- **Doing it again** — the same way. (doing-thing)\n\n- **Doing another** — plainly.\n  (doing-another)\n"
 
 func TestProvenanceIntegrityOverAPackWithOnlyAManifest(t *testing.T) {
+	t.Parallel()
 	expect(t, repo{base: map[string]string{"src/app.js": "x\n", "packs/README.md": "not a pack\n"}}.run(t, "provenance-integrity"),
 		want{path: ".claudinite/local/packs/mypack/pack.json", what: `the manifest names .*_pack\.md, which is not a file`})
 }
 
 func TestProvenanceIntegrityPendingHistoryIsOneAdvisory(t *testing.T) {
+	t.Parallel()
 	expect(t, repo{base: cleanPack}.run(t, "provenance-integrity"),
 		want{path: pk + "provenance", what: `^8 provenance files are empty .*\(_pack\.md, declared-one\.md, doing-another\.md, …\)`, advise: true})
 	expect(t, repo{base: with(filled(), map[string]string{pk + "skills/rules/SKILL.md": guidelines, pk + "RULES.md": sharedRules})}.run(t, "provenance-integrity"))
 }
 
 func TestProvenanceIntegrityFlags(t *testing.T) {
+	t.Parallel()
 	expect(t, repo{base: with(filled(), map[string]string{pk + "RULES.md": "- **Doing a thing** — no marker.\n\n- **Doing another** — none either.\n"})}.run(t, "provenance-integrity"),
 		want{path: pk + "RULES.md", line: 1, what: `2 rules end with no marker.*first: "Doing a thing"`, fix: `cn provenance mark mypack`},
 		want{path: pk + "provenance/doing-another.md", what: `live, and no carrier of \.claudinite/local/packs/mypack names doing-another\.md`},
@@ -105,6 +108,7 @@ func TestProvenanceIntegrityFlags(t *testing.T) {
 }
 
 func TestProvenanceIntegrityReadsGoChecks(t *testing.T) {
+	t.Parallel()
 	got := repo{base: with(filled(), map[string]string{pk + "checks/go_rule.go": "package checks\n\nvar c = checksdk.Check{ID: \"go-rule\"}\n"})}.run(t, "provenance-integrity")
 	if len(got) != 1 || !strings.Contains(got[0].Sentence, "check go-rule names") {
 		t.Fatalf("a Go check with no provenance file: %v", got)
