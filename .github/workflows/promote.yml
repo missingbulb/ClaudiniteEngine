@@ -1,12 +1,14 @@
-# Promotes one @claudinite/cli-rc version to @claudinite/cli: the same
-# binaries, manifest and signature, renamed. gate reads npm, the open
-# release-blocker issues and the registered canaries' conclusions; check
-# re-verifies the downloaded bytes and the candidate's stable build check;
-# publish runs in the promote environment, the only trusted publisher of
-# @claudinite/cli. With no canary workflow named the gate answers no-canaries,
-# which passes only when the dispatch's confirm input repeats the version.
-# The hourly schedule lands with the first canary workflow named in
-# release/canaries.json.
+# Promotes one version of @claudinite/cli: moves its latest dist-tag onto
+# an rc version, the bytes, manifest and signature the canaries ran, and
+# republishes nothing. gate reads npm, the open release-blocker issues and
+# the registered canaries' conclusions; check re-verifies the downloaded
+# bytes, refuses a staging build, which lacks four platforms, and runs the
+# candidate's stable build check; promote runs npm dist-tag add in the
+# promote environment, the trusted publisher of @claudinite/cli allowed to
+# move dist-tags. With no canary workflow named the gate answers
+# no-canaries, which passes only when the dispatch's confirm input repeats
+# the version. The hourly schedule lands with the first canary workflow
+# named in release/canaries.json.
 #
 # action hold or revoke instead marks the version on npm with a "held:" or
 # "revoked:" deprecation, which the updater and cn check world read;
@@ -17,19 +19,20 @@
 # the commands kept in its summary. A version npm does not have is refused
 # with a notice and a green run.
 #
-# action unpublish removes the version from @claudinite/cli-rc and its
+# action unpublish removes the version from @claudinite/cli and its
 # platform packages with npm unpublish, on the same token and environment.
 # It needs confirm to repeat the version, and refuses, failing before any
-# unpublish, when npm cannot be read or the version is the only one any of
-# those packages holds, since npm deletes a package whose last version is
-# unpublished. Both jobs stop at the first npm command that fails.
+# unpublish, when npm cannot be read, the version is the one latest points
+# at, or it is the only one any of those packages holds, since npm deletes
+# a package whose last version is unpublished. Both jobs stop at the first
+# npm command that fails.
 name: promote
 
 on:
   workflow_dispatch:
     inputs:
       action:
-        description: promote the version, hold or revoke it on npm, release a hold or revocation, or unpublish it from the rc packages
+        description: promote the version (move latest onto it), hold or revoke it on npm, release a hold or revocation, or unpublish it
         required: true
         type: choice
         default: promote
@@ -40,7 +43,7 @@ on:
           - release
           - unpublish
       version:
-        description: The @claudinite/cli-rc version to act on
+        description: The @claudinite/cli version to act on
         required: true
         type: string
       reason:
@@ -106,7 +109,7 @@ jobs:
             *) why="the gate answered $VERDICT" ;;
           esac
           {
-            echo "### Promotion of @claudinite/cli-rc $VERSION"
+            echo "### Promotion of @claudinite/cli $VERSION"
             echo
             echo "- gate: \`$VERDICT\` ($why)"
             echo "- hop: \`$HOP\` (advisory until a canary runs candidates; release.yml's hop job proved this candidate's updater before it was published)"
@@ -122,7 +125,6 @@ jobs:
     outputs:
       check: ${{ steps.check.outputs.check }}
       stable_test: ${{ steps.check.outputs.stable_test }}
-      sums: ${{ steps.sums.outputs.sums }}
     env:
       VERSION: ${{ inputs.version }}
     steps:
@@ -137,29 +139,26 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "22"
-      - name: download the rc tarballs
+      # A staging build has no tarball on four platform packages; check
+      # names it as one from its manifest.
+      - name: download the candidate's tarballs
         run: |
-          mkdir rc
-          for name in $(go run ./release/pipeline names --channel rc); do
-            npm pack "$name@$VERSION" --pack-destination rc --silent
+          mkdir candidate-tarballs
+          for name in $(go run ./release/pipeline names); do
+            npm pack "$name@$VERSION" --pack-destination candidate-tarballs --silent \
+              || echo "::notice::npm has no $name@$VERSION"
           done
-          for f in rc/claudinite-*.tgz; do mv "$f" "rc/$(basename "$f" | sed 's/^claudinite-//')"; done
-          ls -l rc
+          for f in candidate-tarballs/claudinite-*.tgz; do mv "$f" "candidate-tarballs/$(basename "$f" | sed 's/^claudinite-//')"; done
+          ls -l candidate-tarballs
       - id: check
-        run: go run ./release/promote check --version "$VERSION" --tarballs rc --roots shared/trust/roots --source candidate >> "$GITHUB_OUTPUT"
-      - if: steps.check.outputs.check == 'pass'
-        run: release/repack.sh rc stable/tarballs
-      - id: sums
-        if: steps.check.outputs.check == 'pass'
+        run: go run ./release/promote check --version "$VERSION" --tarballs candidate-tarballs --roots shared/trust/roots --source candidate >> "$GITHUB_OUTPUT"
+      - if: steps.check.outputs.check != 'pass'
+        env:
+          REASON: ${{ steps.check.outputs.reason }}
         run: |
-          sha256sum stable/tarballs/*.tgz > stable/SHA256SUMS
-          echo "sums=$(sha256sum stable/SHA256SUMS | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
-      - if: steps.check.outputs.check == 'pass'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: stable
-          path: stable/
-          if-no-files-found: error
+          echo "### $VERSION not promoted: $REASON" >> "$GITHUB_STEP_SUMMARY"
+          echo "::error::promote check refused $VERSION: $REASON"
+          exit 1
 
   deprecate:
     if: inputs.action == 'hold' || inputs.action == 'revoke' || inputs.action == 'release'
@@ -184,10 +183,20 @@ jobs:
         env:
           NPM_DEPRECATE_TOKEN: ${{ secrets.NPM_DEPRECATE_TOKEN }}
         run: |
-          npm view @claudinite/cli-rc versions --json > "$RUNNER_TEMP/rc.json" 2>/dev/null || true
-          npm view @claudinite/cli versions --json > "$RUNNER_TEMP/stable.json" 2>/dev/null || true
+          mkdir -p "$RUNNER_TEMP/versions/@claudinite"
+          for name in $(go run ./release/pipeline names); do
+            out=$RUNNER_TEMP/versions/$name.json
+            if ! npm view "$name" versions --json > "$out" 2> "$RUNNER_TEMP/view.err"; then
+              if grep -q E404 "$out" "$RUNNER_TEMP/view.err"; then
+                : > "$out"
+              else
+                echo "::error::npm view $name failed, so which packages hold $VERSION is unknown; nothing deprecated: $(cat "$out" "$RUNNER_TEMP/view.err" | tr '\n' ' ')"
+                exit 1
+              fi
+            fi
+          done
           go run ./release/pipeline deprecate-commands --action "$ACTION" --version "$VERSION" --reason "$REASON" \
-            --rc-versions "$RUNNER_TEMP/rc.json" --stable-versions "$RUNNER_TEMP/stable.json" > "$RUNNER_TEMP/commands.sh"
+            --versions-dir "$RUNNER_TEMP/versions" > "$RUNNER_TEMP/commands.sh"
           if [ ! -s "$RUNNER_TEMP/commands.sh" ]; then
             echo "### $ACTION $VERSION: npm has no such version; nothing done" >> "$GITHUB_STEP_SUMMARY"
             exit 0
@@ -204,7 +213,7 @@ jobs:
             exit 1
           fi
           NODE_AUTH_TOKEN=$NPM_DEPRECATE_TOKEN sh -e "$RUNNER_TEMP/commands.sh"
-          echo "deprecated now: $(npm view "@claudinite/cli-rc@$VERSION" deprecated)" >> "$GITHUB_STEP_SUMMARY"
+          echo "deprecated now: $(npm view "@claudinite/cli@$VERSION" deprecated)" >> "$GITHUB_STEP_SUMMARY"
 
   unpublish:
     if: inputs.action == 'unpublish'
@@ -235,8 +244,12 @@ jobs:
         env:
           NPM_DEPRECATE_TOKEN: ${{ secrets.NPM_DEPRECATE_TOKEN }}
         run: |
+          if ! npm view @claudinite/cli dist-tags --json > "$RUNNER_TEMP/dist-tags.json" 2> "$RUNNER_TEMP/view.err"; then
+            echo "::error::npm view @claudinite/cli dist-tags failed, so whether $VERSION is latest is unknown; nothing unpublished: $(cat "$RUNNER_TEMP/dist-tags.json" "$RUNNER_TEMP/view.err" | tr '\n' ' ')"
+            exit 1
+          fi
           mkdir -p "$RUNNER_TEMP/versions/@claudinite"
-          for name in $(go run ./release/pipeline names --channel rc); do
+          for name in $(go run ./release/pipeline names); do
             out=$RUNNER_TEMP/versions/$name.json
             if ! npm view "$name" versions --json > "$out" 2> "$RUNNER_TEMP/view.err"; then
               if grep -q E404 "$out" "$RUNNER_TEMP/view.err"; then
@@ -247,7 +260,8 @@ jobs:
               fi
             fi
           done
-          if ! go run ./release/pipeline unpublish-commands --version "$VERSION" --versions-dir "$RUNNER_TEMP/versions" > "$RUNNER_TEMP/commands.sh"; then
+          if ! go run ./release/pipeline unpublish-commands --version "$VERSION" --versions-dir "$RUNNER_TEMP/versions" \
+            --dist-tags "$RUNNER_TEMP/dist-tags.json" > "$RUNNER_TEMP/commands.sh"; then
             echo "### unpublish $VERSION: refused; nothing unpublished (the error is in this job's log)" >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
@@ -267,11 +281,26 @@ jobs:
             exit 1
           fi
           NODE_AUTH_TOKEN=$NPM_DEPRECATE_TOKEN sh -e "$RUNNER_TEMP/commands.sh"
-          echo "versions now: $(npm view @claudinite/cli-rc versions --json | tr -d '\n ')" >> "$GITHUB_STEP_SUMMARY"
+          echo "versions now: $(npm view @claudinite/cli versions --json | tr -d '\n ')" >> "$GITHUB_STEP_SUMMARY"
 
-  publish:
-    needs: [gate, check]
-    if: needs.check.outputs.check == 'pass'
+  # The full check on the commit this version was built from: a staging or rc
+  # release skips it, and stable never does.
+  full:
+    needs: gate
+    if: needs.gate.outputs.allowed == 'true'
+    permissions:
+      contents: read
+      # Only full.yml's nightly report job writes issues; it never runs here.
+      issues: write
+    uses: ./.github/workflows/full.yml
+    with:
+      ref: v${{ inputs.version }}
+
+  # Moves latest; npm's trusted publishing authorizes dist-tag for the
+  # promote environment's publisher of @claudinite/cli.
+  promote:
+    needs: [gate, check, full]
+    if: needs.check.outputs.check == 'pass' && needs.full.result == 'success'
     runs-on: ubuntu-24.04
     environment: promote
     permissions:
@@ -280,33 +309,21 @@ jobs:
     env:
       VERSION: ${{ inputs.version }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version: "1.24"
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "22"
           registry-url: https://registry.npmjs.org
       - run: npm install -g npm@11.21.0
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: stable
-          path: stable/
-      - name: the files check hashed
-        env:
-          SUMS: ${{ needs.check.outputs.sums }}
+      - name: npm dist-tag add
         run: |
-          echo "$SUMS  stable/SHA256SUMS" | sha256sum -c
-          sha256sum -c --quiet stable/SHA256SUMS
-      - id: mode
-        env:
-          STABLE_TEST: ${{ needs.check.outputs.stable_test }}
-        run: |
-          npm view @claudinite/cli versions --json > "$RUNNER_TEMP/versions.json" 2>/dev/null || true
-          go run ./release/pipeline publish-mode --channel stable --signing release --dry-run false \
-            --npm-versions "$RUNNER_TEMP/versions.json" --stable-test "$STABLE_TEST" >> "$GITHUB_OUTPUT"
-      - if: steps.mode.outputs.mode == 'real'
-        run: DIST=stable release/publish.sh --channel stable --auth oidc
-      - if: steps.mode.outputs.mode != 'real'
-        run: DIST=stable release/publish.sh --channel stable --dry-run
+          before=$(npm view @claudinite/cli dist-tags.latest)
+          if ! npm_config_loglevel=verbose npm dist-tag add "@claudinite/cli@$VERSION" latest; then
+            echo "::error::npm refused to move latest onto $VERSION; check the promote.yml trusted publisher of @claudinite/cli and its Allow npm dist-tag box on https://github.com/missingbulb/ClaudiniteEngine/issues/2"
+            exit 1
+          fi
+          after=$(npm view @claudinite/cli dist-tags.latest)
+          echo "### latest: $before -> $after" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$after" != "$VERSION" ]; then
+            echo "::error::npm accepted the dist-tag, but latest reads $after, not $VERSION"
+            exit 1
+          fi

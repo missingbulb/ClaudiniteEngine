@@ -23,7 +23,6 @@ func cmdInit(args []string, stdout, stderr io.Writer) error {
 	fs := flag.NewFlagSet("init", flag.ContinueOnError)
 	packList := fs.String("packs", "", "")
 	channel := fs.String("channel", "stable", "")
-	pkg := fs.String("package", adopt.DefaultPackage, "")
 	repo := fs.String("repo", ".", "")
 	fromNode := fs.Bool("from-node", false, "")
 	var answers answerFlags
@@ -52,10 +51,13 @@ func cmdInit(args []string, stdout, stderr io.Writer) error {
 	if err != nil {
 		return report.Wrap(report.IO, "init", err)
 	}
-	reader, closeReader := packReader(roots, stdout)
+	reader, closeReader, err := packReader(*repo, roots, stdout)
+	if err != nil {
+		return report.Wrap(report.IO, "init", err)
+	}
 	defer closeReader()
 	in := adopt.Input{
-		Repo: *repo, FullName: initFullName(*repo), Channel: *channel, Package: *pkg,
+		Repo: *repo, FullName: initFullName(*repo), Channel: *channel,
 		Fetch:  update.FetchInput{Registry: reg, Roots: roots, CacheRoot: paths.CacheRoot(), Platform: version.Platform(), Now: time.Now()},
 		Reader: reader, Timeout: childTimeout, Out: stdout, Answers: answers,
 	}
@@ -86,7 +88,10 @@ func cmdAdopt(args []string, stdout io.Writer) error {
 	if err != nil {
 		return report.Wrap(report.Internal, "adopt", err)
 	}
-	reader, closeReader := packReader(roots, stdout)
+	reader, closeReader, err := packReader(*repo, roots, stdout)
+	if err != nil {
+		return report.Wrap(report.IO, "adopt", err)
+	}
 	defer closeReader()
 	if err := adopt.Adopt(adopt.AdoptInput{Repo: *repo, IDs: strings.Split(args[0], ","), Answers: answers, Reader: reader, Out: stdout}); err != nil {
 		return report.Wrap(report.IO, "adopt", err)

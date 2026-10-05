@@ -79,6 +79,7 @@ func baseEnv(extra ...string) []string {
 }
 
 func TestTheEmbeddedCopyIsPinnedByItsHash(t *testing.T) {
+	t.Parallel()
 	pin, err := os.ReadFile("js.sha256")
 	if err != nil {
 		t.Fatal(err)
@@ -94,6 +95,7 @@ func TestTheEmbeddedCopyIsPinnedByItsHash(t *testing.T) {
 }
 
 func TestUnpackIsReadOnlyAndReplacesATamperedCopy(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	dir, err := Unpack(root)
 	if err != nil {
@@ -135,6 +137,7 @@ export async function worker(p) {
 `
 
 func TestWorkRunsAWorkerThroughTheSDK(t *testing.T) {
+	t.Parallel()
 	r := unpacked(t)
 	dir := taskDir(t, map[string]string{"worker.mjs": sdkWorker})
 	rec := &recorder{}
@@ -198,6 +201,7 @@ func TestWorkRunsAWorkerThroughTheSDK(t *testing.T) {
 }
 
 func TestTheResolveHookRefusesEveryOtherClaudiniteModule(t *testing.T) {
+	t.Parallel()
 	r := unpacked(t)
 	dir := taskDir(t, map[string]string{
 		"worker.mjs":                                "import x from '@claudinite/engine';\nexport const worker = () => x;\n",
@@ -218,6 +222,7 @@ func TestTheResolveHookRefusesEveryOtherClaudiniteModule(t *testing.T) {
 }
 
 func TestWorkWritesTheQueueMarkersAndTheRequestFile(t *testing.T) {
+	t.Parallel()
 	r := unpacked(t)
 	dir := taskDir(t, map[string]string{
 		"fail.mjs":    "import { fail } from '@claudinite/sdk';\nexport function worker() { fail('action', 'FLEET_GITHUB_TOKEN lacks Actions: write'); }\n",
@@ -251,6 +256,7 @@ func TestWorkWritesTheQueueMarkersAndTheRequestFile(t *testing.T) {
 }
 
 func TestTimeoutKillsTheWholeGroup(t *testing.T) {
+	t.Parallel()
 	r := unpacked(t)
 	marker := filepath.Join(t.TempDir(), "survivor")
 	dir := taskDir(t, map[string]string{
@@ -273,6 +279,7 @@ func TestTimeoutKillsTheWholeGroup(t *testing.T) {
 }
 
 func TestShellRunsACodeWorkCommandAndKillsItsGroup(t *testing.T) {
+	t.Parallel()
 	needNode(t)
 	dir := taskDir(t, map[string]string{"w.sh": "echo in $(basename $PWD) $SECRET_X ${NODE_OPTIONS:-none}\necho oops >&2\nexit 3\n"})
 	res := Shell(Step{Dir: dir, Env: []string{"PATH=" + os.Getenv("PATH"), "SECRET_X=x", "NODE_OPTIONS=--inspect"}, Timeout: 10 * time.Second}, "sh w.sh")
@@ -307,6 +314,7 @@ const preconditions = `export const terms = {
 `
 
 func TestTermsAnswersEveryReferenceInOneCall(t *testing.T) {
+	t.Parallel()
 	r := unpacked(t)
 	dir := taskDir(t, map[string]string{"preconditions.mjs": preconditions, "broken.mjs": "export const terms = {;\n"})
 	arg := "v1"
@@ -334,6 +342,7 @@ func TestTermsAnswersEveryReferenceInOneCall(t *testing.T) {
 // The runner speaks the coded checks' framing: the same line bound and the
 // same call and answer keys checksdk/pipe.go reads and writes.
 func TestThePipeFramingIsTheChecksPipes(t *testing.T) {
+	t.Parallel()
 	src, err := os.ReadFile(filepath.Join("..", "..", "checksdk", "pipe.go"))
 	if err != nil {
 		t.Fatal(err)
@@ -359,6 +368,7 @@ func TestThePipeFramingIsTheChecksPipes(t *testing.T) {
 }
 
 func TestAProtocolViolationIsAnError(t *testing.T) {
+	t.Parallel()
 	r := unpacked(t)
 	dir := taskDir(t, map[string]string{"w.mjs": "export const worker = () => {};\n"})
 	bad := r

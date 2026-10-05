@@ -2,11 +2,14 @@ package release
 
 import (
 	"encoding/json"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/missingbulb/ClaudiniteEngine/release/releasefiles"
 )
 
 // tarballNames reads the package.json name of every tarball in DIST/tarballs.
@@ -52,43 +55,75 @@ func tarballRepositoryURLs(t *testing.T, dist string) map[string]string {
 	return out
 }
 
-func TestBuildNamesEveryTarballForItsChannel(t *testing.T) {
+func TestBuildNamesEveryTarballOfTheCLIPackage(t *testing.T) {
+	t.Parallel()
 	if testing.Short() {
-		t.Skip("builds two releases; the full run covers it")
+		t.Skip("builds a release; the full run covers it")
 	}
-	for _, pkg := range []string{"@claudinite/cli", "@claudinite/cli-rc"} {
-		dist := filepath.Join(t.TempDir(), "dist")
-		env := []string{"VERSION=0.0.0", "PACKAGE=" + pkg, "DIST=" + dist}
-		if out, err := runScript(t, env, "release/build.sh"); err != nil {
-			t.Fatalf("%s: %v\n%s", pkg, err, out)
+	dist := filepath.Join(t.TempDir(), "dist")
+	if out, err := runScript(t, []string{"VERSION=0.0.0", "DIST=" + dist}, "release/build.sh"); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	if out, err := runScript(t, []string{"DIST=" + dist}, "release/smoke.sh"); err != nil {
+		t.Fatalf("smoke: %v\n%s", err, out)
+	}
+	for file, url := range tarballRepositoryURLs(t, dist) {
+		if url != "git+https://github.com/missingbulb/ClaudiniteEngine.git" {
+			t.Errorf("%s names repository.url %q; npm matches repository.url against the publishing repository", file, url)
 		}
-		if out, err := runScript(t, []string{"DIST=" + dist}, "release/smoke.sh"); err != nil {
-			t.Fatalf("%s: smoke: %v\n%s", pkg, err, out)
+	}
+	var got []string
+	for file, name := range tarballNames(t, dist) {
+		if file != strings.TrimPrefix(name, "@claudinite/")+"-0.0.0.tgz" {
+			t.Errorf("tarball %s holds %s", file, name)
 		}
-		names := tarballNames(t, dist)
-		for file, url := range tarballRepositoryURLs(t, dist) {
-			if url != "git+https://github.com/missingbulb/ClaudiniteEngine.git" {
-				t.Errorf("%s: %s names repository.url %q; npm matches repository.url against the publishing repository", pkg, file, url)
-			}
-		}
-		var got []string
-		for file, name := range names {
-			if file != strings.TrimPrefix(name, "@claudinite/")+"-0.0.0.tgz" {
-				t.Errorf("%s: tarball %s holds %s", pkg, file, name)
-			}
-			got = append(got, name)
-		}
-		sort.Strings(got)
-		channel := map[string]string{"@claudinite/cli": "stable", "@claudinite/cli-rc": "rc"}[pkg]
-		var want []string
-		for _, p := range Packages() {
-			if p.Channel == channel && p.Name != "@claudinite/sdk" {
-				want = append(want, p.Name)
-			}
-		}
-		sort.Strings(want)
-		if strings.Join(got, " ") != strings.Join(want, " ") {
-			t.Errorf("%s: tarballs %v, want %v", pkg, got, want)
+		got = append(got, name)
+	}
+	sort.Strings(got)
+	want := CLIPackages()
+	sort.Strings(want)
+	if strings.Join(got, " ") != strings.Join(want, " ") {
+		t.Errorf("tarballs %v, want %v", got, want)
+	}
+}
+
+// A staging build is linux-x64 alone: its manifest, its packages and the
+// smoke all name that one platform, and the smoke refuses it as a full
+// release.
+func TestBuildRestrictsPlatforms(t *testing.T) {
+	t.Parallel()
+	if testing.Short() {
+		t.Skip("builds a release; the full run covers it")
+	}
+	dist := filepath.Join(t.TempDir(), "dist")
+	if out, err := runScript(t, []string{"VERSION=1.61005.1", "DIST=" + dist, "PLATFORMS=linux-x64"}, "release/build.sh"); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	var got []string
+	for _, name := range tarballNames(t, dist) {
+		got = append(got, name)
+	}
+	sort.Strings(got)
+	if strings.Join(got, " ") != "@claudinite/cli @claudinite/cli-linux-x64" {
+		t.Errorf("tarballs %v", got)
+	}
+	raw, err := os.ReadFile(filepath.Join(dist, "manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, err := releasefiles.ParseManifest(raw)
+	if err != nil || len(m.Binaries) != 1 || m.Binaries["linux-x64"].File != "cn" {
+		t.Errorf("manifest binaries %+v %v", m.Binaries, err)
+	}
+	if out, err := runScript(t, []string{"DIST=" + dist, "PLATFORMS=linux-x64"}, "release/smoke.sh"); err != nil {
+		t.Errorf("smoke of the staging build: %v\n%s", err, out)
+	}
+	if out, err := runScript(t, []string{"DIST=" + dist}, "release/smoke.sh"); err == nil || !strings.Contains(out, "linux-arm64") {
+		t.Errorf("smoke passed a staging build as a full one: %v\n%s", err, out)
+	}
+	for _, bad := range []string{"linux-x86", "linux-x64 linux-x64", " "} {
+		if out, err := runScript(t, []string{"VERSION=1.61005.1", "DIST=" + filepath.Join(t.TempDir(), "dist"), "PLATFORMS=" + bad}, "release/build.sh"); err == nil {
+			t.Errorf("PLATFORMS=%q built:\n%s", bad, out)
 		}
 	}
 }

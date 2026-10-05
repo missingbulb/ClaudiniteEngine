@@ -7,15 +7,12 @@ import (
 
 // ModeInput is what a publish job knows when it decides whether to publish.
 type ModeInput struct {
-	Channel     string // "rc" or "stable"
-	Signing     string // "release", from the sign job once the signature verified against shared/trust/roots
+	Tag         string // the dist-tag the release publishes under: "rc" or "staging"
+	Signing     string // "release", once the signature verified against shared/trust/roots
 	DryRunInput bool   // the dispatch's dry_run input
-	// NpmVersions is the output of `npm view <channel package> versions
+	// NpmVersions is the output of `npm view @claudinite/cli versions
 	// --json`, empty when the command failed.
 	NpmVersions string
-	// StableTest is "pass" or "fail" for `go test -tags stable ./shared/trust`
-	// at the candidate's commit; the stable channel requires "pass".
-	StableTest string
 }
 
 // Mode is "real", "dry-run" or "refuse", with the line that says why.
@@ -29,14 +26,12 @@ type Mode struct {
 // signature, nobody asked for a dry run, and npm already holds the
 // package, whose trusted publisher #2 attaches.
 func PublishMode(in ModeInput) Mode {
-	switch in.Channel {
-	case "rc":
-	case "stable":
-		if in.StableTest != "pass" {
-			return Mode{"refuse", "go test -tags stable ./shared/trust does not pass at this commit: a stable release never embeds the development roots"}
-		}
+	switch in.Tag {
+	case TagRC, TagStaging:
+	case TagLatest:
+		return Mode{"refuse", "nothing publishes under latest: promote.yml moves it onto an rc version it verified"}
 	default:
-		return Mode{"refuse", "unknown channel " + in.Channel}
+		return Mode{"refuse", "unknown dist-tag " + in.Tag}
 	}
 	switch in.Signing {
 	case "release":

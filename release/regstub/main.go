@@ -9,7 +9,9 @@
 // --dist may repeat; the first folder holding the tarball serves it.
 // --deprecations names a JSON file {"<version>": "<message>"}, read on every
 // packument request, whose messages become those versions' deprecated
-// field, as npm deprecate would set them.
+// field, as npm deprecate would set them. Every packument's dist-tags carry
+// latest on its newest version; --tag NAME (repeatable) points NAME there
+// too, and --tag NAME=VERSION at VERSION, when the package has it.
 //
 // It writes its base URL to --ready once listening, the certificate to
 // --ca-out (point curl at it with CURL_CA_BUNDLE, or on Windows import it
@@ -55,6 +57,8 @@ func main() {
 	status := flag.Int("status", 0, "answer every request with this status")
 	stall := flag.Bool("stall", false, "hold every request open without answering")
 	deprecations := flag.String("deprecations", "", "JSON file of version -> deprecation message")
+	var tags tagList
+	flag.Var(&tags, "tag", "dist-tag NAME on the newest version, or NAME=VERSION (repeatable)")
 	flag.Parse()
 	if len(dists) == 0 {
 		dists = distList{"dist"}
@@ -92,7 +96,7 @@ func main() {
 			return
 		}
 		if pm := packumentPath.FindStringSubmatch(r.URL.EscapedPath()); pm != nil {
-			servePackument(w, r, dists, pm[1], *deprecations)
+			servePackument(w, r, dists, pm[1], *deprecations, tags)
 			return
 		}
 		m := tarballPath.FindStringSubmatch(r.URL.EscapedPath())
@@ -129,8 +133,9 @@ func main() {
 
 // servePackument answers npm's packument for @claudinite/<name>: every
 // version some dist folder holds a <name>-<version>.tgz of, with the
-// tarball's URL and SHA-512 integrity and any deprecation message.
-func servePackument(w http.ResponseWriter, r *http.Request, dists distList, name, deprecationsFile string) {
+// tarball's URL and SHA-512 integrity and any deprecation message, and the
+// dist-tags.
+func servePackument(w http.ResponseWriter, r *http.Request, dists distList, name, deprecationsFile string, tags tagList) {
 	deprecated := map[string]string{}
 	if deprecationsFile != "" {
 		if raw, err := os.ReadFile(deprecationsFile); err == nil {
@@ -179,8 +184,18 @@ func servePackument(w http.ResponseWriter, r *http.Request, dists distList, name
 		http.NotFound(w, r)
 		return
 	}
+	distTags := map[string]string{"latest": latest}
+	for _, t := range tags {
+		tag, v, pinned := strings.Cut(t, "=")
+		if !pinned {
+			v = latest
+		}
+		if _, ok := versions[v]; ok {
+			distTags[tag] = v
+		}
+	}
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]any{"name": "@claudinite/" + name, "dist-tags": map[string]string{"latest": latest}, "versions": versions})
+	_ = json.NewEncoder(w).Encode(map[string]any{"name": "@claudinite/" + name, "dist-tags": distTags, "versions": versions})
 }
 
 func newer(a, b string) bool {
@@ -196,6 +211,17 @@ func newer(a, b string) bool {
 }
 
 type distList []string
+
+type tagList []string
+
+func (t *tagList) String() string { return strings.Join(*t, ",") }
+func (t *tagList) Set(v string) error {
+	if !regexp.MustCompile(`^[a-z][a-z0-9-]*(=[0-9]+\.[0-9]+\.[0-9]+)?$`).MatchString(v) {
+		return fmt.Errorf("--tag %q: want NAME or NAME=VERSION", v)
+	}
+	*t = append(*t, v)
+	return nil
+}
 
 func (d *distList) String() string     { return strings.Join(*d, ",") }
 func (d *distList) Set(v string) error { *d = append(*d, v); return nil }

@@ -67,6 +67,7 @@ func state(t *testing.T, srv *httptest.Server) stubState {
 }
 
 func TestTheUpdatersCallsAgainstTheStub(t *testing.T) {
+	t.Parallel()
 	bare, sha := fixture(t)
 	c, srv := start(t, bare)
 	pr, err := c.CreatePull("Claudinite engine 2.0.0", "body", "claudinite/engine-2.0.0", "main")
@@ -128,6 +129,7 @@ func TestTheUpdatersCallsAgainstTheStub(t *testing.T) {
 }
 
 func TestStubRunsAndClose(t *testing.T) {
+	t.Parallel()
 	bare, sha := fixture(t)
 	c, srv := start(t, bare)
 	control(t, srv, "/_stub/run", map[string]string{"ref": "main", "conclusion": "failure"})
@@ -150,6 +152,7 @@ func TestStubRunsAndClose(t *testing.T) {
 }
 
 func TestStubRefusesAWrongTokenOrRepo(t *testing.T) {
+	t.Parallel()
 	bare, _ := fixture(t)
 	c, _ := start(t, bare)
 	bad := &githubapi.Client{Base: c.Base, Repo: c.Repo, Token: "other", HTTP: c.HTTP}
@@ -166,6 +169,7 @@ func TestStubRefusesAWrongTokenOrRepo(t *testing.T) {
 // publish-pages makes them: the workflow's runs by event, with no sha to key
 // on, newest first; one run by id, carrying its URL; and the Pages setting.
 func TestStubFollowsADispatchedRunByEventAndID(t *testing.T) {
+	t.Parallel()
 	bare, _ := fixture(t)
 	_, srv := start(t, bare)
 	control(t, srv, "/_stub/run", map[string]string{"ref": "main", "conclusion": "success"})

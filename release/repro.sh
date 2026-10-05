@@ -1,7 +1,8 @@
 #!/bin/sh
 # Builds linux-x64 twice from this source, the second time with an empty Go
-# build cache, and fails unless the two binaries are byte-identical. The
-# promotion job republishes the same bytes, so a build must be reproducible.
+# build cache, and fails unless the two binaries are byte-identical: the
+# rehearsal and the hop stand a rebuild of the candidate in for it, which
+# proves the candidate only while a build is reproducible.
 set -eu
 cd "$(dirname "$0")/.."
 VERSION="${VERSION:-1.61001.1}"

@@ -1,29 +1,34 @@
 #!/bin/sh
-# Builds a release into $DIST (default dist/): the five binaries, an
-# UNSIGNED manifest.json, the npm package folders of $PACKAGE (whose channel
+# Builds a release into $DIST (default dist/): the binaries, an UNSIGNED
+# manifest.json, the npm package folders of @claudinite/cli (whose manifest
 # package carries the launcher as its bin, for npx bootstrap; every package
-# carries THIRD_PARTY_LICENSES) and their
-# tarballs, and SHA256SUMS over all of it, then prints the manifest's
-# integrity string, the value a member pins. release/sign.sh signs it.
+# carries THIRD_PARTY_LICENSES) and their tarballs, and SHA256SUMS over all
+# of it, then prints the manifest's integrity string, the value a member
+# pins. release/sign.sh signs it.
 #
-# VERSION (default 0.0.0); PACKAGE @claudinite/cli (default) or
-# @claudinite/cli-rc.
+# VERSION (default 0.0.0). PLATFORMS (default all five) names the platforms
+# built, separated by spaces; a staging build is linux-x64 alone, and its
+# manifest lists that one.
 set -eu
 cd "$(dirname "$0")/.."
 root=$(pwd)
 
 VERSION=${VERSION:-0.0.0}
 DIST=${DIST:-dist}
-PACKAGE=${PACKAGE:-@claudinite/cli}
-case $PACKAGE in
-  @claudinite/cli|@claudinite/cli-rc) ;;
-  *) echo "build: PACKAGE must be @claudinite/cli or @claudinite/cli-rc, not $PACKAGE" >&2; exit 2 ;;
-esac
-name=${PACKAGE#@claudinite/}
+PACKAGE=@claudinite/cli
+name=cli
+all="linux-x64 linux-arm64 darwin-x64 darwin-arm64 windows-x64"
+platforms=${PLATFORMS-$all}
+[ -n "$(printf %s "$platforms" | tr -d " ")" ] || { echo "build: PLATFORMS names no platform" >&2; exit 2; }
+seen=" "
+for p in $platforms; do
+  case " $all " in *" $p "*) ;; *) echo "build: PLATFORMS names $p, not one of $all" >&2; exit 2 ;; esac
+  case $seen in *" $p "*) echo "build: PLATFORMS names $p twice" >&2; exit 2 ;; esac
+  seen="$seen$p "
+done
 [ $# -eq 0 ] || { echo "usage: release/build.sh" >&2; exit 2; }
 COMMIT=$(git rev-parse --short=7 HEAD 2>/dev/null || echo unknown)
 export VERSION COMMIT
-platforms="linux-x64 linux-arm64 darwin-x64 darwin-arm64 windows-x64"
 
 case $DIST in /*) ;; *) DIST=$root/$DIST ;; esac
 rm -rf "$DIST"
@@ -40,7 +45,7 @@ for p in $platforms; do
   sh release/gobuild.sh "$p" "$DIST/bin/$p/$bin"
 done
 
-"$tools/manifest" write --dist "$DIST" --version "$VERSION" --commit "$COMMIT" --source "$root"
+"$tools/manifest" write --dist "$DIST" --version "$VERSION" --commit "$COMMIT" --source "$root" --platforms "$platforms"
 
 pkgjson() {
   # name, description, extra fields

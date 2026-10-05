@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -12,10 +13,20 @@ import (
 func script(t *testing.T, body string) string {
 	t.Helper()
 	p := filepath.Join(t.TempDir(), "cn")
-	if err := os.WriteFile(p, []byte("#!/bin/sh\n"+body), 0o755); err != nil {
+	writeExecutable(t, p, "#!/bin/sh\n"+body)
+	return p
+}
+
+// writeExecutable holds off forks while the file is open, since the tests run
+// in parallel and a child forked meanwhile makes exec fail with "text file busy".
+func writeExecutable(t *testing.T, p, body string) {
+	t.Helper()
+	syscall.ForkLock.Lock()
+	err := os.WriteFile(p, []byte(body), 0o755)
+	syscall.ForkLock.Unlock()
+	if err != nil {
 		t.Fatal(err)
 	}
-	return p
 }
 
 func TestSelftest(t *testing.T) {
@@ -49,6 +60,7 @@ echo "version 1.60930.2"; echo "ok binary: linux-x64"`)
 }
 
 func TestRunVerify(t *testing.T) {
+	t.Parallel()
 	repo := t.TempDir()
 	clean := script(t, `[ "$1 $2 $3" = "verify --repo `+repo+`" ] || exit 9; exit 0`)
 	if out, breaks, err := RunVerify(clean, repo, 5*time.Second); err != nil || breaks || out != "" {

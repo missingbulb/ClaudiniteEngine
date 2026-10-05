@@ -5,15 +5,14 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/missingbulb/ClaudiniteEngine/release"
 	"github.com/missingbulb/ClaudiniteEngine/release/releasefiles"
 	"github.com/missingbulb/ClaudiniteEngine/shared/version"
 )
 
 const (
-	rcPackage     = "@claudinite/cli-rc"
-	stablePackage = "@claudinite/cli"
-	soakTime      = 24 * time.Hour
-	blockerLabel  = "release-blocker"
+	soakTime     = 24 * time.Hour
+	blockerLabel = "release-blocker"
 )
 
 // Registry is what the gate reads from npm.
@@ -21,7 +20,8 @@ type Registry interface {
 	// PublishedAt is when pkg@ver was published, and false when it was not.
 	PublishedAt(pkg, ver string) (time.Time, bool, error)
 	Manifest(pkg, ver string) (releasefiles.Manifest, error)
-	Versions(pkg string) ([]string, error)
+	// DistTags maps each of pkg's dist-tags to the version it points at.
+	DistTags(pkg string) (map[string]string, error)
 }
 
 // Issue is an open GitHub issue.
@@ -55,7 +55,7 @@ type Verdict struct {
 	// Result is refuse, soak, blocked:<issue>, no-canaries, pass or
 	// canary:<name>:<conclusion>.
 	Result string
-	// Hop is "hop:proven-by <version>" when the newest promoted release
+	// Hop is "hop:proven-by <version>" when the version latest points at
 	// carries the candidate's updaterDigest, else "hop:needed". It is
 	// advisory until phase 2's cn update engine builds the second release
 	// a needed hop asks for.
@@ -66,16 +66,16 @@ type Verdict struct {
 	Reason      string
 }
 
-// Gate decides whether rc version ver may be promoted.
+// Gate decides whether version ver of @claudinite/cli may be promoted.
 func Gate(reg Registry, gh GitHub, now func() time.Time, ver string, canaries []Canary) (Verdict, error) {
-	published, ok, err := reg.PublishedAt(rcPackage, ver)
+	published, ok, err := reg.PublishedAt(release.CLI, ver)
 	if err != nil {
 		return Verdict{}, err
 	}
 	if !ok {
-		return Verdict{Result: "refuse", Hop: "hop:needed", Reason: fmt.Sprintf("%s %s is not published", rcPackage, ver)}, nil
+		return Verdict{Result: "refuse", Hop: "hop:needed", Reason: fmt.Sprintf("%s %s is not published", release.CLI, ver)}, nil
 	}
-	candidate, err := reg.Manifest(rcPackage, ver)
+	candidate, err := reg.Manifest(release.CLI, ver)
 	if err != nil {
 		return Verdict{}, err
 	}
@@ -132,33 +132,24 @@ func Watched(canaries []Canary) bool {
 	return false
 }
 
+// hopVerdict compares the candidate's updaterDigest with the version latest
+// points at, the one every stable member runs: rc and staging versions
+// share the package but were never promoted.
 func hopVerdict(reg Registry, candidate releasefiles.Manifest) (string, error) {
-	versions, err := reg.Versions(stablePackage)
+	tags, err := reg.DistTags(release.CLI)
 	if err != nil {
 		return "", err
 	}
-	newest := ""
-	for _, v := range versions {
-		if _, err := version.Parse(v); err != nil || v == "0.0.0" {
-			continue
-		}
-		if newest == "" {
-			newest = v
-			continue
-		}
-		if c, err := version.Compare(v, newest); err == nil && c > 0 {
-			newest = v
-		}
-	}
-	if newest == "" {
+	latest := tags[release.TagLatest]
+	if _, err := version.Parse(latest); err != nil || latest == "0.0.0" {
 		return "hop:needed", nil
 	}
-	promoted, err := reg.Manifest(stablePackage, newest)
+	promoted, err := reg.Manifest(release.CLI, latest)
 	if err != nil {
 		return "", err
 	}
 	if candidate.UpdaterDigest != "" && promoted.UpdaterDigest == candidate.UpdaterDigest {
-		return "hop:proven-by " + newest, nil
+		return "hop:proven-by " + latest, nil
 	}
 	return "hop:needed", nil
 }

@@ -79,6 +79,7 @@ var rules = []rule{
 	{"pack-declared", checkPackDeclared},
 	{"pack-min-engine", checkPackMinEngine},
 	{"license-plan", checkLicensePlan},
+	{"engine-package", checkEnginePackage},
 	{"descriptor-format", checkDescriptorFormat},
 	{"descriptor-duplicate", checkDescriptorDuplicate},
 	{"settings-checks", checkSettingsChecks},
@@ -184,6 +185,25 @@ func checkLicensePlan(in Input) []findings.Finding {
 	}
 	if settings.HasRetiredLicense(raw, f) {
 		return []findings.Finding{dep("license-plan", settings.RelPath(f), "the license block is a retired shape: a single repo needs no license and nothing reads it; the next engine update PR drops it, or delete it by hand")}
+	}
+	return nil
+}
+
+// checkEnginePackage names a pin on the legacy canary package: the next
+// engine update PR moves it to the canary channel of the one package.
+//
+// @legacy-tolerance advisory:engine-package retire:#97
+func checkEnginePackage(in Input) []findings.Finding {
+	p, f, err := settings.Find(in.Repo)
+	if err != nil {
+		return nil
+	}
+	raw, err := os.ReadFile(p)
+	if err != nil {
+		return nil
+	}
+	if _, legacy, err := settings.FromLegacyPackage(raw, f); err == nil && legacy {
+		return []findings.Finding{dep("engine-package", settings.RelPath(f), `engine.package "`+settings.LegacyCanaryPackage+`" is a retired shape: every release is now `+settings.DefaultPackage+` under a dist-tag; the next engine update PR replaces the line with engine.channel "canary"`)}
 	}
 	return nil
 }

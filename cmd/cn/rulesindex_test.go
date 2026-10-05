@@ -11,6 +11,7 @@ import (
 )
 
 func TestRulesIndexCommand(t *testing.T) {
+	t.Parallel()
 	bin := buildCN(t, "")
 	repo := t.TempDir()
 	for rel, body := range map[string]string{
@@ -52,6 +53,7 @@ func TestRulesIndexCommand(t *testing.T) {
 // hooks cannot import rulesindex, so its line spells the index and the
 // import itself; this keeps both spellings equal to the writer's.
 func TestTheMissingImportLineNamesTheWritersIndex(t *testing.T) {
+	t.Parallel()
 	if !strings.Contains(hooks.MissingImport, " import "+rulesindex.File+";") || !strings.Contains(hooks.MissingImport, `"`+rulesindex.Import+`"`) {
 		t.Errorf("hooks.MissingImport %q drifted from %s / %s", hooks.MissingImport, rulesindex.File, rulesindex.Import)
 	}

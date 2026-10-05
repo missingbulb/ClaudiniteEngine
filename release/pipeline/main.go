@@ -1,6 +1,6 @@
 // Command pipeline prints what the release workflows need from package
-// release: package names, the publish mode, and the bodies of the comments
-// and issues they post.
+// release: package names, the release kind, the publish mode, and the
+// bodies of the comments and issues they post.
 package main
 
 import (
@@ -9,17 +9,22 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/missingbulb/ClaudiniteEngine/release"
 )
 
 const usage = `usage:
-  pipeline names [--channel rc|stable]
+  pipeline names
+  pipeline release-kind --kind full|staging
   pipeline blocker-issue --version V --leg PLATFORM --run-url URL --log FILE
   pipeline blocker-issue --gate live-packs --version V --run-url URL --log FILE
-  pipeline publish-mode --channel rc|stable --signing release|dev --dry-run true|false --npm-versions FILE [--stable-test pass|fail]
-  pipeline deprecate-commands --action hold|revoke|release --version V [--reason R] --rc-versions FILE --stable-versions FILE
-  pipeline unpublish-commands --version V --versions-dir DIR
+  pipeline publish-mode --tag rc|staging --signing release --dry-run true|false --npm-versions FILE
+  pipeline deprecate-commands --action hold|revoke|release --version V [--reason R] --versions-dir DIR
+  pipeline unpublish-commands --version V --versions-dir DIR --dist-tags FILE
+
+A --versions-dir holds each CLI package's ` + "`npm view <pkg> versions --json`" + ` at
+<DIR>/<package name>.json.
 `
 
 func main() { os.Exit(run(os.Args[1:], os.Stdout, os.Stderr)) }
@@ -31,18 +36,25 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 	switch args[0] {
 	case "names":
-		channel := ""
-		if len(args) == 3 && args[1] == "--channel" {
-			channel = args[2]
-		} else if len(args) != 1 {
+		if len(args) != 1 {
 			fmt.Fprint(stderr, usage)
 			return 2
 		}
-		for _, p := range release.Packages() {
-			if channel == "" || p.Channel == channel {
-				fmt.Fprintln(stdout, p.Name)
-			}
+		for _, n := range release.CLIPackages() {
+			fmt.Fprintln(stdout, n)
 		}
+		return 0
+	case "release-kind":
+		if len(args) != 3 || args[1] != "--kind" {
+			fmt.Fprint(stderr, usage)
+			return 2
+		}
+		k, err := release.ReleaseKindOf(args[2])
+		if err != nil {
+			fmt.Fprintf(stderr, "pipeline: %v\n", err)
+			return 2
+		}
+		fmt.Fprintf(stdout, "tag=%s\nchannel=%s\nplatforms=%s\n", k.Tag, k.Channel, strings.Join(k.Platforms, " "))
 		return 0
 	case "publish-mode":
 		return publishMode(args[1:], stdout, stderr)
@@ -63,11 +75,10 @@ func publishMode(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("publish-mode", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	var in release.ModeInput
-	fs.StringVar(&in.Channel, "channel", "", "")
+	fs.StringVar(&in.Tag, "tag", "", "")
 	fs.StringVar(&in.Signing, "signing", "", "")
 	dry := fs.String("dry-run", "", "")
 	versions := fs.String("npm-versions", "", "")
-	fs.StringVar(&in.StableTest, "stable-test", "", "")
 	if err := fs.Parse(args); err != nil || fs.NArg() != 0 || (*dry != "true" && *dry != "false") || *versions == "" {
 		fmt.Fprint(stderr, usage)
 		return 2
@@ -117,6 +128,20 @@ func blockerIssue(args []string, stdout, stderr io.Writer) int {
 	return 0
 }
 
+// readVersionsDir reads each CLI package's npm view answer from DIR, an
+// absent file reading as empty.
+func readVersionsDir(dir string) (map[string]string, error) {
+	out := map[string]string{}
+	for _, n := range release.CLIPackages() {
+		raw, err := os.ReadFile(filepath.Join(dir, n+".json"))
+		if err != nil && !os.IsNotExist(err) {
+			return nil, err
+		}
+		out[n] = string(raw)
+	}
+	return out, nil
+}
+
 // deprecateCommands prints one npm deprecate command per line, or nothing
 // and a notice when npm has no such version.
 func deprecateCommands(args []string, stdout, stderr io.Writer) int {
@@ -126,22 +151,15 @@ func deprecateCommands(args []string, stdout, stderr io.Writer) int {
 	fs.StringVar(&in.Action, "action", "", "")
 	fs.StringVar(&in.Version, "version", "", "")
 	fs.StringVar(&in.Reason, "reason", "", "")
-	rc := fs.String("rc-versions", "", "")
-	stable := fs.String("stable-versions", "", "")
-	if err := fs.Parse(args); err != nil || fs.NArg() != 0 || *rc == "" || *stable == "" {
+	dir := fs.String("versions-dir", "", "")
+	if err := fs.Parse(args); err != nil || fs.NArg() != 0 || *dir == "" {
 		fmt.Fprint(stderr, usage)
 		return 2
 	}
-	for _, f := range []struct {
-		path string
-		dst  *string
-	}{{*rc, &in.RCVersions}, {*stable, &in.StableVersions}} {
-		raw, err := os.ReadFile(f.path)
-		if err != nil && !os.IsNotExist(err) {
-			fmt.Fprintf(stderr, "pipeline: %v\n", err)
-			return 1
-		}
-		*f.dst = string(raw)
+	var err error
+	if in.Versions, err = readVersionsDir(*dir); err != nil {
+		fmt.Fprintf(stderr, "pipeline: %v\n", err)
+		return 1
 	}
 	d, err := release.DeprecateCommands(in)
 	if err != nil {
@@ -158,27 +176,30 @@ func deprecateCommands(args []string, stdout, stderr io.Writer) int {
 }
 
 // unpublishCommands prints one npm unpublish command per line, or nothing
-// and a notice when npm has no such version. DIR holds each rc package's
-// `npm view <pkg> versions --json` at <DIR>/<package name>.json; a refusal
-// exits 1 with nothing on stdout.
+// and a notice when npm has no such version; a refusal exits 1 with
+// nothing on stdout.
 func unpublishCommands(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("unpublish-commands", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
-	in := release.UnpublishInput{Versions: map[string]string{}}
+	var in release.UnpublishInput
 	fs.StringVar(&in.Version, "version", "", "")
 	dir := fs.String("versions-dir", "", "")
-	if err := fs.Parse(args); err != nil || fs.NArg() != 0 || *dir == "" {
+	tags := fs.String("dist-tags", "", "")
+	if err := fs.Parse(args); err != nil || fs.NArg() != 0 || *dir == "" || *tags == "" {
 		fmt.Fprint(stderr, usage)
 		return 2
 	}
-	for _, n := range release.UnpublishPackages() {
-		raw, err := os.ReadFile(filepath.Join(*dir, n+".json"))
-		if err != nil && !os.IsNotExist(err) {
-			fmt.Fprintf(stderr, "pipeline: %v\n", err)
-			return 1
-		}
-		in.Versions[n] = string(raw)
+	var err error
+	if in.Versions, err = readVersionsDir(*dir); err != nil {
+		fmt.Fprintf(stderr, "pipeline: %v\n", err)
+		return 1
 	}
+	raw, err := os.ReadFile(*tags)
+	if err != nil && !os.IsNotExist(err) {
+		fmt.Fprintf(stderr, "pipeline: %v\n", err)
+		return 1
+	}
+	in.DistTags = string(raw)
 	u, err := release.UnpublishCommands(in)
 	if err != nil {
 		fmt.Fprintf(stderr, "::error::%v\n", err)

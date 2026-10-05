@@ -12,6 +12,7 @@ import (
 // second build of the same source, steps 1 to 4 of the rehearsal's update
 // mode and nothing more.
 func TestHop(t *testing.T) {
+	t.Parallel()
 	if version.Platform() != "linux-x64" {
 		t.Skip("the fixture dist is built on linux-x64")
 	}

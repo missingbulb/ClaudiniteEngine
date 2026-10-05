@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/missingbulb/ClaudiniteEngine/lifecycle/packs"
@@ -18,6 +19,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/shared/npmreg"
 	"github.com/missingbulb/ClaudiniteEngine/shared/paths"
 	"github.com/missingbulb/ClaudiniteEngine/shared/report"
+	"github.com/missingbulb/ClaudiniteEngine/shared/settings"
 	"github.com/missingbulb/ClaudiniteEngine/shared/trust"
 	"github.com/missingbulb/ClaudiniteEngine/shared/version"
 	"github.com/missingbulb/ClaudiniteEngine/tasks/execute"
@@ -61,11 +63,42 @@ func updateDepsWith(repo, token string, stdout io.Writer) (update.Deps, error) {
 		Repo: repo, Out: stdout, Timeout: childTimeout, Exe: exe}, nil
 }
 
-// packReader reads the pack indexes from the CDN and the vendored branch,
-// logging which answered to out. close removes the branch's clone.
-func packReader(roots []ed25519.PublicKey, out io.Writer) (*packs.Reader, func()) {
-	cdn, branch := packs.Sources(&http.Client{Timeout: time.Minute})
-	return &packs.Reader{Sources: []packs.Source{cdn, branch}, Roots: roots, Now: time.Now, Log: out}, branch.Close
+// packReader reads the pack indexes from the pack sources repo's settings
+// name, logging which answered to out. close removes every branch's clone.
+func packReader(repo string, roots []ed25519.PublicKey, out io.Writer) (*packs.Reader, func(), error) {
+	list, err := repoSources(repo)
+	if err != nil {
+		return nil, nil, err
+	}
+	srcs, closer := packs.SourcesFor(list, &http.Client{Timeout: time.Minute})
+	return &packs.Reader{Sources: srcs, Roots: roots, Now: time.Now, Log: out}, closer, nil
+}
+
+// repoSources is packs.sources from repo's settings: none where the repo
+// holds no settings file yet, an adoption, which reads the shelf.
+func repoSources(repo string) ([]string, error) {
+	held := false
+	for _, f := range settings.Formats {
+		if _, err := os.Stat(filepath.Join(repo, filepath.FromSlash(settings.RelPath(f)))); err == nil {
+			held = true
+		}
+	}
+	if !held {
+		return nil, nil
+	}
+	path, f, err := settings.Find(repo)
+	if err != nil {
+		return nil, err
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	p, err := settings.ReadPacks(raw, f)
+	if err != nil {
+		return nil, err
+	}
+	return p.Sources, nil
 }
 
 // cmdUpdateDecide answers one of the update's decision cores over a
@@ -123,7 +156,10 @@ func cmdUpdate(args []string, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
-	reader, closeReader := packReader(d.Roots, stdout)
+	reader, closeReader, err := packReader(*repo, d.Roots, stdout)
+	if err != nil {
+		return report.Wrap(report.IO, "update "+args[0], err)
+	}
 	defer closeReader()
 	d.Packs = reader
 	var verdict string
@@ -156,7 +192,10 @@ func runUpdateTask(repo, token, branch string, out io.Writer) execute.CodeWorkRe
 			return execute.CodeWorkResult{Why: "engine/update: could not check out " + branch, Detail: err.Error()}
 		}
 	}
-	reader, closeReader := packReader(d.Roots, out)
+	reader, closeReader, err := packReader(repo, d.Roots, out)
+	if err != nil {
+		return execute.CodeWorkResult{Why: "engine/update: the pack sources do not read", Detail: err.Error()}
+	}
 	defer closeReader()
 	d.Packs = reader
 	var said []string

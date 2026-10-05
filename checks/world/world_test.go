@@ -88,6 +88,7 @@ func runWorld(t *testing.T, dir, author string, pc *pinCheck, fs []findings.Find
 }
 
 func TestPinGuard(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name    string
 		change  func(t *testing.T) func(string)
@@ -153,6 +154,7 @@ func TestPinGuard(t *testing.T) {
 }
 
 func TestFindingsDecideTheExit(t *testing.T) {
+	t.Parallel()
 	dir := member(t, func(string) {})
 	dep := findings.Finding{Class: findings.Deprecation, ID: "bin-ignore", Path: ".gitignore", Sentence: "move it"}
 	if code, out := runWorld(t, dir, "someone", &pinCheck{}, []findings.Finding{dep}); code != 0 || !strings.Contains(out, "deprecation bin-ignore") {
@@ -168,6 +170,7 @@ func TestFindingsDecideTheExit(t *testing.T) {
 var retired = settingsBody("1.1.0", pin1) + "license:\n  plan: \"public\"\n"
 
 func TestPinGuardLetsTheUpdateDropTheRetiredLicenseBlock(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name   string
 		body   string
@@ -208,6 +211,7 @@ func unadopted(t *testing.T, change func(dir string)) string {
 }
 
 func TestPinGuardLetsAPersonAdoptAndEditTheirSettings(t *testing.T) {
+	t.Parallel()
 	adopt := func(t *testing.T) func(string) {
 		return func(dir string) {
 			write(t, dir, ".claudinite/settings.yaml", settingsBody("1.2.0", pin2)+"packs:\n  declared:\n    - \"basics\"\n")
@@ -233,6 +237,16 @@ func TestPinGuardLetsAPersonAdoptAndEditTheirSettings(t *testing.T) {
 		{"a person declares a pack and moves the pin", func(t *testing.T) string {
 			return member(t, func(dir string) {
 				write(t, dir, ".claudinite/settings.yaml", settingsBody("1.2.0", pin2)+"packs:\n  declared:\n    - \"basics\"\n")
+			})
+		}, nil, 1, "pin-guard", false},
+		{"a person moves the repo to the staging channel", func(t *testing.T) string {
+			return member(t, func(dir string) {
+				write(t, dir, ".claudinite/settings.yaml", settingsBody("1.1.0", pin1)+"  channel: \"staging\"\n")
+			})
+		}, nil, 0, "", false},
+		{"a person changes the channel and moves the pin", func(t *testing.T) string {
+			return member(t, func(dir string) {
+				write(t, dir, ".claudinite/settings.yaml", settingsBody("1.2.0", pin2)+"  channel: \"staging\"\n")
 			})
 		}, nil, 1, "pin-guard", false},
 		{"a person edits the launcher of an adopted repo", func(t *testing.T) string {

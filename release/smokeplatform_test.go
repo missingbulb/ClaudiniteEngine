@@ -52,13 +52,14 @@ func integrityOf(t *testing.T, dist string) string {
 }
 
 func TestSmokePlatformRunsTheHostLeg(t *testing.T) {
+	t.Parallel()
 	if version.Platform() != "linux-x64" {
 		t.Skip("the fixture dist is built on linux-x64")
 	}
 	dist, _ := unsignedDist(t)
 	url, ca := serveDist(t, dist)
 	out, err := runScript(t, []string{"CURL_CA_BUNDLE=" + ca, "NO_PROXY=127.0.0.1,localhost"}, "release/smoke-platform.sh",
-		"--registry", url, "--package", "@claudinite/cli-rc", "--version", "1.61001.1", "--pin", integrityOf(t, dist), "--dist", dist)
+		"--registry", url, "--channel", "canary", "--version", "1.61001.1", "--pin", integrityOf(t, dist), "--dist", dist)
 	if err != nil {
 		t.Fatalf("%v\n%s", err, out)
 	}
@@ -69,7 +70,7 @@ func TestSmokePlatformRunsTheHostLeg(t *testing.T) {
 	}
 
 	out, err = runScript(t, []string{"CURL_CA_BUNDLE=" + ca, "NO_PROXY=127.0.0.1,localhost"}, "release/smoke-platform.sh",
-		"--registry", url, "--package", "@claudinite/cli-rc", "--version", "1.61001.1", "--pin", integrityOf(t, dist), "--dist", dist, "--keep")
+		"--registry", url, "--channel", "canary", "--version", "1.61001.1", "--pin", integrityOf(t, dist), "--dist", dist, "--keep")
 	if err != nil {
 		t.Fatalf("--keep: %v\n%s", err, out)
 	}
@@ -89,12 +90,13 @@ func TestSmokePlatformRunsTheHostLeg(t *testing.T) {
 }
 
 func TestSmokePlatformRefusesAMissingBinary(t *testing.T) {
+	t.Parallel()
 	dist, _ := unsignedDist(t)
 	if err := os.RemoveAll(filepath.Join(dist, "bin", "darwin-arm64")); err != nil {
 		t.Fatal(err)
 	}
 	out, err := runScript(t, nil, "release/smoke-platform.sh",
-		"--registry", "https://127.0.0.1:9", "--package", "@claudinite/cli-rc", "--version", "1.61001.1", "--pin", integrityOf(t, dist), "--dist", dist, "--platform", "darwin-arm64")
+		"--registry", "https://127.0.0.1:9", "--channel", "canary", "--version", "1.61001.1", "--pin", integrityOf(t, dist), "--dist", dist, "--platform", "darwin-arm64")
 	if err == nil || !strings.Contains(out, "darwin-arm64") || !strings.Contains(out, "no ") {
 		t.Fatalf("err %v\n%s", err, out)
 	}

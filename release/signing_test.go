@@ -40,8 +40,8 @@ var (
 )
 
 // unsignedDist is a copy of one release/build.sh run (VERSION=1.61001.1,
-// PACKAGE=@claudinite/cli-rc, the development roots, as release/rehearse.sh
-// needs), as a folder named dist under a fresh parent.
+// the development roots, as release/rehearse.sh needs), as a folder named
+// dist under a fresh parent.
 func unsignedDist(t *testing.T) (string, string) {
 	t.Helper()
 	if testing.Short() {
@@ -55,7 +55,7 @@ func unsignedDist(t *testing.T) (string, string) {
 		builtDist = filepath.Join(dir, "dist")
 		cmd := exec.Command("sh", "release/build.sh")
 		cmd.Dir = ".."
-		cmd.Env = append(os.Environ(), "VERSION=1.61001.1", "PACKAGE=@claudinite/cli-rc", "DIST="+builtDist, "REHEARSAL=1", "BUILD_TAGS=devroots")
+		cmd.Env = append(os.Environ(), "VERSION=1.61001.1", "DIST="+builtDist, "REHEARSAL=1", "BUILD_TAGS=devroots")
 		var out []byte
 		out, builtErr = cmd.CombinedOutput()
 		builtOut = string(out)
@@ -87,6 +87,7 @@ func lastLine(s string) string {
 }
 
 func TestBuildWritesAnUnsignedManifestAndSums(t *testing.T) {
+	t.Parallel()
 	dist, out := unsignedDist(t)
 	if _, err := os.Stat(filepath.Join(dist, "manifest.sig.json")); err == nil {
 		t.Error("build.sh wrote manifest.sig.json")
@@ -137,6 +138,7 @@ func TestBuildWritesAnUnsignedManifestAndSums(t *testing.T) {
 }
 
 func TestSignSignsCopiesAndRepacks(t *testing.T) {
+	t.Parallel()
 	dist, buildOut := unsignedDist(t)
 	out, err := runScript(t, append(devKeyEnv(t), "DIST="+dist), "release/sign.sh")
 	if err != nil {
@@ -146,11 +148,11 @@ func TestSignSignsCopiesAndRepacks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	inPkg, err := os.ReadFile(filepath.Join(dist, "npm/cli-rc/package/manifest.sig.json"))
+	inPkg, err := os.ReadFile(filepath.Join(dist, "npm/cli/package/manifest.sig.json"))
 	if err != nil || string(inPkg) != string(sig) {
 		t.Fatalf("npm package signature: %v", err)
 	}
-	listing, err := exec.Command("tar", "-tzf", filepath.Join(dist, "tarballs/cli-rc-1.61001.1.tgz")).CombinedOutput()
+	listing, err := exec.Command("tar", "-tzf", filepath.Join(dist, "tarballs/cli-1.61001.1.tgz")).CombinedOutput()
 	if err != nil || !strings.Contains(string(listing), "package/manifest.sig.json") {
 		t.Fatalf("tarball lacks the signature: %v %s", err, listing)
 	}
@@ -161,7 +163,7 @@ func TestSignSignsCopiesAndRepacks(t *testing.T) {
 		t.Fatalf("sha256sum -c after signing: %v %s", err, o)
 	}
 	sums, _ := os.ReadFile(filepath.Join(dist, "SHA256SUMS"))
-	for _, f := range []string{"dist/manifest.sig.json", "dist/npm/cli-rc/package/manifest.sig.json"} {
+	for _, f := range []string{"dist/manifest.sig.json", "dist/npm/cli/package/manifest.sig.json"} {
 		if !strings.Contains(string(sums), "  "+f+"\n") {
 			t.Errorf("SHA256SUMS does not list %s", f)
 		}
@@ -176,6 +178,7 @@ func TestSignSignsCopiesAndRepacks(t *testing.T) {
 }
 
 func TestSignKeySources(t *testing.T) {
+	t.Parallel()
 	dist, _ := unsignedDist(t)
 	out, err := runScript(t, []string{"RELEASE_KEY=", "RELEASE_CERT=", "ROOTS=", "DIST=" + dist}, "release/sign.sh")
 	if err == nil {
@@ -197,6 +200,7 @@ func TestSignKeySources(t *testing.T) {
 }
 
 func TestSignRefusesAnExpiringCertificate(t *testing.T) {
+	t.Parallel()
 	dist, _ := unsignedDist(t)
 	rootRaw, _ := os.ReadFile(repoPath(t, "testkeys/root.key"))
 	root, err := sign.ParsePrivateKey(string(rootRaw))

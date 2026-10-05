@@ -32,6 +32,7 @@ func heldItem() map[string]any {
 }
 
 func TestConvergePrintsTheTransitionAndRefusesAnItemItDoesNotHold(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	f := writeJSON(t, dir, "item.json", heldItem())
 	var out bytes.Buffer
@@ -58,6 +59,7 @@ func TestConvergePrintsTheTransitionAndRefusesAnItemItDoesNotHold(t *testing.T) 
 }
 
 func TestRecordExecPrintsTheLineOrNamesTheBadArgument(t *testing.T) {
+	t.Parallel()
 	var out bytes.Buffer
 	if err := cmdWork([]string{"record-exec", "acme-pack/a", "#7", "success"}, &out); err != nil || out.String() != "claudinite-task-exec v1 acme-pack/a [#7] success\n" {
 		t.Error(out.String(), err)
@@ -86,6 +88,7 @@ func sessionRepo(t *testing.T) string {
 }
 
 func TestValidateGatesTheSessionOnTheNonce(t *testing.T) {
+	t.Parallel()
 	repo, dir := sessionRepo(t), t.TempDir()
 	item := writeJSON(t, dir, "item.json", heldItem())
 	comments := writeJSON(t, dir, "comments.json", []world.Comment{

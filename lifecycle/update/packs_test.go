@@ -123,12 +123,13 @@ func (w *packWorld) deps(t *testing.T) Deps {
 	d := w.world.deps(t)
 	d.Packs = w.packs
 	exe := filepath.Join(t.TempDir(), "cn")
-	_ = os.WriteFile(exe, []byte("#!/bin/sh\n[ \"$1 $2\" = \"check world\" ] || exit 9\n"+w.check+"\n"), 0o755)
+	writeExecutable(t, exe, "#!/bin/sh\n[ \"$1 $2\" = \"check world\" ] || exit 9\n"+w.check+"\n")
 	d.Exe = exe
 	return d
 }
 
 func TestPacksRedMainSkipsBeforeAnyPackRead(t *testing.T) {
+	t.Parallel()
 	w := newPackWorld(t)
 	w.mainRun(t, "failure")
 	v, err := Packs(w.deps(t), Options{})
@@ -138,6 +139,7 @@ func TestPacksRedMainSkipsBeforeAnyPackRead(t *testing.T) {
 }
 
 func TestPacksWaitForAnOpenEnginePR(t *testing.T) {
+	t.Parallel()
 	w := newPackWorld(t)
 	w.publish(t, v2, relOpts{})
 	w.openUpdatePR(t, 4, v2, "success")
@@ -151,6 +153,7 @@ func TestPacksWaitForAnOpenEnginePR(t *testing.T) {
 }
 
 func TestPacksProposesAPackPR(t *testing.T) {
+	t.Parallel()
 	w := newPackWorld(t)
 	v, err := Packs(w.deps(t), Options{})
 	if err != nil || v != "opened #1 for packs hello 1.1" {
@@ -188,6 +191,7 @@ func versionDay() int { return version.Today(t0) }
 // its pack PR, appended to the CLAUDE.md it has, and the PR still lands;
 // one that has the line gets no CLAUDE.md change.
 func TestPacksAddTheImportToAnExistingClaudeMD(t *testing.T) {
+	t.Parallel()
 	for name, c := range map[string]struct{ main, want string }{
 		"no trailing newline": {"# Project", "# Project\n@.claudinite/cache/claudinite-rules.GENERATED.md\n"},
 		"already imported":    {"# Project\n@.claudinite/cache/claudinite-rules.GENERATED.md\n", ""},
@@ -214,6 +218,7 @@ func TestPacksAddTheImportToAnExistingClaudeMD(t *testing.T) {
 }
 
 func TestPacksRefusesWhatFailsThisRepo(t *testing.T) {
+	t.Parallel()
 	w := newPackWorld(t)
 	w.check = "echo 'finding hello/always .: always'; exit 1"
 	v, err := Packs(w.deps(t), Options{})
@@ -261,6 +266,7 @@ func (w *packWorld) converge(t *testing.T) {
 // CLAUDE.md lacks the import still gets a pack PR, carrying those two
 // alone, which lands like any other; a converged member is up to date.
 func TestPacksConvergeTheIndexWhenNoPackMoves(t *testing.T) {
+	t.Parallel()
 	w := newPackWorld(t)
 	w.packs.entries["hello"] = w.packs.entries["hello"][:1]
 	pr := w.openPackPR(t, "failure")
@@ -292,6 +298,7 @@ func TestPacksConvergeTheIndexWhenNoPackMoves(t *testing.T) {
 }
 
 func TestPacksUpToDateNamesTheSkips(t *testing.T) {
+	t.Parallel()
 	w := newPackWorld(t)
 	w.converge(t)
 	w.packs.entries["hello"][1].Revoked = true
@@ -304,6 +311,7 @@ func TestPacksUpToDateNamesTheSkips(t *testing.T) {
 }
 
 func TestPacksSkipAPackWhoseRequiresIsNotDeclared(t *testing.T) {
+	t.Parallel()
 	w := newPackWorld(t)
 	w.converge(t)
 	w.packs.entries["hello"][1].Requires = []string{"basics"}
@@ -314,6 +322,7 @@ func TestPacksSkipAPackWhoseRequiresIsNotDeclared(t *testing.T) {
 }
 
 func TestPacksSkipWhileTheSourcesDisagree(t *testing.T) {
+	t.Parallel()
 	w := newPackWorld(t)
 	w.packs.disagree = &packs.SourcesDisagree{Serials: []packs.SourceSerial{{Source: "cdn", Serial: 5}, {Source: "branch", Serial: 4}}}
 	v, err := Packs(w.deps(t), Options{})
@@ -343,6 +352,7 @@ func (w *packWorld) openPackPR(t *testing.T, ci string) githubapi.PR {
 // A pack version bringing a skill names it in the skills index its pack
 // PR carries, and that PR still lands.
 func TestPacksNameANewSkillInTheSkillsIndex(t *testing.T) {
+	t.Parallel()
 	w := newPackWorld(t)
 	files := helloFiles("1.2")
 	files["skills/hello-guide/SKILL.md"] = "---\nname: hello-guide\ndescription: Guide hello. Use when greeting.\n---\n\nGuide.\n"
@@ -360,6 +370,7 @@ func TestPacksNameANewSkillInTheSkillsIndex(t *testing.T) {
 // A skills index the PR's packs do not render, or one it removes while
 // they bundle a skill, is refused.
 func TestLandRefusesASkillsIndexThePacksDoNotRender(t *testing.T) {
+	t.Parallel()
 	for name, body := range map[string]*string{
 		"text appended": ptr("APPEND"),
 		"removed":       nil,
@@ -396,6 +407,7 @@ func TestLandRefusesASkillsIndexThePacksDoNotRender(t *testing.T) {
 func ptr(s string) *string { return &s }
 
 func TestPacksLandAGreenPackPR(t *testing.T) {
+	t.Parallel()
 	w := newPackWorld(t)
 	pr := w.openPackPR(t, "success")
 	v, err := Packs(w.deps(t), Options{})
@@ -408,6 +420,7 @@ func TestPacksLandAGreenPackPR(t *testing.T) {
 }
 
 func TestEngineIgnoresAPackPR(t *testing.T) {
+	t.Parallel()
 	w := newPackWorld(t)
 	w.openPackPR(t, "success")
 	w.publish(t, v1, relOpts{})
@@ -418,6 +431,7 @@ func TestEngineIgnoresAPackPR(t *testing.T) {
 }
 
 func TestPacksReportTheSameSetPending(t *testing.T) {
+	t.Parallel()
 	w := newPackWorld(t)
 	pr := w.openPackPR(t, "failure")
 	v, err := Packs(w.deps(t), Options{})
@@ -427,6 +441,7 @@ func TestPacksReportTheSameSetPending(t *testing.T) {
 }
 
 func TestPacksSupersedeAnOlderSet(t *testing.T) {
+	t.Parallel()
 	w := newPackWorld(t)
 	pr := w.openPackPR(t, "failure")
 	w.packs.publish("hello", "1.2", "canary", helloFiles("1.2"))
@@ -443,6 +458,7 @@ func TestPacksSupersedeAnOlderSet(t *testing.T) {
 }
 
 func TestLandRefusesAPackPRThatIsNotThePublishedSet(t *testing.T) {
+	t.Parallel()
 	cases := map[string]func(w *packWorld, t *testing.T, pr *githubapi.PR){
 		"a file outside the packs": func(w *packWorld, t *testing.T, pr *githubapi.PR) {
 			rewrite(w, t, pr, "RULES.md", "x\n")

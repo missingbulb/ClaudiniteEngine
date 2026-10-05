@@ -63,7 +63,7 @@ A coded scenario whose `cn` world findings differ on purpose carries
 `world` staying the Node engine's: `coded-claudinite-canon-curation/pack-no-enforcement-narration-fires`
 is record row 124 (a pack's Go checks name its own rules, which the
 Node engine, reading `.mjs` alone, never saw), and
-`flat-declarations/fires` is record row 136 (cn generates under
+`flat-declarations/fires` is record row 137 (cn generates under
 `.claudinite/cache/`, where the Node engine wrote `.claudinite/flat/`).
 
 Growth face divergences: 0 of 57 fixtures.

@@ -7,6 +7,7 @@ import (
 )
 
 func TestBlockerIssue(t *testing.T) {
+	t.Parallel()
 	var log strings.Builder
 	for i := 1; i <= 100; i++ {
 		fmt.Fprintf(&log, "line %d\n", i)
@@ -23,6 +24,7 @@ func TestBlockerIssue(t *testing.T) {
 }
 
 func TestLivePacksBlockerIssue(t *testing.T) {
+	t.Parallel()
 	log := "rehearse: live-packs 1: cn init through npx vendored 8 packs\nrehearse: FAIL: live-packs 2: check world on the adopted tree: aws-sam/handler-path\n"
 	title, body := LivePacksBlockerIssue("1.61003.2", "https://github.com/missingbulb/ClaudiniteEngine/actions/runs/2", log)
 	if !strings.Contains(title, "1.61003.2") || !strings.Contains(title, "live-packs") {

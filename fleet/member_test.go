@@ -140,7 +140,7 @@ func (s shelf) Packument(string) (*npmreg.Packument, error) {
 	if s.err != nil {
 		return nil, s.err
 	}
-	return &npmreg.Packument{Versions: map[string]npmreg.Version{s.engine: {Version: s.engine}}}, nil
+	return &npmreg.Packument{Versions: map[string]npmreg.Version{s.engine: {Version: s.engine}}, DistTags: map[string]string{"latest": s.engine}}, nil
 }
 
 func (s shelf) Index(id string) (packindex.Index, bool, error) {
