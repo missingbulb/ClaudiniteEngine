@@ -4,11 +4,8 @@
 // from --origin, a bare repository, and a merge squashes onto its main
 // there, as GitHub would. cn reaches it through CLAUDINITE_GITHUB_API.
 //
-// For a session's key request it answers GET /user, GET /repos/{r} and
-// its commits and check runs, and a claudinite-key repository_dispatch,
-// which it forwards to licstub (--licstub-ready, --licstub-ca) and keeps
-// licstub's answer as the key check run; the device flow pair; and an
-// Actions job's OIDC token at GET /_oidc/token (session.go). For the
+// It answers an Actions job's OIDC token at GET /_oidc/token, the token a
+// fleet run trades for its key at licstub (session.go). For the
 // task queue it answers the issues, repository and landing-lane calls
 // over an in-memory repository, and a routine's fire route (tasks.go).
 //
@@ -132,20 +129,15 @@ type stub struct {
 	// routineToken is the bearer the routine route accepts.
 	routineToken string
 
-	sess        session
-	checkRuns   map[string][]checkRun
-	devicePolls int
-	rsaKey      *rsa.PrivateKey
-	licReady    string
-	licCA       string
+	sess   session
+	rsaKey *rsa.PrivateKey
 
 	// fleet is the members a fleet token reaches beside the repo (fleet.go).
 	fleet []*fleetMember
 }
 
-// defaultSession is a public repo of a User, person 7 with push access,
-// the App installed.
-var defaultSession = session{UserID: 7, UserLogin: "acme-dev", UserType: "User", RepoID: 1001, OwnerID: 3, OwnerType: "User"}
+// defaultSession is a public repo of a User, administered by acme-dev.
+var defaultSession = session{UserLogin: "acme-dev", RepoID: 1001, OwnerID: 3}
 
 func newStub(origin, repo, token string) *stub {
 	k, err := rsa.GenerateKey(rand.Reader, 2048)
@@ -156,7 +148,7 @@ func newStub(origin, repo, token string) *stub {
 	gh := sim.NewGitHub(clock)
 	gh.Repo = repo
 	return &stub{origin: origin, repo: repo, token: token, clock: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
-		gh: gh, simClock: clock, routineToken: routineToken, sess: defaultSession, checkRuns: map[string][]checkRun{}, rsaKey: k}
+		gh: gh, simClock: clock, routineToken: routineToken, sess: defaultSession, rsaKey: k}
 }
 
 func (s *stub) git(args ...string) (string, error) {
@@ -257,7 +249,7 @@ func (s *stub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if s.serveFleet(w, r, body) {
 		return
 	}
-	if s.serveSession(w, r, body) {
+	if s.serveSession(w, r) {
 		return
 	}
 	if r.Header.Get("Authorization") != "Bearer "+s.token {
@@ -554,19 +546,13 @@ func main() {
 	addr := flag.String("addr", "127.0.0.1:0", "listen address")
 	ready := flag.String("ready", "", "file to write the base URL to once listening")
 	caOut := flag.String("ca-out", "", "file to write the certificate PEM to")
-	licReady := flag.String("licstub-ready", "", "licstub's --ready file, read when a key dispatch is forwarded")
-	licCA := flag.String("licstub-ca", "", "licstub's --ca-out file")
 	agent := flag.String("agent", "", "the stub agent a routine fire runs on the item it names")
 	routine := flag.String("routine-token", routineToken, "the bearer the routine fire route accepts")
 	sess := defaultSession
-	flag.Int64Var(&sess.UserID, "user-id", sess.UserID, "the id GET /user answers")
-	flag.StringVar(&sess.UserLogin, "user", sess.UserLogin, "the login GET /user answers")
+	flag.StringVar(&sess.UserLogin, "user", sess.UserLogin, "the login that administers the repo")
 	flag.Int64Var(&sess.RepoID, "repo-id", sess.RepoID, "the repo's id")
 	flag.Int64Var(&sess.OwnerID, "owner-id", sess.OwnerID, "the repo owner's id")
-	flag.StringVar(&sess.OwnerType, "owner-type", sess.OwnerType, "User or Organization")
 	flag.BoolVar(&sess.Private, "private", false, "the repo is private")
-	flag.BoolVar(&sess.NoPush, "no-push", false, "the person lacks push access: key dispatches answer 403")
-	flag.BoolVar(&sess.NoApp, "no-app", false, "no App is installed: key dispatches are accepted and no check run ever comes")
 	flag.StringVar(&sess.EventName, "event-name", "", "the OIDC token's event_name (default workflow_dispatch)")
 	flag.StringVar(&sess.WorkflowRef, "workflow-ref", "", "the OIDC token's job_workflow_ref (default the update workflow on main)")
 	flag.Parse()
@@ -590,7 +576,7 @@ func main() {
 	st := newStub(*origin, rs.home, *token)
 	st.fleet = rs.members
 	st.agent, st.routineToken = *agent, *routine
-	st.sess, st.licReady, st.licCA = sess, *licReady, *licCA
+	st.sess = sess
 	srv := &http.Server{Handler: st, ReadHeaderTimeout: 10 * time.Second}
 	srv.TLSConfig = stubtls.Config(cert)
 	if *ready != "" {
