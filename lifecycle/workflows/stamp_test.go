@@ -61,3 +61,19 @@ func TestStampLeavesANamePassedOutsideTheBlock(t *testing.T) {
 		t.Errorf("the block's old line survived:\n%s", got)
 	}
 }
+
+// A member whose own marker block stamps a secret the template already
+// passes above the marker (a Node executor stamped CCR_ROUTINE_TOKEN there)
+// gets that name once: GitHub refuses a workflow whose env repeats a key.
+func TestExpectedDropsAStampedNameTheTemplatePasses(t *testing.T) {
+	have := "env:\n          " + SecretsMarker + "\n" +
+		"          CCR_ROUTINE_TOKEN: ${{ secrets.CCR_ROUTINE_TOKEN }}\n" +
+		"          SCRAPER_API_KEY: ${{ secrets.SCRAPER_API_KEY }}\n"
+	got := string(Expected("claudinite-executor.yml", []byte(have)))
+	if n := strings.Count(got, "CCR_ROUTINE_TOKEN: ${{ secrets.CCR_ROUTINE_TOKEN }}"); n != 1 {
+		t.Errorf("CCR_ROUTINE_TOKEN passed %d times:\n%s", n, got)
+	}
+	if !reflect.DeepEqual(StampedSecrets([]byte(got)), []string{"SCRAPER_API_KEY"}) {
+		t.Errorf("stamped %v, want [SCRAPER_API_KEY]", StampedSecrets([]byte(got)))
+	}
+}

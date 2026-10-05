@@ -271,6 +271,18 @@ func (r Repo) Show(ref, path string) ([]byte, bool, error) {
 	return out, err == nil, err
 }
 
+// Regular reports whether path at ref is a regular file, and false when ref
+// has no such path. Show reads a symlink as its target's text.
+func (r Repo) Regular(ref, path string) (bool, error) {
+	out, err := r.run("ls-tree", "-z", ref, "--", path)
+	if err != nil {
+		return false, err
+	}
+	meta, _, ok := strings.Cut(strings.TrimSuffix(string(out), "\x00"), "\t")
+	f := strings.Fields(meta)
+	return ok && len(f) == 3 && f[1] == "blob" && (f[0] == "100644" || f[0] == "100755"), nil
+}
+
 // MergeBase is the best common ancestor of a and b.
 func (r Repo) MergeBase(a, b string) (string, error) { return r.line("merge-base", a, b) }
 

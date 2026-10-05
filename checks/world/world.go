@@ -1,7 +1,8 @@
 // Package world is cn check world: the pin guard, which refuses a change
 // to the engine pin or the launcher on a pull request the update bot did
-// not open, or that moves anything but the pin, or whose new pin does not
-// verify or is held, revoked or deprecated; then the findings the caller
+// not open (but for the first pin an adoption writes), or that moves
+// anything but the pin, or whose new pin does not verify or is held,
+// revoked or deprecated; then the findings the caller
 // gathered, verify's and every world-tagged check's, declared checks
 // included. A change confined to .claudinite/shared/packs/ passes the
 // guard whoever made it, the bot's pack PR and a person's adoption alike:
@@ -28,6 +29,7 @@ type Git interface {
 	MergeBase(a, b string) (string, error)
 	ChangedFiles(base, head string) ([]string, error)
 	Show(ref, path string) ([]byte, bool, error)
+	Regular(ref, path string) (bool, error)
 }
 
 // Input is one world run.
@@ -91,6 +93,11 @@ func guard(in Input) error {
 	}
 	var pinFiles []string
 	for _, c := range changed {
+		// A directory never lists as a changed path; a symlink or submodule
+		// there would carry pin files git never shows.
+		if c == ".claudinite" {
+			return fmt.Errorf(".claudinite is not a directory")
+		}
 		if isPinFile(c) {
 			pinFiles = append(pinFiles, c)
 		}
@@ -98,8 +105,22 @@ func guard(in Input) error {
 	if len(pinFiles) == 0 {
 		return nil
 	}
+	// The launcher follows a symlink that Show reads as its target's path.
+	for _, p := range pinFiles {
+		_, there, err := in.Git.Show("HEAD", p)
+		if err != nil {
+			return err
+		}
+		regular, err := in.Git.Regular("HEAD", p)
+		if err != nil {
+			return err
+		}
+		if there && !regular {
+			return fmt.Errorf("%s is not a regular file", p)
+		}
+	}
 	if in.PRAuthor != Bot {
-		return fmt.Errorf("%s changes %s; only the update bot (%s) may move the engine pin or the launcher, through its update PR", in.PRAuthor, strings.Join(pinFiles, " and "), Bot)
+		return personGuard(in, base, pinFiles)
 	}
 	for _, p := range pinFiles {
 		if p == ".claudinite/launch" {
@@ -140,4 +161,91 @@ func guard(in Input) error {
 		return fmt.Errorf("the new pin %s does not verify: %w", e.Version, err)
 	}
 	return nil
+}
+
+// personGuard judges a PR a person opened that touches the settings file or
+// the launcher. On a repo whose base holds neither, it is the adoption (or
+// the move from the Node engine) writing the first pin, which must verify.
+// Otherwise the person may change anything in the settings file but its
+// engine block, and never the launcher.
+func personGuard(in Input, base string, pinFiles []string) error {
+	refuse := func() error {
+		return fmt.Errorf("%s changes %s; only the update bot (%s) may move the engine pin or the launcher, through its update PR", in.PRAuthor, strings.Join(pinFiles, " and "), Bot)
+	}
+	adopted := false
+	for _, p := range append([]string{".claudinite/launch"}, settingsPaths()...) {
+		_, ok, err := in.Git.Show(base, p)
+		if err != nil {
+			return err
+		}
+		adopted = adopted || ok
+	}
+	if !adopted {
+		written := 0
+		for _, p := range settingsPaths() {
+			_, ok, err := in.Git.Show("HEAD", p)
+			if err != nil {
+				return err
+			}
+			if ok {
+				written++
+			}
+		}
+		if written > 1 {
+			return fmt.Errorf("the adoption writes %d settings files; the launcher reads one settings file", written)
+		}
+		for _, p := range pinFiles {
+			if p == ".claudinite/launch" {
+				continue
+			}
+			format := settings.Format(strings.TrimPrefix(p, ".claudinite/settings."))
+			cur, _, err := in.Git.Show("HEAD", p)
+			if err != nil {
+				return err
+			}
+			e, err := settings.ReadEngine(cur, format)
+			if err != nil {
+				return err
+			}
+			if err := in.CheckPin(e); err != nil {
+				return fmt.Errorf("the first pin %s does not verify: %w", e.Version, err)
+			}
+			return nil
+		}
+		return refuse()
+	}
+	for _, p := range pinFiles {
+		if p == ".claudinite/launch" {
+			return refuse()
+		}
+		format := settings.Format(strings.TrimPrefix(p, ".claudinite/settings."))
+		old, inBase, err := in.Git.Show(base, p)
+		if err != nil {
+			return err
+		}
+		cur, inHead, err := in.Git.Show("HEAD", p)
+		if err != nil {
+			return err
+		}
+		if !inBase || !inHead {
+			return refuse()
+		}
+		was, err := settings.ReadEngine(old, format)
+		if err != nil {
+			return err
+		}
+		now, err := settings.ReadEngine(cur, format)
+		if err != nil || now != was {
+			return refuse()
+		}
+	}
+	return nil
+}
+
+func settingsPaths() []string {
+	var out []string
+	for _, f := range settings.Formats {
+		out = append(out, settings.RelPath(f))
+	}
+	return out
 }
