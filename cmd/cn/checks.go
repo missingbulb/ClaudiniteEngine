@@ -34,15 +34,31 @@ func checksService() checks.Service {
 	}
 }
 
+// foreground is the checks service for a command that waits on the build
+// itself: its waits are reported on stderr, named by caller.
+func foreground(caller string, stderr io.Writer) checks.Service {
+	svc := checksService()
+	svc.Caller = caller
+	svc.Timing = func(line string) { fmt.Fprintln(stderr, line) }
+	return svc
+}
+
 // hookChecks gives the hooks the checks service.
 type hookChecks struct{}
 
-func (hookChecks) Start(repo string) error { return checksService().Start(repo) }
+func (hookChecks) Start(repo, session string) (string, error) {
+	svc := checksService()
+	svc.Session = session
+	return svc.Start(repo)
+}
 
 func (hookChecks) Run(repo, event string, scope hooks.RunScope, wait time.Duration) hooks.CheckResult {
 	var notes bytes.Buffer
 	sel := declared.Selection{Tags: scope.Tags, Session: transcript.NewSession(scope.Transcript)}
-	o := checksService().RunAll(repo, event, sel, wait, false, &notes)
+	svc := checksService()
+	svc.Session = scope.Session
+	svc.Timing = func(line string) { notes.WriteString(line + "\n") }
+	o := svc.RunAll(repo, event, sel, wait, false, &notes)
 	crumb := strings.TrimRight(notes.String()+o.DeclaredCrumb+"\n"+o.Crumb+"\n"+o.SDKCrumb, "\n")
 	return hooks.CheckResult{Findings: o.Findings, Errors: o.Errors, Err: o.Err, Crumb: crumb}
 }
@@ -64,7 +80,7 @@ func (hookGuards) Judge(repo string, call hooks.Call, deadline time.Time) hooks.
 // break. verbose adds the coded checks' SDK calls, by method, the checks
 // a git fault skipped, and the tail of their stderr.
 func allFindings(repo, event string, sel declared.Selection, verbose bool, stderr io.Writer) []findings.Finding {
-	o := checksService().RunAll(repo, event, sel, buildWait, true, stderr)
+	o := foreground(event, stderr).RunAll(repo, event, sel, buildWait, true, stderr)
 	fmt.Fprintln(stderr, o.DeclaredCrumb)
 	if !strings.Contains(o.Crumb, " ok ") {
 		fmt.Fprintln(stderr, o.Crumb)
@@ -144,7 +160,7 @@ func cmdCheck(args []string, stdout, stderr io.Writer) error {
 	}
 	// A coded listing that failed still lists the declared and built-in
 	// checks; the run below reports the coded failure as a checks-run break.
-	listed, err := checksService().ListAll(*repo, buildWait)
+	listed, err := foreground("check", stderr).ListAll(*repo, buildWait)
 	if err != nil && listed == nil {
 		return report.Wrap(report.Verify, "check", err)
 	}

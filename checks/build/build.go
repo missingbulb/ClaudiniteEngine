@@ -75,6 +75,10 @@ var ErrBuilding = errors.New("another process is building this checks binary")
 func (c Config) checksRoot() string       { return filepath.Join(c.CacheRoot, "checks") }
 func (c Config) lockPath(k string) string { return filepath.Join(c.checksRoot(), k+".lock") }
 
+// SessionsDir holds a mark per session that started a build, for that
+// session to report the build once it is done.
+func (c Config) SessionsDir() string { return filepath.Join(c.checksRoot(), "sessions") }
+
 // Dir is the key's folder: the generated module, build.log and the binary.
 func (c Config) Dir(key string) string { return filepath.Join(c.checksRoot(), key) }
 
@@ -316,7 +320,8 @@ func Build(c Config, key string, srcs []Source) error {
 	}
 	_ = os.Remove(c.failedPath(key))
 	var log bytes.Buffer
-	err = build(c, key, srcs, &log)
+	began := time.Now()
+	err = build(c, key, srcs, &log, func() error { return writeRecord(c, key, began, true) })
 	if err != nil {
 		fmt.Fprintf(&log, "\nbuild failed: %v\n", err)
 	}
@@ -324,12 +329,54 @@ func Build(c Config, key string, srcs []Source) error {
 		err = werr
 	}
 	if err != nil {
+		_ = writeRecord(c, key, began, false)
 		_ = os.WriteFile(c.failedPath(key), nil, 0o644)
 	}
 	return err
 }
 
-func build(c Config, key string, srcs []Source, log *bytes.Buffer) error {
+// Record is one compile of a key: when it ended, how long it took and
+// whether it placed a binary.
+type Record struct {
+	At   time.Time
+	Took time.Duration
+	OK   bool
+}
+
+type recordFile struct {
+	AtMs int64 `json:"atMs"`
+	Ms   int64 `json:"ms"`
+	OK   bool  `json:"ok"`
+}
+
+func (c Config) recordPath(key string) string { return filepath.Join(c.Dir(key), "build.json") }
+
+// writeRecord writes the key's record, a compile that began at began.
+// A successful build writes it before the binary is placed, so a placed
+// binary always has one.
+func writeRecord(c Config, key string, began time.Time, ok bool) error {
+	now := time.Now()
+	raw, err := json.Marshal(recordFile{AtMs: now.UnixMilli(), Ms: now.Sub(began).Milliseconds(), OK: ok})
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(c.recordPath(key), raw, 0o644)
+}
+
+// ReadRecord reads the key's last compile; false when it has none.
+func ReadRecord(c Config, key string) (Record, bool) {
+	raw, err := os.ReadFile(c.recordPath(key))
+	if err != nil {
+		return Record{}, false
+	}
+	var f recordFile
+	if json.Unmarshal(raw, &f) != nil || f.AtMs == 0 {
+		return Record{}, false
+	}
+	return Record{At: time.UnixMilli(f.AtMs), Took: time.Duration(f.Ms) * time.Millisecond, OK: f.OK}, true
+}
+
+func build(c Config, key string, srcs []Source, log *bytes.Buffer, placing func() error) error {
 	run := func(args ...string) error {
 		cmd := exec.Command(c.goCmd(), args...)
 		cmd.Dir = c.Dir(key)
@@ -383,6 +430,9 @@ func build(c Config, key string, srcs []Source, log *bytes.Buffer) error {
 	}
 	if err := writeJudges(c, key, filepath.Join(dir, tmp)); err != nil {
 		return fmt.Errorf("listing the built checks: %w", err)
+	}
+	if err := placing(); err != nil {
+		return err
 	}
 	return os.Rename(filepath.Join(dir, tmp), c.Binary(key))
 }

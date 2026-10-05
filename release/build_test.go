@@ -2,7 +2,6 @@ package release
 
 import (
 	"encoding/json"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"sort"
@@ -54,14 +53,13 @@ func tarballRepositoryURLs(t *testing.T, dist string) map[string]string {
 }
 
 func TestBuildNamesEveryTarballForItsChannel(t *testing.T) {
+	if testing.Short() {
+		t.Skip("builds two releases; the full run covers it")
+	}
 	for _, pkg := range []string{"@claudinite/cli", "@claudinite/cli-rc"} {
 		dist := filepath.Join(t.TempDir(), "dist")
 		env := []string{"VERSION=0.0.0", "PACKAGE=" + pkg, "DIST=" + dist}
-		args := []string{}
-		if pkg == "@claudinite/cli" {
-			args = append(args, "--placeholder-sdk")
-		}
-		if out, err := runScript(t, env, "release/build.sh", args...); err != nil {
+		if out, err := runScript(t, env, "release/build.sh"); err != nil {
 			t.Fatalf("%s: %v\n%s", pkg, err, out)
 		}
 		if out, err := runScript(t, []string{"DIST=" + dist}, "release/smoke.sh"); err != nil {
@@ -83,8 +81,8 @@ func TestBuildNamesEveryTarballForItsChannel(t *testing.T) {
 		sort.Strings(got)
 		channel := map[string]string{"@claudinite/cli": "stable", "@claudinite/cli-rc": "rc"}[pkg]
 		var want []string
-		for _, p := range Placeholders() {
-			if p.Channel == channel {
+		for _, p := range Packages() {
+			if p.Channel == channel && p.Name != "@claudinite/sdk" {
 				want = append(want, p.Name)
 			}
 		}
@@ -92,35 +90,5 @@ func TestBuildNamesEveryTarballForItsChannel(t *testing.T) {
 		if strings.Join(got, " ") != strings.Join(want, " ") {
 			t.Errorf("%s: tarballs %v, want %v", pkg, got, want)
 		}
-	}
-}
-
-func TestPlaceholderSDK(t *testing.T) {
-	dist := filepath.Join(t.TempDir(), "dist")
-	out, err := runScript(t, []string{"VERSION=0.0.0", "DIST=" + dist}, "release/build.sh", "--placeholder-sdk")
-	if err != nil {
-		t.Fatalf("%v\n%s", err, out)
-	}
-	sdk := filepath.Join(dist, "npm", "sdk", "package")
-	entries, _ := os.ReadDir(sdk)
-	var files []string
-	for _, e := range entries {
-		files = append(files, e.Name())
-	}
-	if strings.Join(files, " ") != "README.md index.mjs package.json" {
-		t.Errorf("sdk package holds %v", files)
-	}
-	readme, _ := os.ReadFile(filepath.Join(sdk, "README.md"))
-	if strings.TrimSpace(string(readme)) != "placeholder, see ClaudiniteEngine" {
-		t.Errorf("README %q", readme)
-	}
-	index, _ := os.ReadFile(filepath.Join(sdk, "index.mjs"))
-	if strings.TrimSpace(string(index)) != "export {};" {
-		t.Errorf("index.mjs %q", index)
-	}
-
-	out, err = runScript(t, []string{"VERSION=1.61001.1", "DIST=" + filepath.Join(t.TempDir(), "dist")}, "release/build.sh", "--placeholder-sdk")
-	if err == nil || !strings.Contains(out, "0.0.0") {
-		t.Errorf("--placeholder-sdk at 1.61001.1: err %v\n%s", err, out)
 	}
 }

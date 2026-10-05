@@ -164,8 +164,8 @@ func TestReleaseRunsTheHopBeforeSign(t *testing.T) {
 }
 
 // The live-packs rehearsal runs in the release straight after the build, holding
-// promotion through a release-blocker issue, and in its own workflow on
-// main and nightly.
+// promotion through a release-blocker issue, and in its own workflow nightly
+// and on demand, never on a pull request or a push.
 func TestLivePacksRuns(t *testing.T) {
 	const wf = "../.github/workflows/release.yml"
 	job := jobBlock(t, wf, "live-packs")
@@ -196,9 +196,14 @@ func TestLivePacksRuns(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, trigger := range []string{"\n  push:\n    branches: [main]\n", "\n  schedule:\n"} {
+	for _, trigger := range []string{"\n  schedule:\n", "\n  workflow_dispatch:\n"} {
 		if !strings.Contains(string(raw), trigger) {
 			t.Errorf("live-packs.yml lacks the trigger %q", trigger)
+		}
+	}
+	for _, trigger := range []string{"\n  push:", "\n  pull_request:"} {
+		if strings.Contains(string(raw), trigger) {
+			t.Errorf("live-packs.yml has the trigger %q", trigger)
 		}
 	}
 }
