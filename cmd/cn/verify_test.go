@@ -12,6 +12,7 @@ import (
 )
 
 func TestVerifyCommand(t *testing.T) {
+	t.Parallel()
 	bin := buildCN(t, "")
 	out, _, code := runCN(t, bin, nil, "", "verify", "--repo", t.TempDir())
 	if code != 1 || !strings.HasPrefix(out, "break settings-file .claudinite: ") || strings.Count(out, "break ") != 1 {
@@ -28,6 +29,7 @@ func TestVerifyCommand(t *testing.T) {
 }
 
 func TestCheckWorldCommand(t *testing.T) {
+	t.Parallel()
 	bin := buildCN(t, "")
 	src, _ := filepath.Abs("../../lifecycle/verify/testdata/shapes/v1-yaml")
 	dir := t.TempDir()
@@ -65,6 +67,7 @@ func TestCheckWorldCommand(t *testing.T) {
 }
 
 func TestVerifyReadsTheDeclaredChecks(t *testing.T) {
+	t.Parallel()
 	bin := buildCN(t, "")
 	src, _ := filepath.Abs("../../lifecycle/verify/testdata/shapes/v5-settings-checks")
 	dir := t.TempDir()

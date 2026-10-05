@@ -55,6 +55,7 @@ func signedDist(t *testing.T) string {
 }
 
 func TestRepackKeepsTheBytesAndRenamesOnly(t *testing.T) {
+	t.Parallel()
 	dist := signedDist(t)
 	out := filepath.Join(t.TempDir(), "stable")
 	if o, err := runScript(t, nil, "release/repack.sh", filepath.Join(dist, "tarballs"), out); err != nil {
@@ -97,6 +98,7 @@ func TestRepackKeepsTheBytesAndRenamesOnly(t *testing.T) {
 }
 
 func TestRepackRefusesAnUnsignedChannel(t *testing.T) {
+	t.Parallel()
 	dist, _ := unsignedDist(t)
 	if o, err := runScript(t, nil, "release/repack.sh", filepath.Join(dist, "tarballs"), filepath.Join(t.TempDir(), "stable")); err == nil || !strings.Contains(o, "manifest.sig.json") {
 		t.Fatalf("repacked an unsigned channel (%v):\n%s", err, o)

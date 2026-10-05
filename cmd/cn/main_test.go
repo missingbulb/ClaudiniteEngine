@@ -2,28 +2,72 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"github.com/missingbulb/ClaudiniteEngine/checksdk"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/missingbulb/ClaudiniteEngine/shared/version"
 )
 
-// buildCN builds the real binary with extra ldflags and returns its path.
+var buildRoot string
+
+func TestMain(m *testing.M) {
+	var err error
+	if buildRoot, err = os.MkdirTemp("", "cn-test-builds-"); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	code := m.Run()
+	_ = os.RemoveAll(buildRoot)
+	os.Exit(code)
+}
+
+var (
+	buildsMu sync.Mutex
+	builds   = map[string]*cnBuild{}
+)
+
+type cnBuild struct {
+	once sync.Once
+	bin  string
+	err  error
+}
+
+// buildCN builds the real binary with extra ldflags, once per ldflags for the
+// whole package, and returns its path; tests only run it.
 func buildCN(t *testing.T, ldflags string) string {
 	t.Helper()
-	bin := filepath.Join(t.TempDir(), "cn")
-	cmd := exec.Command("go", "build", "-ldflags", ldflags, "-o", bin, ".")
-	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("build: %v\n%s", err, out)
+	buildsMu.Lock()
+	b := builds[ldflags]
+	if b == nil {
+		b = &cnBuild{}
+		builds[ldflags] = b
 	}
-	return bin
+	buildsMu.Unlock()
+	b.once.Do(func() {
+		dir, err := os.MkdirTemp(buildRoot, "cn-")
+		if err != nil {
+			b.err = err
+			return
+		}
+		b.bin = filepath.Join(dir, "cn")
+		cmd := exec.Command("go", "build", "-ldflags", ldflags, "-o", b.bin, ".")
+		cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			b.err = fmt.Errorf("build: %v\n%s", err, out)
+		}
+	})
+	if b.err != nil {
+		t.Fatal(b.err)
+	}
+	return b.bin
 }
 
 func runCN(t *testing.T, bin string, env []string, stdin string, args ...string) (string, string, int) {
@@ -44,6 +88,7 @@ func runCN(t *testing.T, bin string, env []string, stdin string, args ...string)
 }
 
 func TestVersionPrintsInjectedVersion(t *testing.T) {
+	t.Parallel()
 	bin := buildCN(t, "-X github.com/missingbulb/ClaudiniteEngine/shared/version.version=1.60928.3 -X github.com/missingbulb/ClaudiniteEngine/shared/version.commit=abc1234")
 	out, _, code := runCN(t, bin, nil, "", "version")
 	if code != 0 {
@@ -59,6 +104,7 @@ func TestVersionPrintsInjectedVersion(t *testing.T) {
 }
 
 func TestVersionDayPrintsTodaysDayNumber(t *testing.T) {
+	t.Parallel()
 	before := version.Today(time.Now())
 	out, errOut, code := runInProc([]string{"version", "--day"}, "")
 	after := version.Today(time.Now())
@@ -72,6 +118,7 @@ func TestVersionDayPrintsTodaysDayNumber(t *testing.T) {
 }
 
 func TestVersionFloorPrintsTheSDKsEngineFloor(t *testing.T) {
+	t.Parallel()
 	out, errOut, code := runInProc([]string{"version", "--floor"}, "")
 	if code != 0 || out != checksdk.EngineFloor+"\n" {
 		t.Fatalf("exit %d, %q %s", code, out, errOut)
@@ -79,6 +126,7 @@ func TestVersionFloorPrintsTheSDKsEngineFloor(t *testing.T) {
 }
 
 func TestUnknownSubcommandExitsUsage(t *testing.T) {
+	t.Parallel()
 	out, errOut, code := runInProc([]string{"frobnicate"}, "")
 	if code != 2 {
 		t.Fatalf("exit %d, want 2", code)
@@ -92,6 +140,7 @@ func TestUnknownSubcommandExitsUsage(t *testing.T) {
 }
 
 func TestNoSubcommandExitsUsage(t *testing.T) {
+	t.Parallel()
 	_, errOut, code := runInProc(nil, "")
 	if code != 2 || !strings.Contains(errOut, "usage:") {
 		t.Fatalf("exit %d, stderr %q", code, errOut)

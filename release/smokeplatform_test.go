@@ -52,6 +52,7 @@ func integrityOf(t *testing.T, dist string) string {
 }
 
 func TestSmokePlatformRunsTheHostLeg(t *testing.T) {
+	t.Parallel()
 	if version.Platform() != "linux-x64" {
 		t.Skip("the fixture dist is built on linux-x64")
 	}
@@ -89,6 +90,7 @@ func TestSmokePlatformRunsTheHostLeg(t *testing.T) {
 }
 
 func TestSmokePlatformRefusesAMissingBinary(t *testing.T) {
+	t.Parallel()
 	dist, _ := unsignedDist(t)
 	if err := os.RemoveAll(filepath.Join(dist, "bin", "darwin-arm64")); err != nil {
 		t.Fatal(err)

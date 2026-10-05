@@ -6,6 +6,7 @@ import (
 )
 
 func TestPublishMode(t *testing.T) {
+	t.Parallel()
 	reserved := `["0.0.0"]`
 	notFound := `{"error": {"code": "E404", "summary": "Not Found"}}`
 	cases := []struct {

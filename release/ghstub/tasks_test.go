@@ -23,6 +23,7 @@ import (
 // The task runner's port, driven against the stub: every call the
 // scheduler and the executor make answers as GitHub's does.
 func TestThePortsIssueCallsAgainstTheStub(t *testing.T) {
+	t.Parallel()
 	bare, _ := fixture(t)
 	c, _ := start(t, bare)
 	g := ghport.New(c)
@@ -93,6 +94,7 @@ func TestThePortsIssueCallsAgainstTheStub(t *testing.T) {
 }
 
 func TestThePortsRepoAndLaneCallsAgainstTheStub(t *testing.T) {
+	t.Parallel()
 	bare, sha := fixture(t)
 	c, srv := start(t, bare)
 	g := ghport.New(c)
@@ -167,6 +169,7 @@ func TestThePortsRepoAndLaneCallsAgainstTheStub(t *testing.T) {
 // A fire reaches the routine route once, with the bearer the member's
 // secret holds; the route down answers 503.
 func TestTheRoutineRouteTakesTheFire(t *testing.T) {
+	t.Parallel()
 	bare, _ := fixture(t)
 	c, srv := start(t, bare)
 	g := ghport.New(c)
@@ -197,6 +200,7 @@ func TestTheRoutineRouteTakesTheFire(t *testing.T) {
 // tools read them, and its converge lands on the item as those tools
 // would write it.
 func TestTheStubAgentConvergesTheItem(t *testing.T) {
+	t.Parallel()
 	bare, _ := fixture(t)
 	dir := t.TempDir()
 	log := filepath.Join(dir, "agent.log")

@@ -13,6 +13,7 @@ import (
 )
 
 func TestOnlyAPolicyThatAuthorizesALandingEntersTheLane(t *testing.T) {
+	t.Parallel()
 	for _, c := range []struct {
 		policy any
 		want   bool
@@ -27,6 +28,7 @@ func TestOnlyAPolicyThatAuthorizesALandingEntersTheLane(t *testing.T) {
 // its merge base with the default branch, additions, edits and deletions
 // with the content on each side.
 func TestPullDiffReadsThePullRequestsOwnDiff(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	origin, work := filepath.Join(root, "origin.git"), filepath.Join(root, "work")
 	git := func(dir string, args ...string) string {
@@ -86,6 +88,7 @@ func TestPullDiffReadsThePullRequestsOwnDiff(t *testing.T) {
 // the surface execute.TaskEnv documents them writing through; nothing else
 // read from the environment gains it.
 func TestWorkStepsAreHandedTheJobToken(t *testing.T) {
+	t.Parallel()
 	job := map[string]string{"PATH": "/bin"}
 	got := workStepEnv(job, "ghs_job")
 	if got["GITHUB_TOKEN"] != "ghs_job" || got["PATH"] != "/bin" {

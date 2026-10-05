@@ -16,6 +16,7 @@ import (
 // A red main stops the update before the candidate is fetched, so a
 // candidate whose verify would pass is never run and never blamed.
 func TestARedMainIsNotBlamedOnVerify(t *testing.T) {
+	t.Parallel()
 	w := newWorld(t, settings.YAML)
 	ran := filepath.Join(t.TempDir(), "verify-ran")
 	w.publish(t, v2, relOpts{binary: cnScript(v2, "touch '"+ran+"'; exit 0", "")})
@@ -35,6 +36,7 @@ func TestARedMainIsNotBlamedOnVerify(t *testing.T) {
 // A verify break on a green main stops the update with the break printed
 // and no pull request, and the verdict blames the candidate, not CI.
 func TestAVerifyBreakOnAGreenMainIsNotBlamedOnCI(t *testing.T) {
+	t.Parallel()
 	w := newWorld(t, settings.YAML)
 	w.publish(t, v2, relOpts{binary: cnScript(v2, `echo "break member-workflows .github/workflows/claudinite-executor.yml: missing while the scheduler runs"; exit 1`, "")})
 	v, err := Engine(w.deps(t), Options{})

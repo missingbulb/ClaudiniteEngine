@@ -20,6 +20,7 @@ func gobuild(t *testing.T, out string, env ...string) (string, error) {
 // The rehearsal_break and devroots tags exist for the rehearsal only: a
 // release build refuses them, and any other tag.
 func TestTheRehearsalBreakTagIsRehearsalOnly(t *testing.T) {
+	t.Parallel()
 	out := filepath.Join(t.TempDir(), "cn")
 	for _, env := range [][]string{{"BUILD_TAGS=rehearsal_break"}, {"BUILD_TAGS=devroots"}, {"BUILD_TAGS=devroots,rehearsal_break"}, {"REHEARSAL=1", "BUILD_TAGS=other"}, {"REHEARSAL=1", "BUILD_TAGS=devroots,other"}, {"REHEARSAL=1", "BUILD_TAGS=rehearsal_break,other"}} {
 		if o, err := gobuild(t, out, env...); err == nil || !strings.Contains(o, "BUILD_TAGS") {

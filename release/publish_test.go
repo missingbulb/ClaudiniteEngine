@@ -52,6 +52,7 @@ func rcNames() []string {
 }
 
 func TestPublishDryRunPrintsOneLinePerTarball(t *testing.T) {
+	t.Parallel()
 	dist := fakeTarballs(t, "1.61001.1", rcNames()...)
 	out, err := runScript(t, []string{"DIST=" + dist, "VERSION=1.61001.1", "PATH=" + noNpmPath(t)}, "release/publish.sh", "--channel", "rc", "--dry-run")
 	if err != nil {
@@ -67,6 +68,7 @@ func TestPublishDryRunPrintsOneLinePerTarball(t *testing.T) {
 }
 
 func TestPublishDryRunCoversTheStableChannel(t *testing.T) {
+	t.Parallel()
 	var stable []string
 	for _, p := range Packages() {
 		if p.Channel == "stable" {
@@ -84,6 +86,7 @@ func TestPublishDryRunCoversTheStableChannel(t *testing.T) {
 }
 
 func TestPublishRefusesBeforePublishingAnything(t *testing.T) {
+	t.Parallel()
 	cases := map[string]struct {
 		channel string
 		dist    string
@@ -154,6 +157,7 @@ func readCalls(t *testing.T, log string) string {
 }
 
 func TestPublishOIDCRefusalPointsAtTheTrustedPublisher(t *testing.T) {
+	t.Parallel()
 	dist := fakeTarballs(t, "1.61001.1", rcNames()...)
 	path, log := fakeNpm(t)
 	out, err := runScript(t, []string{"DIST=" + dist, "VERSION=1.61001.1", "PATH=" + path}, "release/publish.sh", "--channel", "rc", "--auth", "oidc")
@@ -166,6 +170,7 @@ func TestPublishOIDCRefusalPointsAtTheTrustedPublisher(t *testing.T) {
 }
 
 func TestPublishRequiresAnAuthModeToPublish(t *testing.T) {
+	t.Parallel()
 	dist := fakeTarballs(t, "1.61001.1", rcNames()...)
 	for _, args := range [][]string{{"--channel", "rc"}, {"--channel", "rc", "--auth", "password"}} {
 		out, err := runScript(t, []string{"DIST=" + dist, "VERSION=1.61001.1", "PATH=" + noNpmPath(t)}, "release/publish.sh", args...)

@@ -11,6 +11,7 @@ import (
 // check sdk writes an SDK a pack repo's test module resolves offline by
 // adding the stanza beside it, and the fake engine drives a check there.
 func TestCheckSDKIsATestModulesReplaceTarget(t *testing.T) {
+	t.Parallel()
 	bin := buildCN(t, "")
 	dir := t.TempDir()
 	sdk := filepath.Join(dir, "sdk")
@@ -50,6 +51,7 @@ import (
 )
 
 func TestAcme(t *testing.T) {
+	t.Parallel()
 	f := &checksdk.Fake{ChangedFiles: []string{"a.md"}}
 	if got := Acme(f.Repo(t.TempDir())); len(got) != 1 || got[0].Path != "a.md" {
 		t.Fatalf("%+v", got)

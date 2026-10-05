@@ -76,6 +76,7 @@ func TestARefusedFleetSweepParksActionAndReadsNoMember(t *testing.T) {
 // A sweep reaches only the repos the entitled owner owns, and names each
 // other one; a list with none of them is refused whole.
 func TestASweepReachesOnlyTheEntitledOwnersRepos(t *testing.T) {
+	t.Parallel()
 	var errOut strings.Builder
 	s := &sweep{stderr: &errOut, entitled: entitlement.Verdict{Plan: "organization", OwnerLogin: "acme", OwnerID: 3}}
 	repo := func(full string, owner int64) fleet.Repo {
@@ -132,6 +133,7 @@ func TestTheWriteSweepsWithoutTheTokenSayWhatToGrant(t *testing.T) {
 
 // The member half's protocol test reads the constants as JSON.
 func TestFleetProtocolPrintsTheWorkListConstants(t *testing.T) {
+	t.Parallel()
 	out, errOut, code := runInProc([]string{"fleet", "protocol", "--json"}, "")
 	var p map[string]string
 	if code != 0 || json.Unmarshal([]byte(out), &p) != nil {
@@ -143,6 +145,7 @@ func TestFleetProtocolPrintsTheWorkListConstants(t *testing.T) {
 }
 
 func TestFleetTokenPrintsTheGrant(t *testing.T) {
+	t.Parallel()
 	out, _, code := runInProc([]string{"fleet", "token", "--sweep", "fleet-update"}, "")
 	if code != 0 || !strings.Contains(out, "FLEET_GITHUB_TOKEN must be granted: ") || !strings.Contains(out, "fleet-update uses: ") {
 		t.Fatalf("exit %d, out %q", code, out)
@@ -216,6 +219,7 @@ func TestATransientRefusalFailsTheSweepWithoutTheActionMarker(t *testing.T) {
 // A license client that cannot be built is the run's error, never an
 // unverified run.
 func TestALicenseClientThatCannotBeBuiltIsARunError(t *testing.T) {
+	t.Parallel()
 	was := licenseClient
 	defer func() { licenseClient = was }()
 	licenseClient = func() (*licenseapi.Client, error) {

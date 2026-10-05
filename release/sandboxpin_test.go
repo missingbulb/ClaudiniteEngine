@@ -9,6 +9,7 @@ import (
 )
 
 func TestSandboxPinWritesTheRehearsalFixture(t *testing.T) {
+	t.Parallel()
 	const ver = "1.60930.1"
 	pin := "sha512-" + strings.Repeat("A", 86) + "=="
 	sandbox := t.TempDir()

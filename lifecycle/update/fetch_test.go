@@ -23,6 +23,7 @@ func fetchIn(t *testing.T, r *registry, ver string) FetchInput {
 }
 
 func TestFetchPlacesTheVerifiedBinaryWhereTheLauncherLooks(t *testing.T) {
+	t.Parallel()
 	r := newRegistry(t)
 	r.publish(t, pkg, "1.60930.2", relOpts{})
 	in := fetchIn(t, r, "1.60930.2")
@@ -61,6 +62,7 @@ func TestFetchPlacesTheVerifiedBinaryWhereTheLauncherLooks(t *testing.T) {
 }
 
 func TestFetchRefuses(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name string
 		o    relOpts

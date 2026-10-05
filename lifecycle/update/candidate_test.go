@@ -17,6 +17,7 @@ func packument(deprecated map[string]string, versions ...string) *npmreg.Packume
 }
 
 func TestCandidate(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name       string
 		pin        string
@@ -55,6 +56,7 @@ func TestCandidate(t *testing.T) {
 }
 
 func TestStatesFromPackument(t *testing.T) {
+	t.Parallel()
 	s := StatesFromPackument(packument(map[string]string{"1.1.0": "held: a", "1.2.0": "revoked: b", "1.3.0": "other"}, "1.1.0", "1.2.0", "1.3.0", "1.4.0"))
 	if s.Held["1.1.0"] != "a" || s.Revoked["1.2.0"] != "b" || len(s.Held) != 1 || len(s.Revoked) != 1 {
 		t.Errorf("%+v", s)

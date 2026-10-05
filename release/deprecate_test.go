@@ -7,6 +7,7 @@ import (
 )
 
 func TestDeprecateCommands(t *testing.T) {
+	t.Parallel()
 	d, err := DeprecateCommands(DeprecateInput{Action: "hold", Version: "1.60930.3", Reason: "it's broken", RCVersions: `["0.0.0","1.60930.3"]`, StableVersions: `["0.0.0","1.60930.3"]`})
 	if err != nil || !d.Exists {
 		t.Fatalf("%+v %v", d, err)
@@ -34,6 +35,7 @@ func TestDeprecateCommands(t *testing.T) {
 // release lifts a hold or revocation: the same packages, an empty
 // message, no reason needed.
 func TestUndeprecateCommands(t *testing.T) {
+	t.Parallel()
 	d, err := DeprecateCommands(DeprecateInput{Action: "release", Version: "1.60930.3", RCVersions: `["1.60930.3"]`})
 	if err != nil || !d.Exists {
 		t.Fatalf("%+v %v", d, err)
@@ -43,6 +45,7 @@ func TestUndeprecateCommands(t *testing.T) {
 
 // A version npm does not have is not an error: nothing to hold.
 func TestDeprecateCommandsForAMissingVersion(t *testing.T) {
+	t.Parallel()
 	d, err := DeprecateCommands(DeprecateInput{Action: "hold", Version: "1.60930.9", Reason: "x", RCVersions: `["1.60930.3"]`})
 	if err != nil || d.Exists || len(d.Commands) != 0 || !strings.Contains(d.Notice, "1.60930.9") {
 		t.Errorf("%+v %v", d, err)
@@ -50,6 +53,7 @@ func TestDeprecateCommandsForAMissingVersion(t *testing.T) {
 }
 
 func TestDeprecateCommandsRefuses(t *testing.T) {
+	t.Parallel()
 	for name, in := range map[string]DeprecateInput{
 		"promote":        {Action: "promote", Version: "1.60930.3", Reason: "x"},
 		"no reason":      {Action: "hold", Version: "1.60930.3"},
@@ -64,6 +68,7 @@ func TestDeprecateCommandsRefuses(t *testing.T) {
 }
 
 func TestPromoteHasHoldAndRevoke(t *testing.T) {
+	t.Parallel()
 	raw, err := os.ReadFile("../.github/workflows/promote.yml")
 	if err != nil {
 		t.Fatal(err)

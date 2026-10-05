@@ -53,6 +53,7 @@ func tarballRepositoryURLs(t *testing.T, dist string) map[string]string {
 }
 
 func TestBuildNamesEveryTarballForItsChannel(t *testing.T) {
+	t.Parallel()
 	if testing.Short() {
 		t.Skip("builds two releases; the full run covers it")
 	}
