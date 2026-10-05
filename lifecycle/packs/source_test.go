@@ -322,36 +322,3 @@ func TestBranchSource(t *testing.T) {
 		t.Error("an absent repo answered")
 	}
 }
-
-func TestVerifiedIndexRefusesASerialBelowTheKeysFloor(t *testing.T) {
-	ix := indexJSON(3, "1.0")
-	src := &fakeSource{name: "cdn", pairs: []pair{{ix, signed(t, ix)}}}
-	r := newReader(&bytes.Buffer{}, src)
-	r.SerialFloor = 7
-	if _, err := r.VerifiedIndex("hello"); err == nil || !strings.Contains(err.Error(), "serial 3") || !strings.Contains(err.Error(), "license key's pack index serial 7") {
-		t.Errorf("%v", err)
-	}
-	src.calls = 0
-	r = newReader(&bytes.Buffer{}, src)
-	r.SerialFloor = 3
-	if _, err := r.VerifiedIndex("hello"); err != nil {
-		t.Errorf("at the floor: %v", err)
-	}
-}
-
-func TestVerifiedIndexRefusesAKeyTheLicenseKeyDoesNotList(t *testing.T) {
-	ix := indexJSON(3, "1.0")
-	src := &fakeSource{name: "cdn", pairs: []pair{{ix, signed(t, ix)}}}
-	id := sign.KeyID(packsKey.Public().(ed25519.PublicKey))
-	r := newReader(&bytes.Buffer{}, src)
-	r.AcceptedKeys = []string{"0123456789abcdef"}
-	if _, err := r.VerifiedIndex("hello"); err == nil || !strings.Contains(err.Error(), id) {
-		t.Errorf("%v", err)
-	}
-	src.calls = 0
-	r = newReader(&bytes.Buffer{}, src)
-	r.AcceptedKeys = []string{id}
-	if _, err := r.VerifiedIndex("hello"); err != nil {
-		t.Errorf("listed key: %v", err)
-	}
-}

@@ -60,10 +60,6 @@ type world struct {
 	bare string
 	out  *bytes.Buffer
 	f    settings.Format
-	// key is the Actions key the run gets; nil is an ok organization key.
-	key *KeyResult
-	// keyCalls counts the run's key requests.
-	keyCalls int
 }
 
 func newWorld(t *testing.T, f settings.Format) *world {
@@ -104,13 +100,7 @@ func (w *world) mainRun(t *testing.T, state string) {
 func (w *world) deps(t *testing.T) Deps {
 	return Deps{GitHub: w.hub, Registry: w.reg.client(), Git: gitcmd.Repo{Dir: w.repo}, Roots: rootsOf(testRoot),
 		CacheRoot: filepath.Join(t.TempDir(), "claudinite"), Platform: version.Platform(), Now: func() time.Time { return t0 },
-		Repo: w.repo, Out: w.out, Timeout: 10 * time.Second, Key: func() KeyResult {
-			w.keyCalls++
-			if w.key != nil {
-				return *w.key
-			}
-			return KeyResult{Key: &LicenseKey{Plan: "organization", State: "ok", IssuedAt: t0}}
-		}}
+		Repo: w.repo, Out: w.out, Timeout: 10 * time.Second}
 }
 
 func (w *world) publish(t *testing.T, ver string, o relOpts) {
@@ -456,7 +446,7 @@ func TestLandRefusesWhatIsNotAPinOnlyUpdatePR(t *testing.T) {
 // The verdict is the last stdout line and takes one of these forms; T9's
 // live steps and the workflow's summary read it.
 func TestVerdictForms(t *testing.T) {
-	want := []string{`^landed \S+$`, `^opened #\d+ for \S+$`, `^landed packs .+$`, `^opened #\d+ for packs .+$`, `^landed plan \S+$`, `^opened #\d+ for plan \S+$`, `^no PR: .+$`, `^skipped: .+$`, `^up to date$`}
+	want := []string{`^landed \S+$`, `^opened #\d+ for \S+$`, `^landed packs .+$`, `^opened #\d+ for packs .+$`, `^no PR: .+$`, `^skipped: .+$`, `^up to date$`}
 	if strings.Join(VerdictForms, " ") != strings.Join(want, " ") {
 		t.Errorf("forms %v", VerdictForms)
 	}

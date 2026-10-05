@@ -90,9 +90,6 @@ func Packs(d Deps, o Options) (string, error) {
 	if s := runState(latest(runs, "")); s != "success" {
 		return "skipped: main is not green (" + s + ")", nil
 	}
-	if _, skip, err := licenseGate(d); err != nil || skip != "" {
-		return skip, err
-	}
 	all, err := d.GitHub.OpenPulls()
 	if err != nil {
 		return "", err

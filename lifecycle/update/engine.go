@@ -71,9 +71,6 @@ type Deps struct {
 	Packs PackReader
 	// Exe is this cn, which runs check world over a pack branch.
 	Exe string
-	// Key requests the run's Actions license key; cmd/cn makes it once per
-	// process.
-	Key func() KeyResult
 }
 
 // Options are cn update engine's flags.
@@ -83,7 +80,7 @@ type Options struct {
 }
 
 // VerdictForms are the shapes of the line a run ends on.
-var VerdictForms = []string{`^landed \S+$`, `^opened #\d+ for \S+$`, `^landed packs .+$`, `^opened #\d+ for packs .+$`, `^landed plan \S+$`, `^opened #\d+ for plan \S+$`, `^no PR: .+$`, `^skipped: .+$`, `^up to date$`}
+var VerdictForms = []string{`^landed \S+$`, `^opened #\d+ for \S+$`, `^landed packs .+$`, `^opened #\d+ for packs .+$`, `^no PR: .+$`, `^skipped: .+$`, `^up to date$`}
 
 var verdictRes = func() []*regexp.Regexp {
 	var out []*regexp.Regexp
@@ -156,10 +153,6 @@ func Engine(d Deps, o Options) (string, error) {
 	if s := runState(latest(runs, "")); s != "success" {
 		return "skipped: main is not green (" + s + ")", nil
 	}
-	key, skip, err := licenseGate(d)
-	if err != nil || skip != "" {
-		return skip, err
-	}
 
 	all, err := d.GitHub.OpenPulls()
 	if err != nil {
@@ -189,9 +182,6 @@ func Engine(d Deps, o Options) (string, error) {
 			return Land(d, prev.Number, prev.HeadSHA)
 		}
 	}
-	if v, err := correctPlan(d, key, all); err != nil || v != "" {
-		return v, err
-	}
 
 	path, f, err := settings.Find(d.Repo)
 	if err != nil {
@@ -209,7 +199,7 @@ func Engine(d Deps, o Options) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	states := keyStates(key, p)
+	states := StatesFromPackument(p)
 	if prev != nil {
 		ver := strings.TrimPrefix(prev.HeadRef, BranchPrefix)
 		if why := pinRefusal(p, states, ver); why != "" {
@@ -397,8 +387,8 @@ func Land(d Deps, n int, sha string) (string, error) {
 		return "", fmt.Errorf("#%d is %s", n, pr.State)
 	case pr.Author != gitcmd.BotName:
 		return "", fmt.Errorf("#%d was opened by %s, not %s", n, pr.Author, gitcmd.BotName)
-	case !pr.HasLabel(Label) || (!strings.HasPrefix(pr.HeadRef, BranchPrefix) && !strings.HasPrefix(pr.HeadRef, PackBranchPrefix) && !strings.HasPrefix(pr.HeadRef, PlanBranchPrefix)):
-		return "", fmt.Errorf("#%d is not an update PR (label %s, branch %s*, %s* or %s*)", n, Label, BranchPrefix, PackBranchPrefix, PlanBranchPrefix)
+	case !pr.HasLabel(Label) || (!strings.HasPrefix(pr.HeadRef, BranchPrefix) && !strings.HasPrefix(pr.HeadRef, PackBranchPrefix)):
+		return "", fmt.Errorf("#%d is not an update PR (label %s, branch %s* or %s*)", n, Label, BranchPrefix, PackBranchPrefix)
 	case pr.BaseRef != mainBranch:
 		return "", fmt.Errorf("#%d targets %s, not %s", n, pr.BaseRef, mainBranch)
 	case pr.HeadSHA != sha:
@@ -413,9 +403,6 @@ func Land(d Deps, n int, sha string) (string, error) {
 	}
 	if strings.HasPrefix(pr.HeadRef, PackBranchPrefix) {
 		return landPacks(d, pr, sha)
-	}
-	if strings.HasPrefix(pr.HeadRef, PlanBranchPrefix) {
-		return landPlan(d, pr, sha)
 	}
 	base := remote + "/" + mainBranch
 	files, err := d.Git.ChangedFiles(base, sha)
