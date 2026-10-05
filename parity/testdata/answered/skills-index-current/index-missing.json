@@ -6,7 +6,10 @@
   },
   "cnShape": "v9-skills-index",
   "cnFiles": {
-    ".claudinite/flat/claudinite-skills.GENERATED.md": null
+    ".claudinite/cache/claudinite-rules.GENERATED.md": "@../shared/packs/basics/RULES.md\n",
+    ".claudinite/flat/claudinite-rules.GENERATED.md": null,
+    ".claudinite/flat/claudinite-skills.GENERATED.md": null,
+    "CLAUDE.md": "@.claudinite/cache/claudinite-rules.GENERATED.md\n"
   },
   "answeredBy": "skills-index-current",
   "nodeFires": true

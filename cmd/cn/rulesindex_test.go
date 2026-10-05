@@ -30,12 +30,22 @@ func TestRulesIndexCommand(t *testing.T) {
 	if out, _, code := runCN(t, bin, nil, "", "rules-index", "--repo", repo); code != 0 || !strings.Contains(out, "wrote") {
 		t.Errorf("write: exit %d %s", code, out)
 	}
-	raw, _ := os.ReadFile(filepath.Join(repo, ".claudinite/flat/claudinite-rules.GENERATED.md"))
+	raw, _ := os.ReadFile(filepath.Join(repo, ".claudinite/cache/claudinite-rules.GENERATED.md"))
 	if string(raw) != "@../shared/packs/hello/RULES.md\n" {
 		t.Errorf("%q", raw)
 	}
 	if out, _, code := runCN(t, bin, nil, "", "rules-index", "--check", "--repo", repo); code != 0 || !strings.Contains(out, "current") {
 		t.Errorf("current: exit %d %s", code, out)
+	}
+
+	// A member holding the index under the legacy directory: the command
+	// moves it and says which path went and which came.
+	if err := os.Rename(filepath.Join(repo, ".claudinite/cache"), filepath.Join(repo, ".claudinite/flat")); err != nil {
+		t.Fatal(err)
+	}
+	out, _, code := runCN(t, bin, nil, "", "rules-index", "--repo", repo)
+	if code != 0 || !strings.Contains(out, "removed .claudinite/flat/claudinite-rules.GENERATED.md\nwrote .claudinite/cache/claudinite-rules.GENERATED.md\n") {
+		t.Errorf("move: exit %d %s", code, out)
 	}
 }
 

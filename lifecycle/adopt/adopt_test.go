@@ -184,7 +184,7 @@ func TestInitAdoptsAnEmptyRepo(t *testing.T) {
 		t.Fatalf("%v\n%s", err, out)
 	}
 	want := []string{".claude/settings.json", ".claude/skills/.gitignore", ".claudinite/.gitignore",
-		".claudinite/flat/claudinite-rules.GENERATED.md", ".claudinite/flat/dashboard.GENERATED.json", ".claudinite/flat/member.GENERATED.json", ".claudinite/flat/tasks.GENERATED.json", ".claudinite/launch", ".claudinite/settings.yaml",
+		".claudinite/cache/claudinite-rules.GENERATED.md", ".claudinite/cache/dashboard.GENERATED.json", ".claudinite/cache/member.GENERATED.json", ".claudinite/cache/tasks.GENERATED.json", ".claudinite/launch", ".claudinite/settings.yaml",
 		".claudinite/shared/packs/base/RULES.md", ".claudinite/shared/packs/base/pack.json",
 		".claudinite/shared/packs/hello/RULES.md", ".claudinite/shared/packs/hello/pack.json",
 		".github/workflows/claudinite-ci.yml", ".github/workflows/claudinite-executor.yml", ".github/workflows/claudinite-scheduler.yml", "CLAUDE.md"}
@@ -195,10 +195,10 @@ func TestInitAdoptsAnEmptyRepo(t *testing.T) {
 	if !strings.Contains(string(sched), `cron: "`+workflows.SchedulerCron(filepath.Base(repo))+`"`) {
 		t.Errorf("a repo with no origin hashes its directory's name:\n%s", sched)
 	}
-	if idx, _ := os.ReadFile(filepath.Join(repo, ".claudinite/flat/claudinite-rules.GENERATED.md")); string(idx) != "@../shared/packs/base/RULES.md\n@../shared/packs/hello/RULES.md\n" {
+	if idx, _ := os.ReadFile(filepath.Join(repo, ".claudinite/cache/claudinite-rules.GENERATED.md")); string(idx) != "@../shared/packs/base/RULES.md\n@../shared/packs/hello/RULES.md\n" {
 		t.Errorf("index %q", idx)
 	}
-	if c, _ := os.ReadFile(filepath.Join(repo, "CLAUDE.md")); string(c) != "@.claudinite/flat/claudinite-rules.GENERATED.md\n" {
+	if c, _ := os.ReadFile(filepath.Join(repo, "CLAUDE.md")); string(c) != "@.claudinite/cache/claudinite-rules.GENERATED.md\n" {
 		t.Errorf("CLAUDE.md %q", c)
 	}
 	raw, _ := os.ReadFile(filepath.Join(repo, ".claudinite/settings.yaml"))
@@ -303,7 +303,7 @@ func TestAdoptDeclaresAndVendors(t *testing.T) {
 	if string(raw) != body+"    - hello\n" {
 		t.Errorf("%s", raw)
 	}
-	if got := listFiles(t, repo); strings.Join(got, " ") != ".claude/skills/.gitignore .claudinite/flat/claudinite-rules.GENERATED.md .claudinite/flat/dashboard.GENERATED.json .claudinite/flat/member.GENERATED.json .claudinite/flat/tasks.GENERATED.json .claudinite/settings.yaml .claudinite/shared/packs/hello/RULES.md .claudinite/shared/packs/hello/pack.json CLAUDE.md" {
+	if got := listFiles(t, repo); strings.Join(got, " ") != ".claude/skills/.gitignore .claudinite/cache/claudinite-rules.GENERATED.md .claudinite/cache/dashboard.GENERATED.json .claudinite/cache/member.GENERATED.json .claudinite/cache/tasks.GENERATED.json .claudinite/settings.yaml .claudinite/shared/packs/hello/RULES.md .claudinite/shared/packs/hello/pack.json CLAUDE.md" {
 		t.Errorf("%v", got)
 	}
 	if g, _ := os.ReadFile(filepath.Join(repo, ".claude/skills/.gitignore")); string(g) != "*\n!.gitignore\n" {

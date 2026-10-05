@@ -77,7 +77,7 @@ type UserPack interface {
 
 // MissingImport is SessionStart's line for a member whose CLAUDE.md does
 // not import the rules index, which leaves the session with no pack rules.
-const MissingImport = `[cn] rules not loaded: CLAUDE.md does not import .claudinite/flat/claudinite-rules.GENERATED.md; add the line "@.claudinite/flat/claudinite-rules.GENERATED.md"`
+const MissingImport = `[cn] rules not loaded: CLAUDE.md does not import .claudinite/cache/claudinite-rules.GENERATED.md; add the line "@.claudinite/cache/claudinite-rules.GENERATED.md"`
 
 // Handler answers hook events. A nil Checks runs no coded checks; a nil
 // Guards judges no call; a nil Index writes no rules index; a nil Growth captures nothing; a nil UserPack copies

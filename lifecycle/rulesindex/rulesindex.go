@@ -12,6 +12,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/missingbulb/ClaudiniteEngine/shared/flatdecl"
@@ -19,10 +20,16 @@ import (
 )
 
 // File is the index, relative to the repo root.
-const File = ".claudinite/flat/claudinite-rules.GENERATED.md"
+const File = flatdecl.Dir + "/claudinite-rules.GENERATED.md"
 
 // Import is the line the member's CLAUDE.md carries.
 const Import = "@" + File
+
+// LegacyImport is the line a CLAUDE.md carried while the index lived
+// under flatdecl.LegacyDir; Move repoints it.
+//
+// @legacy-tolerance advisory:rules-index-current retire:#94
+const LegacyImport = "@" + flatdecl.LegacyDir + "/claudinite-rules.GENERATED.md"
 
 // ClaudeMD is the member's memory file.
 const ClaudeMD = "CLAUDE.md"
@@ -44,7 +51,7 @@ func Imports(s packset.Set) []string {
 		if p.Kind == packset.Temp || p.ProsePath() == "" {
 			continue
 		}
-		rel, err := filepath.Rel(".claudinite/flat", filepath.FromSlash(path.Join(p.Rel, p.Prose)))
+		rel, err := filepath.Rel(filepath.FromSlash(flatdecl.Dir), filepath.FromSlash(path.Join(p.Rel, p.Prose)))
 		if err != nil {
 			continue
 		}
@@ -84,7 +91,8 @@ const (
 	Empty State = "empty"
 )
 
-// Check compares the index on disk with what the declaration produces.
+// Check compares the index on disk, where the repo holds it
+// (flatdecl.HeldIn), with what the declaration produces.
 func Check(repo, engine string) (State, string, error) {
 	want, err := Content(repo, engine)
 	if err != nil {
@@ -93,7 +101,7 @@ func Check(repo, engine string) (State, string, error) {
 	if want == "" {
 		return Empty, want, nil
 	}
-	have, err := os.ReadFile(filepath.Join(repo, filepath.FromSlash(File)))
+	have, err := os.ReadFile(filepath.Join(repo, filepath.FromSlash(flatdecl.HeldIn(repo, File))))
 	if errors.Is(err, os.ErrNotExist) {
 		return Absent, want, nil
 	}
@@ -106,37 +114,130 @@ func Check(repo, engine string) (State, string, error) {
 	return Current, want, nil
 }
 
-// Write writes the index when it changed, reporting whether it did. A
-// declaration with nothing to import leaves any file alone, as the Node
-// engine does: the packs may simply not be vendored yet.
+// Write writes the index, where the repo holds it, when it changed,
+// reporting whether it did. A declaration with nothing to import leaves
+// any file alone, as the Node engine does: the packs may simply not be
+// vendored yet.
 func Write(repo, engine string) (bool, error) {
 	st, want, err := Check(repo, engine)
 	if err != nil || st == Current || st == Empty {
 		return false, err
 	}
-	path := filepath.Join(repo, filepath.FromSlash(File))
+	path := filepath.Join(repo, filepath.FromSlash(flatdecl.HeldIn(repo, File)))
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return false, err
 	}
 	return true, os.WriteFile(path, []byte(want), 0o644)
 }
 
-// Converge writes the index, the skills index and the flat declarations beside it,
-// returning the paths written: the same pack set produces both, so every
+// Generated are the files cn generates for a member, every one under
+// flatdecl.Dir.
+func Generated() []string {
+	return append([]string{File, SkillsFile}, flatdecl.Files...)
+}
+
+// Move moves the generated files a member still holds under
+// flatdecl.LegacyDir to flatdecl.Dir, a file already there winning, and
+// repoints CLAUDE.md's import at the moved index, returning every path it
+// changed: each old path, each new one and CLAUDE.md.
+func Move(repo string) ([]string, error) {
+	var changed []string
+	for _, f := range Generated() {
+		old := flatdecl.LegacyPath(f)
+		from := filepath.Join(repo, filepath.FromSlash(old))
+		if _, err := os.Stat(from); errors.Is(err, os.ErrNotExist) {
+			continue
+		} else if err != nil {
+			return changed, err
+		}
+		to := filepath.Join(repo, filepath.FromSlash(f))
+		if _, err := os.Stat(to); err == nil {
+			if err := os.Remove(from); err != nil {
+				return changed, err
+			}
+			changed = append(changed, old)
+			continue
+		}
+		if err := os.MkdirAll(filepath.Dir(to), 0o755); err != nil {
+			return changed, err
+		}
+		if err := os.Rename(from, to); err != nil {
+			return changed, err
+		}
+		changed = append(changed, old, f)
+	}
+	// Removes the directory only when the move emptied it.
+	_ = os.Remove(filepath.Join(repo, filepath.FromSlash(flatdecl.LegacyDir)))
+	md := filepath.Join(repo, ClaudeMD)
+	raw, err := os.ReadFile(md)
+	if errors.Is(err, os.ErrNotExist) {
+		return changed, nil
+	}
+	if err != nil {
+		return changed, err
+	}
+	if moved := RepointImport(raw); !bytes.Equal(moved, raw) {
+		if err := os.WriteFile(md, moved, 0o644); err != nil {
+			return changed, err
+		}
+		changed = append(changed, ClaudeMD)
+	}
+	return changed, nil
+}
+
+// NeedsMove reports whether Move would change anything: a generated
+// file under flatdecl.LegacyDir, or a CLAUDE.md still carrying
+// LegacyImport.
+func NeedsMove(repo string) bool {
+	for _, f := range Generated() {
+		if _, err := os.Stat(filepath.Join(repo, filepath.FromSlash(flatdecl.LegacyPath(f)))); err == nil {
+			return true
+		}
+	}
+	raw, err := os.ReadFile(filepath.Join(repo, ClaudeMD))
+	return err == nil && !bytes.Equal(RepointImport(raw), raw)
+}
+
+// RepointImport is a CLAUDE.md's bytes with each LegacyImport line
+// replaced by the Import line, or dropped where the file already carries
+// Import; every other byte stays.
+func RepointImport(raw []byte) []byte {
+	lines := strings.SplitAfter(string(raw), "\n")
+	has := HasImportIn(raw)
+	var b strings.Builder
+	for _, l := range lines {
+		if strings.TrimSpace(l) != LegacyImport {
+			b.WriteString(l)
+			continue
+		}
+		if !has {
+			b.WriteString(strings.Replace(l, LegacyImport, Import, 1))
+			has = true
+		}
+	}
+	return []byte(b.String())
+}
+
+// Converge moves the generated files out of flatdecl.LegacyDir, then
+// writes the index, the skills index and the flat declarations beside it,
+// returning the paths changed: the same pack set produces both, so every
 // writer of one writes the other.
 func Converge(repo, engine string) ([]string, error) {
-	var written []string
+	written, err := Move(repo)
+	if err != nil {
+		return written, err
+	}
 	changed, err := Write(repo, engine)
 	if err != nil {
 		return nil, err
 	}
-	if changed {
+	if changed && !slices.Contains(written, File) {
 		written = append(written, File)
 	}
 	if changed, err = WriteSkills(repo, engine); err != nil {
 		return written, err
 	}
-	if changed {
+	if changed && !slices.Contains(written, SkillsFile) {
 		written = append(written, SkillsFile)
 	}
 	s, err := packset.Load(repo, engine, false)
@@ -144,7 +245,12 @@ func Converge(repo, engine string) ([]string, error) {
 		return written, err
 	}
 	flat, err := flatdecl.Write(repo, s.Packs)
-	return append(written, flat...), err
+	for _, f := range flat {
+		if !slices.Contains(written, f) {
+			written = append(written, f)
+		}
+	}
+	return written, err
 }
 
 // HasImport reports whether the repo's CLAUDE.md carries the import line on

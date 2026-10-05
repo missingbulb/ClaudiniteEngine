@@ -130,7 +130,7 @@ func guard(in Input) error {
 	// The member file restates the pin, so the engine update PR carries it.
 	others := 0
 	for _, c := range changed {
-		if c != flatdecl.MemberFile {
+		if c != flatdecl.MemberFile && c != flatdecl.LegacyPath(flatdecl.MemberFile) {
 			others++
 		}
 	}

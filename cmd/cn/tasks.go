@@ -108,7 +108,7 @@ func cmdTasksFlat(args []string, stdout io.Writer) error {
 		if _, ok := content[f]; !ok {
 			continue
 		}
-		have, err := os.ReadFile(filepath.Join(*repo, filepath.FromSlash(f)))
+		have, err := os.ReadFile(filepath.Join(*repo, filepath.FromSlash(flatdecl.HeldIn(*repo, f))))
 		if err != nil || string(have) != content[f] {
 			stale = append(stale, f)
 		}

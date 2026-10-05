@@ -162,18 +162,29 @@ const memberFlat = `{"version": 1, "settings": {"path": ".claudinite/settings.ya
 
 func TestFlatDeclarationsCurrent(t *testing.T) {
 	// No task anywhere: nothing to demand but the member file.
-	expect(t, repo{base: map[string]string{"a.txt": "a\n", ".claudinite/flat/member.GENERATED.json": memberFlat}}.run(t, "flat-declarations-current"))
+	expect(t, repo{base: map[string]string{"a.txt": "a\n", ".claudinite/cache/member.GENERATED.json": memberFlat}}.run(t, "flat-declarations-current"))
 	expect(t, repo{base: map[string]string{"a.txt": "a\n"}}.run(t, "flat-declarations-current"),
-		want{path: ".claudinite/flat/member.GENERATED.json", what: "is missing or unreadable$", fix: "cn tasks flat --write"})
+		want{path: ".claudinite/cache/member.GENERATED.json", what: "is missing or unreadable$", fix: "cn tasks flat --write"})
 	stale := strings.Replace(memberFlat, `"claudinite-growth": "1"`, `"claudinite-growth": "0.9"`, 1)
-	expect(t, repo{base: map[string]string{"a.txt": "a\n", ".claudinite/flat/member.GENERATED.json": stale}}.run(t, "flat-declarations-current"),
-		want{path: ".claudinite/flat/member.GENERATED.json", what: "no longer states what .claudinite/settings.yaml and the vendored pack manifests say$", fix: "cn tasks flat --write"})
+	expect(t, repo{base: map[string]string{"a.txt": "a\n", ".claudinite/cache/member.GENERATED.json": stale}}.run(t, "flat-declarations-current"),
+		want{path: ".claudinite/cache/member.GENERATED.json", what: "no longer states what .claudinite/settings.yaml and the vendored pack manifests say$", fix: "cn tasks flat --write"})
 
-	expect(t, repo{base: map[string]string{taskDir + "task.json": goodTask, ".claudinite/flat/member.GENERATED.json": memberFlat}}.run(t, "flat-declarations-current"),
-		want{path: ".claudinite/flat/tasks.GENERATED.json", what: "is missing or unreadable$", fix: "cn tasks flat --write"})
+	expect(t, repo{base: map[string]string{taskDir + "task.json": goodTask, ".claudinite/cache/member.GENERATED.json": memberFlat}}.run(t, "flat-declarations-current"),
+		want{path: ".claudinite/cache/tasks.GENERATED.json", what: "is missing or unreadable$", fix: "cn tasks flat --write"})
 
 	flat := "{\n  \"version\": 1,\n  \"tasks\": {\n    \"local/mypack/nightly\": {\n      \"path\": \"" + taskDir + "task.json\",\n      \"declaration\": {\"id\": \"nightly\"}\n    },\n    \"gone/x\": {\"path\": \"packs/gone/tasks/x/task.json\"}\n  }\n}\n"
-	expect(t, repo{base: map[string]string{taskDir + "task.json": goodTask, ".claudinite/flat/tasks.GENERATED.json": flat, ".claudinite/flat/member.GENERATED.json": memberFlat}}.run(t, "flat-declarations-current"),
+	expect(t, repo{base: map[string]string{taskDir + "task.json": goodTask, ".claudinite/cache/tasks.GENERATED.json": flat, ".claudinite/cache/member.GENERATED.json": memberFlat}}.run(t, "flat-declarations-current"),
+		want{path: ".claudinite/cache/tasks.GENERATED.json", what: "carries a copy of " + taskDir + "task.json that no longer matches it$"},
+		want{path: ".claudinite/cache/tasks.GENERATED.json", what: `names "gone/x" at packs/gone/tasks/x/task.json, which is not a file here$`})
+
+	// A member still holding the files under the legacy directory is
+	// judged there until a converge moves them.
+	expect(t, repo{base: map[string]string{taskDir + "task.json": goodTask, ".claudinite/flat/member.GENERATED.json": memberFlat}}.run(t, "flat-declarations-current"),
+		want{path: ".claudinite/cache/tasks.GENERATED.json", what: "is missing or unreadable$"})
+	legacyFlat := "{\n  \"version\": 1,\n  \"tasks\": {\n    \"local/mypack/nightly\": {\n      \"path\": \"" + taskDir + "task.json\",\n      \"declaration\": " + strings.TrimSpace(goodTask) + "\n    }\n  }\n}\n"
+	expect(t, repo{base: map[string]string{taskDir + "task.json": goodTask, ".claudinite/flat/tasks.GENERATED.json": legacyFlat, ".claudinite/flat/member.GENERATED.json": memberFlat}}.run(t, "flat-declarations-current"))
+	expect(t, repo{base: map[string]string{taskDir + "task.json": goodTask, ".claudinite/flat/tasks.GENERATED.json": flat, ".claudinite/flat/member.GENERATED.json": stale}}.run(t, "flat-declarations-current"),
+		want{path: ".claudinite/flat/member.GENERATED.json", what: "no longer states what"},
 		want{path: ".claudinite/flat/tasks.GENERATED.json", what: "carries a copy of " + taskDir + "task.json that no longer matches it$"},
 		want{path: ".claudinite/flat/tasks.GENERATED.json", what: `names "gone/x" at packs/gone/tasks/x/task.json, which is not a file here$`})
 }

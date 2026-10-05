@@ -25,6 +25,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/lifecycle/rulesindex"
 	"github.com/missingbulb/ClaudiniteEngine/shared/descriptor"
 	"github.com/missingbulb/ClaudiniteEngine/shared/findings"
+	"github.com/missingbulb/ClaudiniteEngine/shared/flatdecl"
 	"github.com/missingbulb/ClaudiniteEngine/shared/packset"
 	"github.com/missingbulb/ClaudiniteEngine/shared/provenance"
 	"github.com/missingbulb/ClaudiniteEngine/shared/settings"
@@ -644,14 +645,15 @@ func checkSkillsIndex(in Input) []findings.Finding {
 		return nil
 	}
 	const fix = "run `cn rules-index` and commit it"
-	text, err := os.ReadFile(filepath.Join(in.Repo, filepath.FromSlash(rulesindex.SkillsFile)))
+	file := flatdecl.HeldIn(in.Repo, rulesindex.SkillsFile)
+	text, err := os.ReadFile(filepath.Join(in.Repo, filepath.FromSlash(file)))
 	if err != nil {
-		return []findings.Finding{dep("skills-index-current", rulesindex.SkillsFile, "is missing, so nothing names which skill loads when; "+fix)}
+		return []findings.Finding{dep("skills-index-current", file, "is missing, so nothing names which skill loads when; "+fix)}
 	}
 	var out []findings.Finding
 	for _, name := range held {
 		if !strings.Contains(string(text), "`"+name+"`") {
-			out = append(out, brk("skills-index-current", rulesindex.SkillsFile, "does not name the skill "+name+", which a declared pack holds here; "+fix))
+			out = append(out, brk("skills-index-current", file, "does not name the skill "+name+", which a declared pack holds here; "+fix))
 		}
 	}
 	return out
@@ -659,21 +661,31 @@ func checkSkillsIndex(in Input) []findings.Finding {
 
 // checkRulesIndex breaks when the rules index differs from what the
 // declaration produces; an absent index is a deprecation until the rules
-// channel's live measurement makes it a break.
+// channel's live measurement makes it a break. Generated files still
+// under flatdecl.LegacyDir, or a CLAUDE.md importing the index there, are
+// a deprecation, and an index held only there is judged where it is.
 func checkRulesIndex(in Input) []findings.Finding {
 	if _, _, err := settings.Find(in.Repo); err != nil {
 		return nil
 	}
+	var out []findings.Finding
+	if rulesindex.NeedsMove(in.Repo) {
+		const move = "; the next pack update moves them and repoints the import, or run `cn rules-index` and commit the result"
+		if st, err := os.Stat(filepath.Join(in.Repo, filepath.FromSlash(flatdecl.LegacyDir))); err == nil && st.IsDir() {
+			out = append(out, dep("rules-index-current", flatdecl.LegacyDir, "holds the files cn generates at their directory from before "+flatdecl.Dir+"/, which nothing writes any more"+move))
+		} else {
+			out = append(out, dep("rules-index-current", rulesindex.ClaudeMD, "imports the rules index at its path from before "+flatdecl.Dir+"/, which nothing writes any more"+move))
+		}
+	}
 	st, _, err := rulesindex.Check(in.Repo, pinOf(in))
 	switch {
 	case err != nil:
-		return nil
 	case st == rulesindex.Stale:
-		return []findings.Finding{brk("rules-index-current", rulesindex.File, "is not the import index the declared packs produce, so sessions read another set of rules; run `cn rules-index` and commit it")}
+		out = append(out, brk("rules-index-current", flatdecl.HeldIn(in.Repo, rulesindex.File), "is not the import index the declared packs produce, so sessions read another set of rules; run `cn rules-index` and commit it"))
 	case st == rulesindex.Absent:
-		return []findings.Finding{dep("rules-index-current", rulesindex.File, "is missing, so no session reads the declared packs' rules; run `cn rules-index` and commit it")}
+		out = append(out, dep("rules-index-current", rulesindex.File, "is missing, so no session reads the declared packs' rules; run `cn rules-index` and commit it"))
 	}
-	return nil
+	return out
 }
 
 // checkClaudeMDImport deprecates a CLAUDE.md without the index's import
@@ -686,6 +698,10 @@ func checkClaudeMDImport(in Input) []findings.Finding {
 		return nil
 	}
 	if rulesindex.HasImport(in.Repo) {
+		return nil
+	}
+	if raw, err := os.ReadFile(filepath.Join(in.Repo, rulesindex.ClaudeMD)); err == nil && !bytes.Equal(rulesindex.RepointImport(raw), raw) {
+		// rules-index-current names the move.
 		return nil
 	}
 	return []findings.Finding{dep("claude-md-import", rulesindex.ClaudeMD, "does not import "+rulesindex.File+" on a line of its own, so sessions never read the declared packs' rules; add the line `"+rulesindex.Import+"`")}

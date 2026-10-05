@@ -1,9 +1,12 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 
 	"github.com/missingbulb/ClaudiniteEngine/lifecycle/rulesindex"
 	"github.com/missingbulb/ClaudiniteEngine/shared/report"
@@ -48,7 +51,11 @@ func cmdRulesIndex(args []string, stdout io.Writer) error {
 		return report.New(report.IO, err.Error())
 	}
 	for _, f := range written {
-		fmt.Fprintf(stdout, "wrote %s\n", f)
+		verb := "wrote"
+		if _, err := os.Stat(filepath.Join(*repo, filepath.FromSlash(f))); errors.Is(err, os.ErrNotExist) {
+			verb = "removed"
+		}
+		fmt.Fprintf(stdout, "%s %s\n", verb, f)
 	}
 	if len(written) == 0 {
 		fmt.Fprintf(stdout, "%s already current\n", rulesindex.File)

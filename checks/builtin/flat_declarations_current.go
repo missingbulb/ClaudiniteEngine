@@ -77,17 +77,18 @@ func memberFileCurrent(ctx *declared.Ctx) []findings.Finding {
 	if err != nil {
 		return nil
 	}
+	file := flatdecl.Held(flatdecl.MemberFile, ctx.Exists)
 	flag := func(what string) []findings.Finding {
-		return []findings.Finding{flatDeclarationsCurrent.Finding(flatdecl.MemberFile, 0, what, regenerate)}
+		return []findings.Finding{flatDeclarationsCurrent.Finding(file, 0, what, regenerate)}
 	}
-	text, ok := ctx.Read(flatdecl.MemberFile)
+	text, ok := ctx.Read(file)
 	if !ok {
-		return flag(flatdecl.MemberFile + " is missing or unreadable")
+		return flag(file + " is missing or unreadable")
 	}
 	have, herr := jsjson.Decode([]byte(text))
 	wantDoc, _ := jsjson.Decode([]byte(want))
 	if herr != nil || !sameJSON(&have, &wantDoc) {
-		return flag(flatdecl.MemberFile + " no longer states what " + ctx.Config.SettingsPath + " and the vendored pack manifests say")
+		return flag(file + " no longer states what " + ctx.Config.SettingsPath + " and the vendored pack manifests say")
 	}
 	return nil
 }
@@ -132,20 +133,21 @@ func runFlatDeclarationsCurrent(ctx *declared.Ctx, _ *transcript.Session) []find
 		if len(held[i].names) == 0 {
 			continue
 		}
-		flag := func(what string) { out = append(out, flatDeclarationsCurrent.Finding(s.file, 0, what, regenerate)) }
+		file := flatdecl.Held(s.file, ctx.Exists)
+		flag := func(what string) { out = append(out, flatDeclarationsCurrent.Finding(file, 0, what, regenerate)) }
 		var flat jsjson.Value
-		if text, ok := ctx.Read(s.file); ok {
+		if text, ok := ctx.Read(file); ok {
 			if doc, err := jsjson.Decode([]byte(text)); err == nil {
 				flat, _ = doc.Prop(s.key)
 			}
 		}
 		if flat.Kind != jsjson.Object && flat.Kind != jsjson.Array || !flat.Truthy() {
-			flag(s.file + " is missing or unreadable")
+			flag(file + " is missing or unreadable")
 			continue
 		}
 		for _, name := range held[i].names {
 			if v, ok := flat.Prop(name); !ok || !v.Truthy() {
-				flag(held[i].path[name] + " is not in " + s.file)
+				flag(held[i].path[name] + " is not in " + file)
 			}
 		}
 		for _, name := range flat.Keys {
@@ -156,13 +158,13 @@ func runFlatDeclarationsCurrent(ctx *declared.Ctx, _ *transcript.Session) []find
 				if isStr {
 					shown = textOf(path)
 				}
-				flag(s.file + ` names "` + name + `" at ` + shown + ", which is not a file here")
+				flag(file + ` names "` + name + `" at ` + shown + ", which is not a file here")
 				continue
 			}
 			raw, _ := ctx.Read(path.Str)
 			want := flatdecl.Entry(path.Str, []byte(raw))
 			if !sameJSON(declarationOrText(have), declarationOrText(want)) {
-				flag(s.file + " carries a copy of " + path.Str + " that no longer matches it")
+				flag(file + " carries a copy of " + path.Str + " that no longer matches it")
 			}
 		}
 	}

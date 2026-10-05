@@ -8,6 +8,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/missingbulb/ClaudiniteEngine/shared/flatdecl"
 	"github.com/missingbulb/ClaudiniteEngine/shared/packset"
 	"github.com/missingbulb/ClaudiniteEngine/shared/skillfm"
 )
@@ -16,7 +17,7 @@ import (
 // the active packs bundle and what loads it. CLAUDE.md does not import
 // it; the harness already carries each mounted skill's description. The
 // bytes are the Node engine's generate-skills-index.mjs's.
-const SkillsFile = ".claudinite/flat/claudinite-skills.GENERATED.md"
+const SkillsFile = flatdecl.Dir + "/claudinite-skills.GENERATED.md"
 
 // SkillRow is one mounted skill.
 type SkillRow struct {

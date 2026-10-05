@@ -494,7 +494,7 @@ for mode in $modes; do
       printf 'packs:\n  declared:\n    - hello\n' >> "$member/.claudinite/settings.yaml"
       (cd "$member" && git init -q -b main) || fail "update: git init"
       (cd "$member" && sh .claudinite/launch rules-index) > "$work/index.out" 2>&1 || fail "update: rules-index: $(cat "$work/index.out")"
-      grep -q '"hello": "1.0"' "$member/.claudinite/flat/member.GENERATED.json" || fail "update: rules-index wrote no member file holding hello"
+      grep -q '"hello": "1.0"' "$member/.claudinite/cache/member.GENERATED.json" || fail "update: rules-index wrote no member file holding hello"
       (cd "$member" && git add -A && git -c user.name=rehearse -c user.email=r@x commit -q -m adopt) || fail "update: git setup"
       github_origin "$origin"
       (cd "$member" && git push -q origin main) || fail "update: push"
@@ -518,9 +518,9 @@ for mode in $modes; do
       update_engine
       expect_verdict "opened #1 for $next"
       [ "$(git --git-dir "$origin" rev-list --count "main..$branch")" = 1 ] || fail "update 1: $branch is not one commit on main"
-      [ "$(git --git-dir "$origin" diff --name-only main "$branch" | tr '\n' ' ')" = ".claudinite/flat/member.GENERATED.json .claudinite/settings.yaml " ] \
+      [ "$(git --git-dir "$origin" diff --name-only main "$branch" | tr '\n' ' ')" = ".claudinite/cache/member.GENERATED.json .claudinite/settings.yaml " ] \
         || fail "update 1: the branch changes more than the pin and the member file: $(git --git-dir "$origin" diff --name-only main "$branch")"
-      git --git-dir "$origin" show "$branch:.claudinite/flat/member.GENERATED.json" | grep -q "\"version\": \"$next\"" || fail "update 1: the member file does not state $next"
+      git --git-dir "$origin" show "$branch:.claudinite/cache/member.GENERATED.json" | grep -q "\"version\": \"$next\"" || fail "update 1: the member file does not state $next"
       [ "$(gh_count 'st.dispatches.filter(d=>d.ref==="'"$branch"'"&&d.inputs.pr==="1").length')" = 1 ] || fail "update 1: dispatches $(gh_state)"
       # The candidate's verify ran in this checkout: the token reached the
       # push child alone, never the checkout's config.
@@ -545,7 +545,7 @@ for mode in $modes; do
       [ "$(gh_count 'st.dispatches.filter(d=>d.ref==="main").length')" = 1 ] || fail "update 3: no dispatch on main: $(gh_state)"
       (cd "$member" && git fetch -q origin && git reset -q --hard origin/main) || fail "update 3: pull"
       grep -q "version: \"$next\"" "$member/.claudinite/settings.yaml" || fail "update 3: main does not pin $next"
-      grep -q "\"version\": \"$next\"" "$member/.claudinite/flat/member.GENERATED.json" || fail "update 3: main's member file does not state $next"
+      grep -q "\"version\": \"$next\"" "$member/.claudinite/cache/member.GENERATED.json" || fail "update 3: main's member file does not state $next"
       if grep -q '^license:' "$member/.claudinite/settings.yaml"; then fail "update 3: main kept the retired license block"; fi
       grep -q '^  declared:$' "$member/.claudinite/settings.yaml" || fail "update 3: dropping the license block took the packs block: $(cat "$member/.claudinite/settings.yaml")"
       step "update 3: $verdict, the member file beside the pin, the retired license block dropped"
@@ -730,7 +730,7 @@ for mode in $modes; do
       step "packs init: cn init asks for no license and writes no license block"
 
       out=$(session_start) || fail "packs 2: SessionStart exited non-zero"
-      index=$member/.claudinite/flat/claudinite-rules.GENERATED.md
+      index=$member/.claudinite/cache/claudinite-rules.GENERATED.md
       [ "$(cat "$index" 2>/dev/null)" = "@../shared/packs/hello/RULES.md" ] || fail "packs 2: the rules index does not import hello's rules: $(cat "$index" 2>&1)"
       grep -q '^# hello 1.0$' "$member/.claudinite/shared/packs/hello/RULES.md" || fail "packs 2: hello's rules are not 1.0's"
       case $out in *"# hello 1.0"*) fail "packs 2: the pack's rules reached additionalContext: $out" ;; esac
@@ -790,10 +790,10 @@ for mode in $modes; do
       main_run success
       update_packs
       expect_verdict "opened #1 for packs hello 1.4"
-      if git --git-dir "$origin" diff --name-only main "$branch" | grep -v '^CLAUDE\.md$' | grep -Ev '^\.claudinite/flat/(claudinite-skills\.GENERATED\.md|(tasks|dashboard|member)\.GENERATED\.json)$' | grep -qv '^\.claudinite/shared/packs/hello/'; then fail "packs 5: the branch changes more than the hello pack, the skills index, the flat files and CLAUDE.md"; fi
-      git --git-dir "$origin" show "$branch:.claudinite/flat/member.GENERATED.json" | grep -q '"hello": "1.4"' || fail "packs 5: the member file does not hold hello 1.4: $(git --git-dir "$origin" show "$branch:.claudinite/flat/member.GENERATED.json" 2>&1)"
-      git --git-dir "$origin" show "$branch:.claudinite/flat/claudinite-skills.GENERATED.md" | grep -q hello-guide || fail "packs 5: the branch's skills index does not name hello-guide"
-      [ "$(git --git-dir "$origin" show "$branch:CLAUDE.md")" = "$(printf '# Member\n@.claudinite/flat/claudinite-rules.GENERATED.md')" ] || fail "packs 5: the branch's CLAUDE.md: $(git --git-dir "$origin" show "$branch:CLAUDE.md")"
+      if git --git-dir "$origin" diff --name-only main "$branch" | grep -v '^CLAUDE\.md$' | grep -Ev '^\.claudinite/cache/(claudinite-skills\.GENERATED\.md|(tasks|dashboard|member)\.GENERATED\.json)$' | grep -qv '^\.claudinite/shared/packs/hello/'; then fail "packs 5: the branch changes more than the hello pack, the skills index, the flat files and CLAUDE.md"; fi
+      git --git-dir "$origin" show "$branch:.claudinite/cache/member.GENERATED.json" | grep -q '"hello": "1.4"' || fail "packs 5: the member file does not hold hello 1.4: $(git --git-dir "$origin" show "$branch:.claudinite/cache/member.GENERATED.json" 2>&1)"
+      git --git-dir "$origin" show "$branch:.claudinite/cache/claudinite-skills.GENERATED.md" | grep -q hello-guide || fail "packs 5: the branch's skills index does not name hello-guide"
+      [ "$(git --git-dir "$origin" show "$branch:CLAUDE.md")" = "$(printf '# Member\n@.claudinite/cache/claudinite-rules.GENERATED.md')" ] || fail "packs 5: the branch's CLAUDE.md: $(git --git-dir "$origin" show "$branch:CLAUDE.md")"
       [ "$(gh_count 'st.dispatches.filter(d=>d.ref==="'"$branch"'"&&d.inputs.pr==="1").length')" = 1 ] || fail "packs 5: dispatches $(gh_state)"
       head=$(git --git-dir "$origin" rev-parse "$branch")
       (cd "$member" && git fetch -q origin && git checkout -q "$head") || fail "packs 5: checkout"
@@ -1361,7 +1361,7 @@ GO
       done
       [ ! -e "$fresh/.github/workflows/claudinite-update.yml" ] || fail "tasks 10: init wrote the superseded update workflow"
       for f in tasks.GENERATED.json dashboard.GENERATED.json member.GENERATED.json; do
-        [ -f "$fresh/.claudinite/flat/$f" ] || fail "tasks 10: init wrote no $f"
+        [ -f "$fresh/.claudinite/cache/$f" ] || fail "tasks 10: init wrote no $f"
       done
       sed 's/once a day after any commit/once a day after a commit/' "$work/task.json" > "$decl"
       if cn_member check world > "$work/world.out" 2>&1; then fail "tasks 10: check world passed a stale flat file"; fi
@@ -1546,7 +1546,7 @@ packs:
 YAML
       # The rules index and its import, as init writes them.
       (cd "$member" && .claudinite/bin/cn rules-index) > "$work/index.out" 2>&1 || fail "growth: rules-index: $(cat "$work/index.out")"
-      printf '@.claudinite/flat/claudinite-rules.GENERATED.md\n' > "$member/CLAUDE.md"
+      printf '@.claudinite/cache/claudinite-rules.GENERATED.md\n' > "$member/CLAUDE.md"
       origin=$work/growth-origin.git
       git init -q --bare -b main "$origin"
       gitc() { (cd "$member" && git -c user.name=rehearse -c user.email=r@x -c commit.gpgsign=false "$@"); }
@@ -1614,7 +1614,7 @@ YAML
 
       cn_member pack new acme --belongs "acme's own conventions" > "$work/pack.out" 2>&1 || fail "growth 6: pack new: $(cat "$work/pack.out")"
       grep -q "^declared local/acme in .claudinite/settings.yaml$" "$work/pack.out" || fail "growth 6: pack new said $(cat "$work/pack.out")"
-      grep -q "^wrote .claudinite/flat/claudinite-rules.GENERATED.md$" "$work/pack.out" || fail "growth 6: pack new did not converge the rules index: $(cat "$work/pack.out")"
+      grep -q "^wrote .claudinite/cache/claudinite-rules.GENERATED.md$" "$work/pack.out" || fail "growth 6: pack new did not converge the rules index: $(cat "$work/pack.out")"
       verify_out=$(cd "$member" && .claudinite/bin/cn verify) || fail "growth 6: verify: $verify_out"
       [ -z "$verify_out" ] || fail "growth 6: verify reported: $verify_out"
       cn_member provenance check acme > "$work/prov.out" 2>&1 || fail "growth 6: provenance check: $(cat "$work/prov.out")"
@@ -1771,7 +1771,7 @@ YAML
       sh release/dashboard-fixture.sh member "$member" "$version" || fail "dashboard: member fixture"
       (cd "$member" && git init -q -b main && git add -A && git -c user.name=rehearse -c user.email=r@x -c commit.gpgsign=false commit -q -m adopt) \
         || fail "dashboard: git setup"
-      flat=$member/.claudinite/flat
+      flat=$member/.claudinite/cache
       # json FILE EXPR: a value read from a JSON file with node.
       json() { node -e 'const st=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));process.stdout.write(String(eval(process.argv[2])))' "$1" "$2"; }
 
@@ -1887,8 +1887,8 @@ YAML
         "$work/pack.json" "$dash/pack.json" || fail "dashboard 7: the manifest"
       cp "$work/dashboard.json" "$dash/dashboard.json"
       cn_member tasks flat --write > "$work/flat.out" 2>&1 || fail "dashboard 7: tasks flat --write: $(cat "$work/flat.out")"
-      [ "$(json "$member/.claudinite/flat/member.GENERATED.json" 'JSON.stringify(st.packs.declared.find(e=>e.id==="claudinite-dashboard").config)')" = '{"mode":"fleet","owner":"acme"}' ] \
-        || fail "dashboard 7: the member file: $(cat "$member/.claudinite/flat/member.GENERATED.json")"
+      [ "$(json "$member/.claudinite/cache/member.GENERATED.json" 'JSON.stringify(st.packs.declared.find(e=>e.id==="claudinite-dashboard").config)')" = '{"mode":"fleet","owner":"acme"}' ] \
+        || fail "dashboard 7: the member file: $(cat "$member/.claudinite/cache/member.GENERATED.json")"
       (cd "$member" && git add -A && git -c user.name=rehearse -c user.email=r@x -c commit.gpgsign=false commit -q -m "the dashboard pack" \
         && git -c push.negotiate=false push -q origin main) || fail "dashboard 7: git"
       GITHUB_API_URL=$gh NODE_EXTRA_CA_CERTS=$work/cas.pem
@@ -1953,8 +1953,8 @@ YAML
         [ "$(livejson "$work/live-catalog.json" 'st.packs.filter(e=>e.id==="'"$p"'"&&e.version==="'"$v"'").length')" -ge 1 ] \
           || fail "live-packs 1: $p $v is not in the live catalog"
       done
-      grep -qx '@.claudinite/flat/claudinite-rules.GENERATED.md' "$member/CLAUDE.md" || fail "live-packs 1: CLAUDE.md imports no rules index: $(cat "$member/CLAUDE.md")"
-      grep -q '^@../shared/packs/basics/RULES.md$' "$member/.claudinite/flat/claudinite-rules.GENERATED.md" || fail "live-packs 1: the rules index: $(cat "$member/.claudinite/flat/claudinite-rules.GENERATED.md")"
+      grep -qx '@.claudinite/cache/claudinite-rules.GENERATED.md' "$member/CLAUDE.md" || fail "live-packs 1: CLAUDE.md imports no rules index: $(cat "$member/CLAUDE.md")"
+      grep -q '^@../shared/packs/basics/RULES.md$' "$member/.claudinite/cache/claudinite-rules.GENERATED.md" || fail "live-packs 1: the rules index: $(cat "$member/.claudinite/cache/claudinite-rules.GENERATED.md")"
       verify_out=$(cd "$member" && sh .claudinite/launch verify) || fail "live-packs 1: verify: $verify_out"
       [ -z "$verify_out" ] || fail "live-packs 1: verify reported: $verify_out"
       (cd "$member" && git init -q -b main && git add -A && git -c user.name=rehearse -c user.email=r@x -c commit.gpgsign=false commit -q -m adopt) \

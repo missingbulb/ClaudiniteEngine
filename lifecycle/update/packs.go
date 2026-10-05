@@ -8,6 +8,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -163,9 +164,13 @@ func Packs(d Deps, o Options) (string, error) {
 const IndexTitle = "claudinite: rules index"
 
 // indexNeedsPR reports whether the member's rules index is stale or
-// absent, or CLAUDE.md lacks the import of an index that imports prose:
+// absent, or CLAUDE.md lacks the import of an index that imports prose,
+// or the generated files are still to move out of the legacy directory:
 // what a pack PR converges even when no pack moves.
 func indexNeedsPR(repo string) (bool, error) {
+	if rulesindex.NeedsMove(repo) {
+		return true, nil
+	}
 	st, _, err := rulesindex.Check(repo, pinVersion(repo))
 	if err != nil {
 		return false, err
@@ -361,7 +366,7 @@ func flatRendered(g gitcmd.Repo, sha, file string) error {
 	if err != nil {
 		return err
 	}
-	want, rendered := content[file]
+	want, rendered := content[flatdecl.Canonical(file)]
 	switch {
 	case !ok && rendered:
 		return errors.New("is removed while the packs render it")
@@ -439,6 +444,11 @@ func openPackPR(d Deps, o Options, moves []move, prev *githubapi.PR) (string, er
 	}
 	var rels []string
 	err = func() error {
+		moved, err := rulesindex.Move(d.Repo)
+		if err != nil {
+			return err
+		}
+		rels = append(rels, moved...)
 		for _, m := range moves {
 			if err := packs.Unpack(m.archive, packset.Tree(d.Repo, m.id)); err != nil {
 				return err
@@ -472,7 +482,8 @@ func openPackPR(d Deps, o Options, moves []move, prev *githubapi.PR) (string, er
 				rels = append(rels, rulesindex.ClaudeMD)
 			}
 		}
-		return d.Git.Commit(title, rels...)
+		slices.Sort(rels)
+		return d.Git.Commit(title, slices.Compact(rels)...)
 	}()
 	checkOut, failed := "", false
 	if err == nil && !o.Force {
@@ -506,6 +517,12 @@ func openPackPR(d Deps, o Options, moves []move, prev *githubapi.PR) (string, er
 
 	var b strings.Builder
 	fmt.Fprintf(&b, "Moves this repo's vendored Claudinite packs. Only `%s/`, the rules index `%s` and the skills index `%s` change, and `%s` gains the line importing the rules index when it lacks it.\n\n", packset.Dir, rulesindex.File, rulesindex.SkillsFile, rulesindex.ClaudeMD)
+	for _, r := range rels {
+		if strings.HasPrefix(r, flatdecl.LegacyDir+"/") {
+			fmt.Fprintf(&b, "It also moves the generated files out of `%s/` into `%s/`, where this engine writes them, and repoints the import line in `%s`.\n\n", flatdecl.LegacyDir, flatdecl.Dir, rulesindex.ClaudeMD)
+			break
+		}
+	}
 	if len(moves) == 0 {
 		b.WriteString("No pack moves: the rules index or the import had fallen behind the packs this repo already holds.\n\n")
 	} else {
@@ -555,8 +572,9 @@ func openPackPR(d Deps, o Options, moves []move, prev *githubapi.PR) (string, er
 }
 
 // onlyAppendsImport refuses a CLAUDE.md on sha that is anything but
-// base's with the rules index import appended, so a pack PR cannot carry
-// other text into every session through it.
+// base's with the rules index import appended, or with its legacy import
+// line repointed, so a pack PR cannot carry other text into every session
+// through it.
 func onlyAppendsImport(g gitcmd.Repo, base, sha string) error {
 	old, had, err := g.Show(base, rulesindex.ClaudeMD)
 	if err != nil {
@@ -566,7 +584,14 @@ func onlyAppendsImport(g gitcmd.Repo, base, sha string) error {
 	if err != nil {
 		return err
 	}
-	if !has || (had && rulesindex.HasImportIn(old)) || !bytes.Equal(cur, rulesindex.WithImport(old)) {
+	if !has {
+		return errors.New("changes more than appending the rules index import")
+	}
+	repointed := rulesindex.RepointImport(old)
+	if had && !bytes.Equal(repointed, old) && bytes.Equal(cur, repointed) {
+		return nil
+	}
+	if (had && rulesindex.HasImportIn(repointed)) || !bytes.Equal(cur, rulesindex.WithImport(repointed)) {
 		return errors.New("changes more than appending the rules index import")
 	}
 	return nil
@@ -592,6 +617,14 @@ func landPacks(d Deps, pr githubapi.PR, sha string) (string, error) {
 	for _, f := range files {
 		if !IsConvergeBookkeeping(f) {
 			return "", fmt.Errorf("#%d changes %s, which no pack update writes", pr.Number, f)
+		}
+		if strings.HasPrefix(f, flatdecl.LegacyDir+"/") {
+			if _, ok, err := d.Git.Show(sha, f); err != nil {
+				return "", err
+			} else if ok {
+				return "", fmt.Errorf("#%d writes %s, under %s/, which a pack update only empties", pr.Number, f, flatdecl.LegacyDir)
+			}
+			continue
 		}
 		if f == rulesindex.File {
 			idx, ok, err := d.Git.Show(sha, f)
