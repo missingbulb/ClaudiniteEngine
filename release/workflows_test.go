@@ -165,10 +165,10 @@ func TestReleaseTakesAKind(t *testing.T) {
 	}
 }
 
-// The hop and the smoke run beside each other, straight after the build;
-// the publish job, which signs, waits for both, so nothing unproven is
-// signed or published. A staging build skips the hop, and only a staging
-// build may.
+// The build job tests initial adoption on its own dist; the hop runs
+// straight after it; the publish job, which signs, waits for both, so
+// nothing unproven is signed or published, and tags the commit itself. A
+// staging build skips the hop, and only a staging build may.
 func TestReleaseGatesThePublish(t *testing.T) {
 	const wf = "../.github/workflows/release.yml"
 	hop := jobBlock(t, wf, "hop")
@@ -185,17 +185,23 @@ func TestReleaseGatesThePublish(t *testing.T) {
 			t.Errorf("the hop job has %q", not)
 		}
 	}
-	if jobBlock(t, wf, "sign") != "" {
-		t.Error("release.yml still has a sign job apart from publish")
+	for _, gone := range []string{"sign", "smoke", "tag"} {
+		if jobBlock(t, wf, gone) != "" {
+			t.Errorf("release.yml still has a %s job of its own", gone)
+		}
+	}
+	build := jobBlock(t, wf, "build")
+	if !strings.Contains(build, "release/smoke-platform.sh --registry") || strings.Index(build, "release/smoke-platform.sh") > strings.Index(build, "upload-artifact") {
+		t.Errorf("the build job does not test initial adoption before it uploads the dist:\n%s", build)
 	}
 	publish := jobBlock(t, wf, "publish")
 	for _, want := range []string{
-		"    needs: [build, smoke, hop]\n",
+		"    needs: [build, hop]\n",
 		"    environment: release\n",
 		"      id-token: write\n",
 		"!cancelled()",
 		"needs.build.result == 'success'",
-		"needs.smoke.result == 'success'",
+		"      contents: write\n",
 		"(needs.hop.result == 'success' || (inputs.kind == 'staging' && needs.hop.result == 'skipped'))",
 		"CN_RELEASE_KEY: ${{ secrets.CN_RELEASE_KEY }}",
 		"go run ./release/manifest verify --dist dist --roots shared/trust/roots",
@@ -209,7 +215,7 @@ func TestReleaseGatesThePublish(t *testing.T) {
 	}
 	// The order a signed candidate is published in: the bytes build hashed,
 	// the signature, the key gone, the signature verified, then npm.
-	order := []string{"name: the files build hashed", "release/sign.sh", "run: rm -f \"$RUNNER_TEMP/release.key\"", "go run ./release/manifest verify", "publish-mode", "release/publish.sh"}
+	order := []string{"name: the files build hashed", "release/sign.sh", "run: rm -f \"$RUNNER_TEMP/release.key\"", "go run ./release/manifest verify", "publish-mode", "release/publish.sh", "git push origin \"v$VERSION\""}
 	last, prev := -1, "the start"
 	for _, step := range order {
 		i := strings.Index(publish, step)
@@ -218,10 +224,11 @@ func TestReleaseGatesThePublish(t *testing.T) {
 		}
 		last, prev = i, step
 	}
-	for _, job := range []string{"tag", "smoke-published"} {
-		if !strings.Contains(jobBlock(t, wf, job), "    if: ${{ !cancelled() && needs.publish.result == 'success' && needs.publish.outputs.mode == 'real' }}\n") {
-			t.Errorf("%s does not run only after a real publish", job)
-		}
+	if !strings.Contains(publish, "      - if: steps.mode.outputs.mode == 'real'\n        name: tag the commit\n") {
+		t.Errorf("the publish job does not tag only after a real publish:\n%s", publish)
+	}
+	if !strings.Contains(jobBlock(t, wf, "smoke-published"), "    if: ${{ !cancelled() && needs.publish.result == 'success' && needs.publish.outputs.mode == 'real' }}\n") {
+		t.Error("smoke-published does not run only after a real publish")
 	}
 }
 
