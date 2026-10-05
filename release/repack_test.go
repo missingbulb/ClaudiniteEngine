@@ -54,21 +54,23 @@ func signedDist(t *testing.T) string {
 	return dist
 }
 
+// The bridge for members still pinned to @claudinite/cli-rc publishes a
+// candidate's exact bytes there too, renamed.
 func TestRepackKeepsTheBytesAndRenamesOnly(t *testing.T) {
 	dist := signedDist(t)
-	out := filepath.Join(t.TempDir(), "stable")
+	out := filepath.Join(t.TempDir(), "bridge")
 	if o, err := runScript(t, nil, "release/repack.sh", filepath.Join(dist, "tarballs"), out); err != nil {
 		t.Fatalf("repack.sh: %v\n%s", err, o)
 	}
-	rcs, _ := filepath.Glob(filepath.Join(dist, "tarballs", "*.tgz"))
-	stables, _ := filepath.Glob(filepath.Join(out, "*.tgz"))
-	if len(rcs) != 6 || len(stables) != 6 {
-		t.Fatalf("%d rc tarballs, %d stable", len(rcs), len(stables))
+	clis, _ := filepath.Glob(filepath.Join(dist, "tarballs", "*.tgz"))
+	rcs, _ := filepath.Glob(filepath.Join(out, "*.tgz"))
+	if len(clis) != 6 || len(rcs) != 6 {
+		t.Fatalf("%d cli tarballs, %d cli-rc", len(clis), len(rcs))
 	}
-	for _, rc := range rcs {
-		base := filepath.Base(rc)
-		stable := filepath.Join(out, strings.Replace(base, "cli-rc", "cli", 1))
-		a, b := tarEntries(t, rc), tarEntries(t, stable)
+	for _, cli := range clis {
+		base := filepath.Base(cli)
+		rc := filepath.Join(out, strings.Replace(base, "cli", "cli-rc", 1))
+		a, b := tarEntries(t, cli), tarEntries(t, rc)
 		for name, sum := range a {
 			if name == "package/package.json" {
 				continue
@@ -78,10 +80,10 @@ func TestRepackKeepsTheBytesAndRenamesOnly(t *testing.T) {
 			}
 		}
 		if len(a) != len(b) {
-			t.Errorf("%s: %d files, stable %d", base, len(a), len(b))
+			t.Errorf("%s: %d files, cli-rc %d", base, len(a), len(b))
 		}
-		ja, jb := tarJSON(t, rc), tarJSON(t, stable)
-		wantName := strings.Replace(ja["name"].(string), "@claudinite/cli-rc", "@claudinite/cli", 1)
+		ja, jb := tarJSON(t, cli), tarJSON(t, rc)
+		wantName := strings.Replace(ja["name"].(string), "@claudinite/cli", "@claudinite/cli-rc", 1)
 		if jb["name"] != wantName {
 			t.Errorf("%s: name %v, want %s", base, jb["name"], wantName)
 		}
@@ -91,14 +93,14 @@ func TestRepackKeepsTheBytesAndRenamesOnly(t *testing.T) {
 			t.Errorf("%s: package.json differs beyond name: %v vs %v", base, ja, jb)
 		}
 	}
-	if _, ok := tarEntries(t, filepath.Join(out, "cli-1.61001.1.tgz"))["package/manifest.sig.json"]; !ok {
-		t.Error("the stable manifest package lacks manifest.sig.json")
+	if _, ok := tarEntries(t, filepath.Join(out, "cli-rc-1.61001.1.tgz"))["package/manifest.sig.json"]; !ok {
+		t.Error("the cli-rc manifest package lacks manifest.sig.json")
 	}
 }
 
-func TestRepackRefusesAnUnsignedChannel(t *testing.T) {
+func TestRepackRefusesAnUnsignedRelease(t *testing.T) {
 	dist, _ := unsignedDist(t)
-	if o, err := runScript(t, nil, "release/repack.sh", filepath.Join(dist, "tarballs"), filepath.Join(t.TempDir(), "stable")); err == nil || !strings.Contains(o, "manifest.sig.json") {
-		t.Fatalf("repacked an unsigned channel (%v):\n%s", err, o)
+	if o, err := runScript(t, nil, "release/repack.sh", filepath.Join(dist, "tarballs"), filepath.Join(t.TempDir(), "bridge")); err == nil || !strings.Contains(o, "manifest.sig.json") {
+		t.Fatalf("repacked an unsigned release (%v):\n%s", err, o)
 	}
 }

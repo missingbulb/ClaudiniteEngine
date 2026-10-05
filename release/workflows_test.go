@@ -137,15 +137,41 @@ func jobBlock(t *testing.T, wf, name string) string {
 	return rest
 }
 
-// The hop runs beside the smoke, straight after the build; sign waits for
-// both, so nothing unproven is signed or published.
-func TestReleaseRunsTheHopBeforeSign(t *testing.T) {
+// release.yml's kind is a required choice: a full release candidate, or a
+// staging build.
+func TestReleaseTakesAKind(t *testing.T) {
+	raw, err := os.ReadFile("../.github/workflows/release.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "      kind:\n        description: "
+	i := strings.Index(string(raw), want)
+	if i < 0 {
+		t.Fatal("release.yml has no kind input")
+	}
+	input := string(raw)[i:]
+	input = input[:strings.Index(input, "\n      dry_run:")]
+	for _, w := range []string{"        required: true\n", "        type: choice\n", "        options:\n          - staging\n          - full"} {
+		if !strings.Contains(input, w) {
+			t.Errorf("the kind input lacks %q:\n%s", w, input)
+		}
+	}
+	if strings.Contains(input, "default:") {
+		t.Errorf("the kind input has a default:\n%s", input)
+	}
+}
+
+// The hop and the smoke run beside each other, straight after the build;
+// the publish job, which signs, waits for both, so nothing unproven is
+// signed or published. A staging build skips the hop, and only a staging
+// build may.
+func TestReleaseGatesThePublish(t *testing.T) {
 	const wf = "../.github/workflows/release.yml"
 	hop := jobBlock(t, wf, "hop")
 	if hop == "" {
 		t.Fatal("release.yml has no hop job")
 	}
-	for _, want := range []string{"    needs: build\n", "    permissions:\n      contents: read\n", "release/hop.sh"} {
+	for _, want := range []string{"    needs: build\n", "    if: inputs.kind == 'full'\n", "    permissions:\n      contents: read\n", "release/hop.sh"} {
 		if !strings.Contains(hop, want) {
 			t.Errorf("the hop job lacks %q:\n%s", want, hop)
 		}
@@ -155,11 +181,96 @@ func TestReleaseRunsTheHopBeforeSign(t *testing.T) {
 			t.Errorf("the hop job has %q", not)
 		}
 	}
-	if !strings.Contains(jobBlock(t, wf, "sign"), "    needs: [build, smoke, hop]\n") {
-		t.Error("sign does not wait for the smoke and the hop")
+	if jobBlock(t, wf, "sign") != "" {
+		t.Error("release.yml still has a sign job apart from publish")
 	}
-	if !strings.Contains(jobBlock(t, wf, "publish"), "    needs: [build, sign]\n") {
-		t.Error("publish does not wait for sign")
+	publish := jobBlock(t, wf, "publish")
+	for _, want := range []string{
+		"    needs: [build, smoke, hop]\n",
+		"    environment: release\n",
+		"      id-token: write\n",
+		"!cancelled()",
+		"needs.build.result == 'success'",
+		"needs.smoke.result == 'success'",
+		"(needs.hop.result == 'success' || (inputs.kind == 'staging' && needs.hop.result == 'skipped'))",
+		"CN_RELEASE_KEY: ${{ secrets.CN_RELEASE_KEY }}",
+		"go run ./release/manifest verify --dist dist --roots shared/trust/roots",
+	} {
+		if !strings.Contains(publish, want) {
+			t.Errorf("the publish job lacks %q:\n%s", want, publish)
+		}
+	}
+	if strings.Contains(publish, "always()") && !strings.Contains(publish, "      - if: always()\n        run: rm -f") {
+		t.Errorf("the publish job runs on always(), which a cancelled run satisfies:\n%s", publish)
+	}
+	// The order a signed candidate is published in: the bytes build hashed,
+	// the signature, the key gone, the signature verified, then npm.
+	order := []string{"name: the files build hashed", "release/sign.sh", "run: rm -f \"$RUNNER_TEMP/release.key\"", "go run ./release/manifest verify", "publish-mode", "release/publish.sh"}
+	last, prev := -1, "the start"
+	for _, step := range order {
+		i := strings.Index(publish, step)
+		if i <= last {
+			t.Errorf("the publish job does not run %q after %q", step, prev)
+		}
+		last, prev = i, step
+	}
+	for _, job := range []string{"tag", "smoke-published"} {
+		if !strings.Contains(jobBlock(t, wf, job), "    if: ${{ !cancelled() && needs.publish.result == 'success' && needs.publish.outputs.mode == 'real' }}\n") {
+			t.Errorf("%s does not run only after a real publish", job)
+		}
+	}
+}
+
+// Every release publishes @claudinite/cli under its kind's dist-tag; the
+// separate rc package is retired, and only the bridge for members still
+// pinned to it, marked for removal, names it.
+func TestWorkflowsPublishOnePackageFamily(t *testing.T) {
+	const marker = "# @legacy-tolerance advisory:engine-package retire:#97"
+	files, _ := filepath.Glob("../.github/workflows/*.yml")
+	for _, f := range files {
+		raw, _ := os.ReadFile(f)
+		lines := strings.Split(string(raw), "\n")
+		for i, l := range lines {
+			if strings.Contains(l, "release/publish.sh") && !strings.Contains(l, "--tag ") && !strings.Contains(l, "--legacy-cli-rc") {
+				t.Errorf("%s publishes without an explicit --tag: %s", f, strings.TrimSpace(l))
+			}
+			if !strings.Contains(l, "cli-rc") {
+				continue
+			}
+			// The step or input holding the line: the nearest line above
+			// at six spaces' indent, which the marker must precede.
+			j := i
+			for j > 0 && (!strings.HasPrefix(lines[j], "      ") || strings.HasPrefix(lines[j], "       ")) {
+				j--
+			}
+			if j == 0 || strings.TrimSpace(lines[j-1]) != marker {
+				t.Errorf("%s:%d names the retired @claudinite/cli-rc outside the marked bridge: %s", f, i+1, strings.TrimSpace(l))
+			}
+		}
+	}
+}
+
+// Promotion moves latest and republishes nothing.
+func TestPromoteMovesLatest(t *testing.T) {
+	const wf = "../.github/workflows/promote.yml"
+	job := jobBlock(t, wf, "promote")
+	for _, want := range []string{
+		"    needs: [gate, check]\n",
+		"    if: needs.check.outputs.check == 'pass'\n",
+		"    environment: promote\n",
+		"      id-token: write\n",
+		"npm install -g npm@11.21.0",
+		`npm dist-tag add "@claudinite/cli@$VERSION" latest`,
+	} {
+		if !strings.Contains(job, want) {
+			t.Errorf("the promote job lacks %q:\n%s", want, job)
+		}
+	}
+	raw, _ := os.ReadFile(wf)
+	for _, not := range []string{"npm publish", "release/publish.sh", "repack", "secrets.NPM_TOKEN"} {
+		if strings.Contains(string(raw), not) {
+			t.Errorf("promote.yml has %q", not)
+		}
 	}
 }
 
@@ -175,6 +286,7 @@ func TestLivePacksRuns(t *testing.T) {
 	invocation := regexp.MustCompile(`(?m)^\s*- run: release/rehearse\.sh --mode live-packs\b`)
 	for _, want := range []*regexp.Regexp{
 		regexp.MustCompile(`(?m)^    needs: build$`),
+		regexp.MustCompile(`(?m)^    if: inputs.kind == 'full'$`),
 		invocation,
 		regexp.MustCompile(`(?m)^\s*go run \./release/pipeline blocker-issue --gate live-packs\b`),
 		regexp.MustCompile(`(?m)^\s*gh issue create .*--label release-blocker`),
@@ -210,7 +322,7 @@ func TestSmokePublishedWaitsThroughNPMWait(t *testing.T) {
 	if job == "" {
 		t.Fatal("release.yml has no smoke-published job")
 	}
-	if !regexp.MustCompile(`(?m)^\s*run: sh release/npm-wait\.sh --package @claudinite/cli-rc\b`).MatchString(job) {
+	if !regexp.MustCompile(`(?m)^\s*run: sh release/npm-wait\.sh --package @claudinite/cli --version `).MatchString(job) {
 		t.Errorf("smoke-published does not wait through release/npm-wait.sh:\n%s", job)
 	}
 	if strings.Contains(job, "curl ") {

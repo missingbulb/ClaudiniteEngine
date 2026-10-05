@@ -14,21 +14,21 @@ func TestPublishMode(t *testing.T) {
 		want   string
 		notice string
 	}{
-		{"rc, real key, reserved", ModeInput{Channel: "rc", Signing: "release", NpmVersions: reserved}, "real", ""},
-		{"rc, the retired dev signing", ModeInput{Channel: "rc", Signing: "dev", NpmVersions: reserved}, "refuse", "signing"},
-		{"rc, dry_run input", ModeInput{Channel: "rc", Signing: "release", DryRunInput: true, NpmVersions: reserved}, "dry-run", "dry_run"},
-		{"rc, npm view 404", ModeInput{Channel: "rc", Signing: "release", NpmVersions: notFound}, "dry-run", "package not reserved; see #2"},
-		{"rc, npm view 500", ModeInput{Channel: "rc", Signing: "release", NpmVersions: `{"error": {"code": "E500", "summary": "500 Internal Server Error - GET https://registry.npmjs.org/@claudinite%2fcli-rc"}}`}, "dry-run", "E500"},
-		{"rc, npm view network failure", ModeInput{Channel: "rc", Signing: "release", NpmVersions: `{"error": {"code": "ECONNRESET", "summary": "socket hang up"}}`}, "dry-run", "ECONNRESET"},
-		{"rc, npm view empty", ModeInput{Channel: "rc", Signing: "release", NpmVersions: ""}, "dry-run", "package not reserved; see #2"},
-		{"rc, npm view empty list", ModeInput{Channel: "rc", Signing: "release", NpmVersions: "[]"}, "dry-run", "package not reserved; see #2"},
-		{"rc, npm view single string", ModeInput{Channel: "rc", Signing: "release", NpmVersions: `"0.0.0"`}, "real", ""},
-		{"stable, stable test fails", ModeInput{Channel: "stable", Signing: "release", NpmVersions: reserved, StableTest: "fail"}, "refuse", "development roots"},
-		{"stable, stable test passes", ModeInput{Channel: "stable", Signing: "release", NpmVersions: reserved, StableTest: "pass"}, "real", ""},
-		{"stable, stable test not run", ModeInput{Channel: "stable", Signing: "release", NpmVersions: reserved}, "refuse", "development roots"},
-		{"stable, not reserved", ModeInput{Channel: "stable", Signing: "release", NpmVersions: notFound, StableTest: "pass"}, "dry-run", "see #2"},
-		{"unknown channel", ModeInput{Channel: "beta", Signing: "release", NpmVersions: reserved}, "refuse", "channel"},
-		{"unknown signing", ModeInput{Channel: "rc", Signing: "", NpmVersions: reserved}, "refuse", "signing"},
+		{"rc, real key, reserved", ModeInput{Tag: "rc", Signing: "release", NpmVersions: reserved}, "real", ""},
+		{"rc, the retired dev signing", ModeInput{Tag: "rc", Signing: "dev", NpmVersions: reserved}, "refuse", "signing"},
+		{"rc, dry_run input", ModeInput{Tag: "rc", Signing: "release", DryRunInput: true, NpmVersions: reserved}, "dry-run", "dry_run"},
+		{"rc, npm view 404", ModeInput{Tag: "rc", Signing: "release", NpmVersions: notFound}, "dry-run", "package not reserved; see #2"},
+		{"rc, npm view 500", ModeInput{Tag: "rc", Signing: "release", NpmVersions: `{"error": {"code": "E500", "summary": "500 Internal Server Error - GET https://registry.npmjs.org/@claudinite%2fcli"}}`}, "dry-run", "E500"},
+		{"rc, npm view network failure", ModeInput{Tag: "rc", Signing: "release", NpmVersions: `{"error": {"code": "ECONNRESET", "summary": "socket hang up"}}`}, "dry-run", "ECONNRESET"},
+		{"rc, npm view empty", ModeInput{Tag: "rc", Signing: "release", NpmVersions: ""}, "dry-run", "package not reserved; see #2"},
+		{"rc, npm view empty list", ModeInput{Tag: "rc", Signing: "release", NpmVersions: "[]"}, "dry-run", "package not reserved; see #2"},
+		{"rc, npm view single string", ModeInput{Tag: "rc", Signing: "release", NpmVersions: `"0.0.0"`}, "real", ""},
+		{"staging, real key, reserved", ModeInput{Tag: "staging", Signing: "release", NpmVersions: reserved}, "real", ""},
+		{"staging, dry_run input", ModeInput{Tag: "staging", Signing: "release", DryRunInput: true, NpmVersions: reserved}, "dry-run", "dry_run"},
+		{"latest is moved by promotion, never published", ModeInput{Tag: "latest", Signing: "release", NpmVersions: reserved}, "refuse", "promote.yml"},
+		{"unknown tag", ModeInput{Tag: "beta", Signing: "release", NpmVersions: reserved}, "refuse", "tag"},
+		{"no tag", ModeInput{Signing: "release", NpmVersions: reserved}, "refuse", "tag"},
+		{"unknown signing", ModeInput{Tag: "rc", Signing: "", NpmVersions: reserved}, "refuse", "signing"},
 	}
 	for _, c := range cases {
 		got := PublishMode(c.in)

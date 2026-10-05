@@ -1,4 +1,4 @@
-# One-shot: reserves the 13 @claudinite npm packages at 0.0.0 with
+# One-shot: reserves the 7 @claudinite npm packages at 0.0.0 with
 # NPM_BOOTSTRAP_TOKEN (#2), then posts on #2 the trusted-publisher checklist
 # npmjs.com needs, which no CLI or API can set. Reruns skip what exists.
 name: npm-bootstrap
@@ -39,15 +39,12 @@ jobs:
         run: npm install -g npm@11.21.0
       - if: steps.token.outputs.present == 'true'
         run: |
-          VERSION=0.0.0 PACKAGE=@claudinite/cli-rc DIST=dist-rc release/build.sh
-          VERSION=0.0.0 PACKAGE=@claudinite/cli DIST=dist-stable release/build.sh --placeholder-sdk
+          VERSION=0.0.0 release/build.sh --placeholder-sdk
       - if: steps.token.outputs.present == 'true'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_BOOTSTRAP_TOKEN }}
           VERSION: "0.0.0"
-        run: |
-          DIST=dist-rc release/publish.sh --channel rc --auth token --skip-existing
-          DIST=dist-stable release/publish.sh --channel stable --auth token --skip-existing
+        run: release/publish.sh --tag rc --auth token --skip-existing
       - if: steps.token.outputs.present == 'true'
         env:
           GH_TOKEN: ${{ github.token }}

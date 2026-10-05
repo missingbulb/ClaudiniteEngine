@@ -34,11 +34,13 @@ Every choice below was made by Claude while drafting on 2026-09-30 and is waitin
 
 Decision 13 changed with it: the Lagging canary now proves old shapes still work rather than that migrations run in one pass.
 
-**20.** Ariel's suggestion, 2026-09-30: candidates go to a separate npm package, `@claudinite/cli-rc`, and promotion publishes the same binaries to `@claudinite/cli`. Why: the main package only ever holds releases that passed the canaries. It also made the engine index unnecessary; see decision 21.
+**20.** (Superseded by decision 23.) Ariel's suggestion, 2026-09-30: candidates go to a separate npm package, `@claudinite/cli-rc`, and promotion publishes the same binaries to `@claudinite/cli`. Why: the main package only ever holds releases that passed the canaries. It also made the engine index unnecessary; see decision 21.
 
 **21.** Ariel's question, 2026-09-30: the signed engine channel index is dropped. Canaries read the RC package and everyone else the main package; the release job signs each manifest in place of npm provenance; held, revoked and security-fix states ride in the license keys, and in npm deprecation for `cn init`. Why: the two packages already decide who gets what, and the keys are signed, fresh per run and reach web sessions, so the index, its signing key, serial, expiry, daily re-sign and GitHub copy only duplicated them. Pack indexes stay; they belong to the engine design.
 
 **22.** Ariel's decision, 2026-10-02: the per-candidate platform smoke matrix, both before publish and against the published package, runs on linux-x64 only; linux-arm64, darwin-x64, darwin-arm64 and windows-x64 under Git Bash are off. The build still produces and publishes all five platforms, since promotion copies the same bytes. Revive the full matrix once there are paying customers ([#47](https://github.com/missingbulb/claudiniteengine/issues/47)). Ariel's words: "turn off all smoke tests except one 'default'. Open an issue to revive then in the future, once we have customers."
+
+**23.** Ariel, 2026-10-05: one package with dist-tags (rc, staging, latest) replaces the separate RC package; promotion moves `latest`. Accepted risk: a dist-tag is an unsigned pointer, so anyone with npm write on the package could point `latest` at a version we signed that never passed the canaries. `release.yml` takes a required kind: a full release builds all five platforms, runs every gate and publishes under `rc`; a staging build is linux-x64 alone, skips the reproducibility check, the hop and live-packs, and publishes under `staging`, which only repos whose settings choose the staging engine channel read. Promotion refuses a staging build. Supersedes decision 20 and the "npm dist-tags as channels" alternative.
 
 **Needs your call:** outcome reports. Recommended: yes. The update job would add, to the key request it already makes, the repository id, versions moved from and to, and whether the previous update PR merged or went red. That turns stable rollout into three nights (10%, 50%, all) that pause on their own when update PRs go red. Without it, every stable member takes a release the same night and we learn about a failure only from support. It is a change to what the product sends, so the privacy policy changes with it.
 
@@ -72,7 +74,7 @@ Two Fable researchers read the primary sources below on 2026-09-30.
 | Alternative | Why not |
 | --- | --- |
 | Keep today's rehearsal, driven from the source repo with a cross-repo token | Its reason, a vendored worker older than the release, is gone; it never exercised the real download and verification |
-| npm dist-tags as channels | Moving a tag needs npm write access outside publish, tags are unsigned, and npm has no revoked or security-fix state |
+| npm dist-tags as channels | Superseded by decision 23, which chose them. Moving a tag needs npm write access outside publish, tags are unsigned, and npm has no revoked or security-fix state |
 | Prerelease versions (`-rc.1`) for candidates | The final version would be a new build, so members would get bits no canary ran |
 | A local registry for candidates, as Babel does | Skips the real npm path and the web VM allowlist the engine design depends on; fine inside fixture tests only |
 | A crater-style run over customer repos | We cannot read member repos, and should not |

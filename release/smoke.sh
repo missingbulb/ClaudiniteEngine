@@ -1,22 +1,24 @@
 #!/bin/sh
-# Checks a built release in $DIST (default dist/): each binary exists and is
-# the right executable type, static where the platform allows (Linux;
-# macOS binaries always link dyld, Windows has no such notion), and the npm
-# manifest.json hashes to the integrity string build.sh printed. The channel
-# (cli or cli-rc) is the npm package that carries manifest.json.
+# Checks a built release in $DIST (default dist/): manifest.json lists
+# exactly $PLATFORMS (default all five; a staging build names linux-x64),
+# each binary exists and is the right executable type, static where the
+# platform allows (Linux; macOS binaries always link dyld, Windows has no
+# such notion), and the npm manifest.json hashes to the integrity string
+# build.sh printed.
 set -eu
 cd "$(dirname "$0")/.."
 DIST=${DIST:-dist}
+PLATFORMS=${PLATFORMS:-linux-x64 linux-arm64 darwin-x64 darwin-arm64 windows-x64}
 fail() { echo "smoke: $*" >&2; exit 1; }
 version=$(sed -n 's/^  "version": "\(.*\)",$/\1/p' "$DIST/manifest.json")
-name=
-for d in "$DIST"/npm/*/package; do
-  [ -f "$d/manifest.json" ] && name=$(basename "$(dirname "$d")")
-done
-[ -n "$name" ] || fail "no npm package carries manifest.json"
+name=cli
+[ -f "$DIST/npm/$name/package/manifest.json" ] || fail "the @claudinite/cli package carries no manifest.json"
 [ -f "$DIST/tarballs/$name-$version.tgz" ] || fail "no tarball for @claudinite/$name"
+listed=$(sed -n 's/^    "\([a-z0-9-]*\)": {"file".*/\1/p' "$DIST/manifest.json" | tr '\n' ' ')
+want=$(printf '%s\n' "$PLATFORMS" | tr -s ' ' '\n' | sed '/^$/d' | tr '\n' ' ')
+[ "$listed" = "$want" ] || fail "manifest.json lists $listed; want $want"
 
-for p in linux-x64 linux-arm64 darwin-x64 darwin-arm64 windows-x64; do
+for p in $PLATFORMS; do
   bin=cn
   [ "$p" = windows-x64 ] && bin=cn.exe
   f=$DIST/bin/$p/$bin
@@ -28,6 +30,7 @@ for p in linux-x64 linux-arm64 darwin-x64 darwin-arm64 windows-x64; do
     darwin-x64) want="Mach-O 64-bit x86_64 executable*" ;;
     darwin-arm64) want="Mach-O 64-bit arm64 executable*" ;;
     windows-x64) want="PE32+ executable (console) x86-64*" ;;
+    *) fail "unknown platform $p" ;;
   esac
   # shellcheck disable=SC2254 # $want is a glob pattern on purpose
   case $desc in $want) ;; *) fail "$f: $desc" ;; esac

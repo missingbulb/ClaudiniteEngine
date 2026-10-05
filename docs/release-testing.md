@@ -43,7 +43,7 @@ The gates below are layered so the cheap ones run on every pull request and the 
 
 ## Engine release gates
 
-An engine version is built once, published first to an RC package on npm, and published to the main package only after the canaries pass; the bits a canary tested are the bits every member gets, because promotion re-publishes the same signed binaries.
+An engine version is built once and published to `@claudinite/cli` under the `rc` dist-tag, and promotion moves the package's `latest` tag onto it only after the canaries pass; the bits a canary tested are the bits every member gets, because promotion republishes nothing.
 
 ### On every pull request in ClaudiniteEngine
 
@@ -53,9 +53,18 @@ An engine version is built once, published first to an RC package on npm, and pu
 4. **Hook replay.** A corpus of real hook inputs (SessionStart, PreToolUse, PostToolUse, Stop) captured from our own repos' sessions is replayed through the PR's binary and through the current stable, with the same packs. Any verdict that changes fails unless the PR says which rule change caused it. Why: a guard that blocks ordinary work is the most expensive failure we can ship, and a before-and-after diff finds it without anyone writing an assertion for it.
 5. **Latency budget.** The replay also times each hook. A p95 more than 20% or 50 ms slower than stable fails. Why: the binary runs on every tool call, so a slowdown is paid by every session all day.
 
+### Release kinds
+
+`release.yml` takes a required `kind`:
+
+- **full** builds the five binaries, checks the linux-x64 build reproduces, runs every job below and publishes under the `rc` dist-tag. It is the only kind that can be promoted.
+- **staging** builds linux-x64 alone, runs only the secret scan and the platform smoke, and publishes under the `staging` dist-tag, which only repos whose settings set `engine.channel: "staging"` read; the owner opts his own repos in to try a change on real work within minutes. Its manifest lists one platform, so promotion refuses it.
+
+Both kinds tag the commit and smoke what npm serves once published.
+
 ### Per release candidate
 
-The release workflow builds the five binaries once, then runs these jobs against the built files, with no publish credential in any of them.
+A full release builds the five binaries once, then runs these jobs against the built files, with no publish credential in any of them.
 
 1. **Platform smoke matrix.** On GitHub-hosted Linux x64 only: run the real launcher against the built manifest, then `cn hook session-start`, one guarded tool call and `cn selftest` in a fixture member. The build still produces and publishes all five platforms. Linux arm64, macOS arm64 and x64, and Windows with Git Bash are off until there are paying customers (Record decision 22, [#47](https://github.com/missingbulb/claudiniteengine/issues/47)). Why: the design claims five platforms and two shells, and only a real machine of each kind proves it; until there are customers, one leg is enough.
 2. **Pack corpus matrix.** Run every pack's own test suite and adoption fixture against the candidate, for every pack version published in the last 90 days and the newest version of each pack. Compare against the same run on stable and fail only on new failures. Why: members update packs nightly, so what they hold is recent; comparing against stable separates a regression from a test that was already broken.
@@ -66,7 +75,7 @@ The candidate's `manifest.json` records the result of the pack corpus matrix as 
 
 ### After publish
 
-The release job signs the candidate's `manifest.json` with our release key and publishes it with trusted publishing to a separate npm package, `@claudinite/cli-rc`, and its platform packages. The canaries' settings name the RC package as their channel, so they take the candidate at once and no other repo ever sees it. When it is promoted, as the staged rollout section describes, the promotion job checks the RC package's binaries against the signed manifest and publishes the same bytes, manifest and signature as that version of `@claudinite/cli`. The manifest names no package, so a member's pin covers exactly the binaries the canaries ran. Why two packages: the main package only ever holds releases that passed the canaries, so the updater, `cn init` and anyone installing from npm directly can simply take its newest version.
+Once the smoke and the hop pass, the release workflow's publish job signs the candidate's `manifest.json` with our release key and publishes `@claudinite/cli` and its platform packages with trusted publishing, every package under the same explicit dist-tag: `rc` for a full release, `staging` for a staging build. A member's settings name its engine channel, and each channel reads tags: `stable` (the default) takes `latest`, `canary` takes the newer of `latest` and `rc`, `staging` the newest of all three. A version no tag points at is never a candidate. The canaries are on `canary`, so they take the candidate at once and no stable repo ever sees it. When it is promoted, as the staged rollout section describes, the promotion job downloads the version's tarballs, checks its binaries against the signed manifest, refuses a staging build, and runs `npm dist-tag add @claudinite/cli@<version> latest`. The manifest names no package, so a member's pin covers exactly the binaries the canaries ran. Why one package with tags: promotion then moves a pointer instead of republishing bytes under a second name, and a staging channel costs a tag instead of five more packages; the accepted risk is in the record.
 
 Nothing in a member uses npm's own version resolution, so `npm update` has nothing to act on: a member has no `package.json` entry for Claudinite, and the launcher downloads only the version and hash its pin names. The pin moves only through the update PR, and that PR's CI refuses a pin whose manifest signature does not verify, or whose version npm's deprecation message marks held or revoked, whoever changed it. A person who installs `@claudinite/cli` globally gets a copy nothing in the repo runs.
 
@@ -102,7 +111,7 @@ Every gate above runs on the vendored set the release workflow builds, the exact
 
 Today's ClaudiniteCanary becomes a small fleet of repos on the **canary** channel, and each release is qualified by those repos running the real update, not by a harness imitating it.
 
-Today a workflow in this repo checks out the canary with a cross-repo token and runs the update worker from the ref under test, because the canary's own copy of the worker predates the release. With the updater inside a published binary that reason goes away: the canary's pinned engine is exactly what a member runs, and it reads the candidate from the RC package its settings name, the way every member reads the main package. So the canary stops being driven and starts being a member.
+Today a workflow in this repo checks out the canary with a cross-repo token and runs the update worker from the ref under test, because the canary's own copy of the worker predates the release. With the updater inside a published binary that reason goes away: the canary's pinned engine is exactly what a member runs, and its `canary` engine channel takes the candidate from the `rc` dist-tag, the way every stable member reads `latest`. So the canary stops being driven and starts being a member.
 
 | Canary | Holds | Proves |
 | --- | --- | --- |
@@ -144,11 +153,11 @@ The updater that moves a member off a release is the one inside that release, so
 
 ## Staged rollout and stopping a bad release
 
-Which release a member may take is decided by the npm package it reads and by the release states npm's deprecation messages carry (`held: <reason>`, `revoked: <reason>`), so promoting, pausing and revoking never change a published package.
+Which release a member may take is decided by the dist-tags its engine channel reads and by the release states npm's deprecation messages carry (`held: <reason>`, `revoked: <reason>`), so promoting, pausing and revoking never change a published version.
 
 ### Channels and release states
 
-A repo's channel is the npm package its settings name: `@claudinite/cli-rc` for the canaries, `@claudinite/cli` for everyone else. Promoting is publishing to the main package, and holding a candidate is not promoting it, so no channel pointer is needed. A pause or a revoke marks the version deprecated on npm with a `held:` or `revoked:` message. The nightly engine update takes the newest version of its package whose manifest signature verifies and whose message marks it neither held nor revoked, and `cn init` and direct installers see the same mark.
+A repo's channel is its settings' `engine.channel`: `canary` for the canaries, `staging` for the owner's opted-in repos, and `stable`, the default, for everyone else. Each reads `@claudinite/cli`'s dist-tags, as the publish paragraph above lists. Promoting is moving `latest`, and holding a candidate is not promoting it. A pause or a revoke marks the version deprecated on npm with a `held:` or `revoked:` message. The nightly engine update takes the newest version its channel's tags offer whose manifest signature verifies and whose message marks it neither held nor revoked, and `cn init` and direct installers see the same mark.
 
 Why npm's deprecation message rather than a signed index of our own: since 2026-10-05 a single repo asks no license (design record row 131), so no signed key reaches every run to carry the states, and npm already reaches every member. The cost is that the states are unsigned and a stale or replayed npm answer can hide a hold or a revocation, the rollback and freeze attacks The Update Framework names; a signed index would need its own signing key, a serial, an expiry, a daily re-sign job and a copy on GitHub for web VMs. Why a signed manifest: npm gives no provenance for a private source repo (see the security section), so our signature is what proves a version is ours.
 
@@ -178,7 +187,7 @@ Nothing ever moves a member's pin backward, so every fix rolls forward.
 2. **Revoke**, when running it does harm. The Worker lists the version as revoked in every key and npm marks it deprecated, and the engine design's revoked state applies: guards and checks keep running, paid work stops, and the next engine update moves the member off it.
 3. **Roll forward.** Release the fix, or the last good source rebuilt under a new version, through the canaries as a security fix.
 
-`promote.yml` carries these as dispatch actions: `hold` and `revoke` mark the version deprecated on npm, `release` clears the mark, and `unpublish` removes an rc version from `@claudinite/cli-rc` and its platform packages altogether. `unpublish` needs the dispatch's `confirm` to repeat the version, and refuses, before removing anything, when npm cannot be read or the version is the only one any of those packages holds, since npm deletes a package whose last version is unpublished. Both stop at the first npm command that fails.
+`promote.yml` carries these as dispatch actions: `hold` and `revoke` mark the version deprecated on npm, `release` clears the mark, and `unpublish` removes a version from `@claudinite/cli` and its platform packages altogether. `unpublish` needs the dispatch's `confirm` to repeat the version, and refuses, before removing anything, when npm cannot be read, the version is the one `latest` points at, or it is the only one any of those packages holds, since npm deletes a package whose last version is unpublished. Both stop at the first npm command that fails.
 
 A pack version is revoked in its pack index; the pack update never installs a revoked version and treats a member holding one as due for the next version, which is the revert. Why roll forward only: the design's rule that pins only move forward is what stops a downgrade attack, and a revert released as a new version keeps it.
 
@@ -189,9 +198,9 @@ The release path is where one mistake reaches every member overnight, so each cr
 | Threat | Control |
 | --- | --- |
 | A private source repo gets no npm provenance: npm generates it only for public repos, even with trusted publishing ([npm docs](https://docs.npmjs.com/trusted-publishers)). The engine design's "verify the provenance attestation" check cannot work. | The release job signs each release's `manifest.json` with our release key, and the updater and `cn init` accept a version only if that signature verifies against the root the binary embeds. The engine design's provenance step is replaced by this. |
-| A new member starts on an untested or held version, since a web VM cannot reach R2 | `cn init` takes the newest version of `@claudinite/cli`, which holds only promoted releases, skips any npm marks deprecated, and verifies its manifest signature. It adopts the pack versions the signed pack indexes on the vendored branch of the public ClaudinitePacks repo name, which a web VM can read, not the tip of main. |
+| A new member starts on an untested or held version, since a web VM cannot reach R2 | `cn init` on the stable channel takes the version `latest` points at, which only promotion moves, skips any npm marks deprecated, and verifies its manifest signature. It adopts the pack versions the signed pack indexes on the vendored branch of the public ClaudinitePacks repo name, which a web VM can read, not the tip of main. |
 | A stolen npm publish credential | Trusted publishing from protected jobs, no long-lived token, and both packages set to refuse token publishes. A version published outside our workflow has no manifest signature from our release key, so no updater or `cn init` accepts it. |
-| Someone publishes straight to the main npm package | Only the promotion job is a trusted publisher for `@claudinite/cli`, and only the release job for `@claudinite/cli-rc`. Someone who still copies an unpromoted candidate to the main package ships only a version we signed that passed every per-candidate gate but not the canaries, and a pause stops it like any other release. |
+| Someone points `latest` at an unpromoted version | Only the release job is a trusted publisher of the engine's packages, and only the promotion job may also move dist-tags on `@claudinite/cli`. A dist-tag is an unsigned pointer, so anyone with npm write on the package could still point `latest` at a version we signed that never passed the canaries (accepted in the record); it reaches stable members as a release that passed every per-candidate gate but not the canaries, and a pause stops it like any other release. |
 | Code under test steals a release credential | Building, testing and the canary run in jobs with no secrets; they hand artifacts to the publish job by SHA-256. The publish job, which holds the release signing key, and the promotion job run no pack code and no candidate binary. |
 | Code under test fakes a green canary to get itself promoted | The promotion job reads only the conclusions of named canary workflows run by GitHub Actions on the candidate's commit; jobs that run `cn` have no Checks write; the license App's check runs are ignored by app id. |
 | A malicious or careless pack change | ClaudinitePacks PRs from forks run tests with no secrets; merging needs a code-owner review; the pack release goes through the canaries like any other. |

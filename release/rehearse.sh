@@ -144,11 +144,8 @@ rehearsal_sign() {
 DIST=$DIST sh release/smoke.sh
 version=$(sed -n 's/^  "version": "\(.*\)",$/\1/p' "$DIST/manifest.json")
 pin=$(cat "$DIST/manifest.integrity")
-package=
-for d in "$DIST"/npm/*/package; do
-  [ -f "$d/manifest.json" ] && package=@claudinite/$(basename "$(dirname "$d")")
-done
-[ -n "$package" ] || fail "no npm package in $DIST carries manifest.json"
+package=@claudinite/cli
+[ -f "$DIST/npm/cli/package/manifest.json" ] || fail "the @claudinite/cli package in $DIST carries no manifest.json"
 
 work=$(mktemp -d)
 stub_pid=
@@ -180,7 +177,7 @@ trap cleanup EXIT
 trap 'exit 1' HUP INT TERM
 
 # A release candidate trusts only the ceremony's roots, to which no key here
-# chains: rehearse its source rebuilt at its version and package with the
+# chains: rehearse its source rebuilt at its version with the
 # development roots. The host's binary must first be byte for byte this
 # source's plain build, so the rebuild differs from the candidate only in
 # what the devroots tag changes, the embedded roots (shared/trust/roots_dev.go;
@@ -200,7 +197,7 @@ for b in "$DIST"/bin/*/*; do
   cmp -s "$work/candidate-check" "$DIST/bin/$host/cn" \
     || fail "$DIST/bin/$host/cn is not this source's plain build of $version, so a development-roots rebuild would not stand for it"
   step "rebuilding $version with the development roots: $DIST trusts only the ceremony's, and its $host binary is this source's plain build"
-  DIST=$work/devroots-dist VERSION=$version PACKAGE=$package REHEARSAL=1 BUILD_TAGS=devroots sh release/build.sh > "$work/build-devroots.out" \
+  DIST=$work/devroots-dist VERSION=$version REHEARSAL=1 BUILD_TAGS=devroots sh release/build.sh > "$work/build-devroots.out" \
     || fail "build of $version with the development roots: $(cat "$work/build-devroots.out")"
   DIST=$work/devroots-dist
   pin=$(cat "$DIST/manifest.integrity")
@@ -217,7 +214,7 @@ dist3build=$work/dist3-build
 case " $modes " in
   *" current "*|*" update "*)
     step "building $next into dist2/ from the same source"
-    DIST=$dist2 VERSION=$next PACKAGE=$package REHEARSAL=1 BUILD_TAGS=devroots sh release/build.sh > "$work/build2.out" || fail "build of $next: $(cat "$work/build2.out")"
+    DIST=$dist2 VERSION=$next REHEARSAL=1 BUILD_TAGS=devroots sh release/build.sh > "$work/build2.out" || fail "build of $next: $(cat "$work/build2.out")"
     ;;
   *) mkdir -p "$dist2/tarballs" ;;
 esac
@@ -226,7 +223,7 @@ case " $modes " in
   *" update "*)
     if [ "$update_steps" -ge 5 ]; then
       step "building $third into dist3/ with verify broken (rehearsal_break)"
-      DIST=$dist3build VERSION=$third PACKAGE=$package REHEARSAL=1 BUILD_TAGS=devroots,rehearsal_break sh release/build.sh > "$work/build3.out" \
+      DIST=$dist3build VERSION=$third REHEARSAL=1 BUILD_TAGS=devroots,rehearsal_break sh release/build.sh > "$work/build3.out" \
         || fail "build of $third: $(cat "$work/build3.out")"
       rehearsal_sign "$dist3build"
     fi
@@ -247,13 +244,13 @@ esac
 live_version=$version live_dist=$dist1
 case " $modes " in
   *" live-packs "*)
-    day=$(go run ./cmd/cn version --day)
+    day=$(sh release/version.sh day)
     major=$(cat release/major)
     vmajor=${version%%.*} vday=$(echo "$version" | cut -d. -f2)
     if [ "$vmajor" -lt "$major" ] || { [ "$vmajor" -eq "$major" ] && [ "$vday" -lt "$day" ]; }; then
       live_version=$major.$day.1 live_dist=$dist2
       step "live-packs: building $live_version into dist2/ from the same source, the shelf's floor being above $version"
-      DIST=$dist2 VERSION=$live_version PACKAGE=$package REHEARSAL=1 BUILD_TAGS=devroots sh release/build.sh > "$work/build-live.out" || fail "build of $live_version: $(cat "$work/build-live.out")"
+      DIST=$dist2 VERSION=$live_version REHEARSAL=1 BUILD_TAGS=devroots sh release/build.sh > "$work/build-live.out" || fail "build of $live_version: $(cat "$work/build-live.out")"
       rehearsal_sign "$dist2"
     fi
     ;;
@@ -261,7 +258,7 @@ esac
 printf '{}\n' > "$work/deprecations.json"
 
 go build -o "$work/regstub" ./release/regstub
-"$work/regstub" --dist "$dist1" --dist "$dist2" --dist "$dist3" --deprecations "$work/deprecations.json" \
+"$work/regstub" --dist "$dist1" --dist "$dist2" --dist "$dist3" --deprecations "$work/deprecations.json" --tag rc \
   --ready "$work/ready" --ca-out "$work/ca.pem" --log "$work/requests.log" &
 stub_pid=$!
 tries=0
@@ -281,7 +278,7 @@ registry=$(cat "$work/ready")
 warm_member() {
   member=$work/$1
   mkdir -p "$member-home" "$member-cache"
-  sh release/member-fixture.sh "$member" "$version" "$pin" "$package"
+  sh release/member-fixture.sh "$member" "$version" "$pin" canary
   HOME=$member-home XDG_CACHE_HOME=$member-cache
   export HOME XDG_CACHE_HOME
   out=$(session_start) || fail "$1: SessionStart exited non-zero"
@@ -391,7 +388,7 @@ fleet_rig() {
   latest=$version latest_pin=$pin
   if [ -f "$dist2/manifest.integrity" ]; then latest=$next latest_pin=$(cat "$dist2/manifest.integrity"); fi
   behind=$(printf '%s\n' "$version" | awk -F. '{ print $1 - 1 "." $2 "." $3 }')
-  flags=$(sh release/fleet-fixture.sh "$2" "$member" "$version" "$latest" "$behind" "$latest_pin" "$package") || fail "fleet: fixture"
+  flags=$(sh release/fleet-fixture.sh "$2" "$member" "$version" "$latest" "$behind" "$latest_pin" canary) || fail "fleet: fixture"
   origin=$work/$1-origin.git
   git init -q --bare -b main "$origin"
   (cd "$member" && git init -q -b main && git add -A && git -c user.name=rehearse -c user.email=r@x -c commit.gpgsign=false commit -q -m adopt) \
@@ -444,7 +441,7 @@ for mode in $modes; do
   case $mode in
     fresh)
       step "fresh: the host's smoke leg"
-      sh release/smoke-platform.sh --registry "$registry" --package "$package" --version "$version" --pin "$pin" --dist "$DIST" \
+      sh release/smoke-platform.sh --registry "$registry" --channel canary --version "$version" --pin "$pin" --dist "$DIST" \
         || fail "the smoke leg failed"
       ;;
     current)
@@ -608,7 +605,7 @@ for mode in $modes; do
       step "update 8: one issue for the revoked pin $next, kept by two runs"
 
       old=$work/old-shape
-      sh release/member-fixture.sh "$old" "$next" "$(cat "$dist2/manifest.integrity")" "$package"
+      sh release/member-fixture.sh "$old" "$next" "$(cat "$dist2/manifest.integrity")" canary
       rm "$old/.claudinite/.gitignore"
       printf '.claudinite/bin/\n' > "$old/.gitignore"
       cn_member verify --repo "$old" > "$work/verify.out" 2>&1 || fail "update 9: verify: $(cat "$work/verify.out")"
@@ -675,7 +672,7 @@ for mode in $modes; do
       export SSL_CERT_FILE CURL_CA_BUNDLE GITHUB_REPOSITORY CLAUDINITE_GITHUB_API GH_TOKEN CLAUDINITE_PACKS_CDN CLAUDINITE_PACKS_REPO
       actions_env
 
-      # The npx layout: the channel package unpacked, its bin linked.
+      # The npx layout: the manifest package unpacked, its bin linked.
       name=${package#@claudinite/}
       npx=$work/npx/node_modules
       mkdir -p "$npx/@claudinite" "$npx/.bin"
@@ -690,7 +687,7 @@ for mode in $modes; do
         mkdir -p "$member" "$member-home" "$member-cache"
         HOME=$member-home XDG_CACHE_HOME=$member-cache
         export HOME XDG_CACHE_HOME
-        (cd "$member" && "$npx/.bin/cn" init --packs hello --channel canary --package "$package" --repo "$member") \
+        (cd "$member" && "$npx/.bin/cn" init --packs hello --channel canary --repo "$member") \
           > "$work/init.out" 2>&1 || fail "packs 1: init: $(cat "$work/init.out")"
       }
       CLAUDINITE_PACKS_CDN=$(cat "$work/cdn-down-ready")
@@ -720,7 +717,7 @@ for mode in $modes; do
         mkdir -p "$dir"
         (cd "$dir" && git init -q -b main && git remote add origin https://github.com/acme/member.git \
           && git config "url.$origin.insteadOf" https://github.com/acme/member.git) || fail "packs init: git setup"
-        (cd "$dir" && "$npx/.bin/cn" init --packs hello --channel canary --package "$package" --repo "$dir") > "$work/init.out" 2>&1 \
+        (cd "$dir" && "$npx/.bin/cn" init --packs hello --channel canary --repo "$dir") > "$work/init.out" 2>&1 \
           || fail "packs init: init exited non-zero: $(cat "$work/init.out")"
       }
       init_with_origin packs-init
@@ -844,9 +841,11 @@ for mode in $modes; do
       grep -q '^hello 1.8 skipped: names a Node engine version$' "$work/update.out" || fail "packs 8b: no Node-floor skip: $(cat "$work/update.out")"
       step "packs 8b: hello 1.8, whose floor names a Node engine version, skipped and never an error"
 
-      # set_channel C: the member's packs channel, committed and pushed, main green.
+      # set_channel C: the member's packs channel, committed and pushed, main
+      # green. The engine block's own channel stays.
       set_channel() {
-        sed "s|^  channel: .*|  channel: \"$1\"|" "$member/.claudinite/settings.yaml" > "$work/settings.yaml"
+        awk -v c="$1" '/^[a-z]/ { block = $0 } block == "packs:" && /^  channel: / { $0 = "  channel: \"" c "\"" } { print }' \
+          "$member/.claudinite/settings.yaml" > "$work/settings.yaml"
         mv "$work/settings.yaml" "$member/.claudinite/settings.yaml"
         (cd "$member" && git -c user.name=rehearse -c user.email=r@x -c commit.gpgsign=false commit -q -am "packs channel $1" \
           && git -c push.negotiate=false push -q origin main) || fail "packs 9: channel $1"
@@ -1163,7 +1162,7 @@ GO
       cp -R "$dist1/npm/$name/package" "$npx/$package"
       chmod 0755 "$npx/$package/launch"
       ln -s "../$package/launch" "$npx/.bin/cn"
-      (cd "$member" && "$npx/.bin/cn" init --packs hello --channel canary --package "$package" --repo "$member") > "$work/init.out" 2>&1 \
+      (cd "$member" && "$npx/.bin/cn" init --packs hello --channel canary --repo "$member") > "$work/init.out" 2>&1 \
         || fail "tasks: init: $(cat "$work/init.out")"
       grep -q '"version": "1.4"' "$member/.claudinite/shared/packs/hello/pack.json" || fail "tasks: init did not vendor hello 1.4"
       # The two engine packs whose checks the steps run, claudinite-tasks
@@ -1354,7 +1353,7 @@ GO
       mv "$work/executor.yml" "$member/.github/workflows/claudinite-executor.yml"
       fresh=$work/tasks-init
       mkdir -p "$fresh"
-      (cd "$fresh" && "$npx/.bin/cn" init --packs hello --channel canary --package "$package" --repo "$fresh") > "$work/init.out" 2>&1 \
+      (cd "$fresh" && "$npx/.bin/cn" init --packs hello --channel canary --repo "$fresh") > "$work/init.out" 2>&1 \
         || fail "tasks 10: init: $(cat "$work/init.out")"
       for f in claudinite-ci claudinite-scheduler claudinite-executor; do
         [ -f "$fresh/.github/workflows/$f.yml" ] || fail "tasks 10: init wrote no $f.yml"
@@ -1440,7 +1439,7 @@ GO
       }
 
       adopt_repo adopt-init
-      (cd "$member" && "$npx/.bin/cn" init --packs hello,hello-asks --channel canary --package "$package" --repo "$member") > "$work/init.out" 2>&1 \
+      (cd "$member" && "$npx/.bin/cn" init --packs hello,hello-asks --channel canary --repo "$member") > "$work/init.out" 2>&1 \
         || fail "adopt 1: init exited non-zero with questions pending: $(cat "$work/init.out")"
       expect_blocks 1 "$work/init.out"
       grep -q '^  \[ \] (cn) In the repository.s Settings > Actions > General' "$work/init.out" || fail "adopt 1: no Actions setting row: $(cat "$work/init.out")"
@@ -1466,7 +1465,7 @@ GO
       step "adopt 2: adoption-answers-pending blocks Stop until cn settings answer records it; check world is clean"
 
       adopt_repo adopt-later
-      (cd "$member" && "$npx/.bin/cn" init --packs hello --channel canary --package "$package" --repo "$member") > "$work/init.out" 2>&1 \
+      (cd "$member" && "$npx/.bin/cn" init --packs hello --channel canary --repo "$member") > "$work/init.out" 2>&1 \
         || fail "adopt 3: init: $(cat "$work/init.out")"
       if grep -q '^QUESTIONS' "$work/init.out"; then fail "adopt 3: hello asks nothing, yet: $(cat "$work/init.out")"; fi
       launch adopt hello-asks > "$work/adopt.out" 2>&1 || fail "adopt 3: cn adopt: $(cat "$work/adopt.out")"
@@ -1484,7 +1483,7 @@ GO
       mkdir -p "$dir"
       (cd "$dir" && git init -q -b main && git remote add origin https://github.com/acme/member.git \
         && git config "url.$origin.insteadOf" https://github.com/acme/member.git) || fail "adopt 4: git setup"
-      (cd "$dir" && "$npx/.bin/cn" init --packs hello --channel canary --package "$package" --repo "$dir") > "$work/init.out" 2>&1 \
+      (cd "$dir" && "$npx/.bin/cn" init --packs hello --channel canary --repo "$dir") > "$work/init.out" 2>&1 \
         || fail "adopt 4: init: $(cat "$work/init.out")"
       if grep -Eqi "(^|[^a-z])(plan|license)([^a-z]|$)|GitHub App" "$work/init.out"; then fail "adopt 4: init speaks of a plan, a license or the App: $(cat "$work/init.out")"; fi
       if grep -q '^license:' "$dir/.claudinite/settings.yaml"; then fail "adopt 4: init wrote a license block"; fi
@@ -1500,7 +1499,7 @@ GO
       printf '{}\n' > "$member/.claudinite/local/packs/mine/pack.json"
       printf 'node_modules/\n' > "$member/.gitignore"
       rm "$member/.github/workflows/ci.yml"
-      (cd "$member" && "$npx/.bin/cn" init --from-node --channel canary --package "$package" --repo "$member") > "$work/init.out" 2>&1 \
+      (cd "$member" && "$npx/.bin/cn" init --from-node --channel canary --repo "$member") > "$work/init.out" 2>&1 \
         || fail "adopt 5: init --from-node: $(cat "$work/init.out")"
       grep -q '^pack: hello 1.0$' "$work/init.out" || fail "adopt 5: hello not vendored: $(cat "$work/init.out")"
       grep -q '^NEXT: git rm .claudinite-settings.json' "$work/init.out" || fail "adopt 5: NEXT does not start with the declaration's removal: $(cat "$work/init.out")"
@@ -1658,7 +1657,7 @@ YAML
       [ "$(gh_count 'st.dispatches.filter(d=>d.repo).length')" = 0 ] || fail "fleet 4: a dry run dispatched"
       step "fleet 4: a dry run would fire current, behind, noscheduler and nodemember, skipped dormant and ignored by name, and dispatched nothing"
 
-      ctl /_stub/advance "{\"repo\":\"acme/behind\",\"files\":{\".claudinite/settings.yaml\":\"engine:\\n  package: \\\"$package\\\"\\n  version: \\\"$latest\\\"\\n  manifest: \\\"$latest_pin\\\"\\npacks:\\n  channel: \\\"canary\\\"\\n\"}}"
+      ctl /_stub/advance "{\"repo\":\"acme/behind\",\"files\":{\".claudinite/settings.yaml\":\"engine:\\n  package: \\\"$package\\\"\\n  channel: \\\"canary\\\"\\n  version: \\\"$latest\\\"\\n  manifest: \\\"$latest_pin\\\"\\npacks:\\n  channel: \\\"canary\\\"\\n\"}}"
       ctl /_stub/advance '{"repo":"acme/nodemember","files":{".claudinite-settings.json":"{\"engineVersion\": \"61002.1\", \"packs\": [{\"id\": \"basics\", \"version\": \"3.0\"}]}\n"}}'
       if CLAUDINITE_CONTEXT='FOLLOW_MINUTES=0.05' fleet_cn update; then fail "fleet 5: a failed dispatch passed: $(cat "$work/fleet.out")"; fi
       expect_line "[${bt}acme/behind${bt}]" 5
@@ -1781,7 +1780,7 @@ YAML
       done
       [ "$(json "$flat/member.GENERATED.json" 'st.settings.path+" "+st.settings.format')" = ".claudinite/settings.yaml yaml" ] \
         || fail "dashboard 1: the member file names $(json "$flat/member.GENERATED.json" 'JSON.stringify(st.settings)')"
-      [ "$(json "$flat/member.GENERATED.json" 'st.engine.package+" "+st.engine.version+" "+st.engine.channel')" = "$package $version $(case $package in *-rc) echo canary ;; *) echo stable ;; esac)" ] \
+      [ "$(json "$flat/member.GENERATED.json" 'st.engine.package+" "+st.engine.version+" "+st.engine.channel')" = "$package $version canary" ] \
         || fail "dashboard 1: the member file's pin is $(json "$flat/member.GENERATED.json" 'JSON.stringify(st.engine)')"
       [ "$(json "$flat/member.GENERATED.json" 'JSON.stringify(st.held)+" "+st.packs.declared.map(e=>e.id).join(",")+" "+st.dormant')" = '{"claudinite-dashboard":"1.0"} claudinite-dashboard,local/acme false' ] \
         || fail "dashboard 1: the member file: $(cat "$flat/member.GENERATED.json")"
@@ -1945,7 +1944,7 @@ YAML
       mkdir -p "$member" "$member-home" "$member-cache"
       HOME=$member-home XDG_CACHE_HOME=$member-cache
       export HOME XDG_CACHE_HOME
-      (cd "$member" && "$npx/.bin/cn" init --packs "$(echo "$live_packs" | tr ' ' ,)" --channel canary --package "$package" --repo "$member") \
+      (cd "$member" && "$npx/.bin/cn" init --packs "$(echo "$live_packs" | tr ' ' ,)" --channel canary --repo "$member") \
         > "$work/init.out" 2>&1 || fail "live-packs 1: init: $(cat "$work/init.out")"
       for p in $live_packs; do
         grep -q "$p: index serial [0-9]* from cdn" "$work/init.out" || fail "live-packs 1: $p was not read from the CDN: $(cat "$work/init.out")"

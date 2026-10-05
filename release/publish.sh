@@ -1,14 +1,21 @@
 #!/bin/sh
-# Publishes every tarball under $DIST/tarballs (default dist/) to npm, the
-# platform packages first so the channel package never names a binary the
-# registry lacks. Every tarball is checked before anything is published:
-# its package.json name must belong to --channel and its version must be
-# $VERSION (default: $DIST/manifest.json's), so a stale dist/ from another
-# run can never be published.
+# Publishes every tarball under $DIST/tarballs (default dist/) to npm under
+# the dist-tag --tag, the platform packages first so the manifest package
+# never names a binary the registry lacks. Every tarball is checked before
+# anything is published: its package.json name must be @claudinite/cli or
+# one of its platform packages (or @claudinite/sdk at the 0.0.0
+# reservation) and its version must be $VERSION (default:
+# $DIST/manifest.json's), so a stale dist/ from another run can never be
+# published.
 #
-#   release/publish.sh --channel rc|stable --auth oidc|token [--skip-existing]
-#   release/publish.sh --channel rc|stable --dry-run
+#   release/publish.sh --tag rc|staging --auth oidc|token [--skip-existing]
+#   release/publish.sh --tag rc|staging --dry-run
+#   release/publish.sh --legacy-cli-rc --auth oidc | --dry-run
 #
+# latest is never published: promote.yml moves it onto a verified rc version.
+# --legacy-cli-rc instead publishes release/repack.sh's renamed copies to
+# the retired @claudinite/cli-rc packages under latest, where an updater
+# from before the dist-tags reads them; nothing else may carry those names.
 # --dry-run prints each npm publish line and runs nothing. --skip-existing
 # leaves out a version npm view already reports, so a rerun is clean.
 # --auth names how npm authenticates: oidc is trusted publishing from the
@@ -21,17 +28,20 @@ cd "$(dirname "$0")/.."
 DIST=${DIST:-dist}
 fail() { echo "publish: $*" >&2; exit 1; }
 
-channel=
+tag=
 auth=
 dry=false
 skip=false
+legacy=false
 while [ $# -gt 0 ]; do
   case $1 in
-    --channel) [ $# -ge 2 ] || fail "--channel needs rc or stable"; channel=$2; shift 2 ;;
+    --tag) [ $# -ge 2 ] || fail "--tag needs rc or staging"; tag=$2; shift 2 ;;
     --auth) [ $# -ge 2 ] || fail "--auth needs oidc or token"; auth=$2; shift 2 ;;
     --dry-run) dry=true; shift ;;
     --skip-existing) skip=true; shift ;;
-    *) fail "usage: release/publish.sh --channel rc|stable --auth oidc|token [--skip-existing] | --dry-run" ;;
+    # @legacy-tolerance advisory:engine-package retire:#97
+    --legacy-cli-rc) legacy=true; shift ;;
+    *) fail "usage: release/publish.sh --tag rc|staging --auth oidc|token [--skip-existing] | --dry-run" ;;
   esac
 done
 case $auth in
@@ -39,16 +49,25 @@ case $auth in
   '') [ "$dry" = true ] || fail "--auth must name oidc or token for a real publish" ;;
   *) fail "--auth must be oidc or token, not $auth" ;;
 esac
-platform='(-(linux|darwin|windows)-(x64|arm64))?'
-case $channel in
-  rc) allowed="@claudinite/cli-rc$platform" ;;
-  stable) allowed="(@claudinite/cli$platform|@claudinite/sdk)" ;;
-  *) fail "--channel must be rc or stable" ;;
-esac
+if [ "$legacy" = true ]; then
+  [ -z "$tag" ] || fail "--legacy-cli-rc publishes under latest and takes no --tag"
+  tag=latest
+else
+  case $tag in
+    rc|staging) ;;
+    latest) fail "nothing publishes under latest: promote.yml moves it onto an rc version it verified" ;;
+    *) fail "--tag must be rc or staging" ;;
+  esac
+fi
 if [ -z "${VERSION:-}" ]; then
   [ -f "$DIST/manifest.json" ] || fail "set VERSION; there is no $DIST/manifest.json to read it from"
   VERSION=$(sed -n 's/^  "version": "\(.*\)",$/\1/p' "$DIST/manifest.json")
 fi
+allowed='@claudinite/cli(-(linux|darwin|windows)-x64|-(linux|darwin)-arm64)?'
+# The SDK is not the engine's: only its 0.0.0 reservation goes through here.
+[ "$VERSION" = 0.0.0 ] && allowed="($allowed|@claudinite/sdk)"
+# @legacy-tolerance advisory:engine-package retire:#97
+[ "$legacy" = true ] && allowed='@claudinite/cli-rc(-(linux|darwin|windows)-x64|-(linux|darwin)-arm64)?'
 
 list=$(mktemp)
 npmerr=$(mktemp)
@@ -58,7 +77,7 @@ for tgz in "$DIST"/tarballs/*.tgz; do
   pj=$(tar -xzOf "$tgz" package/package.json) || fail "$tgz holds no package/package.json"
   name=$(printf '%s\n' "$pj" | sed -n 's/^  "name": "\(.*\)",$/\1/p')
   version=$(printf '%s\n' "$pj" | sed -n 's/^  "version": "\(.*\)",\{0,1\}$/\1/p')
-  printf '%s\n' "$name" | grep -Eqx "$allowed" || fail "$tgz is $name, which is not a package of the $channel channel"
+  printf '%s\n' "$name" | grep -Eqx "$allowed" || fail "$tgz is $name, which this publish may not carry (@claudinite/cli and its platform packages, or with --legacy-cli-rc the cli-rc ones)"
   [ "$version" = "$VERSION" ] || fail "$tgz is $name $version, not $VERSION"
   [ "$(basename "$tgz")" = "${name#@claudinite/}-$version.tgz" ] || fail "$tgz holds $name $version"
   case $name in
@@ -94,10 +113,8 @@ token_refusal() {
 sort "$list" | while read -r _ name tgz; do
   # No provenance: the repository goes private, and npm attests only public
   # sources; the release key's manifest signature is what members verify.
-  # The tag is explicit: npm refuses to move latest implicitly onto a
-  # version semver sorts below the current one, and each channel is its own
-  # package, so latest is always this release.
-  line="npm publish $tgz --access public --provenance false --tag latest"
+  # The tag is explicit, since npm otherwise moves latest onto every publish.
+  line="npm publish $tgz --access public --provenance false --tag $tag"
   if [ "$dry" = true ]; then
     echo "dry-run: $line"
     continue

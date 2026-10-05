@@ -1,4 +1,4 @@
-@claudinite/cli-rc 1.61003.2 fails the live-packs rehearsal against the real shelf
+@claudinite/cli 1.61003.2 fails the live-packs rehearsal against the real shelf
 
 `release/rehearse.sh --mode live-packs` failed for 1.61003.2: built from this release's source and signed with the development keys, it did not adopt, load, check or update the real packs from packs.claudinite.com and ClaudinitePacks' vendored branch as a member would.
 
