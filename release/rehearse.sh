@@ -642,6 +642,10 @@ for mode in $modes; do
       ;;
     packs)
       step "packs: a local pack source with hello 1.0, the CDN stub and the GitHub stub"
+      # init takes the channel's newest version: not the update mode's breaking build, and
+      # nothing it left revoked.
+      rm -f "$dist3"/tarballs/*
+      printf '{}\n' > "$work/deprecations.json"
       src=$work/packsrc
       sh release/packs-fixture.sh "$src" --min-engine "$version" > "$work/fixture.out" 2>&1 || fail "packs: fixture: $(cat "$work/fixture.out")"
       fixture() { sh release/packs-fixture.sh "$src" "$@" > "$work/fixture.out" 2>&1 || fail "packs: fixture $*: $(cat "$work/fixture.out")"; }
