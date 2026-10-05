@@ -4,7 +4,7 @@
 
 Sep 30, 2026 · @Ariel Raunstien
 
-Every engine and pack release passes the same four stages, and the last gate before members is ClaudiniteCanary grown into a small fleet of real repos running the real update. The fleet replaces today's rehearsal, which drives the update from outside. The canaries install engines from an RC package on npm and everyone else from the main package, which only ever holds releases the canaries passed. Decisions, research, rejected alternatives and the security review are on the Record tab.
+Every engine and pack release passes the same four stages, and the last gate before members is a small fleet of canary repos running the real update. The canaries install engines from the `rc` dist-tag of `@claudinite/cli` and everyone else from `latest`, which only ever moves to releases the canaries passed. Decisions, research, rejected alternatives and the security review are on the Record tab.
 
 ## At a glance
 
@@ -84,7 +84,7 @@ Nothing in a member uses npm's own version resolution, so `npm update` has nothi
 A major is the one release that may stop accepting old shapes, and every member it touches needs a person, so it gets two more gates.
 
 1. **Deprecation match.** The last release of the old major and the new major both run over the shape corpus. Every shape the new major rejects must have raised a deprecation finding under the old one. Why: a member should never meet a removal it was not warned about.
-2. **Fixed from the report alone.** On the Main and Lagging canaries, verify blocks the update and reports what breaks. A Claude session is given only that report, fixes the repo, and the update must then pass. Why: the report is the whole instruction a customer gets, so it has to be enough.
+2. **Fixed from the report alone.** On the Sandbox and Lagging canaries, verify blocks the update and reports what breaks. A Claude session is given only that report, fixes the repo, and the update must then pass. Why: the report is the whole instruction a customer gets, so it has to be enough.
 
 A major also soaks seven days on the canary channel, and its removals are announced on a pinned issue in ClaudinitePacks when it reaches that channel. Why: each member needs a person's time, and people need notice.
 
@@ -109,19 +109,19 @@ Every gate above runs on the vendored set the release workflow builds, the exact
 
 ## The canary fleet
 
-Today's ClaudiniteCanary becomes a small fleet of repos on the **canary** channel, and each release is qualified by those repos running the real update, not by a harness imitating it.
+A small fleet of repos runs on the **canary** channel, and each release is qualified by those repos running the real update, not by a harness imitating it.
 
-Today a workflow in this repo checks out the canary with a cross-repo token and runs the update worker from the ref under test, because the canary's own copy of the worker predates the release. With the updater inside a published binary that reason goes away: the canary's pinned engine is exactly what a member runs, and its `canary` engine channel takes the candidate from the `rc` dist-tag, the way every stable member reads `latest`. So the canary stops being driven and starts being a member.
+The updater is inside the published binary, so nothing drives a canary from outside: each canary's pinned engine is exactly what a member runs, and its `canary` engine channel takes the candidate from the `rc` dist-tag, the way every stable member reads `latest`.
 
 | Canary | Holds | Proves |
 | --- | --- | --- |
-| **Main (today's ClaudiniteCanary**) | The default packs plus one to three others, a local pack, overrides and adoption answers, and a task that needs a workflow change | Engine and packs together on a real repo; a workflow patch arriving as an issue |
+| **Sandbox** (`ClaudiniteSandbox`) | The default packs plus one to three others, a local pack, overrides and adoption answers, and a task that needs a workflow change | Engine and packs together on a real repo; a workflow patch arriving as an issue |
 | **Lagging** | Reset each release to a tagged baseline: the oldest engine and packs still in the 90-day window, with files in the oldest shapes the major accepts | An update across many skipped versions onto old-shaped files, which must end in deprecation findings, not breaks |
 | **Fresh** | Nothing; each release a workflow runs `cn init` and adopts the default packs on a scratch branch, then discards it | First adoption, the one path no existing member exercises |
 
 The canaries do not try to cover every pack; each pack's own tests do that in the pack corpus matrix. The canaries prove the paths only a real repo exercises.
 
-`release/canaries.json` registers three canaries: Lagging (`ClaudiniteCanaryLagging`), Fresh (`ClaudiniteCanaryFresh`) and ClaudiniteSandbox, which stands in for Main. Each names no workflow until the canary App (#21) can read their runs, and the gate counts only canaries that name one, so until then it answers `no-canaries` and promotion needs the dispatch's confirmation. The registration is there so a canary added later cannot be forgotten silently. The first jobs are fixed now:
+`release/canaries.json` registers three canaries: Lagging (`ClaudiniteCanaryLagging`), Fresh (`ClaudiniteCanaryFresh`) and Sandbox (`ClaudiniteSandbox`). Each names no workflow until the canary App (#21) can read their runs, and the gate counts only canaries that name one, so until then it answers `no-canaries` and promotion needs the dispatch's confirmation. The registration is there so a canary added later cannot be forgotten silently. The first jobs are fixed now:
 
 - **Lagging**: the `v1`–`v3` shapes of `lifecycle/verify/testdata/shapes`. It is the only place old shapes run live; every release must update it to deprecations, never breaks, and `cn selftest --repo` must fail no probe on it.
 - **Fresh**: `cn init` on a scratch branch each release, then `cn verify` and `cn selftest --repo` over the result.
