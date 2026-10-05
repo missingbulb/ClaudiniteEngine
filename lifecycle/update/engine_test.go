@@ -443,6 +443,22 @@ func TestLandRefusesWhatIsNotAPinOnlyUpdatePR(t *testing.T) {
 	}
 }
 
+// A plan correction PR an earlier engine opened has nothing left to land:
+// the refusal tells the person to close it.
+func TestLandTellsAPersonToCloseARetiredPlanPR(t *testing.T) {
+	w := newWorld(t, settings.YAML)
+	w.publish(t, v2, relOpts{})
+	w.openUpdatePR(t, 4, v2, "")
+	w.hub.pulls[0].HeadRef = "claudinite/plan-2026-10-01"
+	_, err := Land(w.deps(t), 4, w.hub.pulls[0].HeadSHA)
+	if err == nil || !strings.Contains(err.Error(), "close #4") || !strings.Contains(err.Error(), "claudinite/plan-2026-10-01") {
+		t.Errorf("err %v", err)
+	}
+	if len(w.hub.called("merge")) != 0 {
+		t.Error("merged")
+	}
+}
+
 // The verdict is the last stdout line and takes one of these forms; T9's
 // live steps and the workflow's summary read it.
 func TestVerdictForms(t *testing.T) {

@@ -386,6 +386,12 @@ func closeUpdatePR(d Deps, pr githubapi.PR, why string) error {
 // whose runs the next update needs green. The branch says which shape the
 // PR must have: an engine PR is pin-only, a pack PR changes only the
 // vendored packs (landPacks).
+// retiredPlanBranchPrefix starts the plan correction branches an engine
+// before record row 131 opened; one may still stand open in a member.
+//
+// @legacy-tolerance advisory:none retire:#83
+const retiredPlanBranchPrefix = "claudinite/plan-"
+
 func Land(d Deps, n int, sha string) (string, error) {
 	pr, err := d.GitHub.Pull(n)
 	if err != nil {
@@ -396,6 +402,8 @@ func Land(d Deps, n int, sha string) (string, error) {
 		return "", fmt.Errorf("#%d is %s", n, pr.State)
 	case pr.Author != gitcmd.BotName:
 		return "", fmt.Errorf("#%d was opened by %s, not %s", n, pr.Author, gitcmd.BotName)
+	case strings.HasPrefix(pr.HeadRef, retiredPlanBranchPrefix):
+		return "", fmt.Errorf("#%d (branch %s) is a plan correction PR, which no engine lands any more: close #%d", n, pr.HeadRef, n)
 	case !pr.HasLabel(Label) || (!strings.HasPrefix(pr.HeadRef, BranchPrefix) && !strings.HasPrefix(pr.HeadRef, PackBranchPrefix)):
 		return "", fmt.Errorf("#%d is not an update PR (label %s, branch %s* or %s*)", n, Label, BranchPrefix, PackBranchPrefix)
 	case pr.BaseRef != mainBranch:
