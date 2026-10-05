@@ -8,12 +8,12 @@ import (
 // ModeInput is what a publish job knows when it decides whether to publish.
 type ModeInput struct {
 	Channel     string // "rc" or "stable"
-	Signing     string // "release", from the sign job once the signature verified against license/roots
+	Signing     string // "release", from the sign job once the signature verified against shared/trust/roots
 	DryRunInput bool   // the dispatch's dry_run input
 	// NpmVersions is the output of `npm view <channel package> versions
 	// --json`, empty when the command failed.
 	NpmVersions string
-	// StableTest is "pass" or "fail" for `go test -tags stable ./license`
+	// StableTest is "pass" or "fail" for `go test -tags stable ./shared/trust`
 	// at the candidate's commit; the stable channel requires "pass".
 	StableTest string
 }
@@ -33,7 +33,7 @@ func PublishMode(in ModeInput) Mode {
 	case "rc":
 	case "stable":
 		if in.StableTest != "pass" {
-			return Mode{"refuse", "go test -tags stable ./license does not pass at this commit: a stable release never embeds the development roots"}
+			return Mode{"refuse", "go test -tags stable ./shared/trust does not pass at this commit: a stable release never embeds the development roots"}
 		}
 	default:
 		return Mode{"refuse", "unknown channel " + in.Channel}

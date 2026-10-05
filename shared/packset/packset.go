@@ -48,8 +48,8 @@ type Manifest struct {
 	// GitHubActions are the named GitHub actions the pack's task scripts
 	// take through the SDK.
 	GitHubActions []string
-	// Engine is true when the pack's tasks are the engine's own, run under
-	// the license; absent is false.
+	// Engine is true when the pack's tasks are the engine's own; absent is
+	// false.
 	Engine bool
 	// Retired are the retired keys a local or temp pack's manifest still
 	// carries, in RetiredKeys order; the reader ignores them.

@@ -88,20 +88,11 @@ XDG_CACHE_HOME=$work/cache CLAUDE_PROJECT_DIR=$member CLAUDINITE_CHECKS_NO_FETCH
 export XDG_CACHE_HOME CLAUDE_PROJECT_DIR CLAUDINITE_CHECKS_NO_FETCH
 (cd "$member" && printf '{"session_id":"probe","hook_event_name":"SessionStart","source":"startup"}' | "$cn" hook session-start > /dev/null 2>&1) || true
 
-# The session's license state is a key request in flight, in which every
-# surface runs, forced skill loading included; it is written afresh,
-# untimed, before each call, as the state's own clock would otherwise let
-# it lapse.
-sessions=$XDG_CACHE_HOME/claudinite/sessions
-mkdir -p "$sessions"
-chmod 0700 "$XDG_CACHE_HOME/claudinite" "$sessions"
-pending="printf '{\"v\":1,\"session_id\":\"probe\",\"repo\":\"\",\"mode\":\"web\",\"nonce\":\"probe\",\"requested_at\":\"%s\",\"state\":\"pending\"}' \"\$(date -u +%Y-%m-%dT%H:%M:%SZ)\" > '$sessions/probe.json'"
-
 # time NAME EVENT PAYLOAD TRANSCRIPT WANT: cn hook EVENT over PAYLOAD, each
 # call exiting WANT (2 for a block).
 time_hook() {
   stdin="{\"session_id\":\"probe\",\"cwd\":\"$member\",\"transcript_path\":\"$4\",$3}"
-  "$timeit" run --name "$1" --runs "$runs" --log "$log" --exit "$5" --setup "$pending" --stdin "$stdin" -- "$cn" hook "$2"
+  "$timeit" run --name "$1" --runs "$runs" --log "$log" --exit "$5" --stdin "$stdin" -- "$cn" hook "$2"
 }
 
 say "1/3 the derivation alone"

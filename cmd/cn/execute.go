@@ -13,10 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/missingbulb/ClaudiniteEngine/license"
 	"github.com/missingbulb/ClaudiniteEngine/shared/breadcrumb"
 	"github.com/missingbulb/ClaudiniteEngine/shared/gitcmd"
-	"github.com/missingbulb/ClaudiniteEngine/shared/licenseapi"
 	"github.com/missingbulb/ClaudiniteEngine/shared/mergepolicy"
 	"github.com/missingbulb/ClaudiniteEngine/shared/paths"
 	"github.com/missingbulb/ClaudiniteEngine/shared/report"
@@ -45,27 +43,6 @@ func cmdExecute(args []string, stdout io.Writer) error {
 		return cmdExecuteContinue(args[1:], stdout, env)
 	}
 	return report.New(report.Usage, fmt.Sprintf("unknown execute command %q", args[0]))
-}
-
-// taskLicense is "" when an item of t may run under the run's key, else
-// the notice its park carries. The key is asked for only by an item that
-// needs one.
-func taskLicense(key *license.ActionsOnce, t taskspec.Task) string {
-	need := execute.KeyNeedOf(t)
-	if !need.Any() {
-		return ""
-	}
-	r := key.Key()
-	if r.Key == nil {
-		return license.NoticeFor(nil, r.Cause, r.Detail, r.Link)
-	}
-	if r.Key.State == "degraded" {
-		return license.NoticeFor(r.Key, "", "", "")
-	}
-	if need.EnginePack && !license.Gate(r.Key, false).On(license.SurfaceClaudiniteTasks) {
-		return fmt.Sprintf("this run's license key does not include %s, which %s, a task of the engine's own packs, runs under", license.SurfaceClaudiniteTasks, t.Path())
-	}
-	return ""
 }
 
 // pullDiff reads a pull request's diff from this checkout as merge-policy
@@ -188,11 +165,6 @@ func cmdExecuteLoop(args []string, stdout io.Writer, env world.Env) (err error) 
 	if err := gw.EnsureLabels(workitem.QueueLabels); err != nil {
 		return report.New(report.IO, err.Error())
 	}
-	roots, err := license.Roots()
-	if err != nil {
-		return report.Wrap(report.IO, "the embedded license roots", err)
-	}
-	key := sharedActionsKey(roots, stdout)
 	log := func(s string) { fmt.Fprintln(stdout, s) }
 	echo := func(_, line string) { fmt.Fprintln(stdout, line) }
 	unpacked, err := runner.Unpack(paths.CacheRoot())
@@ -244,8 +216,7 @@ func cmdExecuteLoop(args []string, stdout io.Writer, env world.Env) (err error) 
 		Issues: gw, Pulls: gw, Lane: gw, Tasks: r.tasks,
 		ExecutorID: env.ExecutorID(), RunURL: env.RunURL(), Clock: clock, Draw: rand.Float64,
 		Heartbeat: queue.HeartbeatEvery, Ticker: queue.RealTicker{},
-		Exists:  func(dir string) bool { _, err := os.Stat(dir); return err == nil },
-		License: func(t taskspec.Task) string { return taskLicense(key, t) },
+		Exists: func(dir string) bool { _, err := os.Stat(dir); return err == nil },
 		Evaluate: execute.Picker{Collector: collector(nil), PackConfig: r.packConfig, Runner: run,
 			Env: termsEnv, Echo: echo}.Evaluate,
 		ResolveTarget: func(t taskspec.Task, at time.Time) execute.Target {
@@ -268,17 +239,6 @@ func cmdExecuteLoop(args []string, stdout io.Writer, env world.Env) (err error) 
 			}
 			d := lane.Deliver(land.PR{Number: p.Number, NodeID: p.NodeID, HeadRef: p.HeadRef, HeadSHA: p.HeadSHA}, branch, delivery, t.Path(), judgement(t))
 			return execute.Landed{Merged: d.Merged, Refused: d.Refused}
-		},
-		Grant: func(_ taskspec.Task, item workitem.Issue) (string, error) {
-			w, err := licenseapi.FromEnv()
-			if err != nil {
-				return "", err
-			}
-			g, err := license.Grant(w, key.Key(), item.Number)
-			if err != nil {
-				return "", err
-			}
-			return execute.GrantComment(g), nil
 		},
 		Invoke: invoker.Invoke,
 		Nonce:  newNonce,

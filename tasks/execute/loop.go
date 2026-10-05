@@ -116,9 +116,6 @@ type In struct {
 	// Exists probes a task folder: one run drains several items from one
 	// checkout, and an earlier item's work can delete a later one's task.
 	Exists func(dir string) bool
-	// License answers whether an item of the task may run under this
-	// run's key: "" when it may, else the notice its park carries.
-	License func(t taskspec.Task) string
 	// Evaluate is the precondition asked again at the pick, for this
 	// occurrence.
 	Evaluate      func(t taskspec.Task, item workitem.Issue, at time.Time) precondition.Verdict
@@ -126,10 +123,7 @@ type In struct {
 	CodeWork      func(t taskspec.Task, w Work) CodeWorkResult
 	// Land takes the pull request code-work delivered through the landing
 	// lane, as far as the task's policy and the member allow.
-	Land func(t taskspec.Task, pr int) Landed
-	// Grant asks for the item grant the routine session verifies, and
-	// answers the comment that posts it.
-	Grant  func(t taskspec.Task, item workitem.Issue) (string, error)
+	Land   func(t taskspec.Task, pr int) Landed
 	Invoke func(t taskspec.Task, item workitem.Issue, nonce string) Invocation
 	Nonce  func(item int) string
 	Cost   *queue.CostMeter
@@ -400,14 +394,6 @@ func (r *run) execute(item workitem.Issue, claim world.Comment) (string, error) 
 			fmt.Sprintf("This item's task path (`%s`) is not where `%s` lives at HEAD (`%s`). Not running it.", taskPath, id, task.TaskPath()), "invalid")
 	}
 
-	if r.License != nil {
-		if notice := r.License(task); notice != "" {
-			r.Log(fmt.Sprintf("! #%d %s: not run under this run's key", item.Number, id))
-			return OutcomeNeedsHuman, r.park(item, id, running, workitem.StatusNeedsHumanAction, &claim,
-				notice+"\n\nNothing ran. Re-queue this item ("+requeueHint()+") once the license is in order.", "failed")
-		}
-	}
-
 	at := r.Clock.Now()
 	verdict := r.Evaluate(task, item, at)
 	if verdict.Error != "" {
@@ -573,7 +559,7 @@ func HandoffComment(executor, nonce string) string {
 // handOff gives the item to an agent session: one fire per item, ever.
 // The target, the scope and what code-work created land in the machine's
 // half of the body first; then running-agent, the hand-off comment with
-// the nonce, the grant, the fire.
+// the nonce, the fire.
 func (r *run) handOff(item workitem.Issue, task taskspec.Task, id string, claim world.Comment, context []string, result CodeWorkResult, target Target) (string, error) {
 	end := r.phase("hand-off")
 	defer end()
@@ -604,16 +590,6 @@ func (r *run) handOff(item workitem.Issue, task taskspec.Task, id string, claim 
 		return "", err
 	}
 	agent := workitem.StatusRunningAgent
-	if r.Grant != nil {
-		grant, err := r.Grant(task, item)
-		if err != nil {
-			return OutcomeNeedsHuman, r.park(item, id, agent, workitem.StatusNeedsHumanAction, &claim,
-				fmt.Sprintf("Could not obtain this item's grant: %v\n\nNo session was started: a routine session verifies the grant and never takes a seat. Re-queue this item (%s) once the license is in order.", err, requeueHint()), "failed")
-		}
-		if _, err := r.Issues.Comment(item.Number, grant); err != nil {
-			return "", err
-		}
-	}
 	inv := r.Invoke(task, item, nonce)
 	switch {
 	case inv.OK:

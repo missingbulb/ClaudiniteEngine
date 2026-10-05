@@ -282,7 +282,8 @@ func SetPin(raw []byte, f Format, version, manifest string) ([]byte, error) {
 }
 
 // PinOnlyChange refuses unless new is old with at most engine.version and
-// engine.manifest changed, both still valid.
+// engine.manifest changed, both still valid, and the retired license block
+// dropped.
 func PinOnlyChange(old, new []byte, f Format) error {
 	oe, err := ReadEngine(old, f)
 	if err != nil {
@@ -299,8 +300,11 @@ func PinOnlyChange(old, new []byte, f Format) error {
 	if err != nil {
 		return err
 	}
-	if string(moved) != string(new) {
-		return errors.New("the settings change touches more than engine.version and engine.manifest")
+	if string(moved) == string(new) {
+		return nil
 	}
-	return nil
+	if dropped, err := DropLicense(moved, f); err == nil && string(dropped) == string(new) {
+		return nil
+	}
+	return errors.New("the settings change touches more than engine.version and engine.manifest")
 }

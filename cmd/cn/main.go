@@ -3,14 +3,14 @@ package main
 
 import (
 	"fmt"
-	"github.com/missingbulb/ClaudiniteEngine/checksdk"
 	"io"
 	"os"
 	"runtime/debug"
 	"time"
 
+	"github.com/missingbulb/ClaudiniteEngine/checksdk"
+
 	"github.com/missingbulb/ClaudiniteEngine/hooks"
-	"github.com/missingbulb/ClaudiniteEngine/license"
 	"github.com/missingbulb/ClaudiniteEngine/lifecycle"
 	"github.com/missingbulb/ClaudiniteEngine/lifecycle/selftest"
 	"github.com/missingbulb/ClaudiniteEngine/shared/breadcrumb"
@@ -18,6 +18,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/shared/paths"
 	"github.com/missingbulb/ClaudiniteEngine/shared/report"
 	"github.com/missingbulb/ClaudiniteEngine/shared/sign"
+	"github.com/missingbulb/ClaudiniteEngine/shared/trust"
 	"github.com/missingbulb/ClaudiniteEngine/shared/version"
 )
 
@@ -74,15 +75,6 @@ commands:
                  pinned .claudinite/settings.* as its packs and checks
                  blocks, one report line per key; --stdout prints the
                  blocks as YAML instead; exit 1 when a key is refused
-  login [--logout] [--force]
-                 log in to the Claudinite App on this machine (GitHub's
-                 device flow), so desktop sessions request their key
-                 directly
-  license status [--session ID] [--repo DIR]
-                 the session's license state and the surfaces it turns off
-  license request --session ID [--nonce N] [--repo DIR]
-                 the session's key request: with --nonce, the background
-                 request SessionStart starts; without, a foreground one
   rules-index [--check] [--repo DIR]
                  write the import index of the active packs' prose that
                  CLAUDE.md imports, and the flat task and dashboard
@@ -116,7 +108,7 @@ commands:
                  print one execution record
   work validate --issue N --nonce X --item-file PATH --comments-file PATH
                  [--request-file PATH] [--repo DIR]
-                 a routine session's entry gate: the nonce and the grant
+                 a routine session's entry gate: the hand-off's nonce
   execute loop [--repo DIR]
                  the executor: claim, re-evaluate, run and converge every
                  ready item; needs GITHUB_TOKEN
@@ -195,7 +187,7 @@ commands:
 var secretScanPlant string
 
 // runHook is a variable so a test can make a hook panic.
-var runHook = hooks.Handler{Checks: hookChecks{}, Guards: hookGuards{}, License: hookLicense{}, Index: hookIndex{}, Growth: hookGrowth{}, UserPack: hookUserPack{}}.Run
+var runHook = hooks.Handler{Checks: hookChecks{}, Guards: hookGuards{}, Index: hookIndex{}, Growth: hookGrowth{}, UserPack: hookUserPack{}}.Run
 
 func main() {
 	if len(os.Args) == 3 && os.Args[1] == "hook" && perCallEvents[os.Args[2]] {
@@ -284,7 +276,7 @@ func dispatch(args []string, stdin io.Reader, stdout, stderr io.Writer, start ti
 		case len(args) != 1:
 			return report.New(report.Usage, "selftest takes no arguments but --repo DIR")
 		}
-		roots, err := license.Roots()
+		roots, err := trust.Roots()
 		in.RootsErr = err
 		for _, r := range roots {
 			in.RootIDs = append(in.RootIDs, sign.KeyID(r))
@@ -307,10 +299,6 @@ func dispatch(args []string, stdin io.Reader, stdout, stderr io.Writer, start ti
 		return cmdAdopt(args[1:], stdout)
 	case "settings":
 		return cmdSettings(args[1:], stdout)
-	case "login":
-		return cmdLogin(args[1:], stdout)
-	case "license":
-		return cmdLicense(args[1:], stdout, stderr)
 	case "rules-index":
 		return cmdRulesIndex(args[1:], stdout)
 	case "tasks":

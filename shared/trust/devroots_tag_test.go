@@ -1,4 +1,4 @@
-package license
+package trust
 
 import (
 	"io/fs"
@@ -11,12 +11,13 @@ import (
 )
 
 // release/rehearse.sh lets a devroots rebuild stand for a release
-// candidate, so the tag may change nothing but which roots are embedded:
-// only the roots files and their tests read it.
+// candidate, so the tag may change nothing but which roots are embedded
+// and whether CLAUDINITE_LICENSE_API names the license server: only those
+// files and their tests read it.
 func TestOnlyTheRootsFilesReadTheDevrootsTag(t *testing.T) {
 	constraint := regexp.MustCompile(`(?m)^//go:build .*\bdevroots\b`)
 	var got []string
-	err := filepath.WalkDir("..", func(path string, d fs.DirEntry, err error) error {
+	err := filepath.WalkDir("../..", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -31,7 +32,7 @@ func TestOnlyTheRootsFilesReadTheDevrootsTag(t *testing.T) {
 			return err
 		}
 		if constraint.Match(raw) {
-			got = append(got, filepath.ToSlash(strings.TrimPrefix(path, ".."+string(filepath.Separator))))
+			got = append(got, filepath.ToSlash(strings.TrimPrefix(path, ".."+string(filepath.Separator)+".."+string(filepath.Separator))))
 		}
 		return nil
 	})
@@ -39,7 +40,7 @@ func TestOnlyTheRootsFilesReadTheDevrootsTag(t *testing.T) {
 		t.Fatal(err)
 	}
 	sort.Strings(got)
-	want := "license/roots_dev.go license/roots_dev_test.go license/roots_real.go license/roots_real_test.go"
+	want := "shared/licenseapi/override_dev.go shared/licenseapi/override_dev_test.go shared/licenseapi/override_real.go shared/licenseapi/override_test.go shared/trust/roots_dev.go shared/trust/roots_dev_test.go shared/trust/roots_real.go shared/trust/roots_real_test.go"
 	if strings.Join(got, " ") != want {
 		t.Fatalf("files reading the devroots tag: %v, want %s", got, want)
 	}

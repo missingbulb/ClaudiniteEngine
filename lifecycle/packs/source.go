@@ -15,7 +15,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -197,12 +196,6 @@ type Reader struct {
 	// Log receives one line per index and archive saying which source
 	// answered.
 	Log io.Writer
-	// SerialFloor is the license key's pack index serial: an index below
-	// it is refused. Zero sets no floor (cn init, which has no key yet).
-	SerialFloor int64
-	// AcceptedKeys are the license key's pack-index key ids: when any are
-	// listed, an index signed by another key is refused.
-	AcceptedKeys []string
 
 	seen map[string]int64
 }
@@ -313,12 +306,6 @@ func (r *Reader) VerifiedIndex(id string) (Verified, error) {
 		}
 		if err != nil {
 			return Verified{}, fmt.Errorf("pack index %s from %s refused: %w", id, src.Name(), err)
-		}
-		if v.Index.Serial < r.SerialFloor {
-			return Verified{}, fmt.Errorf("pack index %s from %s refused: serial %d is below the license key's pack index serial %d", id, src.Name(), v.Index.Serial, r.SerialFloor)
-		}
-		if len(r.AcceptedKeys) > 0 && !slices.Contains(r.AcceptedKeys, v.KeyID) {
-			return Verified{}, fmt.Errorf("pack index %s from %s refused: signed by key %s, which the license key does not list", id, src.Name(), v.KeyID)
 		}
 		if seen && v.Index.Serial < floor {
 			return Verified{}, fmt.Errorf("pack index %s from %s refused: serial %d is older than serial %d already read in this run", id, src.Name(), v.Index.Serial, floor)
@@ -450,9 +437,6 @@ func (r *Reader) VerifiedCatalog() (VerifiedCatalog, error) {
 		}
 		if err != nil {
 			return VerifiedCatalog{}, fmt.Errorf("pack catalog from %s refused: %w", src.Name(), err)
-		}
-		if len(r.AcceptedKeys) > 0 && !slices.Contains(r.AcceptedKeys, v.KeyID) {
-			return VerifiedCatalog{}, fmt.Errorf("pack catalog from %s refused: signed by key %s, which the license key does not list", src.Name(), v.KeyID)
 		}
 		if best != nil && v.Catalog.Serial < best.Catalog.Serial {
 			disagree = true

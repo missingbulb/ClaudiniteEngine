@@ -187,6 +187,7 @@ type Repo struct {
 	FullName string `json:"full_name"`
 	Owner    struct {
 		Login string `json:"login"`
+		ID    int64  `json:"id"`
 	} `json:"owner"`
 	Archived      bool   `json:"archived"`
 	Fork          bool   `json:"fork"`

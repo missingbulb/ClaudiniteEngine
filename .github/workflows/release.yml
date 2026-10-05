@@ -7,7 +7,7 @@
 # (release/publishmode.go): the dry_run input or a package npm does not
 # hold yet make it a dry run that tags nothing. The sign job signs only
 # with the release key of the environment release, certified by the root
-# license/roots holds.
+# shared/trust/roots holds.
 name: release
 
 on:
@@ -233,7 +233,7 @@ jobs:
           echo "signing=release" >> "$GITHUB_OUTPUT"
       - if: always()
         run: rm -f "$RUNNER_TEMP/release.key" "$RUNNER_TEMP/release.cert.json"
-      - run: go run ./release/manifest verify --dist dist --roots license/roots
+      - run: go run ./release/manifest verify --dist dist --roots shared/trust/roots
       - id: sums
         run: echo "sums=$(sha256sum dist/SHA256SUMS | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

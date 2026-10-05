@@ -60,10 +60,6 @@ type world struct {
 	bare string
 	out  *bytes.Buffer
 	f    settings.Format
-	// key is the Actions key the run gets; nil is an ok organization key.
-	key *KeyResult
-	// keyCalls counts the run's key requests.
-	keyCalls int
 }
 
 func newWorld(t *testing.T, f settings.Format) *world {
@@ -104,13 +100,7 @@ func (w *world) mainRun(t *testing.T, state string) {
 func (w *world) deps(t *testing.T) Deps {
 	return Deps{GitHub: w.hub, Registry: w.reg.client(), Git: gitcmd.Repo{Dir: w.repo}, Roots: rootsOf(testRoot),
 		CacheRoot: filepath.Join(t.TempDir(), "claudinite"), Platform: version.Platform(), Now: func() time.Time { return t0 },
-		Repo: w.repo, Out: w.out, Timeout: 10 * time.Second, Key: func() KeyResult {
-			w.keyCalls++
-			if w.key != nil {
-				return *w.key
-			}
-			return KeyResult{Key: &LicenseKey{Plan: "organization", State: "ok", IssuedAt: t0}}
-		}}
+		Repo: w.repo, Out: w.out, Timeout: 10 * time.Second}
 }
 
 func (w *world) publish(t *testing.T, ver string, o relOpts) {
@@ -453,10 +443,26 @@ func TestLandRefusesWhatIsNotAPinOnlyUpdatePR(t *testing.T) {
 	}
 }
 
+// A plan correction PR an earlier engine opened has nothing left to land:
+// the refusal tells the person to close it.
+func TestLandTellsAPersonToCloseARetiredPlanPR(t *testing.T) {
+	w := newWorld(t, settings.YAML)
+	w.publish(t, v2, relOpts{})
+	w.openUpdatePR(t, 4, v2, "")
+	w.hub.pulls[0].HeadRef = "claudinite/plan-2026-10-01"
+	_, err := Land(w.deps(t), 4, w.hub.pulls[0].HeadSHA)
+	if err == nil || !strings.Contains(err.Error(), "close #4") || !strings.Contains(err.Error(), "claudinite/plan-2026-10-01") {
+		t.Errorf("err %v", err)
+	}
+	if len(w.hub.called("merge")) != 0 {
+		t.Error("merged")
+	}
+}
+
 // The verdict is the last stdout line and takes one of these forms; T9's
 // live steps and the workflow's summary read it.
 func TestVerdictForms(t *testing.T) {
-	want := []string{`^landed \S+$`, `^opened #\d+ for \S+$`, `^landed packs .+$`, `^opened #\d+ for packs .+$`, `^landed plan \S+$`, `^opened #\d+ for plan \S+$`, `^no PR: .+$`, `^skipped: .+$`, `^up to date$`}
+	want := []string{`^landed \S+$`, `^opened #\d+ for \S+$`, `^landed packs .+$`, `^opened #\d+ for packs .+$`, `^no PR: .+$`, `^skipped: .+$`, `^up to date$`}
 	if strings.Join(VerdictForms, " ") != strings.Join(want, " ") {
 		t.Errorf("forms %v", VerdictForms)
 	}
@@ -754,4 +760,48 @@ func declareHello(t *testing.T, w *world) {
 	gitRun(t, w.repo, "commit", "-q", "-m", "declare hello")
 	gitRun(t, w.repo, "push", "-q", "origin", "main")
 	w.mainRun(t, "success")
+}
+
+func withLicense(f settings.Format, ver, pin string) string {
+	switch f {
+	case settings.TOML:
+		return settingsFor(f, ver, pin) + "\n[license]\nplan = \"public\"\n"
+	case settings.JSON:
+		return strings.Replace(settingsFor(f, ver, pin), "\"other\": 1", "\"license\": {\"plan\": \"public\"},\n  \"other\": 1", 1)
+	}
+	return settingsFor(f, ver, pin) + "license:\n  plan: \"public\"\n"
+}
+
+func TestTheUpdatePRDropsTheRetiredLicenseBlock(t *testing.T) {
+	for _, f := range settings.Formats {
+		w := newWorld(t, f)
+		if err := os.WriteFile(filepath.Join(w.repo, settings.RelPath(f)), []byte(withLicense(f, v1, pin1)), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		gitRun(t, w.repo, "commit", "-q", "-am", "licensed")
+		gitRun(t, w.repo, "push", "-q", "origin", "main")
+		w.mainRun(t, "success")
+		w.publish(t, v2, relOpts{})
+		v, err := Engine(w.deps(t), Options{})
+		if err != nil || v != "opened #1 for "+v2 {
+			t.Fatalf("%s: %q %v\n%s", f, v, err, w.out)
+		}
+		branch := "claudinite/engine-" + v2
+		committed := gitRun(t, w.bare, "show", branch+":"+settings.RelPath(f)) + "\n"
+		e, err := settings.ReadEngine([]byte(committed), f)
+		if err != nil || e.Version != v2 {
+			t.Fatalf("%s: committed settings %+v %v", f, e, err)
+		}
+		if settings.HasRetiredLicense([]byte(committed), f) {
+			t.Errorf("%s: the license block survived:\n%s", f, committed)
+		}
+		want, _ := settings.SetPin([]byte(settingsFor(f, v1, pin1)), f, v2, e.Manifest)
+		if committed != string(want) {
+			t.Errorf("%s: dropped more than the block:\n%s\nwant\n%s", f, committed, want)
+		}
+		creates := w.hub.called("create-pull")
+		if len(creates) != 1 || !strings.Contains(creates[0], "retired `license` block") {
+			t.Errorf("%s: PR body does not name the dropped block: %v", f, creates)
+		}
+	}
 }

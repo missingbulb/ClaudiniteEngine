@@ -138,3 +138,19 @@ func TestErrorsNameTheCall(t *testing.T) {
 		t.Errorf("plain http base: %v", err)
 	}
 }
+
+func TestARefusedCallCarriesItsStatus(t *testing.T) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+		_, _ = io.WriteString(w, `{"message": "Resource not accessible by integration"}`)
+	}))
+	defer srv.Close()
+	c := &Client{Base: srv.URL, Repo: "acme/locked", HTTP: srv.Client()}
+	if err := c.do(http.MethodPost, "/repos/acme/locked/dispatches", map[string]any{}, nil); StatusOf(err) != http.StatusForbidden {
+		t.Fatalf("%v", err)
+	}
+	c.Base = "https://127.0.0.1:1"
+	if err := c.do(http.MethodPost, "/repos/acme/locked/dispatches", map[string]any{}, nil); err == nil || StatusOf(err) != 0 {
+		t.Fatalf("an unreachable host: %v", err)
+	}
+}

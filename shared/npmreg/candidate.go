@@ -2,13 +2,8 @@ package npmreg
 
 import "github.com/missingbulb/ClaudiniteEngine/shared/version"
 
-// KeyReason is the reason a version held or revoked by the license key
-// alone carries.
-const KeyReason = "license key"
-
-// States lists the versions held and revoked, each with its reason. Phase
-// 2 fills it from npm's deprecation messages; phase 4 unions in the lists
-// the license key carries.
+// States lists the versions held and revoked, each with its reason, as
+// npm's deprecation messages say them.
 type States struct {
 	Held    map[string]string
 	Revoked map[string]string
@@ -68,8 +63,8 @@ func Candidate(pin string, p *Packument, s States) Choice {
 			continue
 		}
 		reason := ""
-		if k, r := s.Of(v); k != "" {
-			reason = skipReason(k, r)
+		if k, _ := s.Of(v); k != "" {
+			reason = string(k)
 		} else if d := ParseDeprecation(e.Deprecated); d.Kind != "" {
 			reason = string(d.Kind)
 		} else if !newer(v, pin) {
@@ -89,31 +84,4 @@ func Candidate(pin string, p *Packument, s States) Choice {
 		c.Skipped = nil
 	}
 	return c
-}
-
-// Union is s with o's entries added; s's reason stands where both name a
-// version.
-func (s States) Union(o States) States {
-	out := States{Held: map[string]string{}, Revoked: map[string]string{}}
-	for _, src := range []States{s, o} {
-		for v, r := range src.Held {
-			if _, ok := out.Held[v]; !ok {
-				out.Held[v] = r
-			}
-		}
-		for v, r := range src.Revoked {
-			if _, ok := out.Revoked[v]; !ok {
-				out.Revoked[v] = r
-			}
-		}
-	}
-	return out
-}
-
-// skipReason names a held or revoked state, marking one the key alone set.
-func skipReason(k Kind, reason string) string {
-	if reason == KeyReason {
-		return string(k) + " (" + KeyReason + ")"
-	}
-	return string(k)
 }

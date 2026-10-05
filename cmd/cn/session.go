@@ -9,13 +9,10 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"time"
 
 	"github.com/missingbulb/ClaudiniteEngine/growth/userpack"
-	"github.com/missingbulb/ClaudiniteEngine/license"
 	"github.com/missingbulb/ClaudiniteEngine/shared/report"
 	"github.com/missingbulb/ClaudiniteEngine/shared/workitem"
-	"github.com/missingbulb/ClaudiniteEngine/tasks/execute"
 	"github.com/missingbulb/ClaudiniteEngine/tasks/items"
 	"github.com/missingbulb/ClaudiniteEngine/tasks/world"
 )
@@ -79,16 +76,6 @@ func cmdWorkRecordExec(args []string, stdout io.Writer) error {
 }
 
 func cmdWorkValidate(args []string, stdout io.Writer) error {
-	roots, err := license.Roots()
-	if err != nil {
-		return report.Wrap(report.IO, "the embedded license roots", err)
-	}
-	return workValidate(args, stdout, func(grant string, issue int) error {
-		return license.VerifyGrant([]byte(grant), roots, time.Now(), issue)
-	})
-}
-
-func workValidate(args []string, stdout io.Writer, verify func(grant string, issue int) error) error {
 	fs := flag.NewFlagSet("work validate", flag.ContinueOnError)
 	repo := fs.String("repo", ".", "")
 	issue := fs.Int("issue", 0, "")
@@ -117,7 +104,7 @@ func workValidate(args []string, stdout io.Writer, verify func(grant string, iss
 	if err != nil {
 		return report.New(report.Usage, "--comments-file must hold the item's comments as your GitHub tools returned them, oldest first (id, body)")
 	}
-	s := items.Session{Item: item, Comments: comments, Nonce: *nonce, VerifyGrant: verify, GrantOf: execute.GrantFromComment}
+	s := items.Session{Item: item, Comments: comments, Nonce: *nonce}
 	if *requestFile != "" {
 		req, err := readItemFile(*requestFile, "this repo", 0)
 		if err != nil {

@@ -1,6 +1,6 @@
 //go:build !devroots
 
-package license
+package trust
 
 import (
 	"os"
@@ -30,7 +30,7 @@ func TestReleasedBuildEmbedsTheCeremonyRoots(t *testing.T) {
 }
 
 // release/manifest and release/promote verify against every *.pub in
-// license/roots/, so the directory holds the two ceremony roots and nothing
+// shared/trust/roots/, so the directory holds the two ceremony roots and nothing
 // else.
 func TestTheRootsDirectoryHoldsOnlyTheTwoRoots(t *testing.T) {
 	entries, err := os.ReadDir("roots")
@@ -43,6 +43,6 @@ func TestTheRootsDirectoryHoldsOnlyTheTwoRoots(t *testing.T) {
 	}
 	sort.Strings(names)
 	if got := strings.Join(names, " "); got != "root.pub standby.pub" {
-		t.Fatalf("license/roots/ holds %s, want root.pub standby.pub", got)
+		t.Fatalf("shared/trust/roots/ holds %s, want root.pub standby.pub", got)
 	}
 }

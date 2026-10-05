@@ -235,23 +235,6 @@ func TestAHoldComesBeforeTheGuards(t *testing.T) {
 	}
 }
 
-func TestForcedLoadingOffHoldsNothingButGuardsStillRun(t *testing.T) {
-	repo := triggered(t)
-	g := &fakeGuards{result: GuardResult{Advice: []string{"[claudinite a] y"}}}
-	fl := &fakeLicense{hook: LicenseStatus{State: "degraded: no-key", ForcedLoading: false}}
-	out, errOut, err := perCall(t, Handler{Guards: g, License: fl, ProjectDir: repo}, "pre-tool-use", `{"tool_name":"Bash","tool_input":{"command":"deploy"}}`)
-	if err != nil || additional(t, out, "PreToolUse") != "[claudinite a] y" {
-		t.Errorf("%v %q", err, out)
-	}
-	if !strings.Contains(errOut, "[cn] license: forced skill loading off (degraded: no-key)\n") {
-		t.Errorf("stderr %q", errOut)
-	}
-	out, errOut, _ = perCall(t, Handler{Guards: &fakeGuards{}, License: fl, ProjectDir: repo}, "user-prompt-submit", `{"prompt":"SHIP IT"}`)
-	if strings.TrimSpace(out) != "{}" || outcomeOf(t, errOut) != "ok" {
-		t.Errorf("prompt: %q %q", out, errOut)
-	}
-}
-
 func TestPromptNudgesOncePerSession(t *testing.T) {
 	repo := triggered(t)
 	h := Handler{Guards: &fakeGuards{}, ProjectDir: repo}
@@ -283,16 +266,6 @@ func TestResultNudges(t *testing.T) {
 	}
 }
 
-// The license notice rides with whatever else the hook says.
-func TestTheNoticeJoinsTheContext(t *testing.T) {
-	g := &fakeGuards{result: GuardResult{Advice: []string{"[claudinite a] y"}}}
-	fl := &fakeLicense{hook: LicenseStatus{Notice: "[cn] license degraded: tell the person.", ForcedLoading: true}}
-	out, _, _ := perCall(t, Handler{Guards: g, License: fl, ProjectDir: t.TempDir()}, "pre-tool-use", bashCall)
-	if got := additional(t, out, "PreToolUse"); got != "[claudinite a] y\n[cn] license degraded: tell the person." {
-		t.Errorf("%q", got)
-	}
-}
-
 // The malformed trigger entries are named at SessionStart; the skill's
 // other triggers still bind.
 func TestSessionStartNamesAMalformedTrigger(t *testing.T) {
@@ -313,9 +286,8 @@ func TestSessionStartNamesAMalformedTrigger(t *testing.T) {
 func TestStopPassesTheTranscript(t *testing.T) {
 	repo := member(t, nil, nil)
 	fc := &fakeChecks{}
-	fl := &fakeLicense{hook: LicenseStatus{WorkChecks: true, ForcedLoading: false, State: "degraded: x"}}
-	hook(t, Handler{Checks: fc, License: fl, ProjectDir: repo}, "stop", `{"hook_event_name":"Stop","transcript_path":"/t/s.jsonl"}`)
-	if len(fc.scopes) != 1 || fc.scopes[0].Transcript != "/t/s.jsonl" || !fc.scopes[0].SkipForcedLoading {
+	hook(t, Handler{Checks: fc, ProjectDir: repo}, "stop", `{"hook_event_name":"Stop","transcript_path":"/t/s.jsonl"}`)
+	if len(fc.scopes) != 1 || fc.scopes[0].Transcript != "/t/s.jsonl" {
 		t.Errorf("%+v", fc.scopes)
 	}
 }

@@ -1,6 +1,6 @@
 //go:build devroots
 
-package license
+package trust
 
 import "embed"
 

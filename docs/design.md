@@ -8,7 +8,7 @@ Claudinite's engine is one closed Go binary per platform, published on npm and p
 
 ## Architecture and repositories
 
-We build four repositories and run one service, the license server (a key Worker and a sync Worker); npm, GitHub, Cloudflare and Anthropic host the rest. The binary runs in two kinds of place, a Claude Code session (web VM or desktop) and a GitHub Actions job, and each session gets its own short-lived key from the license Worker (a web session asks through GitHub), while an Actions job gets one only when it runs a task that asserts a license; only Actions reaches R2 for a cloud member.
+We build four repositories and run one service, the license server (a key Worker and a sync Worker); npm, GitHub, Cloudflare and Anthropic host the rest. The binary runs in two kinds of place, a Claude Code session (web VM or desktop) and a GitHub Actions job, and neither asks a license of a single repository: only a fleet run, in Actions, asks the license server for its owner's plan. Only Actions reaches R2 for a cloud member.
 
 ```mermaid
 flowchart LR
@@ -33,8 +33,7 @@ flowchart LR
   R2 -- packs, nightly update --> MEMB
   PACKR -. packs for the first adoption session only, a cloud VM can't reach our CDN .-> MEMB
   OIDC -- token, Actions only --> MEMB
-  LIC -- key for license-asserting tasks, item grants --> MEMB
-  LIC -. session keys: desktop directly, web session through the App's check run .-> MEMB
+  LIC -- fleet runs only: the owner's plan --> MEMB
   CCR -- agentic phase, a routine session the executor fires --> MEMB
 ```
 
@@ -61,10 +60,10 @@ Each arrow is one actor delivering one thing. The engine update verifies the rel
 | Launcher | A checked-in POSIX `sh` launcher using `curl` and a hash check | Needs no `package.json`, package manager or token in the member, and behaves the same on every machine |
 | Integrity | A per-repo pin of the version plus the SHA-512 of that version's `manifest.json`, which lists a SHA-256 per platform binary | A compromised registry alone cannot change what runs; one pinned value covers every platform |
 | Pack hosting | Per-version `.tar.gz` archives and a signed index per pack, on a public Cloudflare R2 bucket behind the CDN | Pack versions are per pack, so each needs its own immutable object; open content needs no gate |
-| Licensing service | Two Cloudflare Workers on D1 and KV, deployed from ClaudiniteLicenses: a key Worker that only reads, and a sync Worker, the only writer, which handles Polar and the queue | Its own private repo, apart from the website, because it is the critical service; subscription, seat and key tables, as the license design defines them |
-| License format | A short-lived key (7 days for a session, renewed after 24 hours; one Actions run) signed by a 90-day issuing key that the binary checks against its embedded root or standby root | Works on every VM without network access to us |
-| License identity | The sender of a web session's repository\_dispatch, the App user token on a desktop, and GitHub Actions OIDC tokens with audience `claudinite` | Names the real person, or the repository and owner by numeric id, with no stored secret |
-| Customer anchor | The Claudinite GitHub App, installed from GitHub Marketplace or by direct sale, with only the permissions licensing needs. The Global Dashboard signs in through a separate, read-only Claudinite Dashboard App that only fleet owners install | One install per account, personal or organization, records who is a customer and answers web sessions' key requests; Marketplace and our merchant of record send purchase events |
+| Licensing service | Two Cloudflare Workers on D1 and KV, deployed from ClaudiniteLicenses: a key Worker that only reads, and a sync Worker, the only writer, which handles Polar and the queue | Its own private repo, apart from the website; only fleet plans are sold, so only a fleet run asks it anything |
+| License format | A key for one Actions run of a fleet, signed by a 90-day issuing key that the binary checks against its embedded root or standby root | Works on every runner without trusting the network path to us |
+| License identity | The fleet manager's GitHub Actions OIDC token with audience `claudinite`, naming the repository and its owner by numeric id | Names the owner of the fleet's repos, never the person running it, with no stored secret |
+| Customer anchor | The Claudinite GitHub App, installed from GitHub Marketplace or by direct sale, with only the permissions licensing needs. The Global Dashboard signs in through a separate, read-only Claudinite Dashboard App that only fleet owners install | One install per account, personal or organization, records who is a customer; Marketplace and our merchant of record send purchase events |
 | Engine publishing | npm trusted publishing (OIDC) from the engine release workflow | No long-lived publish token exists |
 
 ## The engine
@@ -77,19 +76,19 @@ The engine is one binary, `cn`, and it contains everything that runs Claudinite:
 | Check engine | Runs declarative checks and its own built-in checks in Go, compiles the packs' Go checks into one checks binary, and runs any of them by tag |
 | Task runner | The scheduler and executor: plans runs, claims work items, executes each task's `task.json`, fires a task's agentic phase as a Claude Code Remote routine, and converges items. The task contract, the scheduler run and both executor stages run in `cn`; a task's `worker.mjs` and a task-local `preconditions.mjs` run in Node through the runner `cn` embeds and unpacks beside itself; one landing lane lands both the nightly update's PRs and the tasks' |
 | Growth | Captures lessons from sessions and PRs and turns them into pack rules, skills and checks through tasks the runner executes |
-| Lifecycle | `init` and pack adoption, engine and pack updates, key requests, the self-test |
-| License verifier | Obtains the session key, Actions key or item grant, verifies it offline against the embedded root or standby root, and applies its feature list at every gated command |
+| Lifecycle | `init` and pack adoption, engine and pack updates, the self-test |
+| Fleet | Fleet-wide sweeps over a manager's member repos, and the one license check: the run's owner and plan, from its Actions key, verified offline against the embedded root or standby root |
 | SDK server | Answers SDK calls from the checks binary and pack JavaScript: config, the pack registry, git, and named GitHub actions made with the engine's token. A coded check's calls are answered from the run's own context (the walk, the change, the session, config, parsed documents, the declared pack set), so the child recomputes nothing the engine holds |
 
-**Code structure.** The ClaudiniteEngine repo has one top-level folder per capability in the table above (hooks, checks, tasks, growth, fleet, lifecycle, license, sdkserver) plus a small shared folder for common types. The boundaries go in with the first commit, before any feature code: a CI import check (golangci-lint's depguard rule) lets each folder import only `shared` and nothing else, so new code grows inside its own capability. Every exception is an explicit, commented entry in that boundary config, reviewed like any other change.
+**Code structure.** The ClaudiniteEngine repo has one top-level folder per capability in the table above (hooks, checks, tasks, growth, fleet, lifecycle, sdkserver) plus a small shared folder for common types. The boundaries go in with the first commit, before any feature code: a CI import check (golangci-lint's depguard rule) lets each folder import only `shared` and nothing else, so new code grows inside its own capability. Every exception is an explicit, commented entry in that boundary config, reviewed like any other change.
 
 A task is a `task.json` the binary executes. Its optional `worker.mjs`, and a precondition script when it has one, are the only parts that run outside the binary, as a Node process for that step. The skills, rules and provenance files of the folded packs are content Claude reads, so they remain packs and ship like any other.
 
-**Hooks and the session's rules.** The packs' prose does not travel in a hook's answer. Each member tracks `.claudinite/flat/claudinite-rules.GENERATED.md`, a file of nothing but `@` imports of the active packs' `RULES.md`, and its `CLAUDE.md` imports that index, so Claude Code reads the rules whole as project memory; `init`, `adopt` and the pack update write the index and append the import line to a `CLAUDE.md` that lacks it, and SessionStart rewrites the index when the declaration has moved and names a missing import line, since without it the session has no pack rules. A hook's stdout is previewed at about 2 KB, which the Node engine measured in its #807, and the 38 canon packs' rules total about 160 KB. SessionStart's `additionalContext` carries the engine's own lines only: the self-check, the not-loaded notes, the license line and the breadcrumb. Declared checks run inside `cn` itself, by tag, with no checks binary and no Node; only coded checks need the compiled checks binary.
+**Hooks and the session's rules.** The packs' prose does not travel in a hook's answer. Each member tracks `.claudinite/flat/claudinite-rules.GENERATED.md`, a file of nothing but `@` imports of the active packs' `RULES.md`, and its `CLAUDE.md` imports that index, so Claude Code reads the rules whole as project memory; `init`, `adopt` and the pack update write the index and append the import line to a `CLAUDE.md` that lacks it, and SessionStart rewrites the index when the declaration has moved and names a missing import line, since without it the session has no pack rules. A hook's stdout is previewed at about 2 KB, which the Node engine measured in its #807, and the 38 canon packs' rules total about 160 KB. SessionStart's `additionalContext` carries the engine's own lines only: the self-check, the not-loaded notes and the breadcrumb. Declared checks run inside `cn` itself, by tag, with no checks binary and no Node; only coded checks need the compiled checks binary.
 
-**Hooks: the per-call verdict.** PreToolUse, PostToolUse and UserPromptSubmit each answer one verdict: a block, context, or nothing. A block on PreToolUse is exit 2 with the reason first on stderr, the one form Claude Code reads as a denial and records in the call's error result, where the Stop backstop reads `Blocked by <rule>:` back; no answer carries `permissionDecision`. A block on the other two events cannot block, so it is passed on as context. Context goes out as one `hookSpecificOutput.additionalContext`. Each hook runs under a 5 second deadline, and a guard that cannot decide lets the call through: a payload that is not JSON, a judge that fails or a deadline that passes answers `{}` and leaves an `error` or `deadline` breadcrumb. At Stop the hook reads the session's transcript (the session file and its subagents' streams) so the work checks can see the session's tool calls, skill loads and declared comment classes. Guards (declared action checks, the built-in remote-branch-delete guard, coded judges) run in every license state; forced skill loading (holds at PreToolUse, nudges at UserPromptSubmit and PostToolUse, the `skill-loaded-before-editing` backstop at Stop) runs only where the key's feature list carries it, and says so on stderr when it does not. A per-call hook derives the packs, their skills' triggers and the declared checks from the tree on every call; measured on the 38 canon packs it answers in about 30 to 45 ms, and about 145 ms when a hold reads a 5 MB transcript, so no derivation cache is kept.
+**Hooks: the per-call verdict.** PreToolUse, PostToolUse and UserPromptSubmit each answer one verdict: a block, context, or nothing. A block on PreToolUse is exit 2 with the reason first on stderr, the one form Claude Code reads as a denial and records in the call's error result, where the Stop backstop reads `Blocked by <rule>:` back; no answer carries `permissionDecision`. A block on the other two events cannot block, so it is passed on as context. Context goes out as one `hookSpecificOutput.additionalContext`. Each hook runs under a 5 second deadline, and a guard that cannot decide lets the call through: a payload that is not JSON, a judge that fails or a deadline that passes answers `{}` and leaves an `error` or `deadline` breadcrumb. At Stop the hook reads the session's transcript (the session file and its subagents' streams) so the work checks can see the session's tool calls, skill loads and declared comment classes. Guards (declared action checks, the built-in remote-branch-delete guard, coded judges) and forced skill loading (holds at PreToolUse, nudges at UserPromptSubmit and PostToolUse, the `skill-loaded-before-editing` backstop at Stop) always run; no hook asks for a license. A per-call hook derives the packs, their skills' triggers and the declared checks from the tree on every call; measured on the 38 canon packs it answers in about 30 to 45 ms, and about 145 ms when a hold reads a 5 MB transcript, so no derivation cache is kept.
 
-**Command surface.** The command is cn. Hooks call `cn hook <event>`; workflows and the tasks they run call `cn schedule run`, `cn schedule drain`, `cn schedule report-failure`, `cn execute loop`, `cn execute continue`, `cn update engine`, `cn update packs` and `cn check world`; a routine session calls `cn work validate`, `cn work converge` and `cn work record-exec`; people call `cn init`, `cn adopt <pack>`, `cn settings import` (once, when a Node member moves; record 77), `cn login`, `cn work create`, `cn work wake`, `cn tasks list` and `cn tasks flat`. The full list is settled with the command reference.
+**Command surface.** The command is cn. Hooks call `cn hook <event>`; workflows and the tasks they run call `cn schedule run`, `cn schedule drain`, `cn schedule report-failure`, `cn execute loop`, `cn execute continue`, `cn update engine`, `cn update packs` and `cn check world`; a routine session calls `cn work validate`, `cn work converge` and `cn work record-exec`; people call `cn init`, `cn adopt <pack>`, `cn settings import` (once, when a Node member moves; record 77), `cn work create`, `cn work wake`, `cn tasks list` and `cn tasks flat`. The full list is settled with the command reference.
 
 **Engine versions and member files.** Within a major version the engine only adds. An old shape of a file the member owns (`.claudinite/settings`, pack declarations, local packs) keeps working, and the engine raises a deprecation finding wherever it is still used. No update rewrites member files, and legacy tolerances are removed only at the next major. When verify finds that a new version would break the repo, the update reports what broke, and a person brings the repo in line in a Claude session. There is no migration command and no agentic step in any update, engine or pack.
 
@@ -101,7 +100,7 @@ A task is a `task.json` the binary executes. Its optional `worker.mjs`, and a pr
 
 Nothing else touches them: not the engine or pack update, the task runner, growth, or any hook.
 
-**License gating inside the engine.** The binary gates each surface at the command that runs it, from the feature list its key carries. What stays on without a valid key is the license design's per-state table: rules, guards, CI checks and project tasks always run.
+**License gating inside the engine.** None for a single repository: every surface runs, public or private. The one check is a fleet run's, at the start of the run (see Licensing).
 
 **Health breadcrumbs.** The engine judges its own health from what it leaves in the conversation log. The conversation is Claude Code's, not ours, so each capability can only leave breadcrumbs: one short, fixed-format line in its hook output, which Claude Code records in the transcript. A breadcrumb carries a marker, the capability, the event, an outcome code and a duration, never error text; the details stay in the conversation where they happened.
 
@@ -110,7 +109,7 @@ Nothing else touches them: not the engine or pack update, the task runner, growt
 | Hooks | Each hook firing: event, outcome, duration | Every session's hooks fire and none ends in an engine error |
 | Lifecycle | The loading self-check at SessionStart: packs declared, packs loaded, rules loaded per pack | Loaded matches declared for every pack |
 | Check engine | Each check run: check id, declarative or coded, result (pass, finding, error, timeout) | No check errors or timeouts |
-| License verifier | Each key request and its answer: key type, outcome code, days left | Every session holds a valid key or a known degraded state |
+| Fleet | Each sweep: verb, outcome (`unverified` for a run the license server could not answer; a refused or unverified run says so on stderr), duration | Every sweep reaches its owner's repos, or names why not |
 | SDK server | Each pack JavaScript call: pack id, action, outcome | No handshake failures or killed children |
 | Task runner | Each work item's phase start and end, with outcome, in the routine's conversation | Every claimed item converges or says why it stopped |
 | Growth | Each lesson captured and what it became | Every captured lesson ends in a PR or a recorded skip |
@@ -201,7 +200,7 @@ Every machine does the same thing: the launcher runs once at the start, then eve
 
 ### A developer desktop
 
-The same hooks run the same launcher, which picks the macOS, Linux or Windows binary. The cache lives in `~/.cache/claudinite/`. Go 1.24 or newer is required to compile pack checks, and Node 22 or newer for task scripts. On Windows the launcher runs under Git Bash's `sh`. The first session on a desktop runs `cn login` once; the App's user token is kept `0600` in the cache, and the binary requests keys per repo like any session.
+The same hooks run the same launcher, which picks the macOS, Linux or Windows binary. The cache lives in `~/.cache/claudinite/`. Go 1.24 or newer is required to compile pack checks, and Node 22 or newer for task scripts. On Windows the launcher runs under Git Bash's `sh`.
 
 ### When the download is impossible
 
@@ -214,16 +213,14 @@ The same hooks run the same launcher, which picks the macOS, Linux or Windows bi
 
 ## Licensing
 
-Every session, and every Actions run that reaches a license-asserting task, gets its own short-lived key from the license server, and nothing is committed. The plans, who counts as a user, what runs in each license state, the overuse grace and the signing chain are defined in [ClaudiniteEngine license management](https://claude.ai/code/artifact/7baa2177-0a09-4d4d-ba90-e95182350d38). This section says only where the engine meets it.
+A single repository, public or private, is free, and the engine asks it for nothing: no session, hook, `cn init`, task item or update checks a license, and nothing about a license is committed (record row 131). Only a fleet is paid. The Personal fleet plan is $9 per personal GitHub account; the Organization fleet plan is $99 per user. The license server's own design (plans, billing, the signing chain) lives with ClaudiniteLicenses; this section says only where the engine meets it.
 
-- **Web sessions** ask through GitHub, because a web VM cannot reach our server. SessionStart sends a `repository_dispatch` as the person, and the Claudinite GitHub App answers with a check run holding the signed key.
-- **Desktops** call the license server directly after a one-time `cn login`, which keeps the App's user token `0600` in the cache.
-- **Actions runs** fetch a key only when the nightly update runs or the task runner reaches an item that needs one: a task with an agentic phase, whose routine session needs a grant, or a task of the engine's own packs. The runner then exchanges the job's OIDC token for a key that lasts the rest of the run and reuses it for later items. A run with no such task never contacts the license server, and the workflows themselves know nothing about licensing.
-- **Routine sessions** the executor fires verify an item grant the executor posts on the item's issue, and never take a seat.
-- **Session state.** A session's request and key live in `<cache>/claudinite/sessions/<session id>.json`, `0600` in the cache's `0700` folder, where a resume on the same machine finds them and nothing can commit a key; the license design's "Key state within a session" placed them under the repo's `.claudinite/temp/` (record row 38).
-- **Verification.** A session key lasts 7 days, and a session renews it once it is 24 hours old, keeping the old key in use until the new one lands; a failed renewal waits 1, 2, 4 … up to 32 minutes before the next, and a session stops trying after ten. An Actions key lasts one run. The binary embeds a long-lived root key and a standby root, and accepts 90-day issuing keys certified by either, so rotating an issuing key never needs an engine release and a root compromise moves issuance to the standby without stranding a repo.
+- **Who is checked.** The owner of the repositories a fleet works with, never the person running it. A fleet run's job exchanges its GitHub Actions OIDC token (audience `claudinite`, so the workflow needs `id-token: write`) for the manager repository's key at the license server's `POST /v1/actions-key`, once per run. The key names the repository, its owner (id and login) and that owner's plan; nothing about the person is sent or read.
+- **What it allows.** A key whose plan is `personal` or `organization`, or `internal` (the license server's plan for Claudinite's own account), lets the run reach only the repositories that owner owns, compared by owner id where both the key and GitHub's listing carry one and by login otherwise; every other repository is skipped with a notice naming it. Any other plan refuses the run before it reads a member, with the `action` needs-human marker.
+- **When it cannot tell.** Only the license server's own silence fails open: when it does not answer or answers 5xx, the run reaches every repository it would have and says it is unverified, on stderr, in the step summary and as its sweep crumb's `unverified` outcome. Everything the fleet's owner controls refuses instead: a run with no OIDC token (outside Actions, or a workflow without `id-token: write`) or no license client parks `action`. A 408, 413 or 429 is the run's error, reaching nothing and asking no one. Only a development build (`devroots`) takes `CLAUDINITE_LICENSE_API`; a release binary always asks the real server.
+- **Verification.** A key is checked offline: the binary embeds a long-lived root key and a standby root (`shared/trust`) and accepts 90-day issuing keys certified by either, so rotating an issuing key never needs an engine release. The check lives in `fleet/entitlement`.
 
-A customer who stops paying keeps a working repo with everything it accrued: rules, guards, CI checks and project tasks keep running.
+A retired `license` block in a member's settings still parses: verify names it as a retired shape (`license-plan`, a deprecation), and the next engine update PR drops it.
 
 ## Pack serving and publishing
 
@@ -266,7 +263,7 @@ Every flow runs the engine version pinned in the commit it started from, reads t
 4. `init` takes each declared pack's newest published archive from the CDN or, where the CDN is out of reach, from ClaudinitePacks' `vendored` branch, verified against the signed index either way. It checks that the pinned engine meets its `minEngineVersion` (if not, init stops and says so), and vendors it into `.claudinite/shared/packs/`.
 5. The session runs each pack's adoption: the binary runs the pack's adoption steps, and the session does the parts that need Claude, such as adapting repo files or asking the person. Adoption is a free surface, since no key exists yet.
 6. The session commits everything and opens the adoption PR, which a person merges because it adds workflow files.
-7. The merge triggers a first executor run in Actions, which exchanges its OIDC token for a key and runs the nightly update task once. Adoption is when the person is asked to install the Claudinite GitHub App: cn init makes a real key request. In a web session it sends the same repository\_dispatch as SessionStart; on a desktop it lists the installations visible to the cn login token. If no key comes back, init ends with the install link and says the App is either not installed or not reachable. A person who doesn't own the account passes the link on to an owner. For a private repo, the same install is where the owner picks a plan. Until the repo's owner installs it, sessions run without a key, and each session's degraded notice repeats the link.
+7. The merge triggers a first executor run in Actions, which runs the nightly update task once. Adoption asks for no plan, key or App install, public repo or private; a fleet manager is the one place a plan is bought (see Licensing).
 
 ```mermaid
 sequenceDiagram
@@ -282,8 +279,6 @@ sequenceDiagram
   box rgba(128,128,128,0.08) GitHub Actions worker
     participant U as Executor job, update task
   end
-  participant OIDC as GitHub OIDC issuer
-  participant LIC as License server
   Dev->>S: Adopt Claudinite
   S->>NPM: Read newest @claudinite/cli version
   NPM-->>S: v1
@@ -305,16 +300,12 @@ sequenceDiagram
   S->>GH: Push branch, open adoption PR
   Dev->>GH: Review and merge
   GH->>U: Merge triggers a first executor run of the update task
-  U->>OIDC: Request token, audience claudinite
-  OIDC-->>U: Signed JWT
-  U->>LIC: Request a key with JWT
-  LIC-->>U: Key for this run
 ```
 
 ### A Claude session
 
 1. SessionStart runs the launcher, which reads the pin from the working tree, verifies or downloads the binary, and links `.claudinite/bin/cn` to it. On a web VM whose environment setup pre-warmed the cache (see Environment setup script), this is a hash check with no download.
-2. The binary requests its session key (on a web VM a repository\_dispatch that the App answers with a check run, on a desktop a direct call), builds the session context from the committed packs, and exits; UserPromptSubmit picks up a late answer.
+2. The binary builds the session context from the committed packs and exits; it asks no license server anything.
 3. Every later hook calls the linked binary directly, so the session never mixes versions even if it checks out or pulls a new pin. Each call runs and exits; the checks binary starts only for calls with coded checks.
 4. The next session reads the pin afresh.
 
@@ -337,7 +328,6 @@ sequenceDiagram
   end
   L->>L: Link .claudinite/bin/cn to this version
   L->>B: exec session-start
-  B->>B: Request the session key: dispatch through GitHub on a web VM, direct call on a desktop
   B->>B: Compile the packs' Go checks in the background if their hash changed
   B-->>CC: Session context from committed packs
   loop Every tool call
@@ -384,9 +374,9 @@ sequenceDiagram
 
 ### Scheduler and executor
 
-1. A scheduled, dispatched or label-triggered run checks out `main` and runs the download step. It contacts the license server only if an item's task asserts a license.
+1. A scheduled, dispatched or label-triggered run checks out `main` and runs the download step. It never contacts the license server.
 2. The binary plans the run or drains work items, all on that one version. Engine and packs come from the same commit, and the update only ever commits pairs that satisfy each pack's `minEngineVersion`.
-3. For each item the binary executes the task's `task.json`, runs its `worker.mjs` in Node when it has one, makes named GitHub calls with the job token, and fires the agentic phase as a Claude Code Remote routine when the task has one, authenticated by the member's CCR\_ROUTINE\_TOKEN Actions secret, after posting an item grant on the item's issue so the routine session never takes a seat. The grant is asked of the license server with the run's Actions key as its bearer, and the routine session verifies it offline with `cn work validate`, bound to the item's issue. An item whose task has an agentic phase, or belongs to the engine's own packs, needs the run's key: without one, or with a degraded one, the item parks `needs-human-action` with the license notice and the loop picks the next. The routine's cloud session does the work and opens the PR.
+3. For each item the binary executes the task's `task.json`, runs its `worker.mjs` in Node when it has one, makes named GitHub calls with the job token, and fires the agentic phase as a Claude Code Remote routine when the task has one, authenticated by the member's CCR\_ROUTINE\_TOKEN Actions secret. The fire carries the item and a nonce, which the routine session checks with `cn work validate`; no item needs a key or a grant. The routine's cloud session does the work and opens the PR.
 4. A work item that pushes a branch opens a PR whose CI runs that branch's pin.
 
 ```mermaid
@@ -398,21 +388,12 @@ sequenceDiagram
     participant W as node, a task's worker.mjs
   end
   participant NPM as npm registry
-  participant OIDC as GitHub OIDC issuer
-  participant LIC as License server
   participant CCR as Claude Code Remote routine session
   GH->>J: Cron or dispatch, checkout main
   J->>NPM: Download step, pinned binary, no secrets
   J->>B: schedule run or execute loop
   loop Each work item in this run, same version throughout
     B->>GH: Claim the item
-    opt Task asserts a license and the run holds no key yet
-      B->>OIDC: Request token, audience claudinite
-      OIDC-->>B: Signed JWT
-      B->>LIC: Request a key with JWT
-      LIC-->>B: Key for the rest of this run
-      B->>B: Verify the key, park the item if the key is degraded
-    end
     B->>B: Execute the task.json steps inside the engine
     opt Task has a worker.mjs
       B->>W: Run worker.mjs, scrubbed environment
@@ -420,8 +401,6 @@ sequenceDiagram
     end
     B->>GH: Named GitHub calls with the job token
     opt Task has an agentic phase
-      B->>LIC: Request an item grant with the run's Actions key
-      B->>GH: Post the grant on the item's issue
       B->>CCR: Fire the routine with CCR_ROUTINE_TOKEN
       CCR->>GH: Push branch with changes, open PR
     end
@@ -433,7 +412,7 @@ sequenceDiagram
 
 The nightly update is a Claudinite task, not a workflow of its own: the scheduler queues it each night and the executor runs it on `main` and makes up to two independent PRs, so a failure in one leaves the others alone.
 
-**Engine update.** It does not run while main's CI is red. It finds a newer engine that is allowed: above the member's floor, not held or revoked according to the run's key, and satisfying every committed pack's `minEngineVersion`. It does not run under a degraded Actions key, so a lapsed customer gets no engine updates, security fixes included. It downloads the new engine, verifies the manifest hash and the manifest's signature by a release key the embedded root certifies, and runs the new binary's self-test. It then runs the new binary's verify against the repo as it stands. If verify finds the new engine would break the repo, no PR is opened, and the run reports what broke for a person to fix in a Claude session. `cn update engine --force` skips verify. The PR carries the new pin only. CI runs the new engine against the committed packs: green auto-merges, and red leaves `main` where it was and reports.
+**Engine update.** It does not run while main's CI is red. It finds a newer engine that is allowed: above the member's floor, not held or revoked according to npm's deprecation message, and satisfying every committed pack's `minEngineVersion`. It asks no license. It downloads the new engine, verifies the manifest hash and the manifest's signature by a release key the embedded root certifies, and runs the new binary's self-test. It then runs the new binary's verify against the repo as it stands. If verify finds the new engine would break the repo, no PR is opened, and the run reports what broke for a person to fix in a Claude session. `cn update engine --force` skips verify. The PR carries the new pin only, and drops a retired `license` block from the settings file when one is still there. CI runs the new engine against the committed packs: green auto-merges, and red leaves `main` where it was and reports.
 
 ```mermaid
 sequenceDiagram
@@ -475,7 +454,7 @@ sequenceDiagram
   GH->>GH: CI runs the pinned engine with the new packs, green auto-merges
 ```
 
-**Revoked and deprecated releases.** A revoked release (a bad or compromised build) runs as if its key were degraded: rules, guards, CI checks and project tasks keep running, while work checks, forced skill loading, growth and the other license-asserting tasks stop. The engine update still runs on it, so a paying member moves off it at once; a lapsed member stays on it with guards and checks working. A deprecated release still runs, with a SessionStart warning. A running release learns it is held or revoked from its key, since the license Worker's session and Actions keys carry that state; npm deprecate marks it for cn init.
+**Revoked and deprecated releases.** A revoked release (a bad or compromised build) keeps running; the engine update files one issue naming the revoked pin and its reason, and moves the member off it at the next allowed version. A deprecated release still runs, with a SessionStart warning. Held and revoked are npm deprecation messages (`held: <reason>`, `revoked: <reason>`) that promote.yml writes; the update and cn init both read them.
 
 ## Engine release and versioning
 
@@ -499,10 +478,10 @@ sequenceDiagram
 
 ## Security design
 
-The design protects three boundaries: what binary runs, what pack JavaScript can reach, and who holds a valid key.
+The design protects three boundaries: what binary runs, what pack JavaScript can reach, and which fleet holds a valid key.
 
 | Boundary | Controls |
 | --- | --- |
 | What binary runs | The member pins the manifest hash and the manifest pins each binary; the launcher validates version and hash strings before use, uses HTTPS only with a size cap, re-hashes the cache on every run, and keeps the cache `0700`, owner-checked and read-only; only the update bot may change the pin or the launcher, and pins only move forward; the engine update and cn init verify the manifest's signature by a release key the embedded root certifies, since npm gives no provenance for a private repo; publishing uses npm trusted publishing from one protected job; workflows pin third-party actions by commit SHA; the `@claudinite` scope and package names are reserved |
 | What pack JavaScript can reach | The checks build runs offline from the packs' committed sources; the checks binary and each Node child start with a scrubbed environment and `NODE_OPTIONS` unset, so secrets stay in Go; the pipe is the child's own stdin and stdout; GitHub calls are named actions a pack declares and the member grants, logged with the pack's id; the routine token never crosses the pipe; jobs drop `actions: write` unless a task declares it; the resolve hook refuses any `@claudinite/*` other than the embedded, hash-checked SDK, and packs carrying `node_modules/@claudinite` are refused; messages are capped at 16 MiB per line, calls time out, and a protocol violation kills the child |
-| Who holds a valid key | The binary holds only public keys; keys bind the repository id and, for a session key, the user id and a nonce; the Worker takes ids only from token claims and pins `iss`, `aud`, `exp`, `nbf`, `repository_id`, `repository_owner_id` and `job_workflow_ref` (the scheduler, executor and update workflows on the default branch), refusing `pull_request` and `pull_request_target` tokens; it keeps no replay store, so a token outlives its job by minutes and a replayed token mints the same principal's key for the same run (record row 38); every key is fetched at session start, or in Actions when the first license-asserting task needs one and nothing is committed; issuing keys are Worker secrets, never in D1, valid 90 days with two weeks' overlap and certified by an offline root key; the Worker rate-limits per organization and alerts on keys for accounts without the App; the App holds Checks write and Contents read; `cn login` keeps only the App's user token, `0600` |
+| Which fleet holds a valid key | Only a fleet run asks for one, and a single repository never does; the binary holds only public keys; a key binds the manager repository's id and its owner's id and login, and the run checks the repository id against GITHUB_REPOSITORY_ID and reaches only that owner's repos; the Worker takes ids only from token claims and pins `iss`, `aud`, `exp`, `nbf`, `repository_id`, `repository_owner_id` and `job_workflow_ref` (the scheduler, executor and update workflows on the default branch), refusing `pull_request` and `pull_request_target` tokens; it keeps no replay store, so a token outlives its job by minutes and a replayed token mints the same principal's key for the same run (record row 38); a key is fetched once per fleet run and nothing is committed; issuing keys are Worker secrets, never in D1, valid 90 days with two weeks' overlap and certified by an offline root key; the Worker rate-limits per organization and alerts on keys for accounts without the App; the App holds Checks write and Contents read |

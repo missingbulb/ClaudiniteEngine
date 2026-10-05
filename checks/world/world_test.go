@@ -46,9 +46,15 @@ func settingsBody(ver, pin string) string {
 // change function edits and commits.
 func member(t *testing.T, change func(dir string)) string {
 	t.Helper()
+	return memberOn(t, settingsBody("1.1.0", pin1), change)
+}
+
+// memberOn is member with main's settings file given.
+func memberOn(t *testing.T, base string, change func(dir string)) string {
+	t.Helper()
 	dir := t.TempDir()
 	git(t, dir, "init", "-q", "-b", "main")
-	write(t, dir, ".claudinite/settings.yaml", settingsBody("1.1.0", pin1))
+	write(t, dir, ".claudinite/settings.yaml", base)
 	write(t, dir, ".claudinite/launch", "#!/bin/sh\n")
 	write(t, dir, "RULES.md", "- a rule\n")
 	git(t, dir, "add", "-A")
@@ -62,12 +68,6 @@ func member(t *testing.T, change func(dir string)) string {
 
 func movePin(t *testing.T) func(string) {
 	return func(dir string) { write(t, dir, ".claudinite/settings.yaml", settingsBody("1.2.0", pin2)) }
-}
-
-func setPlan(t *testing.T) func(string) {
-	return func(dir string) {
-		write(t, dir, ".claudinite/settings.yaml", settingsBody("1.1.0", pin1)+"license:\n  plan: \"public\"\n")
-	}
 }
 
 type pinCheck struct {
@@ -126,13 +126,6 @@ func TestPinGuard(t *testing.T) {
 		{"the bot moves the pin and a pack together", func(t *testing.T) func(string) {
 			return func(dir string) { movePin(t)(dir); write(t, dir, ".claudinite/shared/packs/hello/RULES.md", "x") }
 		}, bot, nil, 1, ".claudinite/shared/packs/hello/RULES.md", false},
-		{"the bot's plan PR changes only license.plan", setPlan, bot, nil, 0, "", false},
-		{"a person changes license.plan", setPlan, "someone", nil, 1, "pin-guard", false},
-		{"the bot changes the plan and the pin", func(t *testing.T) func(string) {
-			return func(dir string) {
-				write(t, dir, ".claudinite/settings.yaml", settingsBody("1.2.0", pin2)+"license:\n  plan: \"public\"\n")
-			}
-		}, bot, nil, 1, "pin-guard", false},
 		{"a person changes only a rule file", func(t *testing.T) func(string) {
 			return func(dir string) { write(t, dir, "RULES.md", "- another rule\n") }
 		}, "someone", nil, 0, "", false},
@@ -162,5 +155,31 @@ func TestFindingsDecideTheExit(t *testing.T) {
 	brk := findings.Finding{Class: findings.Break, ID: "settings-file", Path: ".claudinite", Sentence: "add one"}
 	if code, out := runWorld(t, dir, "someone", &pinCheck{}, []findings.Finding{dep, brk}); code != 1 || !strings.Contains(out, "break settings-file") {
 		t.Errorf("with a break: %d\n%s", code, out)
+	}
+}
+
+// retired is main's settings file still carrying the license block.
+var retired = settingsBody("1.1.0", pin1) + "license:\n  plan: \"public\"\n"
+
+func TestPinGuardLetsTheUpdateDropTheRetiredLicenseBlock(t *testing.T) {
+	cases := []struct {
+		name   string
+		body   string
+		author string
+		code   int
+		want   string
+	}{
+		{"the bot moves the pin and drops the license block", settingsBody("1.2.0", pin2), bot, 0, ""},
+		{"the bot moves the pin and keeps the license block", settingsBody("1.2.0", pin2) + "license:\n  plan: \"public\"\n", bot, 0, ""},
+		{"the bot drops only the license block", settingsBody("1.1.0", pin1), bot, 0, ""},
+		{"the bot moves the pin and changes the plan", settingsBody("1.2.0", pin2) + "license:\n  plan: \"private-repo\"\n", bot, 1, "pin-guard"},
+		{"a person drops the license block", settingsBody("1.1.0", pin1), "someone", 1, "pin-guard"},
+	}
+	for _, c := range cases {
+		dir := memberOn(t, retired, func(dir string) { write(t, dir, ".claudinite/settings.yaml", c.body) })
+		code, out := runWorld(t, dir, c.author, &pinCheck{}, nil)
+		if code != c.code || !strings.Contains(out, c.want) {
+			t.Errorf("%s: exit %d, want %d; output lacks %q:\n%s", c.name, code, c.code, c.want, out)
+		}
 	}
 }

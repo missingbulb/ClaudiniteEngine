@@ -110,7 +110,9 @@ type RetiredOverride struct {
 var RetiredOnFail = map[string]string{"blocking": "block", "advisory": "advise"}
 
 var topSchema = descriptor.Schema{Name: "settings", Keys: map[string]descriptor.Kind{
-	"engine": descriptor.Object, "license": descriptor.Object, "packs": descriptor.Object, "checks": descriptor.Object,
+	"engine": descriptor.Object, "packs": descriptor.Object, "checks": descriptor.Object,
+	// @legacy-tolerance advisory:license-plan retire:#83
+	"license":         descriptor.Object,
 	"sharedConstants": descriptor.Any,
 }}
 

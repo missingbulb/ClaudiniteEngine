@@ -13,8 +13,8 @@
 // nothing to say is {}. A payload that is not JSON, a missing tool_name, a
 // panic, or no verdict within HookDeadline answers {} and lets the call
 // through. Every path ends with the breadcrumb, outcome ok, block, advise,
-// nudge, deadline or error. The forced-loading holds and nudges run only
-// when the license allows them; the guards always run. A transcript_path
+// nudge, deadline or error. The forced-loading holds and nudges and the
+// guards always run. A transcript_path
 // that is set but unreadable reads as a session that loaded nothing, so a
 // hold cannot clear, as in the Node engine. Project skills are
 // read from .claude/skills/<name>/SKILL.md, as

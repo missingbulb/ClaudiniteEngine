@@ -45,9 +45,9 @@
 //     Woken, and the wake reports what matched nothing.
 //     schedule.TestAWakeMintsTheMissingStandingItemAndReportsWhatMatchedNothing
 //   - The engine's own update is filed at most once a UTC day, at the
-//     engine's path, and the fleet's bare force id reaches it; it runs with
-//     no license key (its own gate reads one) and closes on its verdicts. schedule.TestTheEnginesUpdateIsFiledOnceADay,
-//     execute.TestTheEnginesUpdateRunsKeylessAndClosesOnItsVerdicts
+//     engine's path, and the fleet's bare force id reaches it; it closes on
+//     its verdicts. schedule.TestTheEnginesUpdateIsFiledOnceADay,
+//     execute.TestTheEnginesUpdateRunsAndClosesOnItsVerdicts
 //   - A schedule_after dependent yields while its scheduled upstream is live.
 //     execute.TestADependentYieldsWhileItsScheduledUpstreamIsLive
 //
@@ -113,9 +113,6 @@
 //     execute.TestAPathNamingADifferentTaskGoesToAHuman,
 //     execute.TestAMalformedItemGoesToAHuman,
 //     execute.TestAnItemPointingElsewhereIsRefused
-//   - An item whose task needs the run's license key and has none parks at
-//     action and nothing runs. execute.TestAnUnlicensedTaskParksAtActionAndNothingRuns,
-//     execute.TestWhichItemsNeedTheRunsKey
 //   - The ordinary path: agentless code-work closes done, with what
 //     in-process code-work said; a pull request the lane merged closes done;
 //     code-work that delivered no open pull request still closes. execute.TestAgentlessCodeWorkClosesDone,
@@ -128,12 +125,9 @@
 // # Session
 //
 //   - Invocation is one routine fire per item, ever: the hand-off swaps to
-//     running-agent and fires exactly once, after the grant is posted; a
-//     grant that cannot be had parks at action and never fires; a refused
-//     fire parks; an unanswered one leaves the item with the agent leash.
+//     running-agent and fires exactly once; a refused fire parks; an
+//     unanswered one leaves the item with the agent leash.
 //     execute.TestAHandOffSwapsToRunningAgentAndInvokesExactlyOnce,
-//     execute.TestTheGrantIsPostedBeforeTheFire,
-//     execute.TestAGrantThatCannotBeHadParksAtActionAndNeverFires,
 //     execute.TestARefusedInvocationParks,
 //     execute.TestAnUnansweredInvocationLeavesTheItemWithTheAgent,
 //     execute.TestAFireWithNoAnswerIsUnknownAndNeverRetried

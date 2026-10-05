@@ -11,7 +11,6 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/checks/declared"
 	"github.com/missingbulb/ClaudiniteEngine/checks/world"
 	"github.com/missingbulb/ClaudiniteEngine/launcher"
-	"github.com/missingbulb/ClaudiniteEngine/license"
 	"github.com/missingbulb/ClaudiniteEngine/lifecycle/update"
 	"github.com/missingbulb/ClaudiniteEngine/lifecycle/verify"
 	"github.com/missingbulb/ClaudiniteEngine/shared/descriptor"
@@ -21,6 +20,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/shared/paths"
 	"github.com/missingbulb/ClaudiniteEngine/shared/report"
 	"github.com/missingbulb/ClaudiniteEngine/shared/settings"
+	"github.com/missingbulb/ClaudiniteEngine/shared/trust"
 	"github.com/missingbulb/ClaudiniteEngine/shared/version"
 )
 
@@ -127,7 +127,7 @@ func checkPin(e settings.Engine) error {
 	if err != nil {
 		return err
 	}
-	roots, err := license.Roots()
+	roots, err := trust.Roots()
 	if err != nil {
 		return err
 	}

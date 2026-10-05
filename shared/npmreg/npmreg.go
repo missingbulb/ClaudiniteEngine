@@ -56,8 +56,8 @@ type State struct {
 
 // ParseDeprecation reads npm's deprecated field: "held: <reason>" is a
 // hold, "revoked: <reason>" a revocation, any other non-empty message a
-// plain deprecation. Until the license keys carry held and revoked (phase
-// 4), this is how promote.yml marks them.
+// plain deprecation. It is how promote.yml marks held and revoked
+// releases, and the only place an update reads them.
 func ParseDeprecation(msg string) State {
 	switch {
 	case msg == "":

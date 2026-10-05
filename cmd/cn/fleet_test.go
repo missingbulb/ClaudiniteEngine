@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -10,6 +11,11 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
+
+	"github.com/missingbulb/ClaudiniteEngine/fleet"
+	"github.com/missingbulb/ClaudiniteEngine/fleet/entitlement"
+	"github.com/missingbulb/ClaudiniteEngine/shared/licenseapi"
 )
 
 // fleetManager is a manager checkout with a GitHub origin and an API that
@@ -36,34 +42,67 @@ func fleetManager(t *testing.T) (string, *atomic.Int64) {
 	return repo, &calls
 }
 
-func TestAFleetSweepUnderAnOffKeyParksActionAndReadsNoMember(t *testing.T) {
+// entitleAcme stands in a license server that entitles acme's fleet.
+func entitleAcme(t *testing.T) {
+	t.Helper()
+	was := fleetCheck
+	t.Cleanup(func() { fleetCheck = was })
+	fleetCheck = func() (entitlement.Verdict, error) {
+		return entitlement.Verdict{Plan: "organization", OwnerLogin: "acme"}, nil
+	}
+}
+
+// A run the owner check refuses parks at action before any member is read.
+func TestARefusedFleetSweepParksActionAndReadsNoMember(t *testing.T) {
 	repo, calls := fleetManager(t)
 	t.Setenv("FLEET_GITHUB_TOKEN", "t")
-	// A session whose key request found no GitHub origin is degraded.
-	gl := t.TempDir()
-	for _, args := range [][]string{{"init", "-q"}, {"remote", "add", "origin", "https://gitlab.example/acme/m.git"}} {
-		if out, err := exec.Command("git", append([]string{"-C", gl}, args...)...).CombinedOutput(); err != nil {
-			t.Fatalf("git %v: %v %s", args, err, out)
-		}
+	was := fleetCheck
+	defer func() { fleetCheck = was }()
+	fleetCheck = func() (entitlement.Verdict, error) {
+		return entitlement.Verdict{Refused: true, Notice: "[cn] fleet: refused: acme is on the public plan"}, nil
 	}
-	if _, errOut, code := runInProc([]string{"license", "request", "--session", "s1", "--repo", gl}, ""); code != 0 {
-		t.Fatalf("license request: %d %s", code, errOut)
-	}
-	t.Setenv("CLAUDE_CODE_SESSION_ID", "s1")
 	for _, cmd := range [][]string{{"fleet", "roster"}, {"fleet", "update"}, {"fleet", "judge", "acme/m"}, {"fleet", "add-packs"}, {"fleet", "pack-seeds"}} {
 		_, errOut, code := runInProc(append(cmd, "--repo", repo), "")
-		if code != 1 || !strings.Contains(errOut, "[cn] fleet: off under this key (degraded: ") ||
+		if code != 1 || !strings.Contains(errOut, "[cn] fleet: refused: acme is on the public plan") ||
 			!strings.Contains(errOut, "claudinite-needs-human: action — ") {
 			t.Errorf("%v: exit %d, err %q", cmd, code, errOut)
 		}
 	}
 	if n := calls.Load(); n != 0 {
-		t.Errorf("an off key made %d API calls", n)
+		t.Errorf("a refused run made %d API calls", n)
+	}
+}
+
+// A sweep reaches only the repos the entitled owner owns, and names each
+// other one; a list with none of them is refused whole.
+func TestASweepReachesOnlyTheEntitledOwnersRepos(t *testing.T) {
+	var errOut strings.Builder
+	s := &sweep{stderr: &errOut, entitled: entitlement.Verdict{Plan: "organization", OwnerLogin: "acme", OwnerID: 3}}
+	repo := func(full string, owner int64) fleet.Repo {
+		var r fleet.Repo
+		r.FullName, r.Owner.ID = full, owner
+		r.Owner.Login, _, _ = strings.Cut(full, "/")
+		return r
+	}
+	got, err := s.reach([]fleet.Repo{repo("acme/a", 3), repo("other/b", 4), repo("Acme/c", 0)})
+	if err != nil || len(got) != 2 || got[0].FullName != "acme/a" || got[1].FullName != "Acme/c" {
+		t.Fatalf("%v %v", got, err)
+	}
+	if !strings.Contains(errOut.String(), "other/b is not reached") {
+		t.Errorf("stderr %q", errOut.String())
+	}
+	if got, err := s.reach([]fleet.Repo{repo("other/b", 4)}); err == nil || !fleet.IsGrant(err) || got != nil {
+		t.Errorf("no covered repo: %v %v", got, err)
+	}
+	s.entitled = entitlement.Verdict{Unverified: true}
+	if got, err := s.reach([]fleet.Repo{repo("other/b", 4)}); err != nil || len(got) != 1 {
+		t.Errorf("unverified: %v %v", got, err)
 	}
 }
 
 func TestAFleetSweepWithoutTheTokenSaysWhatToGrant(t *testing.T) {
 	repo, calls := fleetManager(t)
+	entitleAcme(t)
 	t.Setenv("FLEET_GITHUB_TOKEN", "")
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "")
 	_, errOut, code := runInProc([]string{"fleet", "roster", "--repo", repo}, "")
@@ -77,6 +116,7 @@ func TestAFleetSweepWithoutTheTokenSaysWhatToGrant(t *testing.T) {
 
 func TestTheWriteSweepsWithoutTheTokenSayWhatToGrant(t *testing.T) {
 	repo, calls := fleetManager(t)
+	entitleAcme(t)
 	t.Setenv("FLEET_GITHUB_TOKEN", "")
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "")
 	for _, sweep := range []string{"add-packs", "pack-seeds"} {
@@ -115,6 +155,7 @@ func TestFleetJudgeRefusesARepositoryOutsideTheOwner(t *testing.T) {
 	repo, calls := fleetManager(t)
 	t.Setenv("FLEET_GITHUB_TOKEN", "t")
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "")
+	entitleAcme(t)
 	writeFile(t, repo, ".claudinite/settings.yaml", "packs:\n  declared:\n    - id: claudinite-fleet-sheepdog\n      config:\n        owner: acme\n")
 	_, errOut, code := runInProc([]string{"fleet", "judge", "Other/x", "--repo", repo}, "")
 	if code != 1 || !strings.Contains(errOut, "other/x is not under the fleet's owner acme") || !strings.Contains(errOut, "[cn] fleet judge refused 0/1 ") {
@@ -147,5 +188,64 @@ func TestTheFleetSignalReadsTheTokenFromTheSecretsBag(t *testing.T) {
 	t.Setenv("CLAUDINITE_SECRETS", `{"FLEET_GITHUB_TOKEN": "t"}`)
 	if fleetSignal("acme/manager") == nil {
 		t.Fatal("no reader with the token in the secrets bag")
+	}
+}
+
+// A refusal the license server may lift on a retry fails the run without
+// asking a person for anything.
+func TestATransientRefusalFailsTheSweepWithoutTheActionMarker(t *testing.T) {
+	repo, calls := fleetManager(t)
+	t.Setenv("FLEET_GITHUB_TOKEN", "t")
+	was := fleetCheck
+	defer func() { fleetCheck = was }()
+	fleetCheck = func() (entitlement.Verdict, error) {
+		return entitlement.Verdict{Transient: true, Notice: "[cn] fleet: the license server asked to retry later (429)"}, nil
+	}
+	_, errOut, code := runInProc([]string{"fleet", "roster", "--repo", repo}, "")
+	if code != 1 || !strings.Contains(errOut, "asked to retry later") || strings.Contains(errOut, "claudinite-needs-human") {
+		t.Errorf("exit %d, err %q", code, errOut)
+	}
+	if !strings.Contains(errOut, "[cn] fleet roster error 0/0 ") {
+		t.Errorf("no error crumb: %q", errOut)
+	}
+	if n := calls.Load(); n != 0 {
+		t.Errorf("a transient refusal made %d API calls", n)
+	}
+}
+
+// A license client that cannot be built is the run's error, never an
+// unverified run.
+func TestALicenseClientThatCannotBeBuiltIsARunError(t *testing.T) {
+	was := licenseClient
+	defer func() { licenseClient = was }()
+	licenseClient = func() (*licenseapi.Client, error) {
+		return nil, errors.New("the license server is called over HTTPS only")
+	}
+	if v, err := fleetEntitlement(); err == nil {
+		t.Errorf("no error, verdict %+v", v)
+	}
+}
+
+// An unverified run is countable: its crumb says so, and the job summary
+// carries the notice.
+func TestAnUnverifiedSweepSaysSoInItsCrumbAndTheSummary(t *testing.T) {
+	var errOut strings.Builder
+	s := &sweep{stderr: &errOut, start: time.Now(), entitled: entitlement.Verdict{Unverified: true}}
+	s.crumb("roster", "ok", 2, 2)
+	if !strings.HasPrefix(errOut.String(), "[cn] fleet roster unverified 2/2 ") {
+		t.Errorf("crumb %q", errOut.String())
+	}
+	repo, _ := fleetManager(t)
+	t.Setenv("FLEET_GITHUB_TOKEN", "t")
+	summary := filepath.Join(t.TempDir(), "summary.md")
+	t.Setenv("GITHUB_STEP_SUMMARY", summary)
+	was := fleetCheck
+	defer func() { fleetCheck = was }()
+	fleetCheck = func() (entitlement.Verdict, error) {
+		return entitlement.Verdict{Unverified: true, Notice: "[cn] fleet: this run is unverified (the license server did not answer)"}, nil
+	}
+	runInProc([]string{"fleet", "roster", "--repo", repo}, "")
+	if raw, _ := os.ReadFile(summary); !strings.Contains(string(raw), "this run is unverified") {
+		t.Errorf("summary %q", raw)
 	}
 }

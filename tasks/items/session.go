@@ -284,11 +284,6 @@ type Session struct {
 	Nonce    string
 	Tasks    []taskspec.Task
 	Request  *workitem.Issue
-	// VerifyGrant checks a grant's wire form against the issue it was
-	// issued for; without it no session validates.
-	VerifyGrant func(grant string, issue int) error
-	// GrantOf reads a grant's wire form off its comment.
-	GrantOf func(body string) (string, bool)
 }
 
 // Validated is the item this session holds.
@@ -302,8 +297,7 @@ type Validated struct {
 // Validate is the session's entry gate, in code before any judgment: the
 // task file is one this checkout carries from a declared pack, the title
 // or the machine block names it, the item is with an agent, the newest
-// hand-off carries the fire's nonce, the grant after it verifies, and a
-// request it implements is open and still marked. The error names the
+// hand-off carries the fire's nonce, and a request it implements is open and still marked. The error names the
 // check that failed.
 func Validate(s Session) (Validated, error) {
 	item := s.Item
@@ -347,23 +341,6 @@ func Validate(s Session) (Validated, error) {
 	}
 	if s.Nonce == "" || !strings.Contains(handoff.Body, "`"+s.Nonce+"`") {
 		return notMine("the newest hand-off does not carry this fire's nonce — the fire named a hand-off that is not the current one")
-	}
-	if s.VerifyGrant == nil || s.GrantOf == nil {
-		return notMine("no grant verifier is wired, so no grant can prove the hand-off")
-	}
-	grant := ""
-	for _, c := range comments {
-		if c.ID > handoff.ID {
-			if g, ok := s.GrantOf(c.Body); ok {
-				grant = g
-			}
-		}
-	}
-	if grant == "" {
-		return notMine("no item grant follows the newest hand-off")
-	}
-	if err := s.VerifyGrant(grant, item.Number); err != nil {
-		return notMine("the item grant does not verify: " + err.Error())
 	}
 	if r := workitem.ParseFields(item.Body).Request; r != nil {
 		req := &item

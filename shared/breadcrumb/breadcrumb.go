@@ -28,7 +28,7 @@ const (
 	Nudge    Outcome = "nudge"
 	Deadline Outcome = "deadline"
 	// Skip is a capability that ran and had nothing to do: a capture with
-	// no new lines, or one its license turns off.
+	// no new lines.
 	Skip Outcome = "skip"
 )
 

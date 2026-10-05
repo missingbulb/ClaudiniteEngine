@@ -207,7 +207,7 @@ func (m *member) settings(t *testing.T, name, body string) {
 }
 
 func yaml(ver, pin string) string {
-	return fmt.Sprintf("# member settings\nplan: public\nengine:\n  version: %q\n  manifest: %q\npacks:\n  - basics\n", ver, pin)
+	return fmt.Sprintf("# member settings\nengine:\n  version: %q\n  manifest: %q\npacks:\n  channel: \"stable\"\n", ver, pin)
 }
 
 func (m *member) run(t *testing.T, stdin string, args ...string) (string, string, int) {

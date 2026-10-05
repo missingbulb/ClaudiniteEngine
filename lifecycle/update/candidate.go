@@ -10,10 +10,6 @@ type (
 	Choice = npmreg.Choice
 )
 
-// KeyReason is the reason a version held or revoked by the license key
-// alone carries.
-const KeyReason = npmreg.KeyReason
-
 // StatesFromPackument reads the held: and revoked: deprecation messages.
 func StatesFromPackument(p *npmreg.Packument) States { return npmreg.StatesFromPackument(p) }
 

@@ -123,19 +123,6 @@ func TestAFireWithNoAnswerIsUnknownAndNeverRetried(t *testing.T) {
 	}
 }
 
-func TestTheGrantCommentCarriesTheMarkerAndTheWireForm(t *testing.T) {
-	c := GrantComment(`{"payload":"x"}`)
-	if !strings.HasPrefix(c, workitem.GrantMarker+"\n") || !strings.Contains(c, "```json\n{\"payload\":\"x\"}\n```") {
-		t.Error(c)
-	}
-	if got, ok := GrantFromComment(c); !ok || got != `{"payload":"x"}` {
-		t.Error(got, ok)
-	}
-	if _, ok := GrantFromComment("just a comment"); ok {
-		t.Error("no marker")
-	}
-}
-
 // A routine's name is any key of the member's map, "default" only when the
 // task names none: a task naming "not-default" fires that routine with its
 // own token, and the default routine is never called.
