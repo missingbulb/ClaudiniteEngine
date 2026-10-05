@@ -94,13 +94,26 @@ type Local struct {
 
 var manifestPaths = []string{"manifest.json", "src/manifest.json", "public/manifest.json", "dist/manifest.json"}
 
+var manifestPathRE = regexp.MustCompile(`(?m)^manifest_path=(.+)$`)
+
+// manifestCandidates is the manifest the release config names, or the usual
+// places when it names none.
+func manifestCandidates(root string) []string {
+	if raw, err := os.ReadFile(filepath.Join(root, ".github/release.config")); err == nil {
+		if m := manifestPathRE.FindSubmatch(raw); m != nil {
+			return []string{strings.TrimSpace(string(m[1]))}
+		}
+	}
+	return manifestPaths
+}
+
 var shipsPipelineRE = regexp.MustCompile(`(?m)^(?:name:\s*['"]?(?:Release to Chrome Store|Release)['"]?\s*|manifest_path=.*)$`)
 
 // ReadLocal reads the checkout's facts once per collector.
 func ReadLocal(root string, packIDs []string, packConfig func(string) map[string]any) Local {
 	var l Local
-	for _, p := range manifestPaths {
-		raw, err := os.ReadFile(filepath.Join(root, p))
+	for _, p := range manifestCandidates(root) {
+		raw, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(p)))
 		if err != nil {
 			continue
 		}
