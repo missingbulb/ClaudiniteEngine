@@ -29,7 +29,9 @@ while [ $# -gt 0 ]; do
     *) fail "usage: release/npm-wait.sh --package NAME --version V --platform P [--timeout SECONDS] [--registry URL]" ;;
   esac
 done
-[ -n "$package" ] && [ -n "$version" ] && [ -n "$platform" ] || fail "--package, --version and --platform are required"
+if [ -z "$package" ] || [ -z "$version" ] || [ -z "$platform" ]; then
+  fail "--package, --version and --platform are required"
+fi
 
 name=${package#@*/}
 urls="$registry/$package/-/$name-$version.tgz $registry/$package-$platform/-/$name-$platform-$version.tgz"
