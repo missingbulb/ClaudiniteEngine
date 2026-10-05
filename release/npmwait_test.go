@@ -76,6 +76,9 @@ func TestNPMWaitLooksAtTheLauncherURLsOnlyOnceNPMServesThem(t *testing.T) {
 }
 
 func TestNPMWaitNeverTouchesALauncherURLBeforeNPMHasTheRelease(t *testing.T) {
+	if testing.Short() {
+		t.Skip("waits out its timeout; the full run covers it")
+	}
 	f := &fakeNPM{}
 	srv := httptest.NewServer(f)
 	defer srv.Close()

@@ -658,6 +658,9 @@ func toolsWithout(t *testing.T, missing string) string {
 // curl gives up at its derived --max-time, floored at 30 seconds.
 func TestLauncherStalledRegistry(t *testing.T) {
 	t.Parallel()
+	if testing.Short() {
+		t.Skip("waits out the 30-second download floor; the full run covers it")
+	}
 	src, err := os.ReadFile(filepath.Join(repoRoot, "launcher", "launch"))
 	if err != nil {
 		t.Fatal(err)
