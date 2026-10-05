@@ -19,7 +19,7 @@ import (
 // HasRetiredLicense reports whether the file still carries the license
 // block, whatever it holds.
 //
-// @legacy-tolerance advisory:license-plan retire:#TBD
+// @legacy-tolerance advisory:license-plan retire:#83
 func HasRetiredLicense(raw []byte, f Format) bool {
 	switch f {
 	case YAML, TOML:
@@ -47,7 +47,7 @@ var (
 // DropLicense removes the license block and changes no other byte; a file
 // without one comes back as it was.
 //
-// @legacy-tolerance advisory:license-plan retire:#TBD
+// @legacy-tolerance advisory:license-plan retire:#83
 func DropLicense(raw []byte, f Format) ([]byte, error) {
 	if !HasRetiredLicense(raw, f) {
 		return raw, nil
