@@ -137,13 +137,15 @@ func jobBlock(t *testing.T, wf, name string) string {
 	return rest
 }
 
+// The hop runs beside the smoke, straight after the build; sign waits for
+// both, so nothing unproven is signed or published.
 func TestReleaseRunsTheHopBeforeSign(t *testing.T) {
 	const wf = "../.github/workflows/release.yml"
 	hop := jobBlock(t, wf, "hop")
 	if hop == "" {
 		t.Fatal("release.yml has no hop job")
 	}
-	for _, want := range []string{"    needs: [build, smoke]\n", "    permissions:\n      contents: read\n", "release/hop.sh"} {
+	for _, want := range []string{"    needs: build\n", "    permissions:\n      contents: read\n", "release/hop.sh"} {
 		if !strings.Contains(hop, want) {
 			t.Errorf("the hop job lacks %q:\n%s", want, hop)
 		}
@@ -154,11 +156,14 @@ func TestReleaseRunsTheHopBeforeSign(t *testing.T) {
 		}
 	}
 	if !strings.Contains(jobBlock(t, wf, "sign"), "    needs: [build, smoke, hop]\n") {
-		t.Error("sign does not wait for the hop")
+		t.Error("sign does not wait for the smoke and the hop")
+	}
+	if !strings.Contains(jobBlock(t, wf, "publish"), "    needs: [build, sign]\n") {
+		t.Error("publish does not wait for sign")
 	}
 }
 
-// The live-packs rehearsal runs in the release after smoke, holding
+// The live-packs rehearsal runs in the release straight after the build, holding
 // promotion through a release-blocker issue, and in its own workflow on
 // main and nightly.
 func TestLivePacksRuns(t *testing.T) {
@@ -169,7 +174,7 @@ func TestLivePacksRuns(t *testing.T) {
 	}
 	invocation := regexp.MustCompile(`(?m)^\s*- run: release/rehearse\.sh --mode live-packs\b`)
 	for _, want := range []*regexp.Regexp{
-		regexp.MustCompile(`(?m)^    needs: \[version, build, smoke\]$`),
+		regexp.MustCompile(`(?m)^    needs: build$`),
 		invocation,
 		regexp.MustCompile(`(?m)^\s*go run \./release/pipeline blocker-issue --gate live-packs\b`),
 		regexp.MustCompile(`(?m)^\s*gh issue create .*--label release-blocker`),
@@ -195,5 +200,20 @@ func TestLivePacksRuns(t *testing.T) {
 		if !strings.Contains(string(raw), trigger) {
 			t.Errorf("live-packs.yml lacks the trigger %q", trigger)
 		}
+	}
+}
+
+// smoke-published waits on npm through release/npm-wait.sh, which keeps the
+// launcher's URLs untouched until npm serves them.
+func TestSmokePublishedWaitsThroughNPMWait(t *testing.T) {
+	job := jobBlock(t, "../.github/workflows/release.yml", "smoke-published")
+	if job == "" {
+		t.Fatal("release.yml has no smoke-published job")
+	}
+	if !regexp.MustCompile(`(?m)^\s*run: sh release/npm-wait\.sh --package @claudinite/cli-rc\b`).MatchString(job) {
+		t.Errorf("smoke-published does not wait through release/npm-wait.sh:\n%s", job)
+	}
+	if strings.Contains(job, "curl ") {
+		t.Errorf("smoke-published looks at npm itself:\n%s", job)
 	}
 }

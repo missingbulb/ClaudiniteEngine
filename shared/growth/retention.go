@@ -1,3 +1,5 @@
+// Package growth holds what the growth runs and the tasks that schedule
+// them share: the conversation-log retention window.
 package growth
 
 import "math"

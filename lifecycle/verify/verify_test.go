@@ -313,6 +313,12 @@ func TestRules(t *testing.T) {
 		{"the Node hook log ignored", func(t *testing.T, d string) {
 			write(t, d, ".gitignore", "node_modules/\n/.claudinite-hooks.log*\n")
 		}, nil, []string{"node-leftovers"}},
+		{"the session pack root ignored from the repo root", func(t *testing.T, d string) {
+			write(t, d, ".gitignore", "node_modules/\n/.claudinite/temp/\n")
+		}, nil, []string{"node-leftovers"}},
+		{"both Node lines ignored from the repo root", func(t *testing.T, d string) {
+			write(t, d, ".gitignore", "/.claudinite-hooks.log*\n.claudinite/temp\n")
+		}, nil, []string{"node-leftovers", "node-leftovers"}},
 		{"a declared pack's skill with no skills index", func(t *testing.T, d string) {
 			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "1.60930.1"}`)
 			write(t, d, ".claudinite/shared/packs/acme-pack/skills/demo/SKILL.md", "---\nname: demo\ndescription: d\n---\n")
