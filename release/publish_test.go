@@ -66,9 +66,9 @@ func TestPublishDryRunPrintsOneLinePerTarball(t *testing.T) {
 	}
 }
 
-func TestPublishBootstrapPlaceholders(t *testing.T) {
+func TestPublishDryRunCoversTheStableChannel(t *testing.T) {
 	var stable []string
-	for _, p := range Placeholders() {
+	for _, p := range Packages() {
 		if p.Channel == "stable" {
 			stable = append(stable, p.Name)
 		}
@@ -121,23 +121,16 @@ func noNpmPath(t *testing.T) string {
 	return dir + string(os.PathListSeparator) + os.Getenv("PATH")
 }
 
-// fakeNpm is PATH with a fake npm first: whoami prints whoami (or fails 401
-// when empty), org ls prints orgJSON (or fails E404 when empty), view finds
-// nothing and publish fails E404 the way registry.npmjs.org refused the
-// first bootstrap. Every call is appended to the returned log file.
-func fakeNpm(t *testing.T, whoami, orgJSON string) (string, string) {
+// fakeNpm is PATH with a fake npm first: view finds nothing and publish
+// fails E404, the way registry.npmjs.org refuses a package with no trusted
+// publisher. Every call is appended to the returned log file.
+func fakeNpm(t *testing.T) (string, string) {
 	t.Helper()
 	dir := t.TempDir()
 	log := filepath.Join(dir, "calls")
 	script := `#!/bin/sh
 echo "${npm_config_loglevel:+loglevel=$npm_config_loglevel }$*" >> "` + log + `"
 case $1 in
-  whoami)
-    [ -n "` + whoami + `" ] || { echo "npm error code E401" >&2; echo "npm error 401 Unauthorized - GET https://registry.npmjs.org/-/whoami" >&2; exit 1; }
-    echo "` + whoami + `" ;;
-  org)
-    [ -n '` + orgJSON + `' ] || { echo "npm error code E404" >&2; echo "npm error 404 Not Found - GET https://registry.npmjs.org/-/org/claudinite/user" >&2; exit 1; }
-    echo '` + orgJSON + `' ;;
   view) exit 1 ;;
   publish)
     echo "npm error code E404" >&2
@@ -160,64 +153,14 @@ func readCalls(t *testing.T, log string) string {
 	return string(raw)
 }
 
-func TestPublishTokenAuthMustAuthenticateBeforePublishing(t *testing.T) {
-	dist := fakeTarballs(t, "0.0.0", rcNames()...)
-	path, log := fakeNpm(t, "", "")
-	out, err := runScript(t, []string{"DIST=" + dist, "VERSION=0.0.0", "PATH=" + path}, "release/publish.sh", "--channel", "rc", "--auth", "token", "--skip-existing")
-	if err == nil {
-		t.Fatalf("published with a token npm whoami rejects:\n%s", out)
-	}
-	if calls := readCalls(t, log); strings.Contains(calls, "publish") {
-		t.Errorf("ran npm publish before the token authenticated:\n%s", calls)
-	}
-	if !strings.Contains(out, "does not authenticate") || strings.Contains(out, "trusted publisher") {
-		t.Errorf("message does not name the token as the cause:\n%s", out)
-	}
-}
-
-func TestPublishTokenAuthNamesTheCauseOfARefusal(t *testing.T) {
-	cases := map[string]struct {
-		whoami, org string
-		want        []string
-	}{
-		"no org or not a member":        {"ariel", "", []string{"ariel", "npm org claudinite", "does not exist or ariel is not a member"}},
-		"member, token lacks the scope": {"ariel", `{"ariel": "owner"}`, []string{"ariel", "owner of the npm org claudinite", "Packages and scopes", "read and write", "@claudinite"}},
-		"listed org, user absent":       {"ariel", `{"someone": "owner"}`, []string{"ariel is not a member of the npm org claudinite"}},
-	}
-	for name, c := range cases {
-		dist := fakeTarballs(t, "0.0.0", rcNames()...)
-		path, log := fakeNpm(t, c.whoami, c.org)
-		out, err := runScript(t, []string{"DIST=" + dist, "VERSION=0.0.0", "PATH=" + path}, "release/publish.sh", "--channel", "rc", "--auth", "token", "--skip-existing")
-		if calls := readCalls(t, log); strings.Contains(calls, "loglevel=verbose") {
-			t.Errorf("%s: a token publish ran npm at verbose:\n%s", name, calls)
-		}
-		if err == nil {
-			t.Errorf("%s: a refused publish succeeded:\n%s", name, out)
-			continue
-		}
-		for _, w := range c.want {
-			if !strings.Contains(out, w) {
-				t.Errorf("%s: message lacks %q:\n%s", name, w, out)
-			}
-		}
-		if strings.Contains(out, "trusted publisher") {
-			t.Errorf("%s: a token publish was told to attach a trusted publisher:\n%s", name, out)
-		}
-	}
-}
-
 func TestPublishOIDCRefusalPointsAtTheTrustedPublisher(t *testing.T) {
 	dist := fakeTarballs(t, "1.61001.1", rcNames()...)
-	path, log := fakeNpm(t, "", "")
+	path, log := fakeNpm(t)
 	out, err := runScript(t, []string{"DIST=" + dist, "VERSION=1.61001.1", "PATH=" + path}, "release/publish.sh", "--channel", "rc", "--auth", "oidc")
 	if err == nil || !strings.Contains(out, "attach its trusted publisher") {
 		t.Fatalf("err %v\n%s", err, out)
 	}
-	calls := readCalls(t, log)
-	if strings.Contains(calls, "whoami") {
-		t.Errorf("an OIDC publish ran npm whoami, which has no token to check:\n%s", calls)
-	}
-	if !strings.Contains(calls, "loglevel=verbose publish") {
+	if calls := readCalls(t, log); !strings.Contains(calls, "loglevel=verbose publish") {
 		t.Errorf("an OIDC publish ran npm below verbose, so a refusal hides the token exchange:\n%s", calls)
 	}
 }

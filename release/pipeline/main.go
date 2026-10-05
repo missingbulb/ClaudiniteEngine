@@ -15,7 +15,6 @@ import (
 
 const usage = `usage:
   pipeline names [--channel rc|stable]
-  pipeline bootstrap-comment
   pipeline blocker-issue --version V --leg PLATFORM --run-url URL --log FILE
   pipeline blocker-issue --gate live-packs --version V --run-url URL --log FILE
   pipeline publish-mode --channel rc|stable --signing release|dev --dry-run true|false --npm-versions FILE [--stable-test pass|fail]
@@ -39,14 +38,11 @@ func run(args []string, stdout, stderr io.Writer) int {
 			fmt.Fprint(stderr, usage)
 			return 2
 		}
-		for _, p := range release.Placeholders() {
+		for _, p := range release.Packages() {
 			if channel == "" || p.Channel == channel {
 				fmt.Fprintln(stdout, p.Name)
 			}
 		}
-		return 0
-	case "bootstrap-comment":
-		fmt.Fprint(stdout, release.BootstrapComment())
 		return 0
 	case "publish-mode":
 		return publishMode(args[1:], stdout, stderr)
