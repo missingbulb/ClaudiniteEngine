@@ -82,13 +82,6 @@ func growthCapture(args []string, stdout, stderr io.Writer, start time.Time) err
 		crumb(breadcrumb.Error)
 		return report.Said(report.Usage)
 	}
-	session := os.Getenv("CLAUDE_CODE_SESSION_ID")
-	if req.Session != nil {
-		session = *req.Session
-	}
-	if session == "" {
-		session = "unknown"
-	}
 	res := capture.Run(req, capture.FromProcess(), stdout, stderr)
 	crumb(crumbOf(res.Outcome))
 	switch res.Code {

@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/missingbulb/ClaudiniteEngine/shared/gitcmd"
-	"github.com/missingbulb/ClaudiniteEngine/shared/taskspec"
 	"github.com/missingbulb/ClaudiniteEngine/tasks/land"
 )
 
@@ -22,10 +21,6 @@ func TestOnlyAPolicyThatAuthorizesALandingEntersTheLane(t *testing.T) {
 			t.Errorf("%v: %v", c.policy, got)
 		}
 	}
-}
-
-func sessionTaskOf(pack, model string) taskspec.Task {
-	return taskspec.Task{Pack: pack, ID: "a", Decl: taskspec.Decl{"id": "a", "agent_model": model}}
 }
 
 // The landing lane's diff is the pull request's own: its head against
