@@ -197,6 +197,9 @@ func TestReleaseGatesThePublish(t *testing.T) {
 		}
 	}
 	build := jobBlock(t, wf, "build")
+	if !strings.Contains(build, `release/version.sh next --taken "$RUNNER_TEMP/taken.json"`) {
+		t.Errorf("the build job may pick a version npm already holds:\n%s", build)
+	}
 	if !strings.Contains(build, "release/smoke-platform.sh --registry") || strings.Index(build, "release/smoke-platform.sh") > strings.Index(build, "upload-artifact") {
 		t.Errorf("the build job does not test initial adoption before it uploads the dist:\n%s", build)
 	}
@@ -220,8 +223,10 @@ func TestReleaseGatesThePublish(t *testing.T) {
 		t.Errorf("the publish job runs on always(), which a cancelled run satisfies:\n%s", publish)
 	}
 	// The order a signed candidate is published in: the bytes build hashed,
-	// the signature, the key gone, the signature verified, then npm.
-	order := []string{"name: the files build hashed", "release/sign.sh", "run: rm -f \"$RUNNER_TEMP/release.key\"", "go run ./release/manifest verify", "publish-mode", "release/publish.sh", "pipeline npm-holds --dist dist", "git push origin \"v$VERSION\""}
+	// the signature, the key gone, the signature verified, the version's tag,
+	// then npm. The tag comes first so a run that fails after npm took the
+	// version never leaves the next run to compute it again.
+	order := []string{"name: the files build hashed", "release/sign.sh", "run: rm -f \"$RUNNER_TEMP/release.key\"", "go run ./release/manifest verify", "publish-mode", "git push origin \"v$VERSION\"", "release/publish.sh", "pipeline npm-holds --dist dist"}
 	last, prev := -1, "the start"
 	for _, step := range order {
 		i := strings.Index(publish, step)

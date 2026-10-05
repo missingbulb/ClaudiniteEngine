@@ -86,6 +86,26 @@ func TestVersionNext(t *testing.T) {
 	if _, err := version.Parse(strings.TrimSpace(out)); err != nil {
 		t.Fatalf("next printed a version Parse refuses: %v", err)
 	}
+	// A version npm holds is spent even with no tag, as when a run failed
+	// between publishing and tagging; npm view answers one version as a
+	// string and several as a list.
+	for taken, want := range map[string]string{
+		`"` + m + "." + d + `.3"`:                                               ".4",
+		`["` + m + "." + d + `.4", "` + m + "." + d + `.3"]`:                    ".5",
+		`["` + m + "." + d + `.30", "` + m + "." + strconv.Itoa(day-1) + `.3"]`: ".3",
+	} {
+		file := filepath.Join(t.TempDir(), "taken.json")
+		if err := os.WriteFile(file, []byte(taken), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		out, code = versionSh(t, repo, "next", "--taken", file)
+		if code != 0 || strings.TrimSpace(out) != m+"."+d+want {
+			t.Errorf("npm holds %s: exit %d, %q, want %s", taken, code, out, m+"."+d+want)
+		}
+	}
+	if out, code = versionSh(t, repo, "next", "--taken", filepath.Join(t.TempDir(), "absent")); code != 2 {
+		t.Errorf("an absent --taken file: exit %d, %q", code, out)
+	}
 }
 
 func mustAtoi(t *testing.T, s string) int {
