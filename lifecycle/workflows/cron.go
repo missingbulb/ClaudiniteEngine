@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
-	"strconv"
 	"strings"
 )
 
@@ -47,43 +46,49 @@ func ForRepo(fullName string) map[string][]byte {
 }
 
 var (
-	cronLine    = regexp.MustCompile(`(?m)^    - cron: "(\d{1,2}) (\d{1,2}),(\d{1,2}) \* \* \*"$`)
+	cronLine    = regexp.MustCompile(`(?m)^    - cron: "([^"\n]*)"$`)
+	cronField   = regexp.MustCompile(`^[0-9*/,-]+$`)
 	stampedLine = regexp.MustCompile(`^ {10}([A-Z][A-Z0-9_]*): \$\{\{ secrets\.([A-Z][A-Z0-9_]*) \}\}$`)
 	secretWord  = regexp.MustCompile(`^[A-Z][A-Z0-9_]*$`)
 )
 
-// isSchedulerCron is a cron this engine's hash could have written: a
-// minute in the band, an anchor among the first twelve hours and the
-// drain twelve after it.
-func isSchedulerCron(minute, anchor, drain int) bool {
-	return minute >= minuteMin && minute < minuteMin+minuteBand && anchor >= 0 && anchor < anchorHours && drain == anchor+anchorHours
+// memberCron is the cron the scheduler have runs on, when it carries one
+// GitHub can read: five fields of numbers, steps, lists, ranges and
+// stars. A single daily tick is as much the member's choice as the
+// engine's hashed pair; "" when there is none.
+func memberCron(have []byte) string {
+	m := cronLine.FindStringSubmatch(string(have))
+	if m == nil {
+		return ""
+	}
+	fields := strings.Fields(m[1])
+	if len(fields) != 5 || strings.Join(fields, " ") != m[1] {
+		return ""
+	}
+	for _, f := range fields {
+		if !cronField.MatchString(f) {
+			return ""
+		}
+	}
+	return m[1]
 }
 
-// ErrNoName is a scheduler whose cron the engine's hash did not write,
-// asked for without the repo's owner/name: its replacement is that name's
-// hash, which nothing else can stand in for.
-var ErrNoName = errors.New("the scheduler's cron is not the engine's hashed form, and this repo's owner/name is unknown: pass --name OWNER/NAME")
+// ErrNoName is a scheduler with no cron of its own, asked for without the
+// repo's owner/name: its cron is that name's hash, which nothing else can
+// stand in for.
+var ErrNoName = errors.New("the scheduler carries no cron of its own, and this repo's owner/name is unknown: pass --name OWNER/NAME")
 
 // Expected is the template name as the member fullName (owner/name), holding
-// have, should carry it: the scheduler keeps the member's own cron when its
-// hash could have written it and otherwise takes fullName's, never the
-// template's placeholder, and the executor keeps the secret lines stamped
-// beneath its marker. Anything else is the template's. fullName may be
-// empty while the member's cron is the hashed form; otherwise Expected
-// fails with ErrNoName.
+// have, should carry it: the scheduler keeps the member's own cron
+// (memberCron) and otherwise takes fullName's hash, never the template's
+// placeholder, and the executor keeps the secret lines stamped beneath its
+// marker. Anything else is the template's. fullName may be empty while the
+// member carries a cron; otherwise Expected fails with ErrNoName.
 func Expected(name string, have []byte, fullName string) ([]byte, error) {
 	want := string(Templates()[name])
 	switch name {
 	case "claudinite-scheduler.yml":
-		cron := ""
-		if m := cronLine.FindStringSubmatch(string(have)); m != nil {
-			minute, _ := strconv.Atoi(m[1])
-			anchor, _ := strconv.Atoi(m[2])
-			drain, _ := strconv.Atoi(m[3])
-			if isSchedulerCron(minute, anchor, drain) {
-				cron = m[1] + " " + m[2] + "," + m[3] + " * * *"
-			}
-		}
+		cron := memberCron(have)
 		if cron == "" {
 			if fullName == "" {
 				return nil, ErrNoName

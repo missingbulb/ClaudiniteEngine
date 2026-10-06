@@ -115,7 +115,7 @@ The updater is inside the published binary, so nothing drives a canary from outs
 
 | Canary | Holds | Proves |
 | --- | --- | --- |
-| **Sandbox** (`ClaudiniteSandbox`) | The default packs plus one to three others, a local pack, overrides and adoption answers, and a task that needs a workflow change | Engine and packs together on a real repo; a workflow patch arriving as an issue |
+| **Sandbox** (`ClaudiniteSandbox`) | The default packs plus one to three others, a local pack, overrides and adoption answers, and a task that needs a workflow change | Engine and packs together on a real repo; a workflow change riding the engine update PR and moved by its agent stage |
 | **Lagging** | Reset each release to a tagged baseline: the oldest engine and packs still in the 90-day window, with files in the oldest shapes the major accepts | An update across many skipped versions onto old-shaped files, which must end in deprecation findings, not breaks |
 | **Fresh** | Nothing; each release a workflow runs `cn init` and adopts the default packs on a scratch branch, then discards it | First adoption, the one path no existing member exercises |
 
@@ -138,7 +138,7 @@ The release workflow does not wait for the nightly run. It dispatches each canar
 3. Runs a scheduler cycle and executor loop on the new main: one mechanical task and one task with an agentic phase that fires a real Claude Code routine.
 4. Runs a **synthetic session probe**: a scheduled Claude Code routine on the canary that starts a session, which requests its key through GitHub, makes a few ordinary edits and commands that must be allowed, one that a guard must block, and stops. The probe reports each expected verdict as a check run.
 5. Runs `cn check world` on main and compares the findings with the run before the update. For an engine candidate any new finding other than a deprecation is a regression, since the packs did not change; for a pack candidate, each new finding must come from the pack that changed.
-6. When the candidate needs a workflow change, the canary holding that task must receive the issue carrying the patch; a scripted commit applies it, and the task it holds off must turn back on.
+6. When the candidate needs a workflow change, the canary's engine update PR must carry it staged, its agent stage must move it into `.github/workflows/` unedited, and the PR must land through `claudinite-ci.yml`.
 
 Updates skip while main's CI is red, so a canary that goes red stops taking candidates without failing anything. The promotion job therefore counts a canary that has not taken the candidate as not passed, and alerts when a canary's main is red.
 

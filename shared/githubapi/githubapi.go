@@ -20,6 +20,7 @@
 //	GET   /repos/{repo}/issues?state=open&labels=                    OpenIssues
 //	POST  /repos/{repo}/issues                                       CreateIssue
 //	PATCH /repos/{repo}/issues/{n}  body                             UpdateIssueBody
+//	PATCH /repos/{repo}/issues/{n}  state=closed                     CloseIssue
 package githubapi
 
 import (
@@ -322,4 +323,9 @@ func (c *Client) CreateIssue(title, body, label string) (int, error) {
 // UpdateIssueBody replaces an issue's body.
 func (c *Client) UpdateIssueBody(n int, body string) error {
 	return c.do(http.MethodPatch, fmt.Sprintf("/repos/%s/issues/%d", c.Repo, n), map[string]string{"body": body}, nil)
+}
+
+// CloseIssue closes an issue as not planned.
+func (c *Client) CloseIssue(n int) error {
+	return c.do(http.MethodPatch, fmt.Sprintf("/repos/%s/issues/%d", c.Repo, n), map[string]string{"state": "closed", "state_reason": "not_planned"}, nil)
 }

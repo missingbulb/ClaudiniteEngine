@@ -148,8 +148,16 @@ func TestTheUpdateTask(t *testing.T) {
 			u = task
 		}
 	}
-	if u.Pack != BuiltinPack || !u.Engine || u.Decl.AgentModel() != "none" || u.TaskPath() != UpdateTaskPath {
+	if u.Pack != BuiltinPack || !u.Engine || u.Decl.AgentModel() != "sonnet" || u.TaskPath() != UpdateTaskPath {
 		t.Fatalf("%+v path %s", u, u.TaskPath())
+	}
+	if !strings.Contains(EngineInstructions(u), ".claudinite/cache/pending-workflows/") {
+		t.Error("the update's agent stage carries no instructions")
+	}
+	for _, task := range tasks {
+		if task.ID != UpdateTask && EngineInstructions(task) != "" {
+			t.Errorf("%s carries the update's instructions", task.Path())
+		}
 	}
 	if !reflect.DeepEqual(u.Decl.Preconditions(), []any{"schedule:at-most-daily"}) || u.Decl.Outcome() != "supersede_existing_pr" {
 		t.Errorf("%v", u.Decl)

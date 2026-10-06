@@ -1,14 +1,15 @@
 // Package world is cn check world: the pin guard, which refuses a change
 // to the engine pin or the launcher on a pull request the update bot did
 // not open (but for the first pin an adoption writes), or that moves
-// anything but the pin, or whose new pin does not verify or is held,
+// anything but the pin, its member file and the managed workflows exactly
+// as the new engine expects them, or whose new pin does not verify or is held,
 // revoked or deprecated; then the findings the caller
 // gathered, verify's and every world-tagged check's, declared checks
 // included. A change confined to .claudinite/shared/packs/ passes the
 // guard whoever made it, the bot's pack PR and a person's adoption alike:
-// verify's pack rules judge that tree. The caller injects the pin check
-// and the findings, so this capability imports neither the updater, verify
-// nor the check engine.
+// verify's pack rules judge that tree. The caller injects the pin check,
+// the expected workflows and the findings, so this capability imports
+// neither the updater, verify, the workflows nor the check engine.
 package world
 
 import (
@@ -42,7 +43,13 @@ type Input struct {
 	// and refuses one npm marks deprecated or the states list as held or
 	// revoked.
 	CheckPin func(settings.Engine) error
-	Findings []findings.Finding
+	// Workflows are the file names under .github/workflows/ the engine
+	// manages, and ExpectedWorkflow what this engine expects one to hold
+	// given the base's copy (nil when absent): an update PR may carry each
+	// exactly so. A nil ExpectedWorkflow accepts none.
+	Workflows        []string
+	ExpectedWorkflow func(name string, base []byte) ([]byte, error)
+	Findings         []findings.Finding
 }
 
 // Run prints the guard's verdict and the findings, and returns 1 on a
@@ -127,10 +134,19 @@ func guard(in Input) error {
 			return fmt.Errorf("the PR changes the launcher, .claudinite/launch; an engine update PR moves only engine.version and engine.manifest")
 		}
 	}
-	// The member file restates the pin, so the engine update PR carries it.
+	// The member file restates the pin, so the engine update PR carries it,
+	// and the workflows the new engine expects, which its agent stage moved
+	// in.
 	others := 0
 	for _, c := range changed {
-		if c != flatdecl.MemberFile && c != flatdecl.LegacyPath(flatdecl.MemberFile) {
+		if c == flatdecl.MemberFile || c == flatdecl.LegacyPath(flatdecl.MemberFile) {
+			continue
+		}
+		accepted, err := expectedWorkflow(in, base, c)
+		if err != nil {
+			return err
+		}
+		if !accepted {
 			others++
 		}
 	}
@@ -161,6 +177,39 @@ func guard(in Input) error {
 		return fmt.Errorf("the new pin %s does not verify: %w", e.Version, err)
 	}
 	return nil
+}
+
+// expectedWorkflow reports whether path is a workflow the engine manages
+// that HEAD holds, as a regular file, exactly as this engine expects it
+// over base's copy. Any other path is not accepted, and is no error.
+func expectedWorkflow(in Input, base, path string) (bool, error) {
+	name, ok := strings.CutPrefix(path, ".github/workflows/")
+	if !ok || in.ExpectedWorkflow == nil {
+		return false, nil
+	}
+	managed := false
+	for _, n := range in.Workflows {
+		managed = managed || n == name
+	}
+	if !managed {
+		return false, nil
+	}
+	have, there, err := in.Git.Show("HEAD", path)
+	if err != nil || !there {
+		return false, err
+	}
+	if regular, err := in.Git.Regular("HEAD", path); err != nil || !regular {
+		return false, err
+	}
+	old, _, err := in.Git.Show(base, path)
+	if err != nil {
+		return false, err
+	}
+	want, err := in.ExpectedWorkflow(name, old)
+	if err != nil {
+		return false, fmt.Errorf("%s: %w", path, err)
+	}
+	return string(have) == string(want), nil
 }
 
 // personGuard judges a PR a person opened that touches the settings file or

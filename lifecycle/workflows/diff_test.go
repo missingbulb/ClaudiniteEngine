@@ -118,7 +118,11 @@ func TestDiffKeepsTheMembersCronAndStampedSecrets(t *testing.T) {
 		t.Errorf("a member's own cron and stamped secrets are not drift: %q %v", d, err)
 	}
 	files["claudinite-scheduler.yml"] = strings.Replace(files["claudinite-scheduler.yml"], "20 5,17 * * *", "0 * * * *", 1)
+	if d, err := Diff(writeMember(t, files), "o/r"); err != nil || d != "" {
+		t.Errorf("a cron the member chose is not drift: %q %v", d, err)
+	}
+	files["claudinite-scheduler.yml"] = strings.Replace(files["claudinite-scheduler.yml"], "    - cron: \"0 * * * *\"\n", "", 1)
 	if d, _ := Diff(writeMember(t, files), "o/r"); !strings.Contains(d, "+    - cron: \"20 5,17 * * *\"") || strings.Contains(d, CronPlaceholder) {
-		t.Errorf("a cron this repo's hash did not write is drift to the repo's own: %q", d)
+		t.Errorf("a scheduler with no cron of its own is drift to the repo's: %q", d)
 	}
 }

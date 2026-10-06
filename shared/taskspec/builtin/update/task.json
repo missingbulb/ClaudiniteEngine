@@ -1,13 +1,15 @@
 {
   "id": "update",
-  "description": "The engine's built-in nightly update: opens a pull request for the newest allowed engine version, then for the declared packs' newest versions, or says why not. `cn update land` lands each once CI passes, so this task lands nothing itself.",
+  "description": "The engine's built-in nightly update: opens a pull request for the newest allowed engine version, then for the declared packs' newest versions, or says why not. `cn update land` lands each once CI passes; workflows the engine expects ride its pull request staged, for the agent stage to move.",
   "trigger": "schedule",
   "preconditions": [
     "schedule:at-most-daily"
   ],
   "expected_outcome": "supersede_existing_pr",
   "automerge": "nothing",
-  "agent_model": "none",
+  "agent_model": "sonnet",
   "code_work": "cn update engine && cn update packs",
-  "code_work_timeout": 1800
+  "code_work_timeout": 1800,
+  "agent_instructions": "task.md",
+  "agent_execution_timeout": 3600
 }

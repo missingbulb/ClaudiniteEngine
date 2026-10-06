@@ -3,8 +3,9 @@
 // from what a new release needs; the member fixture and cn init write them.
 // The nightly update workflow they superseded (the engine/update task runs
 // the update now) stays embedded for the deprecation window, and a member
-// still holding it is patched to delete it. No update writes
-// .github/workflows/.
+// still holding it is patched to delete it. The update writes no
+// .github/workflows/ file itself: it stages what differs (Stage) for the
+// update PR's agent stage to move.
 package workflows
 
 import "embed"

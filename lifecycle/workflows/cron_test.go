@@ -6,24 +6,40 @@ import (
 	"testing"
 )
 
-// GoogleCalendarEventCreator#1441: a cron the hash did not write (the Node
-// engine's single tick) becomes the repo's own hashed cron, never the
-// template's placeholder; with no name to hash, Expected refuses.
-func TestExpectedGivesAnUnhashedCronTheReposOwn(t *testing.T) {
-	const gcec = "missingbulb/GoogleCalendarEventCreator"
-	have := strings.Replace(string(Templates()["claudinite-scheduler.yml"]), CronPlaceholder, "24 4 * * *", 1)
-	got, err := Expected("claudinite-scheduler.yml", []byte(have), gcec)
-	if err != nil || string(got) != string(ForRepo(gcec)["claudinite-scheduler.yml"]) || !strings.Contains(string(got), `cron: "24 4,16 * * *"`) {
-		t.Errorf("%v\n%s", err, got)
-	}
-	for name, h := range map[string][]byte{"an unhashed cron": []byte(have), "no file": nil} {
-		if got, err := Expected("claudinite-scheduler.yml", h, ""); !errors.Is(err, ErrNoName) || strings.Contains(string(got), CronPlaceholder) {
-			t.Errorf("%s without a name: %v\n%s", name, err, got)
+// withCron is the scheduler template carrying cron.
+func withCron(cron string) string {
+	return strings.Replace(string(Templates()["claudinite-scheduler.yml"]), CronPlaceholder, cron, 1)
+}
+
+// A member's own valid cron is its choice and survives, a single daily
+// tick included: GoogleCalendarEventCreator#1441's Node-era 24 4, and
+// MissingBulbWebsite's owner-chosen 39 4 that a Node move rewrote to its
+// hash. It needs no name, and the placeholder never stands in for it.
+func TestExpectedKeepsAMembersOwnCron(t *testing.T) {
+	for _, cron := range []string{"24 4 * * *", "39 4 * * *", "0 3 * * 1-5", "*/30 * * * *", "26 4,17 * * *", "20 5,17 * * *"} {
+		for _, name := range []string{"missingbulb/GoogleCalendarEventCreator", ""} {
+			got, err := Expected("claudinite-scheduler.yml", []byte(withCron(cron)), name)
+			if err != nil || string(got) != withCron(cron) {
+				t.Errorf("%q (name %q): %v\n%s", cron, name, err, got)
+			}
 		}
 	}
-	hashed := string(ForRepo("o/r")["claudinite-scheduler.yml"])
-	if got, err := Expected("claudinite-scheduler.yml", []byte(hashed), ""); err != nil || string(got) != hashed {
-		t.Errorf("a hashed cron needs no name: %v\n%s", err, got)
+}
+
+// A scheduler with no cron of its own, or none at all, takes the repo's
+// hashed cron, never the template's placeholder; with no name to hash,
+// Expected refuses.
+func TestExpectedGivesACronlessSchedulerTheReposOwn(t *testing.T) {
+	const gcec = "missingbulb/GoogleCalendarEventCreator"
+	cronless := strings.Replace(withCron("x"), `    - cron: "x"`+"\n", "", 1)
+	for name, have := range map[string][]byte{"no cron line": []byte(cronless), "a malformed cron": []byte(withCron("every day")), "no file": nil} {
+		got, err := Expected("claudinite-scheduler.yml", have, gcec)
+		if err != nil || string(got) != string(ForRepo(gcec)["claudinite-scheduler.yml"]) || !strings.Contains(string(got), `cron: "24 4,16 * * *"`) {
+			t.Errorf("%s: %v\n%s", name, err, got)
+		}
+		if got, err := Expected("claudinite-scheduler.yml", have, ""); !errors.Is(err, ErrNoName) || strings.Contains(string(got), CronPlaceholder) {
+			t.Errorf("%s without a name: %v\n%s", name, err, got)
+		}
 	}
 }
 

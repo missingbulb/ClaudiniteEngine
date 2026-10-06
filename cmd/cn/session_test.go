@@ -8,7 +8,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/missingbulb/ClaudiniteEngine/lifecycle/workflows"
 	"github.com/missingbulb/ClaudiniteEngine/shared/report"
+	"github.com/missingbulb/ClaudiniteEngine/shared/taskspec"
 	"github.com/missingbulb/ClaudiniteEngine/shared/workitem"
 	"github.com/missingbulb/ClaudiniteEngine/tasks/execute"
 	"github.com/missingbulb/ClaudiniteEngine/tasks/world"
@@ -85,6 +87,26 @@ func sessionRepo(t *testing.T) string {
 		}
 	}
 	return repo
+}
+
+// The engine's own update carries no task file in the member, so validate
+// prints the instructions the engine carries for its agent stage.
+func TestValidatePrintsTheEngineUpdatesInstructions(t *testing.T) {
+	t.Parallel()
+	repo, dir := sessionRepo(t), t.TempDir()
+	held := map[string]any{"number": 8, "title": "[claudinite-work] engine/update", "state": "open",
+		"labels": []map[string]any{{"name": workitem.StatusRunningAgent}}, "body": taskspec.UpdateTaskPath + "\n"}
+	item := writeJSON(t, dir, "item.json", held)
+	comments := writeJSON(t, dir, "comments.json", []world.Comment{{ID: 1, Body: execute.HandoffComment("E1", "8-n")}})
+	var out bytes.Buffer
+	if err := cmdWorkValidate([]string{"--repo", repo, "--issue", "8", "--nonce", "8-n", "--item-file", item, "--comments-file", comments}, &out); err != nil {
+		t.Fatal(err)
+	}
+	for _, s := range []string{"engine/update", "model: sonnet", workflows.StagingDir, "claudinite-ci.yml", "task:status:needs-human-decision"} {
+		if !strings.Contains(out.String(), s) {
+			t.Errorf("lacks %q:\n%s", s, out.String())
+		}
+	}
 }
 
 func TestValidateGatesTheSessionOnTheNonce(t *testing.T) {

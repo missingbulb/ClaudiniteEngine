@@ -1,17 +1,21 @@
 package update
 
 import (
+	"bytes"
 	"crypto/ed25519"
 	"errors"
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/missingbulb/ClaudiniteEngine/lifecycle/workflows"
 	"github.com/missingbulb/ClaudiniteEngine/shared/flatdecl"
 	"github.com/missingbulb/ClaudiniteEngine/shared/gitcmd"
 	"github.com/missingbulb/ClaudiniteEngine/shared/githubapi"
@@ -46,6 +50,7 @@ type GitHub interface {
 	OpenIssues(label string) ([]githubapi.Issue, error)
 	CreateIssue(title, body, label string) (int, error)
 	UpdateIssueBody(n int, body string) error
+	CloseIssue(n int) error
 }
 
 // Deps is everything one updater run reads and writes; cmd/cn supplies the
@@ -65,6 +70,9 @@ type Deps struct {
 	Sleep func(time.Duration)
 	// Repo is the member checkout's path.
 	Repo string
+	// FullName is the member's owner/name, which a scheduler cron the
+	// engine's hash did not write is replaced by the hash of.
+	FullName string
 	// Out receives findings and skips; the verdict is returned.
 	Out io.Writer
 	// Timeout bounds each run of the candidate binary.
@@ -101,6 +109,16 @@ func IsVerdict(line string) bool {
 		}
 	}
 	return false
+}
+
+// EngineResult is one engine run: its verdict and, when the update PR it
+// opened or found carries workflow files staged for the agent stage to
+// move into .github/workflows/, that PR, its branch and those files.
+type EngineResult struct {
+	Verdict string
+	PR      int
+	Branch  string
+	Staged  []string
 }
 
 // latest is the newest run that counts: gated action_required runs never
@@ -141,10 +159,30 @@ func updatePRs(d Deps, prs []githubapi.PR) ([]githubapi.PR, error) {
 // Engine is one run of cn update engine. It acts at most once: a green
 // main is required; a green open update PR is landed and nothing else
 // happens; otherwise the newest allowed version is fetched, self-tested
-// and verified against this repo, and proposed as a pin-only PR whose CI
-// the run dispatches, superseding an older open update PR. It returns the
+// and verified against this repo, and proposed as a PR moving the pin,
+// superseding an older open update PR. The workflows the new engine
+// expects of this repo ride that PR staged (workflows.StagingDir), since
+// the job token may not push .github/workflows/: a PR carrying none has
+// its CI dispatched by the run, and one carrying some waits for the agent
+// stage that moves them into place and dispatches it. It returns the
 // verdict line.
 func Engine(d Deps, o Options) (string, error) {
+	r, err := EngineRun(d, o)
+	return r.Verdict, err
+}
+
+// EngineRun is Engine, saying what the run left for an agent stage.
+func EngineRun(d Deps, o Options) (EngineResult, error) {
+	var r EngineResult
+	v, err := engine(d, o, &r)
+	if err != nil {
+		return EngineResult{}, err
+	}
+	r.Verdict = v
+	return r, nil
+}
+
+func engine(d Deps, o Options, res *EngineResult) (string, error) {
 	head, err := d.Git.Head()
 	if err != nil {
 		return "", err
@@ -216,7 +254,7 @@ func Engine(d Deps, o Options) (string, error) {
 			prev = nil
 		}
 	}
-	next, verdict, err := propose(d, o, f, raw, pin, p, states, prev, prevState)
+	next, verdict, err := propose(d, o, f, raw, pin, p, states, prev, prevState, res)
 	if err != nil {
 		return "", err
 	}
@@ -252,7 +290,7 @@ func fetchServed(d Deps, pkg, ver string, p *npmreg.Packument) (Fetched, error) 
 // propose picks the candidate and, unless an open PR already carries it
 // or its verify breaks this repo, opens its update PR. It returns the
 // candidate, empty for none, and the verdict.
-func propose(d Deps, o Options, f settings.Format, raw []byte, pin settings.Engine, p *npmreg.Packument, states States, prev *githubapi.PR, prevState string) (string, string, error) {
+func propose(d Deps, o Options, f settings.Format, raw []byte, pin settings.Engine, p *npmreg.Packument, states States, prev *githubapi.PR, prevState string, res *EngineResult) (string, string, error) {
 	c := Candidate(pin.Version, pin.Channel, p, states)
 	if c.Skipped != nil {
 		fmt.Fprintf(d.Out, "%s skipped: %s\n", c.Skipped.Version, c.Skipped.Reason)
@@ -261,6 +299,15 @@ func propose(d Deps, o Options, f settings.Format, raw []byte, pin settings.Engi
 		return "", "up to date", nil
 	}
 	if prev != nil && prev.HeadRef == BranchPrefix+c.Version {
+		staged, err := stagedOn(d, *prev)
+		if err != nil {
+			return "", "", err
+		}
+		if len(staged) > 0 {
+			// Its CI cannot land it before the agent stage moves them.
+			res.PR, res.Branch, res.Staged = prev.Number, prev.HeadRef, staged
+			return c.Version, fmt.Sprintf("skipped: #%d for %s is open and still carries %d staged workflow file(s) for its agent stage", prev.Number, c.Version, len(staged)), nil
+		}
 		why := "its CI concluded " + prevState
 		switch prevState {
 		case "no run":
@@ -301,43 +348,89 @@ func propose(d Deps, o Options, f settings.Format, raw []byte, pin settings.Engi
 		return c.Version, "no PR: " + c.Version + " would break this repo", nil
 	}
 
-	n, err := openPR(d, f, raw, got, self, verifyOut, broke)
+	n, staged, err := openPR(d, f, raw, got, self, verifyOut, broke)
 	if err != nil {
 		return "", "", err
+	}
+	if len(staged) > 0 {
+		res.PR, res.Branch, res.Staged = n, BranchPrefix+c.Version, staged
 	}
 	if prev != nil {
 		if err := supersede(d, *prev, n, c.Version); err != nil {
 			return "", "", err
 		}
 	}
-	if err := fileWorkflowChange(d, got); err != nil {
-		return "", "", err
-	}
 	return c.Version, fmt.Sprintf("opened #%d for %s", n, c.Version), nil
 }
 
-// openPR commits the pin on a fresh update branch, pushes it, opens and
-// labels the PR and dispatches its CI, leaving the checkout where it was.
-func openPR(d Deps, f settings.Format, raw []byte, got Fetched, self, verifyOut string, forced bool) (int, error) {
+// stagedOn is the workflow files staged on an open update PR's head.
+func stagedOn(d Deps, pr githubapi.PR) ([]string, error) {
+	const ref = "refs/claudinite/update-head"
+	if err := d.Git.Fetch(remote, "+refs/heads/"+pr.HeadRef+":"+ref); err != nil {
+		return nil, err
+	}
+	files, err := d.Git.Tree(ref, workflows.StagingDir+"/")
+	if err != nil {
+		return nil, err
+	}
+	var out []string
+	for p := range files {
+		out = append(out, p)
+	}
+	sort.Strings(out)
+	return out, nil
+}
+
+// workflowIssueTitle is the title of the issue an earlier engine filed in
+// place of carrying a workflow change on its update PR.
+var workflowIssueTitle = regexp.MustCompile(`^Claudinite engine \S+ needs a workflow change$`)
+
+// workflowIssues are the open issues of that title.
+func workflowIssues(d Deps) ([]int, error) {
+	open, err := d.GitHub.OpenIssues(Label)
+	if err != nil {
+		return nil, err
+	}
+	var out []int
+	for _, is := range open {
+		if workflowIssueTitle.MatchString(is.Title) {
+			out = append(out, is.Number)
+		}
+	}
+	sort.Ints(out)
+	return out, nil
+}
+
+// openPR commits the pin, and the workflows the new engine expects staged
+// beside it, on a fresh update branch, pushes it, opens and labels the PR,
+// closes the workflow-change issues an earlier engine filed, and dispatches
+// its CI unless workflows are staged, leaving the checkout where it was.
+// It returns the PR and the staged paths.
+func openPR(d Deps, f settings.Format, raw []byte, got Fetched, self, verifyOut string, forced bool) (int, []string, error) {
 	moved, err := settings.SetPin(raw, f, got.Version, got.Integrity)
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
 	dropped := settings.HasRetiredLicense(moved, f)
 	if dropped {
 		if moved, err = settings.DropLicense(moved, f); err != nil {
-			return 0, err
+			return 0, nil, err
 		}
+	}
+	issues, err := workflowIssues(d)
+	if err != nil {
+		return 0, nil, err
 	}
 	back, err := d.Git.CurrentBranch()
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
 	branch := BranchPrefix + got.Version
 	if err := d.Git.CreateBranch(branch, "HEAD"); err != nil {
-		return 0, err
+		return 0, nil, err
 	}
 	rel := settings.RelPath(f)
+	var staged []string
 	commitErr := func() error {
 		if err := os.WriteFile(filepath.Join(d.Repo, filepath.FromSlash(rel)), moved, 0o644); err != nil {
 			return err
@@ -350,20 +443,24 @@ func openPR(d Deps, f settings.Format, raw []byte, got Fetched, self, verifyOut 
 		if member != "" {
 			rels = append(rels, member)
 		}
+		if staged, err = StageWorkflows(got.Binary, d.Repo, d.FullName, d.Timeout); err != nil {
+			return err
+		}
+		rels = append(rels, staged...)
 		if err := d.Git.Commit(EngineTitle(got.Version), rels...); err != nil {
 			return err
 		}
 		return d.Git.Push(remote, branch)
 	}()
 	if err := d.Git.Checkout(back); err != nil {
-		return 0, errors.Join(commitErr, err)
+		return 0, nil, errors.Join(commitErr, err)
 	}
 	if commitErr != nil {
-		return 0, commitErr
+		return 0, nil, commitErr
 	}
 
 	var b strings.Builder
-	fmt.Fprintf(&b, "Moves this repo's Claudinite engine pin to **%s**. Only `%s` changes: `engine.version` and `engine.manifest`, with `%s` restating them.\n\n", got.Version, rel, flatdecl.MemberFile)
+	fmt.Fprintf(&b, "Moves this repo's Claudinite engine pin to **%s**. `%s` changes only `engine.version` and `engine.manifest`, with `%s` restating them.\n\n", got.Version, rel, flatdecl.MemberFile)
 	if dropped {
 		fmt.Fprintf(&b, "It also drops the retired `license` block from `%s`: a single repo needs no license, and nothing reads it.\n\n", rel)
 	}
@@ -377,19 +474,56 @@ func openPR(d Deps, f settings.Format, raw []byte, got Fetched, self, verifyOut 
 	} else {
 		fmt.Fprintf(&b, "Verify of this repo by the new binary:\n\n```\n%s```\n\n", verifyOut)
 	}
-	b.WriteString("The updater merges this PR once the CI run it dispatched is green.\n")
+	if len(issues) > 0 {
+		var refs []string
+		for _, n := range issues {
+			refs = append(refs, "#"+strconv.Itoa(n))
+		}
+		fmt.Fprintf(&b, "It replaces %s, the workflow-change issue an earlier engine filed instead of carrying the change here.\n\n", strings.Join(refs, ", "))
+	}
+	if len(staged) == 0 {
+		b.WriteString("The updater merges this PR once the CI run it dispatched is green.\n")
+	} else {
+		b.WriteString(stagedNote(staged))
+	}
 
 	pr, err := d.GitHub.CreatePull(EngineTitle(got.Version), b.String(), branch, mainBranch)
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
 	if err := d.GitHub.AddLabel(pr.Number, Label); err != nil {
-		return 0, err
+		return 0, nil, err
+	}
+	for _, n := range issues {
+		if err := d.GitHub.Comment(n, fmt.Sprintf("Closed: #%d carries this repo's workflow change on the engine update PR itself.", pr.Number)); err != nil {
+			return 0, nil, err
+		}
+		if err := d.GitHub.CloseIssue(n); err != nil {
+			return 0, nil, err
+		}
+	}
+	if len(staged) > 0 {
+		for _, s := range staged {
+			fmt.Fprintf(d.Out, "staged for the agent stage: %s\n", s)
+		}
+		return pr.Number, staged, nil
 	}
 	if err := d.GitHub.Dispatch(CIWorkflow, branch, map[string]string{"pr": strconv.Itoa(pr.Number)}); err != nil {
-		return 0, err
+		return 0, nil, err
 	}
-	return pr.Number, nil
+	return pr.Number, nil, nil
+}
+
+// stagedNote is the PR body's account of the staged workflows: what they
+// are, why they wait, and how the PR lands once they are moved.
+func stagedNote(staged []string) string {
+	var b strings.Builder
+	b.WriteString("This engine expects changes to this repo's workflows, staged on this branch because the update job's token may not push `.github/workflows/`:\n\n")
+	for _, s := range staged {
+		fmt.Fprintf(&b, "- `%s` → `.github/workflows/%s`\n", s, path.Base(s))
+	}
+	fmt.Fprintf(&b, "\nThe engine/update task's agent stage, whose credential may write workflows, moves each file into place unedited, leaving `%s/` empty, then dispatches `%s` on this branch with `pr=<this PR's number>`; that run lands the PR once green, and the landing gate accepts under `.github/workflows/` exactly what this engine expects. Where no agent stage runs, a person does the same moves and the dispatch.\n", workflows.StagingDir, CIWorkflow)
+	return b.String()
 }
 
 func supersede(d Deps, old githubapi.PR, n int, ver string) error {
@@ -408,17 +542,19 @@ func closeUpdatePR(d Deps, pr githubapi.PR, why string) error {
 	return d.Git.DeleteRemoteBranch(remote, pr.HeadRef)
 }
 
-// Land squash-merges update PR n at head sha after checking it is the
-// updater's own change, deletes its branch and dispatches CI on main,
-// whose runs the next update needs green. The branch says which shape the
-// PR must have: an engine PR is pin-only, a pack PR changes only the
-// vendored packs (landPacks).
 // retiredPlanBranchPrefix starts the plan correction branches an engine
 // before record row 131 opened; one may still stand open in a member.
 //
 // @legacy-tolerance advisory:none retire:#83
 const retiredPlanBranchPrefix = "claudinite/plan-"
 
+// Land squash-merges update PR n at head sha after checking it is the
+// updater's own change, deletes its branch and dispatches CI on main,
+// whose runs the next update needs green. The branch says which shape the
+// PR must have: an engine PR moves the pin and, under .github/workflows/,
+// changes exactly what the pinned engine expects of this repo, with nothing
+// left staged (expectedWorkflows); a pack PR changes only the vendored
+// packs (landPacks).
 func Land(d Deps, n int, sha string) (string, error) {
 	pr, err := d.GitHub.Pull(n)
 	if err != nil {
@@ -449,12 +585,27 @@ func Land(d Deps, n int, sha string) (string, error) {
 		return landPacks(d, pr, sha)
 	}
 	base := remote + "/" + mainBranch
-	files, err := d.Git.ChangedFiles(base, sha)
+	all, err := d.Git.ChangedFiles(base, sha)
 	if err != nil {
 		return "", err
 	}
+	var files, moved, staged []string
+	for _, file := range all {
+		switch {
+		case strings.HasPrefix(file, workflows.StagingDir+"/"):
+			staged = append(staged, file)
+		case strings.HasPrefix(file, ".github/workflows/"):
+			moved = append(moved, file)
+		default:
+			files = append(files, file)
+		}
+	}
+	if len(staged) > 0 {
+		return "", fmt.Errorf("#%d still carries staged workflow files %v: its agent stage has not moved them into .github/workflows/", n, staged)
+	}
 	// The PR changes the settings file, and restates the member file
-	// beside it when the declaration renders one.
+	// beside it when the declaration renders one; the workflows it moved
+	// into place are checked against the new engine below.
 	var f settings.Format
 	member := ""
 	for _, ff := range settings.Formats {
@@ -505,7 +656,11 @@ func Land(d Deps, n int, sha string) (string, error) {
 			return "", fmt.Errorf("#%d pins %s, not newer than main's %s", n, e.Version, cur.Version)
 		}
 	}
-	if err := CheckPin(d, e); err != nil {
+	got, err := checkPin(d, e)
+	if err != nil {
+		return "", fmt.Errorf("#%d: %w", n, err)
+	}
+	if err := expectedWorkflows(d, got.Binary, mb, sha, moved); err != nil {
 		return "", fmt.Errorf("#%d: %w", n, err)
 	}
 	if err := landPinned(d, pr, sha, EngineTitle(e.Version)); err != nil {
@@ -515,6 +670,71 @@ func Land(d Deps, n int, sha string) (string, error) {
 		return "", err
 	}
 	return "landed " + e.Version, nil
+}
+
+// expectedWorkflows refuses an engine PR whose changes under
+// .github/workflows/ are anything but what binary, the engine the PR pins,
+// expects of this repo as it stood at the merge base mb: each changed file
+// must be one that engine stages for this repo, byte for byte, a regular
+// file, and still present.
+func expectedWorkflows(d Deps, binary, mb, sha string, moved []string) error {
+	if len(moved) == 0 {
+		return nil
+	}
+	tmp, err := os.MkdirTemp("", "claudinite-land-")
+	if err != nil {
+		return err
+	}
+	defer func() { _ = os.RemoveAll(tmp) }()
+	for _, name := range workflows.Names {
+		rel := ".github/workflows/" + name
+		have, present, err := d.Git.Show(mb, rel)
+		if err != nil {
+			return err
+		}
+		if !present {
+			continue
+		}
+		p := filepath.Join(tmp, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(p, have, 0o644); err != nil {
+			return err
+		}
+	}
+	staged, err := StageWorkflows(binary, tmp, d.FullName, d.Timeout)
+	if err != nil {
+		return fmt.Errorf("the workflows %s expects could not be computed: %w", strings.Join(moved, ", "), err)
+	}
+	want := map[string][]byte{}
+	for _, s := range staged {
+		b, err := os.ReadFile(filepath.Join(tmp, filepath.FromSlash(s)))
+		if err != nil {
+			return err
+		}
+		want[".github/workflows/"+path.Base(s)] = b
+	}
+	for _, file := range moved {
+		exp, ok := want[file]
+		if !ok {
+			return fmt.Errorf("changes %s, which the pinned engine does not change", file)
+		}
+		have, present, err := d.Git.Show(sha, file)
+		if err != nil {
+			return err
+		}
+		if !present {
+			return fmt.Errorf("deletes %s, which the pinned engine changes", file)
+		}
+		if regular, err := d.Git.Regular(sha, file); err != nil || !regular {
+			return fmt.Errorf("%s is not a regular file", file)
+		}
+		if !bytes.Equal(have, exp) {
+			return fmt.Errorf("%s is not what the pinned engine expects of this repo: move its staged copy unedited", file)
+		}
+	}
+	return nil
 }
 
 // upsertIssue opens an issue labelled Label with title, or updates the
@@ -542,22 +762,6 @@ func fence(s string) string {
 		f += "`"
 	}
 	return f
-}
-
-// fileWorkflowChange files the patch that brings the member's workflows to
-// the new release's templates, as the new binary computes it; nothing
-// writes .github/workflows/ itself.
-func fileWorkflowChange(d Deps, got Fetched) error {
-	diff, err := WorkflowsDiff(got.Binary, d.Repo, d.Timeout)
-	if err != nil || diff == "" {
-		return err
-	}
-	f := fence(diff)
-	body := fmt.Sprintf("Claudinite engine %s expects these changes to this repo's workflows:\n\n%sdiff\n%s%s\n\n"+
-		"The update job's token cannot write `.github/workflows/`, so the nightly update stays on the current workflows until a person commits this patch (`git apply` at the repo root).\n",
-		got.Version, f, diff, f)
-	_, err = upsertIssue(d, "Claudinite engine "+got.Version+" needs a workflow change", body)
-	return err
 }
 
 // fileRevoked keeps one issue open per revoked pin, naming the reason, the

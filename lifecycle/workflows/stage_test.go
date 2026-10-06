@@ -17,7 +17,7 @@ func TestStageWritesOnlyWhatDiffers(t *testing.T) {
 	for n, b := range ForRepo(gcec) {
 		files[n] = string(b)
 	}
-	files["claudinite-scheduler.yml"] = strings.Replace(files["claudinite-scheduler.yml"], "24 4,16 * * *", "24 4 * * *", 1)
+	files["claudinite-scheduler.yml"] = strings.Replace(files["claudinite-scheduler.yml"], "    - cron: \"24 4,16 * * *\"\n", "", 1)
 	dir := writeMember(t, files)
 	stale := filepath.Join(dir, filepath.FromSlash(StagedPath("claudinite-ci.yml")))
 	_ = os.MkdirAll(filepath.Dir(stale), 0o755)
@@ -40,7 +40,7 @@ func TestStageWritesOnlyWhatDiffers(t *testing.T) {
 	}
 
 	if _, err := Stage(dir, ""); err == nil {
-		t.Error("staged an unhashed cron without the repo's name")
+		t.Error("staged a cronless scheduler without the repo's name")
 	}
 	files["claudinite-scheduler.yml"] = string(ForRepo(gcec)["claudinite-scheduler.yml"])
 	dir = writeMember(t, files)

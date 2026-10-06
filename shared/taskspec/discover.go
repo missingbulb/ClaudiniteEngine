@@ -145,7 +145,19 @@ var (
 	requestDeclaration []byte
 	//go:embed builtin/update/task.json
 	updateDeclaration []byte
+	//go:embed builtin/update/task.md
+	updateInstructions string
 )
+
+// EngineInstructions is the agent instructions the engine carries for one
+// of its own tasks whose task file no member holds: the update's agent
+// stage. It is "" for any other task.
+func EngineInstructions(t Task) string {
+	if t.Pack == BuiltinPack && t.Rel == "" && t.ID == UpdateTask {
+		return updateInstructions
+	}
+	return ""
+}
 
 // Task is one discovered, validated task.
 type Task struct {

@@ -24,20 +24,26 @@ func pinRefusal(p *npmreg.Packument, states States, ver string) string {
 // must verify against d.Roots and hash to e.Manifest. cn check world and
 // Land both run it.
 func CheckPin(d Deps, e settings.Engine) error {
+	_, err := checkPin(d, e)
+	return err
+}
+
+// checkPin is CheckPin, returning the verified release.
+func checkPin(d Deps, e settings.Engine) (Fetched, error) {
 	p, err := d.Registry.Packument(e.Package)
 	if err != nil {
-		return err
+		return Fetched{}, err
 	}
 	if why := pinRefusal(p, StatesFromPackument(p), e.Version); why != "" {
-		return fmt.Errorf("%s %s is %s", e.Package, e.Version, why)
+		return Fetched{}, fmt.Errorf("%s %s is %s", e.Package, e.Version, why)
 	}
 	got, err := Fetch(FetchInput{Registry: d.Registry, Package: e.Package, Version: e.Version, Packument: p,
 		Roots: d.Roots, CacheRoot: d.CacheRoot, Platform: d.Platform, Now: d.Now()})
 	if err != nil {
-		return err
+		return Fetched{}, err
 	}
 	if got.Integrity != e.Manifest {
-		return fmt.Errorf("engine.manifest %s is not the SHA-512 of %s %s's manifest.json (%s)", e.Manifest, e.Package, e.Version, got.Integrity)
+		return Fetched{}, fmt.Errorf("engine.manifest %s is not the SHA-512 of %s %s's manifest.json (%s)", e.Manifest, e.Package, e.Version, got.Integrity)
 	}
-	return nil
+	return got, nil
 }

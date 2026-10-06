@@ -367,28 +367,42 @@ func TestFromNodeFailurePartWayLeavesARerunnableRepo(t *testing.T) {
 	}
 }
 
-// A Node scheduler whose cron the hash could not have written, or with
-// no cron line at all, moves to the repo's own hashed cron rather than the
-// template's placeholder; a hashed one survives, in either quoting.
-func TestMovedWorkflowFallsBackFromThePlaceholder(t *testing.T) {
+// A Node scheduler with no cron line moves to the repo's own hashed cron
+// rather than the template's placeholder; a member's own valid cron
+// survives, in either quoting, a single daily tick and one the hash did
+// not write included.
+func TestMovedWorkflowKeepsTheMembersOwnCron(t *testing.T) {
 	const n = "claudinite-scheduler.yml"
 	forRepo := workflows.ForRepo("acme/widget")
-	for name, have := range map[string]string{
-		"a hand-set cron":    "on:\n  schedule:\n    - cron: '0 3 * * *'\n",
-		"a drain off by one": "on:\n  schedule:\n    - cron: '26 4,17 * * *'\n",
-		"no cron line":       "on:\n  workflow_dispatch:\n",
-	} {
-		got, _ := movedWorkflow(n, []byte(have), "acme/widget")
-		if string(got) != string(forRepo[n]) {
-			t.Errorf("%s: not the repo's template:\n%s", name, got)
-		}
-		if strings.Contains(string(got), workflows.CronPlaceholder) {
-			t.Errorf("%s: the placeholder reached the member", name)
+	got, _ := movedWorkflow(n, []byte("on:\n  workflow_dispatch:\n"), "acme/widget")
+	if string(got) != string(forRepo[n]) || strings.Contains(string(got), workflows.CronPlaceholder) {
+		t.Errorf("no cron line: not the repo's template:\n%s", got)
+	}
+	for _, cron := range []string{"26 4,16 * * *", "39 4 * * *", "0 3 * * *", "26 4,17 * * *"} {
+		for _, have := range []string{"    - cron: '" + cron + "'\n", "    - cron: \"" + cron + "\"\n"} {
+			got, _ := movedWorkflow(n, []byte(have), "acme/widget")
+			if !strings.Contains(string(got), `    - cron: "`+cron+`"`) || strings.Count(string(got), "- cron:") != 1 {
+				t.Errorf("%q: the member's cron did not survive:\n%s", have, got)
+			}
 		}
 	}
-	for _, have := range []string{"    - cron: '26 4,16 * * *'\n", "    - cron: \"26 4,16 * * *\"\n"} {
-		if got, _ := movedWorkflow(n, []byte(have), "acme/widget"); !strings.Contains(string(got), `    - cron: "26 4,16 * * *"`) || string(got) == string(forRepo[n]) {
-			t.Errorf("%q: the member's hashed cron did not survive:\n%s", have, got)
-		}
+}
+
+// MissingBulbWebsite: cn init --from-node kept no owner-chosen single
+// daily tick, rewriting 39 4 to the repo's hash.
+func TestFromNodeKeepsAnOwnerChosenSingleTick(t *testing.T) {
+	repo := nodeMember(t)
+	p := filepath.Join(repo, ".github/workflows/claudinite-scheduler.yml")
+	raw, _ := os.ReadFile(p)
+	if err := os.WriteFile(p, []byte(strings.Replace(string(raw), "'26 4,16 * * *'", "'39 4 * * *'", 1)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	in, out := input(t, repo)
+	if err := FromNode(in); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	sched, _ := os.ReadFile(p)
+	if !strings.Contains(string(sched), `    - cron: "39 4 * * *"`+"\n") {
+		t.Errorf("the owner's single tick did not survive:\n%s", sched)
 	}
 }

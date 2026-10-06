@@ -60,6 +60,10 @@ type CodeWorkResult struct {
 	// Said is what in-process code-work (the engine's own) reports, one
 	// line each, carried onto the item's close.
 	Said []string
+	// HandOff is the target an agent it requested works on, where the
+	// code-work chose it rather than the resolver: the engine update's own
+	// PR, which carries the staged workflows that agent moves.
+	HandOff *Target
 }
 
 // Delivered is what the run created, by identity: the agent's only source
@@ -500,6 +504,9 @@ func (r *run) codeWork(item workitem.Issue, task taskspec.Task, id string, claim
 		target.Supersedes = []int{}
 	}
 	if result.AgentRequested {
+		if result.HandOff != nil {
+			target = *result.HandOff
+		}
 		return r.handOff(item, task, id, claim, context, result, target)
 	}
 	if result.Requeue != nil {
