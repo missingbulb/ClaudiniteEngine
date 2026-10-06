@@ -68,7 +68,7 @@ jobs:
           cat actionlint.out
           exit "$rc"
       # Only main's caches are visible to every branch.
-      - if: github.event_name == 'push' || github.event_name == 'pull_request'
+      - if: github.event_name == 'push'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
