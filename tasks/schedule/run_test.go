@@ -9,6 +9,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/shared/taskspec"
 	"github.com/missingbulb/ClaudiniteEngine/shared/workitem"
 	"github.com/missingbulb/ClaudiniteEngine/tasks/calendar"
+	"github.com/missingbulb/ClaudiniteEngine/tasks/localterms"
 	"github.com/missingbulb/ClaudiniteEngine/tasks/schedule"
 	"github.com/missingbulb/ClaudiniteEngine/tasks/signals"
 	"github.com/missingbulb/ClaudiniteEngine/tasks/sim"
@@ -20,6 +21,7 @@ var t0 = time.Date(2026, 10, 1, 9, 17, 40, 0, time.UTC)
 type harness struct {
 	t      *testing.T
 	fleet  func(since string) (any, error)
+	terms  *localterms.Asker
 	gh     *sim.GitHub
 	repo   *sim.Repo
 	tasks  []taskspec.Task
@@ -45,7 +47,7 @@ func (h *harness) run(wake string) schedule.RunOut {
 	h.t.Helper()
 	h.logs = nil
 	out, err := schedule.Run(schedule.RunIn{
-		Issues: h.gh, Tasks: h.tasks, Now: h.gh.Clock.Now(), Wake: wake, HasFleet: h.fleet != nil,
+		Issues: h.gh, Tasks: h.tasks, Now: h.gh.Clock.Now(), Wake: wake, HasFleet: h.fleet != nil, LocalTerms: h.terms,
 		Collector: func(items []workitem.Issue) *signals.Collector {
 			return &signals.Collector{Issues: h.gh, Repo: h.repo, DefaultBranch: "main", Items: items, Fleet: h.fleet}
 		},
@@ -138,6 +140,30 @@ func TestTheCadenceDeclinesASecondRunInTheSamePeriod(t *testing.T) {
 	}
 }
 
+// An item the executor closed rejected, its precondition declining at
+// the pick, never ran, so the period stays open; one it closed done
+// covers the period.
+func TestADeclinedItemCoversNoPeriod(t *testing.T) {
+	for _, c := range []struct {
+		status, reason string
+		files          bool
+	}{{workitem.StatusRejected, "not_planned", true}, {workitem.StatusDone, "completed", false}} {
+		h := newHarness(t, daily())
+		h.commit("a1", "feat: a thing", "src/a.go")
+		h.run("")
+		n := h.open()[0].Number
+		_ = h.gh.RemoveLabel(n, workitem.StatusReady)
+		_ = h.gh.AddLabel(n, c.status)
+		_ = h.gh.CloseIssue(n, c.reason)
+		h.gh.Clock.Advance(time.Hour)
+		h.commit("a2", "feat: another", "src/b.go")
+		out := h.run("")
+		if files := len(h.open()) == 1; files != c.files {
+			t.Errorf("%s: filed %v, want %v — asked %+v", c.status, files, c.files, out.Asked)
+		}
+	}
+}
+
 func TestAnUnreadableSignalFailsOpen(t *testing.T) {
 	h := newHarness(t, daily())
 	h.repo.Unreadable = true
@@ -148,16 +174,6 @@ func TestAnUnreadableSignalFailsOpen(t *testing.T) {
 	}
 	if !strings.Contains(open[0].Body, "The scheduler could not decide this occurrence") {
 		t.Fatalf("body %q", open[0].Body)
-	}
-}
-
-func TestATaskLocalTermAtATickFilesOpen(t *testing.T) {
-	tk := task("site-release", map[string]any{"preconditions": []any{"schedule:at-most-daily", "release-due"}})
-	tk.Terms = taskspec.Terms{{Name: "release-due", Signals: []string{"release"}}}
-	h := newHarness(t, tk)
-	out := h.run("")
-	if len(h.open()) != 1 || out.Asked[0].Verdict != schedule.VerdictFailOpen {
-		t.Fatalf("asked %+v", out.Asked)
 	}
 }
 

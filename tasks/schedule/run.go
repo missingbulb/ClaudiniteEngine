@@ -145,8 +145,12 @@ func (in *RunIn) evaluate(task taskspec.Task, collect *signals.Collector) precon
 	}
 	now := in.Now
 	judge := func(s precondition.Signals, partial bool) precondition.Verdict {
+		var local precondition.Judge
+		if in.LocalTerms != nil && !partial {
+			local = in.LocalTerms.Judge(task, nil)
+		}
 		return precondition.Evaluate(precondition.Input{Preconditions: task.Decl.Preconditions(), Signals: s,
-			Config: in.PackConfig(task.Pack), Terms: task.Terms, WindowDays: precondition.WindowDays(task.Decl, s),
+			Config: in.PackConfig(task.Pack), Terms: task.Terms, Local: local, WindowDays: precondition.WindowDays(task.Decl, s),
 			Now: &now, Partial: partial})
 	}
 	if collect == nil {

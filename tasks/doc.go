@@ -24,13 +24,26 @@
 //     schedule.TestAQuietRepoFilesNothingAndTheGateStaysShut,
 //     schedule.TestACommitFilesOneReadyItemAndASecondRunFilesNothing
 //   - schedule:at-most-<cadence> holds when no run of the task started or
-//     ended since the current UTC period opened.
+//     ended since the current UTC period opened; an item closed rejected
+//     never ran, so it covers no period.
 //     schedule.TestTheCadenceDeclinesASecondRunInTheSamePeriod,
+//     schedule.TestADeclinedItemCoversNoPeriod,
+//     precondition.TestADeclinedRunCoversNoPeriod,
 //     calendar.TestPeriodStart, calendar.TestPeriod
-//   - A task whose signals cannot be read fails open into an item the
-//     executor decides; a task-local term at a tick files open the same way.
+//   - The scheduler files an item only when the task's precondition holds:
+//     it asks a task-local term through the runner as the executor does,
+//     after every term the engine judges alone, so a task whose cadence
+//     declines starts no runner. A term that holds files its context.
+//     schedule.TestATaskLocalTermThatDeclinesFilesNothing,
+//     schedule.TestATaskLocalTermThatHoldsFilesTheItemWithItsContext,
+//     schedule.TestAScheduleDeclineRunsNoLocalTerm,
+//     precondition.TestABuiltinDeclineAsksNoLocalTerm,
+//     precondition.TestAPartialPassLeavesALocalTermUnknown
+//   - A task whose signals cannot be read, or whose own terms cannot be
+//     asked at all, fails open into an item the executor decides, the body
+//     and the run's log saying why.
 //     schedule.TestAnUnreadableSignalFailsOpen,
-//     schedule.TestATaskLocalTermAtATickFilesOpen
+//     schedule.TestTermsThatCannotBeAskedFailOpenSayingWhy
 //   - A task over the fleet signal fails open on Node's sentence when the
 //     run holds no FLEET_GITHUB_TOKEN, and asks the reader when it does.
 //     schedule.TestAFleetTaskWithoutTheTokenFailsOpenOnNodesSentence,

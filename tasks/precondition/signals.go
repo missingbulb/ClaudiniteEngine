@@ -64,6 +64,11 @@ type Run struct {
 	Woken     bool    `json:"woken,omitempty"`
 }
 
+// NeverRan reports a run closed as never having run: its precondition
+// declined at the pick, or it was retired before it ran. An unknown
+// outcome is not one.
+func (r Run) NeverRan() bool { return r.Outcome != nil && *r.Outcome == "obsolete" }
+
 // Commits is the default branch's movement in the window. A commit
 // carrying the task trailer is already classified out of Substantive.
 type Commits struct {

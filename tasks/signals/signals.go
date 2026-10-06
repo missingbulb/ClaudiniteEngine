@@ -182,7 +182,7 @@ func window(task taskspec.Task, runs *precondition.Runs, now time.Time) precondi
 	since := now.Add(-precondition.DefaultWindow(task.Decl))
 	if runs != nil {
 		for _, r := range runs.List {
-			if r.Outcome != nil && *r.Outcome == "obsolete" {
+			if r.NeverRan() {
 				continue
 			}
 			if r.CreatedAt != nil {

@@ -218,6 +218,7 @@ func Plan(in PlanIn) ([]Op, []Asked, error) {
 			continue
 		default:
 			asked = append(asked, Asked{key, VerdictGo, v.Reason})
+			context = v.Context
 		}
 		ops = append(ops, Op{Kind: KindCreate, Pack: task.Pack, Task: task.ID, Title: title,
 			Labels: []string{workitem.OriginPlanned, workitem.StatusReady},

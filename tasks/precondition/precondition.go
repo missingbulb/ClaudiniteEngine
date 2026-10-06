@@ -121,7 +121,7 @@ type Opts struct {
 }
 
 // Judge answers a task-local term (a preconditions.mjs's, run through the
-// Node runner at pick).
+// Node runner at the tick and at the pick).
 type Judge func(ref taskspec.Ref, s Signals, o Opts) Outcome
 
 // Input is one evaluation.
@@ -139,26 +139,21 @@ type Input struct {
 	Partial    bool
 }
 
-// Evaluate judges an expression over collected signals. In partial mode a
-// term whose signal has not been collected is unknown rather than false,
-// and the verdict is undecided unless some conjunct is already decided
-// false or every conjunct held.
+// Evaluate judges an expression over collected signals. The conditions
+// the engine judges alone are judged first, whatever order the expression
+// states them in: a decline there settles the verdict before any
+// task-local term is asked, so a task that is not due starts no runner.
+// In partial mode a term whose signal has not been collected is unknown
+// rather than false, a task-local term is never asked, and the verdict
+// is undecided unless some conjunct is already decided false or every
+// conjunct held.
 func Evaluate(in Input) Verdict {
 	conds, bad := taskspec.ParsePreconditions(in.Preconditions)
 	if bad != "" {
 		return Verdict{Error: `the "preconditions" declaration is not legal: ` + bad}
 	}
-	var held, context, missing []string
-	declined := ""
-	isDeclined := false
-	undecided := false
-	for _, alts := range conds {
-		type result struct {
-			ref taskspec.Ref
-			out Outcome
-		}
-		var outcomes []result
-		unknown := false
+	local := make([]bool, len(conds))
+	for k, alts := range conds {
 		for _, ref := range alts {
 			spec, ok := taskspec.Resolve(ref.Name, in.Terms)
 			if !ok {
@@ -167,68 +162,92 @@ func Evaluate(in Input) Verdict {
 			if p := taskspec.ArgumentProblem(spec, ref); p != nil {
 				return Verdict{Error: p.What}
 			}
-			for _, n := range spec.Signals {
-				if _, err := in.Signals.state(n); err != "" {
-					return Verdict{Error: ref.Name + ": the `" + n + "` signal could not be read — " + err}
-				}
+			local[k] = local[k] || !EngineJudged(ref.Name)
+		}
+	}
+	type result struct {
+		ref taskspec.Ref
+		out Outcome
+	}
+	held := make([]*result, len(conds))
+	var missing []string
+	declined := ""
+	isDeclined := false
+	undecided := false
+	for _, pass := range []bool{false, true} {
+		if pass && isDeclined {
+			break
+		}
+		for k, alts := range conds {
+			if local[k] != pass {
+				continue
 			}
-			if in.Partial {
-				absent := false
-				for _, n := range spec.Signals {
-					if present, _ := in.Signals.state(n); !present {
-						if !has(missing, n) {
-							missing = append(missing, n)
-						}
-						absent = true
-					}
-				}
-				if absent {
+			var outcomes []result
+			unknown := false
+			for _, ref := range alts {
+				spec, _ := taskspec.Resolve(ref.Name, in.Terms)
+				if in.Partial && !EngineJudged(ref.Name) {
 					unknown = true
 					continue
 				}
+				for _, n := range spec.Signals {
+					if _, err := in.Signals.state(n); err != "" {
+						return Verdict{Error: ref.Name + ": the `" + n + "` signal could not be read — " + err}
+					}
+				}
+				if in.Partial {
+					absent := false
+					for _, n := range spec.Signals {
+						if present, _ := in.Signals.state(n); !present {
+							if !has(missing, n) {
+								missing = append(missing, n)
+							}
+							absent = true
+						}
+					}
+					if absent {
+						unknown = true
+						continue
+					}
+				}
+				o := Opts{Arg: ref.Arg, Config: in.Config, Item: in.Item, WindowDays: in.WindowDays, Now: in.Now}
+				var out Outcome
+				if h, builtin := holds[ref.Name]; builtin {
+					out = h(in.Signals, o)
+				} else if h, engine := engineHolds[ref.Name]; engine {
+					out = h(in.Signals, o)
+				} else if in.Local != nil {
+					out = in.Local(ref, in.Signals, o)
+				} else {
+					return Verdict{Error: `the precondition "` + ref.Name + `" has no judge here — a task-local term is asked through the runner`}
+				}
+				if out.Error != "" {
+					return Verdict{Error: ref.Name + ": " + out.Error}
+				}
+				outcomes = append(outcomes, result{ref, out})
 			}
-			o := Opts{Arg: ref.Arg, Config: in.Config, Item: in.Item, WindowDays: in.WindowDays, Now: in.Now}
-			var out Outcome
-			if h, builtin := holds[ref.Name]; builtin {
-				out = h(in.Signals, o)
-			} else if h, engine := engineHolds[ref.Name]; engine {
-				out = h(in.Signals, o)
-			} else if in.Local != nil {
-				out = in.Local(ref, in.Signals, o)
-			} else {
-				return Verdict{Error: `the precondition "` + ref.Name + `" has no judge here — a task-local term is asked at the pick, through the runner`}
-			}
-			if out.Error != "" {
-				return Verdict{Error: ref.Name + ": " + out.Error}
-			}
-			outcomes = append(outcomes, result{ref, out})
-		}
-		var winner *result
-		for i := range outcomes {
-			if outcomes[i].out.Holds {
-				winner = &outcomes[i]
-				break
-			}
-		}
-		switch {
-		case winner != nil:
-			r := winner.out.Reason
-			if r == "" {
-				r = winner.ref.Text
-			}
-			held = append(held, r)
-			context = append(context, winner.out.Context...)
-		case unknown:
-			undecided = true
-		case !isDeclined:
-			parts := make([]string, len(outcomes))
-			for i, o := range outcomes {
-				parts[i] = o.out.Reason
-				if parts[i] == "" {
-					parts[i] = o.ref.Text + " does not hold"
+			var winner *result
+			for i := range outcomes {
+				if outcomes[i].out.Holds {
+					winner = &outcomes[i]
+					break
 				}
 			}
-			declined, isDeclined = strings.Join(parts, "; nor "), true
+			switch {
+			case winner != nil:
+				held[k] = winner
+			case unknown:
+				undecided = true
+			case !isDeclined:
+				parts := make([]string, len(outcomes))
+				for i, o := range outcomes {
+					parts[i] = o.out.Reason
+					if parts[i] == "" {
+						parts[i] = o.ref.Text + " does not hold"
+					}
+				}
+				declined, isDeclined = strings.Join(parts, "; nor "), true
+			}
 		}
 	}
 	f, t := false, true
@@ -238,9 +257,21 @@ func Evaluate(in Input) Verdict {
 	if undecided {
 		return Verdict{Undecided: true, Missing: missing}
 	}
+	var reasons, context []string
+	for _, w := range held {
+		if w == nil {
+			continue
+		}
+		r := w.out.Reason
+		if r == "" {
+			r = w.ref.Text
+		}
+		reasons = append(reasons, r)
+		context = append(context, w.out.Context...)
+	}
 	reason := "no conditions stated — the item itself is the ask"
-	if len(held) > 0 {
-		reason = strings.Join(held, "; ")
+	if len(reasons) > 0 {
+		reason = strings.Join(reasons, "; ")
 	}
 	return Verdict{Run: &t, Reason: reason, Context: context}
 }
