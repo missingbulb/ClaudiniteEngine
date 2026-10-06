@@ -60,6 +60,9 @@ type Deps struct {
 	CacheRoot string
 	Platform  string
 	Now       func() time.Time
+	// Sleep waits between tries while npm lists a version it does not
+	// serve yet.
+	Sleep func(time.Duration)
 	// Repo is the member checkout's path.
 	Repo string
 	// Out receives findings and skips; the verdict is returned.
@@ -225,6 +228,27 @@ func Engine(d Deps, o Options) (string, error) {
 	return verdict, nil
 }
 
+// npm serves a version's tarballs minutes after its packument lists it;
+// fetchServed tries every servedEvery for up to servedWait before the 404
+// is an error.
+const (
+	servedEvery = 20 * time.Second
+	servedWait  = 10 * time.Minute
+)
+
+func fetchServed(d Deps, pkg, ver string, p *npmreg.Packument) (Fetched, error) {
+	for waited := time.Duration(0); ; waited += servedEvery {
+		got, err := Fetch(FetchInput{Registry: d.Registry, Package: pkg, Version: ver, Packument: p,
+			Roots: d.Roots, CacheRoot: d.CacheRoot, Platform: d.Platform, Now: d.Now()})
+		var ns *npmreg.NotServedError
+		if !errors.As(err, &ns) || waited >= servedWait {
+			return got, err
+		}
+		fmt.Fprintf(d.Out, "npm lists %s but does not serve %s yet; trying again in %s\n", ver, ns.URL, servedEvery)
+		d.Sleep(servedEvery)
+	}
+}
+
 // propose picks the candidate and, unless an open PR already carries it
 // or its verify breaks this repo, opens its update PR. It returns the
 // candidate, empty for none, and the verdict.
@@ -255,8 +279,7 @@ func propose(d Deps, o Options, f settings.Format, raw []byte, pin settings.Engi
 		return c.Version, fmt.Sprintf("skipped: #%d for %s is open and %s", prev.Number, c.Version, why), nil
 	}
 
-	got, err := Fetch(FetchInput{Registry: d.Registry, Package: pin.Package, Version: c.Version, Packument: p,
-		Roots: d.Roots, CacheRoot: d.CacheRoot, Platform: d.Platform, Now: d.Now()})
+	got, err := fetchServed(d, pin.Package, c.Version, p)
 	if err != nil {
 		return "", "", err
 	}
