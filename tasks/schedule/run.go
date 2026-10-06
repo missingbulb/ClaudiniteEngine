@@ -11,6 +11,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/shared/workitem"
 	"github.com/missingbulb/ClaudiniteEngine/tasks/calendar"
 	"github.com/missingbulb/ClaudiniteEngine/tasks/items"
+	"github.com/missingbulb/ClaudiniteEngine/tasks/localterms"
 	"github.com/missingbulb/ClaudiniteEngine/tasks/precondition"
 	"github.com/missingbulb/ClaudiniteEngine/tasks/queue"
 	"github.com/missingbulb/ClaudiniteEngine/tasks/signals"
@@ -32,8 +33,11 @@ type RunIn struct {
 	Collector func(items []workitem.Issue) *signals.Collector
 	// HasFleet reports whether a fleet reader exists for the fleet signal.
 	HasFleet bool
-	Wake     string
-	Log      func(string)
+	// LocalTerms asks a task's own terms through the runner; nil asks
+	// none, so a task naming one fails open.
+	LocalTerms *localterms.Asker
+	Wake       string
+	Log        func(string)
 	// SetOutput publishes the drain gate; an error is reported, never fatal.
 	SetOutput func(name, value string) error
 	// Phase times a phase of the run for its cost record.
