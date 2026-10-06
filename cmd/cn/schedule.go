@@ -174,7 +174,7 @@ func cmdScheduleRun(args []string, stdout io.Writer, env world.Env) (err error) 
 	readFleet := fleetSignal(env.Repo())
 	var terms *localterms.Asker
 	if unpacked, err := runner.Unpack(paths.CacheRoot()); err != nil {
-		fmt.Fprintf(stdout, "! could not unpack the task runner (%v) — a task naming its own terms fails open\n", err)
+		fmt.Fprintf(stdout, "! could not unpack the task runner (%v) — a task naming its own terms is not filed and the run fails\n", err)
 	} else {
 		terms = &localterms.Asker{Runner: runner.Runner{Dir: unpacked, Engine: version.Version()},
 			Env: termsEnv(r, envMap()), Echo: func(_, line string) { fmt.Fprintln(stdout, line) }}

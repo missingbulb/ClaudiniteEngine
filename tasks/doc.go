@@ -39,11 +39,13 @@
 //     schedule.TestAScheduleDeclineRunsNoLocalTerm,
 //     precondition.TestABuiltinDeclineAsksNoLocalTerm,
 //     precondition.TestAPartialPassLeavesALocalTermUnknown
-//   - A task whose signals cannot be read, or whose own terms cannot be
-//     asked at all, fails open into an item the executor decides, the body
-//     and the run's log saying why.
-//     schedule.TestAnUnreadableSignalFailsOpen,
-//     schedule.TestTermsThatCannotBeAskedFailOpenSayingWhy
+//   - A task whose signals cannot be read fails open into an item the
+//     executor decides, the body and the run's log saying why.
+//     schedule.TestAnUnreadableSignalFailsOpen
+//   - A task whose own terms cannot be asked files nothing; the run asks
+//     every other task, then fails, naming each such task and its error,
+//     so the workflow's failure report files its issue.
+//     schedule.TestTermsThatCannotBeAskedFileNothingAndFailTheRun
 //   - A task over the fleet signal fails open on Node's sentence when the
 //     run holds no FLEET_GITHUB_TOKEN, and asks the reader when it does.
 //     schedule.TestAFleetTaskWithoutTheTokenFailsOpenOnNodesSentence,

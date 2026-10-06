@@ -97,18 +97,31 @@ func TestAScheduleDeclineRunsNoLocalTerm(t *testing.T) {
 	}
 }
 
-// Terms that cannot be asked at all are not a decline: the ask fails
-// open, saying why, and the executor decides at the pick.
-func TestTermsThatCannotBeAskedFailOpenSayingWhy(t *testing.T) {
-	h := newHarness(t, localTask(t, "schedule:at-most-daily", "release-due"))
+// Terms that cannot be asked at all are neither a hold nor a decline:
+// nothing is filed for that task, the other tasks are still asked, and
+// the run fails, naming the task and the error, so the workflow's failure
+// report files its issue.
+func TestTermsThatCannotBeAskedFileNothingAndFailTheRun(t *testing.T) {
+	h := newHarness(t, localTask(t, "schedule:at-most-daily", "release-due"), daily())
 	h.terms = noNode()
+	h.commit("a1", "feat: a thing", "src/a.go")
 	out := h.run("")
 	open := h.open()
-	if len(open) != 1 || len(out.Asked) != 1 || out.Asked[0].Verdict != schedule.VerdictFailOpen ||
-		!strings.Contains(out.Asked[0].Reason, localterms.CouldNotAsk) {
-		t.Fatalf("open %v asked %+v", open, out.Asked)
+	if len(open) != 1 || open[0].Title != "[claudinite-work] acme-pack/fold" {
+		t.Fatalf("filed %v", open)
 	}
-	if !strings.Contains(open[0].Body, "The scheduler could not decide this occurrence") || !strings.Contains(open[0].Body, localterms.CouldNotAsk) {
-		t.Fatalf("body %q", open[0].Body)
+	var verdicts []string
+	for _, a := range out.Asked {
+		verdicts = append(verdicts, a.Task+"="+a.Verdict)
+	}
+	if strings.Join(verdicts, " ") != "acme-pack/site-release="+schedule.VerdictUnasked+" acme-pack/fold="+schedule.VerdictGo {
+		t.Fatalf("asked %+v", out.Asked)
+	}
+	if len(out.Problems) != 1 || !strings.Contains(out.Problems[0], "acme-pack/site-release") || !strings.Contains(out.Problems[0], localterms.CouldNotAsk) {
+		t.Fatalf("problems %v", out.Problems)
+	}
+	logged := strings.Join(h.logs, "\n")
+	if !strings.Contains(logged, "acme-pack/site-release: "+schedule.VerdictUnasked) || !strings.Contains(logged, "/no/such/node") {
+		t.Fatalf("log %s", logged)
 	}
 }

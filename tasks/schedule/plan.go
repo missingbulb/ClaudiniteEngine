@@ -82,6 +82,9 @@ const (
 	VerdictGo       = "go"
 	VerdictNo       = "no"
 	VerdictFailOpen = "fail-open"
+	// VerdictUnasked is a task whose own terms could not be asked: nothing
+	// is filed for it and the run fails.
+	VerdictUnasked = "unasked"
 )
 
 // Request is an open issue wearing a mark and no status, with whether

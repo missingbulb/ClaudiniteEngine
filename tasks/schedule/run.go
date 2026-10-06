@@ -33,8 +33,8 @@ type RunIn struct {
 	Collector func(items []workitem.Issue) *signals.Collector
 	// HasFleet reports whether a fleet reader exists for the fleet signal.
 	HasFleet bool
-	// LocalTerms asks a task's own terms through the runner; nil asks
-	// none, so a task naming one fails open.
+	// LocalTerms asks a task's own terms through the runner; with none, a
+	// task naming one is unasked and the run fails.
 	LocalTerms *localterms.Asker
 	Wake       string
 	Log        func(string)
@@ -139,19 +139,40 @@ func sessionNote(comments []world.Comment) string {
 	return ""
 }
 
-func (in *RunIn) evaluate(task taskspec.Task, collect *signals.Collector) precondition.Verdict {
+// evaluate asks one task. A task whose own terms could not be asked
+// declines here, its error recorded in unasked under the task's path.
+func (in *RunIn) evaluate(task taskspec.Task, collect *signals.Collector, unasked map[string]string) precondition.Verdict {
 	if !task.Decl.Has("preconditions") {
 		return precondition.Verdict{Error: `the task declares no "preconditions"`}
 	}
 	now := in.Now
 	judge := func(s precondition.Signals, partial bool) precondition.Verdict {
 		var local precondition.Judge
-		if in.LocalTerms != nil && !partial {
-			local = in.LocalTerms.Judge(task, nil)
+		failed := ""
+		if !partial {
+			judge := func(taskspec.Ref, precondition.Signals, precondition.Opts) precondition.Outcome {
+				return precondition.Outcome{Error: "this scheduler run holds no runner to ask it through"}
+			}
+			if in.LocalTerms != nil {
+				judge = in.LocalTerms.Judge(task, nil)
+			}
+			local = func(ref taskspec.Ref, s precondition.Signals, o precondition.Opts) precondition.Outcome {
+				out := judge(ref, s, o)
+				if out.Error != "" && failed == "" {
+					failed = ref.Name + ": " + out.Error
+				}
+				return out
+			}
 		}
-		return precondition.Evaluate(precondition.Input{Preconditions: task.Decl.Preconditions(), Signals: s,
+		v := precondition.Evaluate(precondition.Input{Preconditions: task.Decl.Preconditions(), Signals: s,
 			Config: in.PackConfig(task.Pack), Terms: task.Terms, Local: local, WindowDays: precondition.WindowDays(task.Decl, s),
 			Now: &now, Partial: partial})
+		if failed != "" {
+			unasked[task.Path()] = failed
+			f := false
+			return precondition.Verdict{Run: &f, Reason: failed}
+		}
+		return v
 	}
 	if collect == nil {
 		return judge(precondition.Signals{}, false)
@@ -296,16 +317,23 @@ func Run(in RunIn) (RunOut, error) {
 		collect = in.Collector(all)
 	}
 	endAsk := in.Phase("ask")
+	unasked := map[string]string{}
 	ops, asked, err := Plan(PlanIn{Tasks: in.Tasks, Items: all, Requests: requests, Now: in.Now, Disabled: in.Disabled,
 		LivenessAt:   func(n int) time.Time { return liveness[n] },
 		StateOf:      func(n int) string { return known[n] },
-		Evaluate:     func(t taskspec.Task) precondition.Verdict { return in.evaluate(t, collect) },
+		Evaluate:     func(t taskspec.Task) precondition.Verdict { return in.evaluate(t, collect, unasked) },
 		ProgressAt:   func(i workitem.Issue) time.Time { return queue.LastProgressAt(agentComments[i.Number]) },
 		ResolutionOf: func(n int) string { return resolutions[n] },
 		DoneAfter:    DoneRunLookup(done)})
 	endAsk()
 	if err != nil {
 		return out, err
+	}
+	for k, a := range asked {
+		if why, ok := unasked[a.Task]; ok {
+			asked[k].Verdict = VerdictUnasked
+			problem(fmt.Sprintf("%s: its own terms could not be asked, so nothing was filed for it (%s)", a.Task, why))
+		}
 	}
 	out.Ops, out.Asked = ops, asked
 	for _, a := range asked {
