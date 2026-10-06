@@ -112,6 +112,15 @@ func FromEnv() (Client, error) {
 	return c, nil
 }
 
+// NotServedError is a 404: for a tarball of a version the packument
+// lists, npm's state in the minutes after a publish.
+type NotServedError struct {
+	URL    string
+	Status string
+}
+
+func (e *NotServedError) Error() string { return e.URL + ": " + e.Status }
+
 // maxPackument bounds a packument, which grows with every version and is
 // not under the tarball cap.
 const maxPackument = 32 << 20
@@ -128,6 +137,9 @@ func (c Client) get(u string, max int64) ([]byte, error) {
 	defer func() { _ = resp.Body.Close() }()
 	if resp.Request != nil && resp.Request.URL.Scheme != "https" {
 		return nil, fmt.Errorf("%s: redirected off HTTPS", u)
+	}
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, &NotServedError{URL: u, Status: resp.Status}
 	}
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("%s: %s", u, resp.Status)

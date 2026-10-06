@@ -88,14 +88,22 @@ type registry struct {
 	files map[string][]byte
 	pkgs  map[string]*npmreg.Packument
 	log   []string
+	// notServed answers 404 for a path's next n requests, as npm does for
+	// a fresh version's tarballs in the minutes after its publish.
+	notServed map[string]int
 }
 
 func newRegistry(t *testing.T) *registry {
-	r := &registry{files: map[string][]byte{}, pkgs: map[string]*npmreg.Packument{}}
+	r := &registry{files: map[string][]byte{}, pkgs: map[string]*npmreg.Packument{}, notServed: map[string]int{}}
 	r.srv = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		r.mu.Lock()
 		defer r.mu.Unlock()
 		r.log = append(r.log, req.URL.EscapedPath())
+		if r.notServed[req.URL.EscapedPath()] > 0 {
+			r.notServed[req.URL.EscapedPath()]--
+			http.NotFound(w, req)
+			return
+		}
 		if b, ok := r.files[req.URL.EscapedPath()]; ok {
 			_, _ = w.Write(b)
 			return
