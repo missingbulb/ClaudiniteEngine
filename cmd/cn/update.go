@@ -213,16 +213,36 @@ func runUpdateTask(repo, token, branch string, out io.Writer) execute.CodeWorkRe
 	return execute.CodeWorkResult{OK: true, Said: said}
 }
 
+// cmdWorkflows is workflows diff, the patch to the workflows this version
+// expects, and workflows stage, which writes them into the staging
+// directory an engine update PR carries. Both read the repo's owner/name
+// from --name, else repoFullName; a scheduler whose cron needs it and
+// finds none fails rather than takes the template's placeholder.
 func cmdWorkflows(args []string, stdout io.Writer) error {
-	if len(args) == 0 || args[0] != "diff" {
-		return report.New(report.Usage, "workflows takes diff")
+	if len(args) == 0 || (args[0] != "diff" && args[0] != "stage") {
+		return report.New(report.Usage, "workflows takes diff or stage")
 	}
-	fs := flag.NewFlagSet("workflows diff", flag.ContinueOnError)
+	fs := flag.NewFlagSet("workflows "+args[0], flag.ContinueOnError)
 	repo := fs.String("repo", ".", "")
+	name := fs.String("name", "", "")
 	if err := flags(fs, args[1:]); err != nil {
 		return err
 	}
-	d, err := workflows.Diff(*repo)
+	full := *name
+	if full == "" {
+		full = repoFullName(*repo)
+	}
+	if args[0] == "stage" {
+		staged, err := workflows.Stage(*repo, full)
+		if err != nil {
+			return report.Wrap(report.IO, "workflows stage", err)
+		}
+		for _, s := range staged {
+			fmt.Fprintln(stdout, s)
+		}
+		return nil
+	}
+	d, err := workflows.Diff(*repo, full)
 	if err != nil {
 		return report.Wrap(report.IO, "workflows diff", err)
 	}

@@ -130,7 +130,9 @@ func FromNode(in Input) error {
 	for _, n := range workflows.Names {
 		data := tmpl[n]
 		if have, err := os.ReadFile(filepath.Join(in.Repo, ".github", "workflows", n)); err == nil {
-			data = movedWorkflow(n, have, tmpl[n])
+			if data, err = movedWorkflow(n, have, name); err != nil {
+				return err
+			}
 		}
 		files = append(files, memberFile{".github/workflows/" + n, data, 0o644})
 	}
@@ -259,17 +261,11 @@ func withoutNodeHooks(group any) (any, bool) {
 // nodeCron is the Node engine's scheduler cron line, single-quoted.
 var nodeCron = regexp.MustCompile(`(?m)^    - cron: '([0-9, *]+)'$`)
 
-// movedWorkflow is template n as a member holding have carries it: through
-// Expected, the Node scheduler's single-quoted cron read as cn's double-
-// quoted one, and the hashed cron where the member's is not one the hash
-// could have written.
-func movedWorkflow(n string, have, forRepo []byte) []byte {
-	have = nodeCron.ReplaceAll(have, []byte(`    - cron: "$1"`))
-	got := workflows.Expected(n, have)
-	if bytes.Contains(got, []byte(`cron: "`+workflows.CronPlaceholder+`"`)) {
-		return forRepo
-	}
-	return got
+// movedWorkflow is template n as the member name, holding have, carries
+// it: Expected, with the Node scheduler's single-quoted cron read as cn's
+// double-quoted one.
+func movedWorkflow(n string, have []byte, name string) ([]byte, error) {
+	return workflows.Expected(n, nodeCron.ReplaceAll(have, []byte(`    - cron: "$1"`)), name)
 }
 
 // withLine is the file at path with line appended when it lacks it, the

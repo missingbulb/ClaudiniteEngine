@@ -19,7 +19,7 @@ func TestStamp(t *testing.T) {
 	if string(twice) != string(once) {
 		t.Errorf("a second stamp moved the file:\n%s", twice)
 	}
-	if string(Expected("claudinite-executor.yml", once)) != string(once) {
+	if got, err := Expected("claudinite-executor.yml", once, ""); err != nil || string(got) != string(once) {
 		t.Error("Expected does not keep the stamped lines")
 	}
 	cleared, _ := Stamp(once, nil)
@@ -69,7 +69,11 @@ func TestExpectedDropsAStampedNameTheTemplatePasses(t *testing.T) {
 	have := "env:\n          " + SecretsMarker + "\n" +
 		"          CCR_ROUTINE_TOKEN: ${{ secrets.CCR_ROUTINE_TOKEN }}\n" +
 		"          SCRAPER_API_KEY: ${{ secrets.SCRAPER_API_KEY }}\n"
-	got := string(Expected("claudinite-executor.yml", []byte(have)))
+	raw, err := Expected("claudinite-executor.yml", []byte(have), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(raw)
 	if n := strings.Count(got, "CCR_ROUTINE_TOKEN: ${{ secrets.CCR_ROUTINE_TOKEN }}"); n != 1 {
 		t.Errorf("CCR_ROUTINE_TOKEN passed %d times:\n%s", n, got)
 	}

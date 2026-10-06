@@ -1,6 +1,7 @@
 package workflows
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -58,22 +59,38 @@ func isSchedulerCron(minute, anchor, drain int) bool {
 	return minute >= minuteMin && minute < minuteMin+minuteBand && anchor >= 0 && anchor < anchorHours && drain == anchor+anchorHours
 }
 
-// Expected is the template name as a member holding have should carry it:
-// the scheduler keeps the member's own cron when its hash could have
-// written it, and the executor keeps the secret lines stamped beneath its
-// marker. Anything else is the template's.
-func Expected(name string, have []byte) []byte {
+// ErrNoName is a scheduler whose cron the engine's hash did not write,
+// asked for without the repo's owner/name: its replacement is that name's
+// hash, which nothing else can stand in for.
+var ErrNoName = errors.New("the scheduler's cron is not the engine's hashed form, and this repo's owner/name is unknown: pass --name OWNER/NAME")
+
+// Expected is the template name as the member fullName (owner/name), holding
+// have, should carry it: the scheduler keeps the member's own cron when its
+// hash could have written it and otherwise takes fullName's, never the
+// template's placeholder, and the executor keeps the secret lines stamped
+// beneath its marker. Anything else is the template's. fullName may be
+// empty while the member's cron is the hashed form; otherwise Expected
+// fails with ErrNoName.
+func Expected(name string, have []byte, fullName string) ([]byte, error) {
 	want := string(Templates()[name])
 	switch name {
 	case "claudinite-scheduler.yml":
+		cron := ""
 		if m := cronLine.FindStringSubmatch(string(have)); m != nil {
 			minute, _ := strconv.Atoi(m[1])
 			anchor, _ := strconv.Atoi(m[2])
 			drain, _ := strconv.Atoi(m[3])
 			if isSchedulerCron(minute, anchor, drain) {
-				want = strings.Replace(want, `cron: "`+CronPlaceholder+`"`, `cron: "`+m[1]+" "+m[2]+","+m[3]+` * * *"`, 1)
+				cron = m[1] + " " + m[2] + "," + m[3] + " * * *"
 			}
 		}
+		if cron == "" {
+			if fullName == "" {
+				return nil, ErrNoName
+			}
+			cron = SchedulerCron(fullName)
+		}
+		want = strings.Replace(want, `cron: "`+CronPlaceholder+`"`, `cron: "`+cron+`"`, 1)
 	case "claudinite-executor.yml":
 		var stamped []string
 		lines := strings.Split(string(have), "\n")
@@ -98,5 +115,5 @@ func Expected(name string, have []byte) []byte {
 			}
 		}
 	}
-	return []byte(want)
+	return []byte(want), nil
 }

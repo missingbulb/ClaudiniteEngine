@@ -32,7 +32,7 @@ func applies(t *testing.T, dir, diff string) {
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("patch: %v\n%s\n%s", err, out, diff)
 	}
-	for name, want := range Templates() {
+	for name, want := range ForRepo("o/r") {
 		got, _ := os.ReadFile(filepath.Join(dir, ".github", "workflows", name))
 		if string(got) != string(want) {
 			t.Errorf("%s after the patch:\n%s", name, got)
@@ -47,11 +47,11 @@ func applies(t *testing.T, dir, diff string) {
 // the superseded update workflow is a deletion in the patch.
 func TestDiffDeletesTheSupersededUpdateWorkflow(t *testing.T) {
 	files := map[string]string{Superseded: string(SupersededTemplate())}
-	for n, b := range Templates() {
+	for n, b := range ForRepo("o/r") {
 		files[n] = string(b)
 	}
 	dir := writeMember(t, files)
-	d, err := Diff(dir)
+	d, err := Diff(dir, "o/r")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,10 +64,10 @@ func TestDiffDeletesTheSupersededUpdateWorkflow(t *testing.T) {
 
 func TestDiffIsEmptyForTheTemplates(t *testing.T) {
 	files := map[string]string{}
-	for n, b := range Templates() {
+	for n, b := range ForRepo("o/r") {
 		files[n] = string(b)
 	}
-	if d, err := Diff(writeMember(t, files)); err != nil || d != "" {
+	if d, err := Diff(writeMember(t, files), "o/r"); err != nil || d != "" {
 		t.Errorf("%q %v", d, err)
 	}
 }
@@ -78,7 +78,7 @@ func TestDiffPatchesChangedAndMissingFiles(t *testing.T) {
 	edited := strings.Replace(ci, "fetch-depth: 0", "fetch-depth: 1", 1)
 	edited = "# a member's comment\n" + edited + "# trailing\n"
 	dir := writeMember(t, map[string]string{"claudinite-ci.yml": edited})
-	d, err := Diff(dir)
+	d, err := Diff(dir, "o/r")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,7 +97,7 @@ func TestDiffPatchesChangedAndMissingFiles(t *testing.T) {
 func TestDiffHandlesAFileWithoutATrailingNewline(t *testing.T) {
 	ci := strings.TrimSuffix(string(Templates()["claudinite-ci.yml"]), "\n")
 	dir := writeMember(t, map[string]string{"claudinite-ci.yml": ci, Superseded: string(SupersededTemplate())})
-	d, err := Diff(dir)
+	d, err := Diff(dir, "o/r")
 	if err != nil || !strings.Contains(d, "\\ No newline at end of file") {
 		t.Fatalf("%v\n%s", err, d)
 	}
@@ -114,11 +114,11 @@ func TestDiffKeepsTheMembersCronAndStampedSecrets(t *testing.T) {
 			files[n] = string(mine[n])
 		}
 	}
-	if d, err := Diff(writeMember(t, files)); err != nil || d != "" {
+	if d, err := Diff(writeMember(t, files), "o/r"); err != nil || d != "" {
 		t.Errorf("a member's own cron and stamped secrets are not drift: %q %v", d, err)
 	}
 	files["claudinite-scheduler.yml"] = strings.Replace(files["claudinite-scheduler.yml"], "20 5,17 * * *", "0 * * * *", 1)
-	if d, _ := Diff(writeMember(t, files)); !strings.Contains(d, "+    - cron: \""+CronPlaceholder+"\"") {
-		t.Errorf("a cron this repo's hash did not write is drift: %q", d)
+	if d, _ := Diff(writeMember(t, files), "o/r"); !strings.Contains(d, "+    - cron: \"20 5,17 * * *\"") || strings.Contains(d, CronPlaceholder) {
+		t.Errorf("a cron this repo's hash did not write is drift to the repo's own: %q", d)
 	}
 }

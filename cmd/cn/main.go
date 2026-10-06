@@ -115,9 +115,15 @@ commands:
   execute continue
                  dispatch the next executor run after one died, or past
                  the chain's depth report it
-  workflows diff [--repo DIR]
+  workflows diff [--repo DIR] [--name OWNER/NAME]
                  the patch that brings a member's workflows to this
-                 version's templates; empty when they match
+                 version's templates; empty when they match. The name
+                 (else GITHUB_REPOSITORY, else the origin remote) gives a
+                 scheduler cron the hash did not write the repo's own
+  workflows stage [--repo DIR] [--name OWNER/NAME]
+                 write those workflows into .claudinite/cache/
+                 pending-workflows/ for an engine update PR's agent stage
+                 to move into place; print each staged path
   growth capture (--pr N | --issue N) [--transcript PATH] [--session ID]
                  [--branch NAME] [--repo DIR]
                  push the session's transcript, scrubbed, as a delta onto

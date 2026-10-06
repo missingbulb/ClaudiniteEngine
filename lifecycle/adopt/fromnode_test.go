@@ -378,7 +378,7 @@ func TestMovedWorkflowFallsBackFromThePlaceholder(t *testing.T) {
 		"a drain off by one": "on:\n  schedule:\n    - cron: '26 4,17 * * *'\n",
 		"no cron line":       "on:\n  workflow_dispatch:\n",
 	} {
-		got := movedWorkflow(n, []byte(have), forRepo[n])
+		got, _ := movedWorkflow(n, []byte(have), "acme/widget")
 		if string(got) != string(forRepo[n]) {
 			t.Errorf("%s: not the repo's template:\n%s", name, got)
 		}
@@ -387,7 +387,7 @@ func TestMovedWorkflowFallsBackFromThePlaceholder(t *testing.T) {
 		}
 	}
 	for _, have := range []string{"    - cron: '26 4,16 * * *'\n", "    - cron: \"26 4,16 * * *\"\n"} {
-		if got := movedWorkflow(n, []byte(have), forRepo[n]); !strings.Contains(string(got), `    - cron: "26 4,16 * * *"`) || string(got) == string(forRepo[n]) {
+		if got, _ := movedWorkflow(n, []byte(have), "acme/widget"); !strings.Contains(string(got), `    - cron: "26 4,16 * * *"`) || string(got) == string(forRepo[n]) {
 			t.Errorf("%q: the member's hashed cron did not survive:\n%s", have, got)
 		}
 	}

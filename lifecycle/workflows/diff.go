@@ -15,10 +15,11 @@ const context = 3
 const maxLines = 4000
 
 // Diff is the unified diff, one section per file and empty when nothing
-// differs, that turns repo's .github/workflows/ copies into this binary's
-// templates and deletes the superseded update workflow; `patch -p1` or
-// `git apply` at the repo root applies it.
-func Diff(repo string) (string, error) {
+// differs, that turns repo's .github/workflows/ copies into what this
+// binary expects of the member fullName (Expected) and deletes the
+// superseded update workflow; `patch -p1` or `git apply` at the repo root
+// applies it.
+func Diff(repo, fullName string) (string, error) {
 	var b strings.Builder
 	for _, name := range Names {
 		rel := ".github/workflows/" + name
@@ -29,7 +30,11 @@ func Diff(repo string) (string, error) {
 		} else if err != nil {
 			return "", err
 		}
-		d, err := unified(splitLines(have), splitLines(Expected(name, have)))
+		want, err := Expected(name, have, fullName)
+		if err != nil {
+			return "", fmt.Errorf("%s: %w", rel, err)
+		}
+		d, err := unified(splitLines(have), splitLines(want))
 		if err != nil {
 			return "", fmt.Errorf("%s: %w", rel, err)
 		}
