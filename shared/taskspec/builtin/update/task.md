@@ -33,25 +33,34 @@ something to improvise around.
 Commit the move with `Claudinite-Task: engine/update` on its own line, and push
 it to the branch.
 
-## 2. Land it through the engine's landing path
+## 2. Get it green, pass the engine's gate, and merge it
 
-The engine lands its update pull requests itself, and only on a CI run
-dispatched for the purpose. Dispatch the workflow `claudinite-ci.yml` on
-`Target-branch:` with the input `pr` set to the pull request's number. That run
-checks the branch with the new engine and, once green, its `land` job runs
-`cn update land`, which merges the pull request after checking that it moves
-the pin and that what it changed under `.github/workflows/` is exactly what the
-pinned engine expects. Never merge the pull request yourself and never arm
-auto-merge: this task's `automerge` is `nothing`, because the engine's gate is
-the landing.
+GitHub refuses a merge that changes `.github/workflows/` when the job token
+asks, so the engine's own `land` job skips this pull request and the merge is
+yours, behind the engine's gate. This task's `automerge` is `nothing` because
+no delivery lane may merge it: the only authority to merge is that gate,
+`cn update land --check`, at the head you checked.
 
-Wait, within your time budget, for that dispatched run to conclude, and read
-the pull request's state afterwards.
+1. Dispatch the workflow `claudinite-ci.yml` on `Target-branch:` with the input
+   `pr` set to the pull request's number. Its `check` job runs the new engine
+   over the branch.
+2. Wait, within your time budget, for every CI run on the branch's head (the
+   commit you pushed in §1) to conclude. Each must be green.
+3. From this checkout, at that head, run the gate, with `GITHUB_TOKEN` your
+   GitHub credential and `GITHUB_REPOSITORY` this repository's `owner/name`:
+   `.claudinite/bin/cn update land --check --pr <number> --sha <head sha>`.
+   It writes nothing; it prints `ok: #<number> may land <version>` and exits 0
+   only when the pull request at that head moves the pin and changes, under
+   `.github/workflows/`, exactly what the pinned engine expects.
+4. Squash-merge the pull request at that head sha (pass the sha, so a moved
+   branch refuses the merge), titled `Claudinite engine <version>`, the
+   version the gate printed. Delete its branch. Dispatch `claudinite-ci.yml`
+   on `main` with no input, so the next update finds main's CI run.
+5. Converge the item `done`, passing `--pr` with the pull request's number.
 
-- Merged: converge the item `done`, passing `--pr` with the pull request's
-  number.
-- Anything else (the run failed or did not conclude in time, the land job
-  refused, the move in §1 was not obviously right): §3.
+Never merge on a red or unconcluded run, on a refused gate, or at a head other
+than the one the gate passed, and never arm auto-merge. Any of those, or a
+move in §1 that was not obviously right, is §3.
 
 ## 3. Otherwise, leave it for a person
 

@@ -522,7 +522,7 @@ func stagedNote(staged []string) string {
 	for _, s := range staged {
 		fmt.Fprintf(&b, "- `%s` → `.github/workflows/%s`\n", s, path.Base(s))
 	}
-	fmt.Fprintf(&b, "\nThe engine/update task's agent stage, whose credential may write workflows, moves each file into place unedited, leaving `%s/` empty, then dispatches `%s` on this branch with `pr=<this PR's number>`; that run lands the PR once green, and the landing gate accepts under `.github/workflows/` exactly what this engine expects. Where no agent stage runs, a person does the same moves and the dispatch.\n", workflows.StagingDir, CIWorkflow)
+	fmt.Fprintf(&b, "\nThe engine/update task's agent stage, whose credential may write workflows, moves each file into place unedited, leaving `%s/` empty, then dispatches `%s` on this branch with `pr=<this PR's number>`. GitHub refuses a workflow-changing merge to the job token, so that run's land job skips this PR: once CI is green on the head, the agent stage runs `cn update land --check --pr <this PR's number> --sha <head>`, which accepts under `.github/workflows/` exactly what this engine expects, and squash-merges at that head only when it passes. Where no agent stage runs, a person does the same.\n", workflows.StagingDir, CIWorkflow)
 	return b.String()
 }
 
@@ -554,8 +554,18 @@ const retiredPlanBranchPrefix = "claudinite/plan-"
 // PR must have: an engine PR moves the pin and, under .github/workflows/,
 // changes exactly what the pinned engine expects of this repo, with nothing
 // left staged (expectedWorkflows); a pack PR changes only the vendored
-// packs (landPacks).
-func Land(d Deps, n int, sha string) (string, error) {
+// packs (landPacks). An engine PR that changes .github/workflows/ passes
+// the same gate but is skipped, not merged: GitHub refuses that merge to
+// the job token Land runs with, so the agent stage that moved the files
+// merges it with its own credential once CheckLand passes.
+func Land(d Deps, n int, sha string) (string, error) { return gateOrLand(d, n, sha, false) }
+
+// CheckLand is Land's gate for an engine PR, with no write: an "ok:"
+// verdict when Land would take the PR at sha, else the reason it would
+// not.
+func CheckLand(d Deps, n int, sha string) (string, error) { return gateOrLand(d, n, sha, true) }
+
+func gateOrLand(d Deps, n int, sha string, check bool) (string, error) {
 	pr, err := d.GitHub.Pull(n)
 	if err != nil {
 		return "", err
@@ -582,6 +592,9 @@ func Land(d Deps, n int, sha string) (string, error) {
 		return "", fmt.Errorf("#%d moved: its branch is at %s, CI ran on %s", n, got, sha)
 	}
 	if strings.HasPrefix(pr.HeadRef, PackBranchPrefix) {
+		if check {
+			return "", fmt.Errorf("#%d is a pack PR; the gate check is an engine PR's, whose workflows an agent stage merges", n)
+		}
 		return landPacks(d, pr, sha)
 	}
 	base := remote + "/" + mainBranch
@@ -662,6 +675,12 @@ func Land(d Deps, n int, sha string) (string, error) {
 	}
 	if err := expectedWorkflows(d, got.Binary, mb, sha, moved); err != nil {
 		return "", fmt.Errorf("#%d: %w", n, err)
+	}
+	if check {
+		return fmt.Sprintf("ok: #%d may land %s", n, e.Version), nil
+	}
+	if len(moved) > 0 {
+		return fmt.Sprintf("skipped: #%d changes %s, which GitHub lets no job token merge; its agent stage merges it once cn update land --check passes", n, strings.Join(moved, ", ")), nil
 	}
 	if err := landPinned(d, pr, sha, EngineTitle(e.Version)); err != nil {
 		return "", err

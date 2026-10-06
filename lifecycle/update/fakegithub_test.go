@@ -186,3 +186,16 @@ func (f *fakeGitHub) UpdateIssueBody(n int, body string) error {
 	}
 	return nil
 }
+
+// writes is calls with the reads (pull, pulls, runs, issues) left out.
+func writes(calls []string) []string {
+	var out []string
+	for _, c := range calls {
+		switch strings.SplitN(c, " ", 2)[0] {
+		case "pull", "pulls", "runs", "issues":
+		default:
+			out = append(out, c)
+		}
+	}
+	return out
+}

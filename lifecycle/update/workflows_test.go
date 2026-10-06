@@ -144,17 +144,31 @@ func moveStaged(t *testing.T, w *world, edit func(dir string)) string {
 	return sha
 }
 
-// Land takes an engine PR carrying, beside the pin, exactly the workflows
-// the new engine expects of this repo, moved into place.
-func TestLandAcceptsExactlyTheExpectedWorkflows(t *testing.T) {
+// An engine PR carrying, beside the pin, exactly the workflows the new
+// engine expects passes the landing gate, which CheckLand runs with no
+// write; Land, whose job token GitHub refuses a workflow-changing merge,
+// skips it without failing and leaves the merge to the agent stage.
+func TestTheGateAcceptsExactlyTheExpectedWorkflowsAndLandLeavesTheMerge(t *testing.T) {
 	t.Parallel()
 	w, _ := proposeStaged(t)
 	sha := moveStaged(t, w, nil)
-	if v, err := Land(w.deps(t), 1, sha); err != nil || v != "landed "+v2 {
-		t.Fatalf("%q %v\n%s", v, err, w.out)
+	before := len(w.hub.calls)
+	v, err := CheckLand(w.deps(t), 1, sha)
+	if err != nil || !strings.HasPrefix(v, "ok: #1 may land "+v2) {
+		t.Fatalf("check: %q %v\n%s", v, err, w.out)
 	}
-	if got := w.hub.called("merge"); len(got) != 1 {
-		t.Errorf("merge %v", got)
+	if got := writes(w.hub.calls[before:]); len(got) != 0 {
+		t.Errorf("the gate wrote: %v", got)
+	}
+	v, err = Land(w.deps(t), 1, sha)
+	if err != nil || !strings.HasPrefix(v, "skipped: #1 changes .github/workflows/claudinite-scheduler.yml") || !strings.Contains(v, "agent stage") {
+		t.Fatalf("land: %q %v\n%s", v, err, w.out)
+	}
+	if got := writes(w.hub.calls[before:]); len(got) != 0 {
+		t.Errorf("land wrote on a workflow-changing PR: %v", got)
+	}
+	if out := gitRun(t, w.bare, "branch", "--list", w.hub.pulls[0].HeadRef); out == "" {
+		t.Error("land deleted the branch its agent stage merges")
 	}
 }
 
@@ -187,6 +201,9 @@ func TestLandRefusesAnyOtherWorkflowEdit(t *testing.T) {
 		}
 		if _, err := Land(w.deps(t), 1, sha); err == nil || !strings.Contains(err.Error(), c.want) {
 			t.Errorf("%s: %v, want an error naming %q", name, err, c.want)
+		}
+		if _, err := CheckLand(w.deps(t), 1, sha); err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%s: the gate: %v, want an error naming %q", name, err, c.want)
 		}
 		if len(w.hub.called("merge")) != 0 {
 			t.Errorf("%s: merged", name)

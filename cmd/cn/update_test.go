@@ -30,13 +30,16 @@ func TestUpdateCommandArguments(t *testing.T) {
 		{[]string{"update", "engine", "--repo", t.TempDir()}, 1, "GITHUB_TOKEN"},
 		{[]string{"update", "packs", "--repo", t.TempDir()}, 1, "GITHUB_TOKEN"},
 		{[]string{"update", "land", "--pr", "3", "--sha", "abc", "--repo", t.TempDir()}, 1, "GITHUB_TOKEN"},
+		{[]string{"update", "land", "--check"}, 2, "--pr"},
+		{[]string{"update", "engine", "--check"}, 2, "--check is update land's"},
+		{[]string{"update", "land", "--check", "--pr", "3", "--sha", "abc", "--repo", t.TempDir()}, 1, "GITHUB_TOKEN"},
 	} {
 		_, errOut, code := runCN(t, bin, noToken, "", c.args...)
 		if code != c.code || !strings.Contains(errOut, c.in) {
 			t.Errorf("%v: exit %d %q", c.args, code, errOut)
 		}
 	}
-	if _, errOut, _ := runCN(t, bin, nil, "", "bogus"); !strings.Contains(errOut, "update engine [--force]") {
+	if _, errOut, _ := runCN(t, bin, nil, "", "bogus"); !strings.Contains(errOut, "update engine [--force]") || !strings.Contains(errOut, "update land --pr N --sha SHA [--check]") {
 		t.Errorf("usage lacks update: %s", errOut)
 	}
 }

@@ -13,7 +13,8 @@
 #            member with a bare origin from this release to dist2/ by a
 #            merged update PR that stages the cronless scheduler the member
 #            holds, which land refuses until a scripted agent stage moves
-#            it into .github/workflows/, then refuses a dist3/ whose selftest fails a
+#            it into .github/workflows/, after which land skips it and the
+#            agent merges it behind cn update land --check, then refuses a dist3/ whose selftest fails a
 #            probe over the member or whose verify breaks it (built with the
 #            rehearsal_break tag), holds back on a red main, skips held and
 #            revoked versions, files the revoked pin's issue, and runs as the
@@ -556,10 +557,26 @@ for mode in $modes; do
       step "update 2: check world passes the bot's pin and refuses a person's"
 
       ctl /_stub/run "{\"sha\":\"$head\",\"event\":\"workflow_dispatch\",\"conclusion\":\"success\"}"
+      # CI's land job, on main's engine and the job token: the PR changes
+      # .github/workflows/, so it skips without failing and merges nothing.
       cn_member update land --pr 1 --sha "$head" > "$work/land.out" 2>&1 || fail "update 3: land: $(cat "$work/land.out")"
       verdict=$(sed -n '$p' "$work/land.out")
-      expect_verdict "landed $next"
-      [ -z "$(git --git-dir "$origin" branch --list "$branch")" ] || fail "update 3: $branch was not deleted"
+      case $verdict in "skipped: #1 changes .github/workflows/claudinite-scheduler.yml"*) ;; *) fail "update 3: land did not skip the workflow-changing PR: $(cat "$work/land.out")" ;; esac
+      [ "$(gh_count 'st.pulls.filter(p=>p.number===1&&p.merged).length')" = 0 ] || fail "update 3: land merged a workflow-changing PR"
+      [ -n "$(git --git-dir "$origin" branch --list "$branch")" ] || fail "update 3: land deleted $branch"
+      # The agent stage: CI green on the head, the gate from a checkout at
+      # that head, then the squash-merge at that head with its own
+      # credential, the branch deleted and CI dispatched on main.
+      (cd "$member" && git checkout -q "$head") || fail "update 3: agent checkout"
+      cn_member update land --check --pr 1 --sha "$head" > "$work/check.out" 2>&1 || fail "update 3: the gate refused: $(cat "$work/check.out")"
+      [ "$(sed -n '$p' "$work/check.out")" = "ok: #1 may land $next" ] || fail "update 3: gate verdict: $(cat "$work/check.out")"
+      (cd "$member" && git checkout -q main) || fail "update 3: back to main"
+      [ "$(gh_count 'st.pulls.filter(p=>p.number===1&&p.merged).length')" = 0 ] || fail "update 3: the gate merged"
+      gh_api() { curl -sS --fail -X "$1" -H 'Authorization: Bearer rehearsal-token' -H 'Content-Type: application/json' -d "$3" "$gh/repos/acme/member$2" > /dev/null; }
+      gh_api PUT /pulls/1/merge "{\"sha\":\"$head\",\"merge_method\":\"squash\",\"commit_title\":\"Claudinite engine $next (#1)\"}" || fail "update 3: the agent's merge"
+      git --git-dir "$origin" branch -q -D "$branch" || fail "update 3: the agent's branch delete"
+      gh_api POST /actions/workflows/claudinite-ci.yml/dispatches '{"ref":"main"}' || fail "update 3: the agent's dispatch on main"
+      verdict="landed $next"
       [ "$(gh_count 'st.dispatches.filter(d=>d.ref==="main").length')" = 1 ] || fail "update 3: no dispatch on main: $(gh_state)"
       (cd "$member" && git fetch -q origin && git reset -q --hard origin/main) || fail "update 3: pull"
       grep -q "version: \"$next\"" "$member/.claudinite/settings.yaml" || fail "update 3: main does not pin $next"
@@ -568,7 +585,7 @@ for mode in $modes; do
       grep -q '^  declared:$' "$member/.claudinite/settings.yaml" || fail "update 3: dropping the license block took the packs block: $(cat "$member/.claudinite/settings.yaml")"
       grep -q '^    - cron: "[0-9]* [0-9]*,[0-9]* \* \* \*"$' "$member/$sched" || fail "update 3: main's scheduler carries no hashed cron: $(cat "$member/$sched")"
       [ ! -e "$member/.claudinite/cache/pending-workflows" ] || fail "update 3: main holds the staging directory"
-      step "update 3: $verdict, the member file and the moved scheduler beside the pin, the retired license block dropped"
+      step "update 3: landed $next, merged by the agent stage once land skipped it and the gate passed; the member file and the moved scheduler beside the pin, the retired license block dropped"
 
       : > "$work/requests.log"
       out=$(session_start) || fail "update 4: SessionStart exited non-zero"

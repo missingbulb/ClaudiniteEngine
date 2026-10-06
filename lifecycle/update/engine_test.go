@@ -415,6 +415,10 @@ func TestLand(t *testing.T) {
 	if _, err := Land(w.deps(t), 4, "0000000000000000000000000000000000000000"); err == nil || !strings.Contains(err.Error(), "moved") {
 		t.Errorf("a moved head landed: %v", err)
 	}
+	before := len(w.hub.calls)
+	if v, err := CheckLand(w.deps(t), 4, sha); err != nil || v != "ok: #4 may land "+v2 || len(writes(w.hub.calls[before:])) != 0 {
+		t.Errorf("the gate on a pin-only PR: %q %v, calls %v", v, err, w.hub.calls[before:])
+	}
 	v, err := Land(w.deps(t), 4, sha)
 	if err != nil || v != "landed "+v2 {
 		t.Fatalf("%q %v", v, err)

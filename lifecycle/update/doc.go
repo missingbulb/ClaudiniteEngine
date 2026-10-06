@@ -12,8 +12,10 @@
 // workflows the new binary expects of this repo (`cn workflows stage`) ride
 // that PR staged under .claudinite/cache/pending-workflows/, since the job
 // token may not push .github/workflows/; the engine/update task's agent
-// stage moves them into place, and land accepts there exactly what the
-// pinned engine expects.
+// stage moves them into place. Land accepts there exactly what the pinned
+// engine expects, but skips such a PR rather than merge it, since GitHub
+// refuses that merge to the job token: the agent stage merges it with its
+// own credential once land --check, the same gate with no write, passes.
 //
 // The GitHub calls, all with the workflow job's GITHUB_TOKEN: list
 // workflow runs for a head sha, list open PRs, get one PR, create, close

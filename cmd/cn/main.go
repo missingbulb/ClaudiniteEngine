@@ -49,8 +49,11 @@ commands:
                  propose or land the declared packs' newest allowed
                  versions as a pack-only PR, once this repo's check world
                  passes over it; needs GITHUB_TOKEN
-  update land --pr N --sha SHA [--repo DIR]
-                 merge update PR N (engine or packs), whose CI passed on SHA
+  update land --pr N --sha SHA [--check] [--repo DIR]
+                 merge update PR N (engine or packs), whose CI passed on SHA;
+                 an engine PR changing .github/workflows/ is skipped for its
+                 agent stage to merge. --check runs an engine PR's gate
+                 alone, writing nothing: exit 1 with the reason it fails
   init --packs ID[,ID] [--answer PACK/Q=TEXT]... [--channel stable|canary|staging]
                  [--repo DIR]
                  adopt a repo: pin the newest allowed engine, write the

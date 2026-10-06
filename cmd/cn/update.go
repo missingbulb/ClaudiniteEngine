@@ -142,8 +142,12 @@ func cmdUpdate(args []string, stdout io.Writer) error {
 	force := fs.Bool("force", false, "")
 	pr := fs.Int("pr", 0, "")
 	sha := fs.String("sha", "", "")
+	check := fs.Bool("check", false, "")
 	if err := flags(fs, args[1:]); err != nil {
 		return err
+	}
+	if *check && args[0] != "land" {
+		return report.New(report.Usage, "--check is update land's")
 	}
 	if args[0] == "land" {
 		if *pr <= 0 {
@@ -166,7 +170,11 @@ func cmdUpdate(args []string, stdout io.Writer) error {
 	var verdict string
 	switch args[0] {
 	case "land":
-		verdict, err = update.Land(d, *pr, *sha)
+		if *check {
+			verdict, err = update.CheckLand(d, *pr, *sha)
+		} else {
+			verdict, err = update.Land(d, *pr, *sha)
+		}
 	case "packs":
 		verdict, err = update.Packs(d, update.Options{Force: *force})
 	default:
