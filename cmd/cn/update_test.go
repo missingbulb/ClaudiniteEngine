@@ -30,16 +30,28 @@ func TestUpdateCommandArguments(t *testing.T) {
 		{[]string{"update", "engine", "--repo", t.TempDir()}, 1, "GITHUB_TOKEN"},
 		{[]string{"update", "packs", "--repo", t.TempDir()}, 1, "GITHUB_TOKEN"},
 		{[]string{"update", "land", "--pr", "3", "--sha", "abc", "--repo", t.TempDir()}, 1, "GITHUB_TOKEN"},
-		{[]string{"update", "land", "--check"}, 2, "--pr"},
+		{[]string{"update", "land", "--check"}, 2, "--check needs --base and --head"},
+		{[]string{"update", "land", "--check", "--base", "a"}, 2, "--check needs --base and --head"},
+		{[]string{"update", "land", "--check", "--pr", "3", "--base", "a", "--head", "b"}, 2, "--check takes --base and --head, not --pr or --sha"},
 		{[]string{"update", "engine", "--check"}, 2, "--check is update land's"},
-		{[]string{"update", "land", "--check", "--pr", "3", "--sha", "abc", "--repo", t.TempDir()}, 1, "GITHUB_TOKEN"},
+		{[]string{"update", "land", "--base", "a"}, 2, "--base and --head are update land --check's"},
 	} {
 		_, errOut, code := runCN(t, bin, noToken, "", c.args...)
 		if code != c.code || !strings.Contains(errOut, c.in) {
 			t.Errorf("%v: exit %d %q", c.args, code, errOut)
 		}
 	}
-	if _, errOut, _ := runCN(t, bin, nil, "", "bogus"); !strings.Contains(errOut, "update engine [--force]") || !strings.Contains(errOut, "update land --pr N --sha SHA [--check]") {
+	// The gate needs no GitHub token: it reads git alone, and a commit the
+	// checkout lacks is the refusal.
+	repo := t.TempDir()
+	if out, err := exec.Command("git", "-C", repo, "init", "-q").CombinedOutput(); err != nil {
+		t.Fatalf("%v %s", err, out)
+	}
+	if _, errOut, code := runCN(t, bin, noToken, "", "update", "land", "--check", "--base", "aaaa", "--head", "bbbb", "--repo", repo); code != 1 ||
+		strings.Contains(errOut, "GITHUB_TOKEN") || !strings.Contains(errOut, "aaaa is not a commit") {
+		t.Errorf("the gate without a token: exit %d %q", code, errOut)
+	}
+	if _, errOut, _ := runCN(t, bin, nil, "", "bogus"); !strings.Contains(errOut, "update engine [--force]") || !strings.Contains(errOut, "update land --check --base SHA --head SHA") {
 		t.Errorf("usage lacks update: %s", errOut)
 	}
 }

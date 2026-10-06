@@ -47,6 +47,18 @@ func updateDepsWith(repo, token string, stdout io.Writer) (update.Deps, error) {
 	if err != nil {
 		return update.Deps{}, report.Wrap(report.IO, "update", err)
 	}
+	d, err := localDeps(repo, token, stdout)
+	if err != nil {
+		return update.Deps{}, err
+	}
+	d.GitHub, d.FullName = gh, gh.Repo
+	return d, nil
+}
+
+// localDeps are the updater's dependencies but GitHub's: the registry, the
+// trust roots and git over repo, whose remote token may be empty. The
+// repo's owner/name is read as cn init reads it.
+func localDeps(repo, token string, stdout io.Writer) (update.Deps, error) {
 	reg, err := npmreg.FromEnv()
 	if err != nil {
 		return update.Deps{}, report.Wrap(report.IO, "update", err)
@@ -59,9 +71,9 @@ func updateDepsWith(repo, token string, stdout io.Writer) (update.Deps, error) {
 	if err != nil {
 		return update.Deps{}, report.Wrap(report.Internal, "update", err)
 	}
-	return update.Deps{GitHub: gh, Registry: reg, Git: gitcmd.Repo{Dir: repo, Token: token}, Roots: roots,
+	return update.Deps{Registry: reg, Git: gitcmd.Repo{Dir: repo, Token: token}, Roots: roots,
 		CacheRoot: paths.CacheRoot(), Platform: version.Platform(), Now: time.Now, Sleep: time.Sleep,
-		Repo: repo, FullName: gh.Repo, Out: stdout, Timeout: childTimeout, Exe: exe}, nil
+		Repo: repo, FullName: repoFullName(repo), Out: stdout, Timeout: childTimeout, Exe: exe}, nil
 }
 
 // packReader reads the pack indexes from the pack sources repo's settings
@@ -143,11 +155,19 @@ func cmdUpdate(args []string, stdout io.Writer) error {
 	pr := fs.Int("pr", 0, "")
 	sha := fs.String("sha", "", "")
 	check := fs.Bool("check", false, "")
+	base := fs.String("base", "", "")
+	head := fs.String("head", "", "")
 	if err := flags(fs, args[1:]); err != nil {
 		return err
 	}
 	if *check && args[0] != "land" {
 		return report.New(report.Usage, "--check is update land's")
+	}
+	if !*check && (*base != "" || *head != "") {
+		return report.New(report.Usage, "--base and --head are update land --check's")
+	}
+	if *check {
+		return cmdLandCheck(*repo, *base, *head, *pr, *sha, stdout)
 	}
 	if args[0] == "land" {
 		if *pr <= 0 {
@@ -170,11 +190,7 @@ func cmdUpdate(args []string, stdout io.Writer) error {
 	var verdict string
 	switch args[0] {
 	case "land":
-		if *check {
-			verdict, err = update.CheckLand(d, *pr, *sha)
-		} else {
-			verdict, err = update.Land(d, *pr, *sha)
-		}
+		verdict, err = update.Land(d, *pr, *sha)
 	case "packs":
 		verdict, err = update.Packs(d, update.Options{Force: *force})
 	default:
@@ -182,6 +198,28 @@ func cmdUpdate(args []string, stdout io.Writer) error {
 	}
 	if err != nil {
 		return report.Wrap(report.IO, "update "+args[0], err)
+	}
+	fmt.Fprintln(stdout, verdict)
+	return nil
+}
+
+// cmdLandCheck is update land --check: the landing gate over an engine
+// update PR's base and head commits, from git alone, so the agent stage
+// that merges a workflow-changing PR needs no GitHub token to run it.
+func cmdLandCheck(repo, base, head string, pr int, sha string, stdout io.Writer) error {
+	if pr != 0 || sha != "" {
+		return report.New(report.Usage, "--check takes --base and --head, not --pr or --sha")
+	}
+	if base == "" || head == "" {
+		return report.New(report.Usage, "--check needs --base and --head, the PR's base and head commits, both fetched")
+	}
+	d, err := localDeps(repo, "", stdout)
+	if err != nil {
+		return err
+	}
+	verdict, err := update.CheckLand(d, base, head)
+	if err != nil {
+		return report.Wrap(report.IO, "update land --check", err)
 	}
 	fmt.Fprintln(stdout, verdict)
 	return nil

@@ -145,20 +145,26 @@ func moveStaged(t *testing.T, w *world, edit func(dir string)) string {
 }
 
 // An engine PR carrying, beside the pin, exactly the workflows the new
-// engine expects passes the landing gate, which CheckLand runs with no
-// write; Land, whose job token GitHub refuses a workflow-changing merge,
-// skips it without failing and leaves the merge to the agent stage.
+// engine expects passes the landing gate, which CheckLand runs from the
+// PR's base and head with no GitHub call; Land, whose job token GitHub
+// refuses a workflow-changing merge, skips it without failing and leaves
+// the merge to the agent stage.
 func TestTheGateAcceptsExactlyTheExpectedWorkflowsAndLandLeavesTheMerge(t *testing.T) {
 	t.Parallel()
 	w, _ := proposeStaged(t)
 	sha := moveStaged(t, w, nil)
 	before := len(w.hub.calls)
-	v, err := CheckLand(w.deps(t), 1, sha)
-	if err != nil || !strings.HasPrefix(v, "ok: #1 may land "+v2) {
+	v, err := gateAt(t, w.repo, w.deps(t), w.hub.pulls[0])
+	if err != nil || v != "ok: "+sha+" may land "+v2 {
 		t.Fatalf("check: %q %v\n%s", v, err, w.out)
 	}
 	if got := writes(w.hub.calls[before:]); len(got) != 0 {
 		t.Errorf("the gate wrote: %v", got)
+	}
+	noAPI := w.deps(t)
+	noAPI.GitHub = nil
+	if _, err := CheckLand(noAPI, "0123456789012345678901234567890123456789", sha); err == nil || !strings.Contains(err.Error(), "fetch") {
+		t.Errorf("a base the checkout lacks: %v", err)
 	}
 	v, err = Land(w.deps(t), 1, sha)
 	if err != nil || !strings.HasPrefix(v, "skipped: #1 changes .github/workflows/claudinite-scheduler.yml") || !strings.Contains(v, "agent stage") {
@@ -202,7 +208,7 @@ func TestLandRefusesAnyOtherWorkflowEdit(t *testing.T) {
 		if _, err := Land(w.deps(t), 1, sha); err == nil || !strings.Contains(err.Error(), c.want) {
 			t.Errorf("%s: %v, want an error naming %q", name, err, c.want)
 		}
-		if _, err := CheckLand(w.deps(t), 1, sha); err == nil || !strings.Contains(err.Error(), c.want) {
+		if _, err := gateAt(t, w.repo, w.deps(t), w.hub.pulls[0]); err == nil || !strings.Contains(err.Error(), c.want) {
 			t.Errorf("%s: the gate: %v, want an error naming %q", name, err, c.want)
 		}
 		if len(w.hub.called("merge")) != 0 {
@@ -236,4 +242,16 @@ func TestLandRefusesAnyOtherWorkflowEdit(t *testing.T) {
 	if _, err := Land(d, 1, sha); err == nil || len(w.hub.called("merge")) != 0 {
 		t.Errorf("landed workflows without the repo's name: %v", err)
 	}
+}
+
+// gateAt fetches update PR pr's base (main) and head into repo, as the
+// agent stage does before the gate, and returns the gate's verdict over
+// them with no GitHub at all: a call would panic on the nil API.
+func gateAt(t *testing.T, repo string, d Deps, pr githubapi.PR) (string, error) {
+	t.Helper()
+	gitRun(t, repo, "fetch", "-q", "origin", "+refs/heads/main:refs/gate/base", "+refs/heads/"+pr.HeadRef+":refs/gate/head")
+	base := gitRun(t, repo, "rev-parse", "refs/gate/base")
+	head := gitRun(t, repo, "rev-parse", "refs/gate/head")
+	d.GitHub = nil
+	return CheckLand(d, base, head)
 }

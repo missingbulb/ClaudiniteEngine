@@ -567,9 +567,12 @@ for mode in $modes; do
       # The agent stage: CI green on the head, the gate from a checkout at
       # that head, then the squash-merge at that head with its own
       # credential, the branch deleted and CI dispatched on main.
-      (cd "$member" && git checkout -q "$head") || fail "update 3: agent checkout"
-      cn_member update land --check --pr 1 --sha "$head" > "$work/check.out" 2>&1 || fail "update 3: the gate refused: $(cat "$work/check.out")"
-      [ "$(sed -n '$p' "$work/check.out")" = "ok: #1 may land $next" ] || fail "update 3: gate verdict: $(cat "$work/check.out")"
+      # The gate reads git alone: no GitHub token reaches it.
+      (cd "$member" && git fetch -q origin && git checkout -q "$head") || fail "update 3: agent checkout"
+      mainsha=$(git -C "$member" rev-parse origin/main)
+      (cd "$member" && env -u GITHUB_TOKEN CLAUDINITE_GITHUB_API=https://127.0.0.1:9/unreachable .claudinite/bin/cn update land --check --base "$mainsha" --head "$head") > "$work/check.out" 2>&1 \
+        || fail "update 3: the gate refused: $(cat "$work/check.out")"
+      [ "$(sed -n '$p' "$work/check.out")" = "ok: $head may land $next" ] || fail "update 3: gate verdict: $(cat "$work/check.out")"
       (cd "$member" && git checkout -q main) || fail "update 3: back to main"
       [ "$(gh_count 'st.pulls.filter(p=>p.number===1&&p.merged).length')" = 0 ] || fail "update 3: the gate merged"
       gh_api() { curl -sS --fail -X "$1" -H 'Authorization: Bearer rehearsal-token' -H 'Content-Type: application/json' -d "$3" "$gh/repos/acme/member$2" > /dev/null; }

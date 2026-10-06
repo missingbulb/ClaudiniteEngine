@@ -416,7 +416,7 @@ func TestLand(t *testing.T) {
 		t.Errorf("a moved head landed: %v", err)
 	}
 	before := len(w.hub.calls)
-	if v, err := CheckLand(w.deps(t), 4, sha); err != nil || v != "ok: #4 may land "+v2 || len(writes(w.hub.calls[before:])) != 0 {
+	if v, err := gateAt(t, w.repo, w.deps(t), w.hub.pulls[0]); err != nil || v != "ok: "+sha+" may land "+v2 || len(writes(w.hub.calls[before:])) != 0 {
 		t.Errorf("the gate on a pin-only PR: %q %v, calls %v", v, err, w.hub.calls[before:])
 	}
 	v, err := Land(w.deps(t), 4, sha)

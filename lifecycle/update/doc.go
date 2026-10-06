@@ -15,7 +15,8 @@
 // stage moves them into place. Land accepts there exactly what the pinned
 // engine expects, but skips such a PR rather than merge it, since GitHub
 // refuses that merge to the job token: the agent stage merges it with its
-// own credential once land --check, the same gate with no write, passes.
+// own credential once land --check, the same gate run from git alone over
+// the PR's base and head with no GitHub call and no write, passes.
 //
 // The GitHub calls, all with the workflow job's GITHUB_TOKEN: list
 // workflow runs for a head sha, list open PRs, get one PR, create, close

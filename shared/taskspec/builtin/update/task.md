@@ -39,18 +39,20 @@ GitHub refuses a merge that changes `.github/workflows/` when the job token
 asks, so the engine's own `land` job skips this pull request and the merge is
 yours, behind the engine's gate. This task's `automerge` is `nothing` because
 no delivery lane may merge it: the only authority to merge is that gate,
-`cn update land --check`, at the head you checked.
+`cn update land --check`, at the head it passed.
 
 1. Dispatch the workflow `claudinite-ci.yml` on `Target-branch:` with the input
    `pr` set to the pull request's number. Its `check` job runs the new engine
    over the branch.
 2. Wait, within your time budget, for every CI run on the branch's head (the
    commit you pushed in §1) to conclude. Each must be green.
-3. From this checkout, at that head, run the gate, with `GITHUB_TOKEN` your
-   GitHub credential and `GITHUB_REPOSITORY` this repository's `owner/name`:
-   `.claudinite/bin/cn update land --check --pr <number> --sha <head sha>`.
-   It writes nothing; it prints `ok: #<number> may land <version>` and exits 0
-   only when the pull request at that head moves the pin and changes, under
+3. Run the gate. It reads git alone, so it needs no GitHub token: fetch
+   `main` and `Target-branch:` from `origin`, check that the fetched branch is
+   the head you read from the pull request (if not, it moved: wait for CI on
+   the new head, or §3), and run
+   `.claudinite/bin/cn update land --check --base <main's commit> --head <head sha>`.
+   It writes nothing; it prints `ok: <head sha> may land <version>` and exits 0
+   only when that head moves main's pin and changes, under
    `.github/workflows/`, exactly what the pinned engine expects.
 4. Squash-merge the pull request at that head sha (pass the sha, so a moved
    branch refuses the merge), titled `Claudinite engine <version>`, the

@@ -522,7 +522,7 @@ func stagedNote(staged []string) string {
 	for _, s := range staged {
 		fmt.Fprintf(&b, "- `%s` → `.github/workflows/%s`\n", s, path.Base(s))
 	}
-	fmt.Fprintf(&b, "\nThe engine/update task's agent stage, whose credential may write workflows, moves each file into place unedited, leaving `%s/` empty, then dispatches `%s` on this branch with `pr=<this PR's number>`. GitHub refuses a workflow-changing merge to the job token, so that run's land job skips this PR: once CI is green on the head, the agent stage runs `cn update land --check --pr <this PR's number> --sha <head>`, which accepts under `.github/workflows/` exactly what this engine expects, and squash-merges at that head only when it passes. Where no agent stage runs, a person does the same.\n", workflows.StagingDir, CIWorkflow)
+	fmt.Fprintf(&b, "\nThe engine/update task's agent stage, whose credential may write workflows, moves each file into place unedited, leaving `%s/` empty, then dispatches `%s` on this branch with `pr=<this PR's number>`. GitHub refuses a workflow-changing merge to the job token, so that run's land job skips this PR: once CI is green on the head, the agent stage fetches main and this branch and runs `cn update land --check --base <main> --head <head>`, the landing gate from git alone, which accepts under `.github/workflows/` exactly what this engine expects, and squash-merges at that head only when it passes. Where no agent stage runs, a person does the same.\n", workflows.StagingDir, CIWorkflow)
 	return b.String()
 }
 
@@ -555,17 +555,10 @@ const retiredPlanBranchPrefix = "claudinite/plan-"
 // changes exactly what the pinned engine expects of this repo, with nothing
 // left staged (expectedWorkflows); a pack PR changes only the vendored
 // packs (landPacks). An engine PR that changes .github/workflows/ passes
-// the same gate but is skipped, not merged: GitHub refuses that merge to
-// the job token Land runs with, so the agent stage that moved the files
-// merges it with its own credential once CheckLand passes.
-func Land(d Deps, n int, sha string) (string, error) { return gateOrLand(d, n, sha, false) }
-
-// CheckLand is Land's gate for an engine PR, with no write: an "ok:"
-// verdict when Land would take the PR at sha, else the reason it would
-// not.
-func CheckLand(d Deps, n int, sha string) (string, error) { return gateOrLand(d, n, sha, true) }
-
-func gateOrLand(d Deps, n int, sha string, check bool) (string, error) {
+// the same gate (engineGate) but is skipped, not merged: GitHub refuses
+// that merge to the job token Land runs with, so the agent stage that
+// moved the files merges it with its own credential once CheckLand passes.
+func Land(d Deps, n int, sha string) (string, error) {
 	pr, err := d.GitHub.Pull(n)
 	if err != nil {
 		return "", err
@@ -592,15 +585,52 @@ func gateOrLand(d Deps, n int, sha string, check bool) (string, error) {
 		return "", fmt.Errorf("#%d moved: its branch is at %s, CI ran on %s", n, got, sha)
 	}
 	if strings.HasPrefix(pr.HeadRef, PackBranchPrefix) {
-		if check {
-			return "", fmt.Errorf("#%d is a pack PR; the gate check is an engine PR's, whose workflows an agent stage merges", n)
-		}
 		return landPacks(d, pr, sha)
 	}
-	base := remote + "/" + mainBranch
-	all, err := d.Git.ChangedFiles(base, sha)
+	ver, moved, err := engineGate(d, fmt.Sprintf("#%d", n), remote+"/"+mainBranch, sha)
 	if err != nil {
 		return "", err
+	}
+	if len(moved) > 0 {
+		return fmt.Sprintf("skipped: #%d changes %s, which GitHub lets no job token merge; its agent stage merges it once cn update land --check passes", n, strings.Join(moved, ", ")), nil
+	}
+	if err := landPinned(d, pr, sha, EngineTitle(ver)); err != nil {
+		return "", err
+	}
+	if err := d.GitHub.Dispatch(CIWorkflow, mainBranch, map[string]string{}); err != nil {
+		return "", err
+	}
+	return "landed " + ver, nil
+}
+
+// CheckLand is Land's gate over an engine update PR's base and head
+// commits, from git alone: no GitHub call and no write. Both must already
+// be in the checkout. It answers "ok:" when the head moves base's pin and
+// changes, under .github/workflows/, exactly what the pinned engine
+// expects, and otherwise refuses as Land would.
+func CheckLand(d Deps, base, head string) (string, error) {
+	for _, c := range []string{base, head} {
+		if _, err := d.Git.RevParse(c + "^{commit}"); err != nil {
+			return "", fmt.Errorf("%s is not a commit in this checkout: fetch the PR's base and head first", c)
+		}
+	}
+	ver, _, err := engineGate(d, head, base, head)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("ok: %s may land %s", head, ver), nil
+}
+
+// engineGate judges an engine update PR's head sha against base, the
+// branch it merges into: it moves base's pin to a newer verified engine,
+// restates the member file at most, and changes under .github/workflows/
+// exactly what that engine expects (expectedWorkflows), with nothing left
+// staged. It returns the new version and the workflow files changed; who
+// names the PR in a refusal.
+func engineGate(d Deps, who, base, sha string) (string, []string, error) {
+	all, err := d.Git.ChangedFiles(base, sha)
+	if err != nil {
+		return "", nil, err
 	}
 	var files, moved, staged []string
 	for _, file := range all {
@@ -614,7 +644,7 @@ func gateOrLand(d Deps, n int, sha string, check bool) (string, error) {
 		}
 	}
 	if len(staged) > 0 {
-		return "", fmt.Errorf("#%d still carries staged workflow files %v: its agent stage has not moved them into .github/workflows/", n, staged)
+		return "", nil, fmt.Errorf("%s still carries staged workflow files %v: its agent stage has not moved them into .github/workflows/", who, staged)
 	}
 	// The PR changes the settings file, and restates the member file
 	// beside it when the declaration renders one; the workflows it moved
@@ -633,62 +663,50 @@ func gateOrLand(d Deps, n int, sha string, check bool) (string, error) {
 		}
 	}
 	if f == "" {
-		return "", fmt.Errorf("#%d changes %v, not only the settings file and the member file", n, files)
+		return "", nil, fmt.Errorf("%s changes %v, not only the settings file and the member file", who, files)
 	}
 	rel := settings.RelPath(f)
 	if member != "" {
 		if err := flatRendered(d.Git, sha, member); err != nil {
-			return "", fmt.Errorf("#%d: %s %w", n, member, err)
+			return "", nil, fmt.Errorf("%s: %s %w", who, member, err)
 		}
 	}
 	mb, err := d.Git.MergeBase(base, sha)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 	old, _, err := d.Git.Show(mb, rel)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 	updated, _, err := d.Git.Show(sha, rel)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 	if err := settings.PinOnlyChange(old, updated, f); err != nil {
-		return "", fmt.Errorf("#%d: %w", n, err)
+		return "", nil, fmt.Errorf("%s: %w", who, err)
 	}
 	e, err := settings.ReadEngine(updated, f)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 	current, _, err := d.Git.Show(base, rel)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 	if cur, err := settings.ReadEngine(current, f); err == nil {
 		if c, err := version.Compare(e.Version, cur.Version); err != nil || c <= 0 {
-			return "", fmt.Errorf("#%d pins %s, not newer than main's %s", n, e.Version, cur.Version)
+			return "", nil, fmt.Errorf("%s pins %s, not newer than main's %s", who, e.Version, cur.Version)
 		}
 	}
 	got, err := checkPin(d, e)
 	if err != nil {
-		return "", fmt.Errorf("#%d: %w", n, err)
+		return "", nil, fmt.Errorf("%s: %w", who, err)
 	}
 	if err := expectedWorkflows(d, got.Binary, mb, sha, moved); err != nil {
-		return "", fmt.Errorf("#%d: %w", n, err)
+		return "", nil, fmt.Errorf("%s: %w", who, err)
 	}
-	if check {
-		return fmt.Sprintf("ok: #%d may land %s", n, e.Version), nil
-	}
-	if len(moved) > 0 {
-		return fmt.Sprintf("skipped: #%d changes %s, which GitHub lets no job token merge; its agent stage merges it once cn update land --check passes", n, strings.Join(moved, ", ")), nil
-	}
-	if err := landPinned(d, pr, sha, EngineTitle(e.Version)); err != nil {
-		return "", err
-	}
-	if err := d.GitHub.Dispatch(CIWorkflow, mainBranch, map[string]string{}); err != nil {
-		return "", err
-	}
-	return "landed " + e.Version, nil
+	return e.Version, moved, nil
 }
 
 // expectedWorkflows refuses an engine PR whose changes under
