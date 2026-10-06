@@ -24,6 +24,8 @@
 # manifest and manifest.sig.json, and execs cn init, which verifies that
 # signature before it writes anything. Windows is not covered: npm's shim
 # for a sh script there is the desktop work.
+# Any other command run through that bin runs the member's own pin, the
+# member being the directory --repo names or else the working directory.
 #
 # CLAUDINITE_REGISTRY overrides the registry and CLAUDINITE_MAX_DOWNLOAD_BYTES
 # the download size cap; both exist for tests and the rehearsal.
@@ -94,6 +96,40 @@ matches() {
 # Step 1: the pin, from exactly one settings file.
 
 here=$(cd "$(dirname "$0")" && pwd) || refuse "cannot locate the .claudinite folder"
+
+# Run as the npm package's bin, through the symlink npm made.
+self=$0
+while [ -L "$self" ]; do
+  link=$(readlink "$self") || break
+  case $link in
+    /*) self=$link ;;
+    *) self=$(dirname "$self")/$link ;;
+  esac
+done
+pkgdir=$(cd "$(dirname "$self")" && pwd) || refuse "cannot locate the launcher's folder"
+bootstrap=
+if [ -f "$pkgdir/manifest.json" ] && [ -f "$pkgdir/package.json" ]; then
+  if [ "${1:-}" = init ]; then
+    bootstrap=1
+  else
+    repo=.
+    want=
+    for arg do
+      if [ -n "$want" ]; then
+        want=
+        [ -d "$arg" ] && repo=$arg
+        continue
+      fi
+      case $arg in
+        --) break ;;
+        --repo|-repo) want=1 ;;
+        --repo=*|-repo=*) [ -d "${arg#*=}" ] && repo=${arg#*=} ;;
+      esac
+    done
+    here=$(cd "$repo" && pwd)/.claudinite || refuse "cannot locate the repository $repo"
+  fi
+fi
+
 format=
 count=0
 for ext in yaml toml json; do
@@ -103,28 +139,11 @@ for ext in yaml toml json; do
   fi
 done
 
-# The bootstrap reads the package npx unpacked: resolve the bin symlink.
-bootstrap=
-if [ "$count" -eq 0 ] && [ "${1:-}" = init ]; then
-  self=$0
-  while [ -L "$self" ]; do
-    link=$(readlink "$self") || break
-    case $link in
-      /*) self=$link ;;
-      *) self=$(dirname "$self")/$link ;;
-    esac
-  done
-  pkgdir=$(cd "$(dirname "$self")" && pwd) || refuse "cannot locate the package folder"
-  if [ -f "$pkgdir/manifest.json" ] && [ -f "$pkgdir/package.json" ]; then
-    bootstrap=1
-  fi
-fi
-
 if [ -n "$bootstrap" ]; then
   settings=$pkgdir/manifest.json
   [ -f "$pkgdir/manifest.sig.json" ] || refuse "$pkgdir holds no manifest.sig.json, and cn init never runs from an unsigned manifest"
 else
-  [ "$count" -eq 1 ] || refuse "exactly one of .claudinite/settings.yaml, .claudinite/settings.toml or .claudinite/settings.json must exist, found $count"
+  [ "$count" -eq 1 ] || refuse "exactly one of .claudinite/settings.yaml, .claudinite/settings.toml or .claudinite/settings.json must exist, found $count in ${here%/.claudinite}"
   settings=$here/settings.$format
 fi
 

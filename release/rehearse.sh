@@ -707,12 +707,16 @@ for mode in $modes; do
       done
       verify_out=$(cd "$member" && sh .claudinite/launch verify) || fail "packs 1: verify: $verify_out"
       [ -z "$verify_out" ] || fail "packs 1: verify reported: $verify_out"
+      verify_out=$(cd "$member" && "$npx/.bin/cn" verify) || fail "packs 1: npx bin verify from the member: $verify_out"
+      [ -z "$verify_out" ] || fail "packs 1: npx bin verify from the member reported: $verify_out"
+      verify_out=$(cd "$work" && "$npx/.bin/cn" verify --repo "$member") || fail "packs 1: npx bin verify --repo: $verify_out"
+      [ -z "$verify_out" ] || fail "packs 1: npx bin verify --repo reported: $verify_out"
       if grep -q "installations/new" "$work/init.out"; then fail "packs 1: init still hands over the App install: $(cat "$work/init.out")"; fi
       (cd "$member" && git init -q -b main && git add -A && git -c user.name=rehearse -c user.email=r@x -c commit.gpgsign=false commit -q -m adopt) \
         || fail "packs 1: git setup"
       github_origin "$origin"
       (cd "$member" && git -c push.negotiate=false push -q origin main) || fail "packs 1: push"
-      step "packs 1: cn init through npx adopted hello 1.0 (CDN, and the branch with the CDN down)"
+      step "packs 1: cn init through npx adopted hello 1.0 (CDN, and the branch with the CDN down); the npx bin runs the member's pin from its folder and by --repo"
 
       # init_with_origin NAME: cn init in a new repo whose origin is the
       # member's on GitHub.

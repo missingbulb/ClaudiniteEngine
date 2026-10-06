@@ -180,6 +180,8 @@ npm is the only publish target. We may later publish to other public package reg
 4. Check the manifest against the pin and the binary against the manifest. On a mismatch, delete both and stop; on a match, move the binary into place atomically, read-only and executable.
 5. Link `.claudinite/bin/cn`, a git-ignored path, to the cached binary, unpack the embedded runner script and SDK beside it on first run, and `exec` the binary.
 
+**The npm bin.** `@claudinite/cli` carries the same launcher as its `cn` bin. `cn init` run through it bootstraps from the package's own signed manifest (see Initial bootstrap); any other command runs the member's pin as above, the member being the directory `--repo` names or else the working directory.
+
 **The cache.** One folder per version under the user's cache directory, `0700` and owner-checked, so repos pinned to different versions share one machine. It is the one user-deletable place Claudinite writes outside the repo.
 
 ## Setup on each machine
