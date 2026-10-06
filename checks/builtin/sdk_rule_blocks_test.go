@@ -16,6 +16,7 @@ import (
 // fixtures selecting each branch and every prose file of the frozen
 // shelf and the packs tree the environment names.
 func TestSDKRuleBlocksAgree(t *testing.T) {
+	t.Parallel()
 	texts := []string{
 		"# x\n\n- **Lead** body. (lead-in-slug)\n- plain bullet\n- **Two**\n  more\n\n  nested para (two-slug)\n",
 		"- **A** text (12)\n- **B** `code` — dash –\n  1. item\n  (b-slug)\n```\n- **fenced** (no-slug)\n```\n## h\n- **C**\n",

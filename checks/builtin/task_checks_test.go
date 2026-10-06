@@ -34,6 +34,7 @@ const goodTask = `{
 const taskDir = ".claudinite/local/packs/mypack/tasks/nightly/"
 
 func TestTaskDeclarationShape(t *testing.T) {
+	t.Parallel()
 	expect(t, tasksRepo(map[string]string{taskDir + "task.json": goodTask}).run(t, "task-declaration-shape"))
 
 	bad := `{
@@ -90,6 +91,7 @@ func TestTaskDeclarationShape(t *testing.T) {
 }
 
 func TestTaskCodeWorkEnv(t *testing.T) {
+	t.Parallel()
 	expect(t, tasksRepo(map[string]string{
 		taskDir + "worker.mjs":      "// CLAUDINITE_DRY_RUN is retired\nconst a = process.env.CLAUDINITE_DRY_RUN;\nconst b = process.env.CLAUDINITE_REPO;\nconst c = process.env.CLAUDINITE_DRY_RUN;\n",
 		taskDir + "worker.test.mjs": "process.env.CLAUDINITE_OTHER = '1';\n",
@@ -98,6 +100,7 @@ func TestTaskCodeWorkEnv(t *testing.T) {
 }
 
 func TestExecutorWorkflowSecrets(t *testing.T) {
+	t.Parallel()
 	secretTask := strings.Replace(goodTask, `"code_work_timeout": 60`, `"code_work_timeout": 60, "code_work_required_secrets": ["B_TOKEN", "A_TOKEN"]`, 1)
 	files := map[string]string{taskDir + "task.json": secretTask}
 	expect(t, tasksRepo(files).run(t, "executor-workflow-secrets"),
@@ -112,6 +115,7 @@ func TestExecutorWorkflowSecrets(t *testing.T) {
 }
 
 func TestAutomergePolicyScope(t *testing.T) {
+	t.Parallel()
 	r := tasksRepo(map[string]string{"docs/a.md": "a\n", "src/a.go": "package a\n"})
 	r.change = map[string]string{"docs/a.md": "b\n"}
 	r.message = "docs\n\nClaudinite-Automerge-Policy: doc-changes"
@@ -126,6 +130,7 @@ func TestAutomergePolicyScope(t *testing.T) {
 }
 
 func TestTaskDeclarationMatchesFolder(t *testing.T) {
+	t.Parallel()
 	agentic := `{"id": "other", "agent_model": "opus", "agent_instructions": "spec.md"}`
 	expect(t, repo{base: map[string]string{taskDir + "task.json": agentic}}.run(t, "task-declaration-matches-folder"),
 		want{path: taskDir + "task.json", what: `^declares id "other" but its directory is "nightly"$`},
@@ -136,12 +141,14 @@ func TestTaskDeclarationMatchesFolder(t *testing.T) {
 }
 
 func TestTaskMdOnlyWhenAgentic(t *testing.T) {
+	t.Parallel()
 	expect(t, repo{base: map[string]string{taskDir + "task.json": goodTask, taskDir + "task.md": "x\n"}}.run(t, "task-md-only-when-agentic"),
 		want{path: taskDir + "task.md", what: "runs no agent", fix: "^rename it to " + taskDir + "README.md"})
 	expect(t, repo{base: map[string]string{taskDir + "task.json": `{"agent_model": "opus"}`, taskDir + "task.md": "x\n"}}.run(t, "task-md-only-when-agentic"))
 }
 
 func TestTaskWorkerRestoresMain(t *testing.T) {
+	t.Parallel()
 	w := taskDir + "worker.sh"
 	expect(t, repo{base: map[string]string{w: "#!/bin/sh\ngit commit -m x\ngit push\n"}}.run(t, "task-worker-restores-main"),
 		want{path: w, what: "without ever returning the checkout to `main`$"})
@@ -161,6 +168,7 @@ const memberFlat = `{"version": 1, "settings": {"path": ".claudinite/settings.ya
 `
 
 func TestFlatDeclarationsCurrent(t *testing.T) {
+	t.Parallel()
 	// No task anywhere: nothing to demand but the member file.
 	expect(t, repo{base: map[string]string{"a.txt": "a\n", ".claudinite/cache/member.GENERATED.json": memberFlat}}.run(t, "flat-declarations-current"))
 	expect(t, repo{base: map[string]string{"a.txt": "a\n"}}.run(t, "flat-declarations-current"),

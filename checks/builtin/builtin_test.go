@@ -65,9 +65,16 @@ func write(t *testing.T, dir string, files map[string]string) {
 	}
 }
 
+// Every test's repo is offline, so no check fetches; set once, the tests can run in parallel.
+func TestMain(m *testing.M) {
+	if err := os.Setenv("CLAUDINITE_CHECKS_NO_FETCH", "1"); err != nil {
+		panic(err)
+	}
+	os.Exit(m.Run())
+}
+
 func (r repo) build(t *testing.T) string {
 	t.Helper()
-	t.Setenv("CLAUDINITE_CHECKS_NO_FETCH", "1")
 	dir := t.TempDir()
 	s := r.settings
 	if s == "" {
@@ -169,6 +176,7 @@ func expect(t *testing.T, got []findings.Finding, wants ...want) {
 }
 
 func TestEveryBuiltinNamesItsPackAndScope(t *testing.T) {
+	t.Parallel()
 	ids := map[string]bool{}
 	for _, b := range All() {
 		if ids[b.ID] {
@@ -192,6 +200,7 @@ func TestEveryBuiltinNamesItsPackAndScope(t *testing.T) {
 }
 
 func TestBuiltinsRunOnlyWhereTheirPackIsDeclared(t *testing.T) {
+	t.Parallel()
 	dir := repo{settings: strings.Replace(settingsYAML, "    - claudinite-growth\n", "", 1), base: map[string]string{"a.txt": "a\n"}}.build(t)
 	set, err := declared.LoadSet(dir, "0.0.0", All()...)
 	if err != nil {

@@ -28,6 +28,7 @@ func whats(ws []want) string {
 }
 
 func TestProvenanceChangeRecordedRewordedRuleOwesAndTheEntryClearsIt(t *testing.T) {
+	t.Parallel()
 	reworded := map[string]string{pk + "RULES.md": "- **Doing a thing** — the settled way, said better. (doing-thing)\n\n- **Doing another** — plainly.\n  (doing-another)\n"}
 	expect(t, repo{base: filled(), change: reworded}.run(t, "provenance-change-recorded"),
 		want{path: pk + "RULES.md", line: 1, what: `"Doing a thing" reads differently from the base, and .*doing-thing\.md gained no entry`, fix: `cn provenance append mypack doing-thing`})
@@ -35,6 +36,7 @@ func TestProvenanceChangeRecordedRewordedRuleOwesAndTheEntryClearsIt(t *testing.
 }
 
 func TestProvenanceChangeRecordedManifestOwesOnDataNotLayout(t *testing.T) {
+	t.Parallel()
 	base := with(filled(), map[string]string{pk + "pack.json": "{ \"requires\": [] }\n"})
 	expect(t, repo{base: base, change: map[string]string{pk + "pack.json": "{ \"requires\": [\"acme-pack\"] }\n"}}.run(t, "provenance-change-recorded"),
 		want{path: pk + "pack.json", what: `the manifest changed`})
@@ -42,6 +44,7 @@ func TestProvenanceChangeRecordedManifestOwesOnDataNotLayout(t *testing.T) {
 }
 
 func TestProvenanceChangeRecordedRewrapMarkerAndBodyOweNothing(t *testing.T) {
+	t.Parallel()
 	expect(t, repo{base: filled(), change: map[string]string{
 		pk + "RULES.md":              "- **Doing a thing** — the settled\n  way. (doing-thing)\n\n- **Doing another** — plainly. (doing-another)\n",
 		pk + "skills/rules/SKILL.md": "---\nname: rules\nmetadata:\n  body: guidelines\n---\n\n- **Guideline one** — do it.\n  (guideline-one)\n",
@@ -51,6 +54,7 @@ func TestProvenanceChangeRecordedRewrapMarkerAndBodyOweNothing(t *testing.T) {
 }
 
 func TestProvenanceChangeRecordedEachCarrierKindOwes(t *testing.T) {
+	t.Parallel()
 	got := changeRecorded(t, filled(), map[string]string{
 		pk + "RULES.md":                  filled()[pk+"RULES.md"] + "\n- **Doing a third** — newly. (doing-third)\n",
 		pk + "provenance/doing-third.md": "",
@@ -76,12 +80,14 @@ func TestProvenanceChangeRecordedEachCarrierKindOwes(t *testing.T) {
 }
 
 func TestProvenanceChangeRecordedAProvenanceFileIsMeantToGrow(t *testing.T) {
+	t.Parallel()
 	expect(t, repo{base: filled(), change: map[string]string{pk + "provenance/doing-thing.md": strings.Replace(bornEntry, "failed twice", "failed thrice", 1)}}.run(t, "provenance-change-recorded"),
 		want{path: pk + "provenance/doing-thing.md", what: `lost or altered a line it had at the base`, fix: `leave it where the rewrite is the correct history`, advise: true})
 	expect(t, repo{base: filled(), change: map[string]string{pk + "provenance/doing-thing.md": bornEntry + rewordedEntry}}.run(t, "provenance-change-recorded"))
 }
 
 func TestProvenanceChangeRecordedGuidelinesOweOnTheSkillsFile(t *testing.T) {
+	t.Parallel()
 	base := with(filled(), map[string]string{pk + "skills/rules/SKILL.md": guidelines})
 	expect(t, repo{base: base, change: map[string]string{pk + "skills/rules/SKILL.md": strings.Replace(guidelines, "do it too", "do it as well", 1)}}.run(t, "provenance-change-recorded"),
 		want{path: pk + "skills/rules/SKILL.md", line: 8, what: `"Guideline two" reads differently from the base, and .*provenance/rules\.md gained no entry`})
@@ -92,6 +98,7 @@ func TestProvenanceChangeRecordedGuidelinesOweOnTheSkillsFile(t *testing.T) {
 }
 
 func TestProvenanceChangeRecordedTwoRulesSharingAFile(t *testing.T) {
+	t.Parallel()
 	base := with(filled(), map[string]string{pk + "RULES.md": sharedRules})
 	kept := "- **Doing a thing** — the settled way. (doing-thing)\n\n- **Doing another** — plainly.\n  (doing-another)\n"
 	expect(t, repo{base: base, change: map[string]string{pk + "RULES.md": kept}}.run(t, "provenance-change-recorded"),
@@ -100,6 +107,7 @@ func TestProvenanceChangeRecordedTwoRulesSharingAFile(t *testing.T) {
 }
 
 func TestProvenanceChangeRecordedADeletedCarrierRetiresItsFile(t *testing.T) {
+	t.Parallel()
 	without := map[string]string{pk + "RULES.md": "- **Doing another** — plainly.\n  (doing-another)\n"}
 	expect(t, repo{base: filled(), change: without}.run(t, "provenance-change-recorded"),
 		want{path: pk + "provenance/doing-thing.md", what: `rule "Doing a thing" is gone from .*mypack in this change, and its file's last entry is not retired`, fix: `retired`})
@@ -110,6 +118,7 @@ func TestProvenanceChangeRecordedADeletedCarrierRetiresItsFile(t *testing.T) {
 }
 
 func TestProvenanceChangeRecordedAPackComingOntoTheConventionOwesNothing(t *testing.T) {
+	t.Parallel()
 	base := map[string]string{}
 	for k, v := range filled() {
 		if !strings.Contains(k, "/provenance/") {
@@ -121,11 +130,13 @@ func TestProvenanceChangeRecordedAPackComingOntoTheConventionOwesNothing(t *test
 }
 
 func TestProvenanceChangeRecordedIsInertOnMainAndOutsidePacks(t *testing.T) {
+	t.Parallel()
 	expect(t, repo{base: filled(), change: map[string]string{"src/app.js": "y\n"}}.run(t, "provenance-change-recorded"))
 	expect(t, repo{base: filled()}.run(t, "provenance-change-recorded"))
 }
 
 func TestProvenanceChangeRecordedAGoCheckOwesOnCodeNotComments(t *testing.T) {
+	t.Parallel()
 	base := with(filled(), map[string]string{
 		pk + "checks/mine.go":     "package checks\n\nvar Mine = Check{ID: \"mine\", OnFail: \"block\"}\n",
 		pk + "provenance/mine.md": bornEntry,
@@ -138,6 +149,7 @@ func TestProvenanceChangeRecordedAGoCheckOwesOnCodeNotComments(t *testing.T) {
 // A manifest owes an entry when its data moves, in each of the three
 // formats, and never for layout or a comment.
 func TestProvenanceChangeRecordedManifestFormats(t *testing.T) {
+	t.Parallel()
 	jsonBase := with(filled(), map[string]string{pk + "pack.json": "{ \"requires\": [], \"version\": \"1.0.0\" }\n"})
 	expect(t, repo{base: jsonBase, change: map[string]string{pk + "pack.json": "{\n    \"requires\": [],\n    \"version\": \"1.0.0\"\n}\n"}}.run(t, "provenance-change-recorded"))
 	// JSON carries no comments: a // line is not a comment to skip but a

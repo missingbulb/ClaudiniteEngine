@@ -3,6 +3,7 @@ package builtin
 import "testing"
 
 func TestSharedTreeImmutable(t *testing.T) {
+	t.Parallel()
 	edit := map[string]string{".claudinite/shared/packs/hello/RULES.md": "# hello\n", "a.txt": "b\n"}
 	base := map[string]string{"a.txt": "a\n"}
 	expect(t, repo{base: base, change: edit, message: "Edit the vendored hello pack"}.run(t, "shared-tree-immutable"),
@@ -12,6 +13,7 @@ func TestSharedTreeImmutable(t *testing.T) {
 }
 
 func TestSharedTreeImmutableIsSilentOnTheDefaultBranch(t *testing.T) {
+	t.Parallel()
 	r := repo{base: map[string]string{".claudinite/shared/packs/hello/RULES.md": "# hello\n"}}
 	expect(t, r.run(t, "shared-tree-immutable"))
 }
