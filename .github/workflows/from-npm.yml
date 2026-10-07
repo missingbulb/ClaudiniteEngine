@@ -51,21 +51,21 @@ jobs:
         with:
           node-version: "22"
       - name: wait for npm to serve the published tarballs
-        run: sh release/npm-wait.sh --package @claudinite/cli --version "$VERSION" --platform "$LEG" | tee "$RUNNER_TEMP/smoke.log"
+        run: sh dev/release/npm-wait.sh --package @claudinite/cli --version "$VERSION" --platform "$LEG" | tee "$RUNNER_TEMP/smoke.log"
       - name: smoke-platform against registry.npmjs.org
         env:
           INTEGRITY: ${{ inputs.integrity }}
           CHANNEL: ${{ inputs.channel }}
         run: |
           echo "uname -s: $(uname -s), uname -m: $(uname -m)"
-          sh release/smoke-platform.sh --registry https://registry.npmjs.org --channel "$CHANNEL" \
+          sh dev/release/smoke-platform.sh --registry https://registry.npmjs.org --channel "$CHANNEL" \
             --version "$VERSION" --pin "$INTEGRITY" --platform "$LEG" 2>&1 | tee "$RUNNER_TEMP/smoke.log"
       - name: open a release-blocker issue
         if: failure()
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          go run ./release/pipeline blocker-issue --version "$VERSION" --leg "$LEG" \
+          go run ./dev/release/pipeline blocker-issue --version "$VERSION" --leg "$LEG" \
             --run-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
             --log "$RUNNER_TEMP/smoke.log" > "$RUNNER_TEMP/issue.md"
           gh label create release-blocker --repo "$GITHUB_REPOSITORY" --color B60205 \

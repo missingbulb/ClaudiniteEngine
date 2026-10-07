@@ -29,7 +29,7 @@ jobs:
           [ "$since" \> 2026-10-05 ] || since=2026-10-06
           curl -fsS -H "Authorization: Bearer $GH_TOKEN" \
             "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?status=completed&created=%3E%3D$since&per_page=100" > runs.json
-          sh probe/ci-speed/p75.sh --budget 60 < runs.json | tee report.md >> "$GITHUB_STEP_SUMMARY"
+          sh rewrite-temp/probe/ci-speed/p75.sh --budget 60 < runs.json | tee report.md >> "$GITHUB_STEP_SUMMARY"
       - env:
           GH_TOKEN: ${{ github.token }}
           VERDICT: ${{ steps.p75.outputs.verdict }}
