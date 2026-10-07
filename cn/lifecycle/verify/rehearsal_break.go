@@ -5,7 +5,7 @@ package verify
 import "github.com/missingbulb/ClaudiniteEngine/cn/shared/findings"
 
 // The rehearsal's update mode builds a release whose verify refuses every
-// member, to prove the updater opens no PR for it. dev/release/gobuild.sh
+// member, to prove the updater opens no PR for it. dev/build/gobuild.sh
 // accepts this tag only with REHEARSAL=1, so no published binary has it.
 func init() {
 	rules = append(rules, rule{"rehearsal", func(Input) []findings.Finding {

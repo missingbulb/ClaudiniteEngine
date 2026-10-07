@@ -29,7 +29,7 @@ func TestReleasedBuildEmbedsTheCeremonyRoots(t *testing.T) {
 	}
 }
 
-// dev/release/manifest and dev/release/promote verify against every *.pub in
+// dev/release/create/manifest and dev/release/publish/promote verify against every *.pub in
 // cn/shared/trust/roots/, so the directory holds the two ceremony roots and nothing
 // else.
 func TestTheRootsDirectoryHoldsOnlyTheTwoRoots(t *testing.T) {

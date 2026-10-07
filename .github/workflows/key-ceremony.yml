@@ -1,5 +1,5 @@
 # The root key ceremony (#5) and later working-key rotations, run from the
-# browser. dev/cn-keys/README.md is the owner's runbook. This repository is
+# browser. dev/keys/cn-keys/README.md is the owner's runbook. This repository is
 # public: nothing secret is printed, cached or uploaded, and the step
 # summary carries only public keys, certificates and the passphrase-sealed
 # standby root; the roots mode prints the two root public keys alone.
@@ -41,7 +41,7 @@ jobs:
       - env:
           GH_TOKEN: ${{ secrets.CEREMONY_TOKEN }}
           CEREMONY_PASSPHRASE: ${{ secrets.CEREMONY_PASSPHRASE }}
-        run: go run ./dev/cn-keys ceremony --summary "$GITHUB_STEP_SUMMARY"
+        run: go run ./dev/keys/cn-keys ceremony --summary "$GITHUB_STEP_SUMMARY"
 
   rotate:
     if: inputs.mode == 'rotate'
@@ -59,7 +59,7 @@ jobs:
           GH_TOKEN: ${{ secrets.CEREMONY_TOKEN }}
           ROOT_KEY: ${{ secrets.ROOT_KEY }}
           USES: ${{ inputs.uses }}
-        run: go run ./dev/cn-keys rotate --summary "$GITHUB_STEP_SUMMARY" --use "$USES"
+        run: go run ./dev/keys/cn-keys rotate --summary "$GITHUB_STEP_SUMMARY" --use "$USES"
 
   roots:
     if: inputs.mode == 'roots'
@@ -79,4 +79,4 @@ jobs:
           ROOT_KEY: ${{ secrets.ROOT_KEY }}
           STANDBY_SEALED: ${{ secrets.STANDBY_SEALED }}
           CEREMONY_PASSPHRASE: ${{ secrets.CEREMONY_PASSPHRASE }}
-        run: go run ./dev/cn-keys roots --summary "$GITHUB_STEP_SUMMARY"
+        run: go run ./dev/keys/cn-keys roots --summary "$GITHUB_STEP_SUMMARY"

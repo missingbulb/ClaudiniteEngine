@@ -17,7 +17,7 @@ import (
 	"time"
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/version"
-	"github.com/missingbulb/ClaudiniteEngine/dev/release/releasefiles"
+	"github.com/missingbulb/ClaudiniteEngine/dev/release/create/releasefiles"
 )
 
 const testVersion = "1.61001.1"
@@ -50,7 +50,7 @@ func setup(m *testing.M) (int, error) {
 	pkg := "github.com/missingbulb/ClaudiniteEngine/cn/shared/version"
 	builds := []struct{ out, pkg, ldflags string }{
 		{filepath.Join(tools, hostBin), "./cn", "-X " + pkg + ".version=" + testVersion},
-		{filepath.Join(tools, "regstub"), "./dev/release/regstub", ""},
+		{filepath.Join(tools, "regstub"), "./dev/release/verify/stubs/regstub", ""},
 	}
 	errs := make(chan error, len(builds))
 	for _, b := range builds {

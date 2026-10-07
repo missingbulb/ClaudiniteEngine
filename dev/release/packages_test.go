@@ -1,32 +1,9 @@
 package release
 
 import (
-	"flag"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
-
-var update = flag.Bool("update", false, "rewrite golden files")
-
-// golden compares got with testdata/<name>, rewriting it under -update.
-func golden(t *testing.T, name, got string) {
-	t.Helper()
-	p := filepath.Join("testdata", name)
-	if *update {
-		if err := os.WriteFile(p, []byte(got), 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-	want, err := os.ReadFile(p)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got != string(want) {
-		t.Errorf("%s differs from the golden file (go test -update to accept):\n%s", name, got)
-	}
-}
 
 func TestPackagesAreExactlyThe7(t *testing.T) {
 	t.Parallel()

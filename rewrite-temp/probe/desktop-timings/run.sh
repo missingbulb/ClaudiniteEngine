@@ -69,9 +69,9 @@ printf 'module checkprog\n\ngo 1.24\n' > "$work/checkprog/go.mod"
   -- env GOCACHE="$work/gocache" GOPROXY=off GOFLAGS= go -C "$work/checkprog" build -o "$work/checkprog.bin$exe" .
 
 say "4/4 launcher on a warm cache"
-DIST=$work/dist VERSION=1.61001.1 sh dev/release/build.sh > "$work/build.out"
+DIST=$work/dist VERSION=1.61001.1 sh dev/release/create/build.sh > "$work/build.out"
 pin=$(cat "$work/dist/manifest.integrity")
-go build -o "$work/regstub$exe" ./dev/release/regstub
+go build -o "$work/regstub$exe" ./dev/release/verify/stubs/regstub
 "$work/regstub$exe" --dist "$work/dist" --ready "$work/ready" --ca-out "$work/ca.pem" &
 stub_pid=$!
 tries=0

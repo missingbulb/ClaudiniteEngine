@@ -45,28 +45,7 @@ jobs:
         with:
           version: v2.5.0
           install-only: true
-      # golangci-lint's standard linters include govet. actionlint v1.7.11, the last release that
-      # builds on Go 1.24, covers the engine's workflows and the member templates, running
-      # shellcheck over every run: body. Each linter's output is printed whole after the tests.
-      # -count=1: a cached pass cannot see the scripts and binaries a test runs as subprocesses.
-      # -p 8, twice the cores: many packages spend their time waiting on subprocesses and timeouts.
-      # The parity harness is off CI: the port it proved is done (design record 135).
-      - run: |
-          golangci-lint run > golangci.out 2>&1 &
-          gl=$!
-          shellcheck -s sh cn/launcher/launch dev/release/*.sh rewrite-temp/probe/desktop-timings/run.sh rewrite-temp/probe/hook-latency/run.sh rewrite-temp/probe/ci-speed/p75.sh > shellcheck.out 2>&1 &
-          sc=$!
-          go run github.com/rhysd/actionlint/cmd/actionlint@393031adb9afb225ee52ae2ccd7a5af5525e03e8 .github/workflows/*.yml cn/lifecycle/workflows/templates/*.yml > actionlint.out 2>&1 &
-          al=$!
-          rc=0
-          go list ./... | grep -v /parity | xargs go test -short -count=1 -p 8 || rc=1
-          wait "$gl" || rc=1
-          cat golangci.out
-          wait "$sc" || rc=1
-          cat shellcheck.out
-          wait "$al" || rc=1
-          cat actionlint.out
-          exit "$rc"
+      - run: dev/test/check.sh
       # Only main's caches are visible to every branch.
       - if: github.event_name == 'push'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0

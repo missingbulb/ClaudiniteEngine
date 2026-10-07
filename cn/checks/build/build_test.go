@@ -67,11 +67,11 @@ func copyDir(t *testing.T, src, dst string) {
 }
 
 // helloRepo is a member declaring the hello pack, vendored from
-// dev/release/testdata/hello.
+// dev/release/verify/testdata/hello.
 func helloRepo(t *testing.T) string {
 	t.Helper()
 	repo := t.TempDir()
-	copyDir(t, "../../../dev/release/testdata/hello", filepath.Join(repo, ".claudinite/shared/packs/hello"))
+	copyDir(t, "../../../dev/release/verify/testdata/hello", filepath.Join(repo, ".claudinite/shared/packs/hello"))
 	_ = os.WriteFile(filepath.Join(repo, ".claudinite/settings.yaml"), []byte("engine:\n  version: \"1.1.0\"\npacks:\n  declared:\n    - hello\n"), 0o644)
 	return repo
 }
