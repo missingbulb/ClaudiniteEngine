@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -120,7 +121,7 @@ func (w *world) publish(t *testing.T, ver string, o relOpts) {
 
 func TestRedMainSkipsBeforeAnyNpmRead(t *testing.T) {
 	t.Parallel()
-	for state, reason := range map[string]string{"failure": "failure", "cancelled": "cancelled", "in_progress": "in_progress", "none": "no run"} {
+	for state, reason := range map[string]string{"failure": "failure", "cancelled": "cancelled", "in_progress": "in_progress"} {
 		w := newWorld(t, settings.YAML)
 		w.publish(t, v2, relOpts{})
 		w.mainRun(t, state)
@@ -134,6 +135,39 @@ func TestRedMainSkipsBeforeAnyNpmRead(t *testing.T) {
 		}
 		if len(w.hub.called("create-pull")) != 0 {
 			t.Errorf("%s: opened a PR", state)
+		}
+	}
+}
+
+// A main head with no CI run (a merge the job token made starts none)
+// gets one dispatched, and the run waits for its verdict rather than
+// stalling until a person starts one; a run still in flight is pending
+// too, and neither reads npm.
+func TestAMainWithNoCIRunDispatchesOne(t *testing.T) {
+	t.Parallel()
+	for state, pending := range map[string]bool{"none": true, "in_progress": true, "failure": false} {
+		w := newWorld(t, settings.YAML)
+		w.publish(t, v2, relOpts{})
+		w.mainRun(t, state)
+		r, err := EngineRun(w.deps(t), Options{})
+		if err != nil || r.MainPending != pending {
+			t.Errorf("%s: %+v %v", state, r, err)
+		}
+		dispatched := w.hub.called("dispatch ")
+		if state != "none" {
+			if len(dispatched) != 0 {
+				t.Errorf("%s: dispatched %v", state, dispatched)
+			}
+			continue
+		}
+		if r.Verdict != MainCIDispatched || !reflect.DeepEqual(dispatched, []string{"dispatch " + CIWorkflow + " main pr="}) {
+			t.Errorf("%q %v", r.Verdict, dispatched)
+		}
+		if reqs := w.reg.requests(); len(reqs) != 0 {
+			t.Errorf("npm read: %v", reqs)
+		}
+		if !IsVerdict(r.Verdict) {
+			t.Errorf("%q is no verdict form", r.Verdict)
 		}
 	}
 }
