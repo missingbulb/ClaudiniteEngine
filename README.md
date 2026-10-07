@@ -4,7 +4,7 @@ The Claudinite Engine Binary
 ## Layout
 
 - `cn/`: everything compiled into the shipped `cn` binary.
-- `dev/`: the tools that build, sign and release `cn`: the release pipeline (`dev/release`), the key-ceremony tool (`dev/cn-keys`) and the public development keys (`dev/testkeys`).
+- `dev/`: the tools that build, test, sign and release `cn`, by stage ([dev/README.md](dev/README.md)). `.github/workflows/` only calls into it.
 - `docs/`: the documents below.
 - `rewrite-temp/`: tools that exist only for the move off the Node engine: the parity harness, the decision faces only it asks (`cndecide`), the timing probes and `fromnode`, which moves a member off the Node engine (`go run ./rewrite-temp/fromnode --repo DIR`).
 

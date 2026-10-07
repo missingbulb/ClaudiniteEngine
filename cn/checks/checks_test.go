@@ -24,7 +24,7 @@ func service(t *testing.T) Service {
 func helloRepo(t *testing.T) string {
 	t.Helper()
 	repo := t.TempDir()
-	src := "../../dev/release/testdata/hello"
+	src := "../../dev/release/verify/testdata/hello"
 	err := filepath.Walk(src, func(p string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
 			return err

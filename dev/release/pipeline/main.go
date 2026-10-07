@@ -14,8 +14,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/missingbulb/ClaudiniteEngine/dev/release"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/npmreg"
+	"github.com/missingbulb/ClaudiniteEngine/dev/release"
+	"github.com/missingbulb/ClaudiniteEngine/dev/release/publish"
+	"github.com/missingbulb/ClaudiniteEngine/dev/release/verify"
 )
 
 const usage = `usage:
@@ -81,7 +83,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 func publishMode(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("publish-mode", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
-	var in release.ModeInput
+	var in publish.ModeInput
 	fs.StringVar(&in.Tag, "tag", "", "")
 	fs.StringVar(&in.Signing, "signing", "", "")
 	dry := fs.String("dry-run", "", "")
@@ -97,7 +99,7 @@ func publishMode(args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 	in.NpmVersions = string(raw)
-	m := release.PublishMode(in)
+	m := publish.PublishMode(in)
 	if m.Notice != "" {
 		fmt.Fprintf(stderr, "::notice::publish %s: %s\n", m.Name, m.Notice)
 	}
@@ -114,7 +116,7 @@ func npmHolds(args []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 	in.Log = stdout
-	if err := release.NPMHolds(in); err != nil {
+	if err := publish.NPMHolds(in); err != nil {
 		fmt.Fprintln(stderr, err)
 		return 1
 	}
@@ -122,10 +124,10 @@ func npmHolds(args []string, stdout, stderr io.Writer) int {
 }
 
 // holdsFlags reads npm-holds' flags; it waits as long as cn update does.
-func holdsFlags(args []string) (release.HoldsInput, bool) {
+func holdsFlags(args []string) (publish.HoldsInput, bool) {
 	fs := flag.NewFlagSet("npm-holds", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
-	in := release.HoldsInput{HTTP: &http.Client{Timeout: 30 * time.Second}, Every: 5 * time.Second}
+	in := publish.HoldsInput{HTTP: &http.Client{Timeout: 30 * time.Second}, Every: 5 * time.Second}
 	fs.StringVar(&in.Dist, "dist", "", "")
 	fs.StringVar(&in.Version, "version", "", "")
 	fs.StringVar(&in.Channel, "channel", "", "")
@@ -158,9 +160,9 @@ func blockerIssue(args []string, stdout, stderr io.Writer) int {
 	if err != nil {
 		raw = []byte("(no log: " + err.Error() + ")")
 	}
-	title, body := release.BlockerIssue(*ver, *leg, *runURL, string(raw))
+	title, body := verify.BlockerIssue(*ver, *leg, *runURL, string(raw))
 	if *gate == "live-packs" {
-		title, body = release.LivePacksBlockerIssue(*ver, *runURL, string(raw))
+		title, body = verify.LivePacksBlockerIssue(*ver, *runURL, string(raw))
 	}
 	fmt.Fprintf(stdout, "%s\n\n%s", title, body)
 	return 0
@@ -185,7 +187,7 @@ func readVersionsDir(dir string) (map[string]string, error) {
 func deprecateCommands(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("deprecate-commands", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
-	var in release.DeprecateInput
+	var in publish.DeprecateInput
 	fs.StringVar(&in.Action, "action", "", "")
 	fs.StringVar(&in.Version, "version", "", "")
 	fs.StringVar(&in.Reason, "reason", "", "")
@@ -199,7 +201,7 @@ func deprecateCommands(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "pipeline: %v\n", err)
 		return 1
 	}
-	d, err := release.DeprecateCommands(in)
+	d, err := publish.DeprecateCommands(in)
 	if err != nil {
 		fmt.Fprintf(stderr, "pipeline: %v\n", err)
 		return 1
@@ -219,7 +221,7 @@ func deprecateCommands(args []string, stdout, stderr io.Writer) int {
 func unpublishCommands(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("unpublish-commands", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
-	var in release.UnpublishInput
+	var in publish.UnpublishInput
 	fs.StringVar(&in.Version, "version", "", "")
 	dir := fs.String("versions-dir", "", "")
 	tags := fs.String("dist-tags", "", "")
@@ -238,7 +240,7 @@ func unpublishCommands(args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 	in.DistTags = string(raw)
-	u, err := release.UnpublishCommands(in)
+	u, err := publish.UnpublishCommands(in)
 	if err != nil {
 		fmt.Fprintf(stderr, "::error::%v\n", err)
 		return 1

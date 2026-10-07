@@ -47,7 +47,7 @@ func rootsOf(keys ...ed25519.PrivateKey) []ed25519.PublicKey {
 }
 
 // tgz writes an npm-shaped tarball, every entry under package/, as
-// dev/release/build.sh's npm pack does.
+// dev/release/create/build.sh's npm pack does.
 func tgz(t *testing.T, files map[string][]byte) []byte {
 	t.Helper()
 	var buf bytes.Buffer
