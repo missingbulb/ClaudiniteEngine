@@ -299,19 +299,16 @@ func engine(d Deps, o Options, res *EngineResult) (string, error) {
 }
 
 // npm serves a version's tarballs minutes after its packument lists it;
-// fetchServed tries every servedEvery for up to servedWait before the 404
-// is an error.
-const (
-	servedEvery = 20 * time.Second
-	servedWait  = 10 * time.Minute
-)
+// fetchServed tries every servedEvery for up to npmreg.ServeWait before
+// the 404 is an error.
+const servedEvery = 20 * time.Second
 
 func fetchServed(d Deps, pkg, ver string, p *npmreg.Packument) (Fetched, error) {
 	for waited := time.Duration(0); ; waited += servedEvery {
 		got, err := Fetch(FetchInput{Registry: d.Registry, Package: pkg, Version: ver, Packument: p,
 			Roots: d.Roots, CacheRoot: d.CacheRoot, Platform: d.Platform, Now: d.Now()})
 		var ns *npmreg.NotServedError
-		if !errors.As(err, &ns) || waited >= servedWait {
+		if !errors.As(err, &ns) || waited >= npmreg.ServeWait {
 			return got, err
 		}
 		fmt.Fprintf(d.Out, "npm lists %s but does not serve %s yet; trying again in %s\n", ver, ns.URL, servedEvery)

@@ -188,6 +188,7 @@ jobs:
     env:
       VERSION: ${{ needs.build.outputs.version }}
       TAG: ${{ needs.build.outputs.tag }}
+      CHANNEL: ${{ needs.build.outputs.channel }}
       PLATFORMS: ${{ needs.build.outputs.platforms }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -245,7 +246,7 @@ jobs:
         run: dev/release/publish.sh --tag "$TAG" --auth oidc
       - if: steps.mode.outputs.mode == 'real'
         name: npm holds the bytes this run built
-        run: go run ./dev/release/pipeline npm-holds --dist dist --version "$VERSION"
+        run: go run ./dev/release/pipeline npm-holds --dist dist --version "$VERSION" --channel "$CHANNEL" --repo "$GITHUB_REPOSITORY"
       - if: steps.mode.outputs.mode != 'real'
         run: |
           dev/release/publish.sh --tag "$TAG" --dry-run

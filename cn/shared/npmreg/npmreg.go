@@ -121,6 +121,11 @@ type NotServedError struct {
 
 func (e *NotServedError) Error() string { return e.URL + ": " + e.Status }
 
+// ServeWait is how long after a publish npm may take to serve a version
+// before its absence is an error, for every reader that waits on it: npm
+// answers a publish 202 and can take minutes to list the version.
+const ServeWait = 10 * time.Minute
+
 // maxPackument bounds a packument, which grows with every version and is
 // not under the tarball cap.
 const maxPackument = 32 << 20

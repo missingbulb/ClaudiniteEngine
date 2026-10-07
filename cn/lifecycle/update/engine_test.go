@@ -13,6 +13,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/flatdecl"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/gitcmd"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/githubapi"
+	"github.com/missingbulb/ClaudiniteEngine/cn/shared/npmreg"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/settings"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/version"
 )
@@ -914,7 +915,7 @@ func TestProposeWaitsForNpmToServeTheTarballs(t *testing.T) {
 		t.Errorf("the wait is not reported:\n%s", w.out)
 	}
 
-	// A tarball still missing after ten minutes is an error, not a skip.
+	// A tarball still missing after npm's serve wait is an error, not a skip.
 	w = newWorld(t, settings.YAML)
 	w.publish(t, v2, relOpts{})
 	w.reg.notServed["/"+pkg+"/-/cli-"+v2+".tgz"] = 1000
@@ -928,7 +929,7 @@ func TestProposeWaitsForNpmToServeTheTarballs(t *testing.T) {
 	for _, s := range slept {
 		total += s
 	}
-	if total != 10*time.Minute {
-		t.Errorf("waited %v in all, want 10m", total)
+	if total != npmreg.ServeWait {
+		t.Errorf("waited %v in all, want npmreg.ServeWait (%v)", total, npmreg.ServeWait)
 	}
 }
