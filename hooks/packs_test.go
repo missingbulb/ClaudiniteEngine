@@ -202,8 +202,8 @@ func TestSessionStartLocalAndTempPacks(t *testing.T) {
 	if !strings.Contains(ctx, "pack local/mine: requires absent, which is not declared;") {
 		t.Errorf("no note for the undeclared requirement:\n%s", ctx)
 	}
-	if !strings.Contains(ctx, "pack local/mine: its coded checks") {
-		t.Errorf("no coded-checks line for a skill's checks.mjs:\n%s", ctx)
+	if !strings.Contains(ctx, "pack local/mine: its JavaScript checks") {
+		t.Errorf("no JavaScript-checks line for a skill's checks.mjs:\n%s", ctx)
 	}
 	a := assemble(repo, "0.0.0")
 	if a.skills["shared"].Body != "workflow" || a.skills["shared"].Name != "shared" {
@@ -246,10 +246,32 @@ func TestSessionStartMountsSkills(t *testing.T) {
 
 func TestSessionStartNamesJavaScriptItIgnores(t *testing.T) {
 	repo := member(t, []string{"basics"}, map[string]map[string]string{
-		"basics": {"pack.json": `{"version": "60928.1", "minEngineVersion": "1.60928.1"}`, "worldRules/x.mjs": "export default 1", "RULES.md": "- r\n"},
+		"basics": {"pack.json": `{"version": "60928.1", "minEngineVersion": "1.60928.1"}`, "worldRules/x.mjs": "export default 1", "RULES.md": "- r\n",
+			"tasks/release/task.json": `{"code_work": "node release.mjs"}`, "tasks/release/release.mjs": "", "tasks/release/preconditions.mjs": ""},
 	})
 	out, _ := hook(t, Handler{ProjectDir: repo}, "session-start", startIn)
-	if ctx := contextOf(t, out); !strings.Contains(ctx, "pack basics: its coded checks (worldRules/, workRules/, skills/*/checks.mjs) and tasks are not run by this engine; its declared checks are") {
+	ctx := contextOf(t, out)
+	if !strings.Contains(ctx, "pack basics: its JavaScript checks (worldRules/, workRules/, skills/*/checks.mjs) are not run by this engine; its declared checks are") {
+		t.Errorf("%s", ctx)
+	}
+	if strings.Contains(ctx, "task") {
+		t.Errorf("a task with a task.json runs, its .mjs included, yet the context names tasks:\n%s", ctx)
+	}
+}
+
+// A task declared by a task.mjs alone is never discovered, so the note
+// names it; one beside a task.json is.
+func TestSessionStartNamesATaskDeclaredInJavaScript(t *testing.T) {
+	repo := member(t, []string{"basics"}, map[string]map[string]string{
+		"basics": {"pack.json": `{"version": "60928.1", "minEngineVersion": "1.60928.1"}`, "RULES.md": "- r\n",
+			"tasks/old/task.mjs": "export default {}", "tasks/new/task.json": `{"code_work": "node w.mjs"}`, "tasks/new/task.mjs": "", "tasks/new/w.mjs": ""},
+	})
+	out, _ := hook(t, Handler{ProjectDir: repo}, "session-start", startIn)
+	ctx := contextOf(t, out)
+	if !strings.Contains(ctx, "pack basics: tasks/old is declared by a task.mjs, which this engine does not read, so it never runs; write its task.json") {
+		t.Errorf("%s", ctx)
+	}
+	if strings.Contains(ctx, "tasks/new") || strings.Contains(ctx, "JavaScript checks") {
 		t.Errorf("%s", ctx)
 	}
 }

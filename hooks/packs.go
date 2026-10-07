@@ -10,10 +10,12 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/missingbulb/ClaudiniteEngine/shared/descriptor"
 	"github.com/missingbulb/ClaudiniteEngine/shared/interview"
 	"github.com/missingbulb/ClaudiniteEngine/shared/packset"
 	"github.com/missingbulb/ClaudiniteEngine/shared/settings"
 	"github.com/missingbulb/ClaudiniteEngine/shared/skillfm"
+	"github.com/missingbulb/ClaudiniteEngine/shared/taskspec"
 )
 
 // SkillsDir is where Claude Code reads a project's skills.
@@ -59,8 +61,11 @@ func assemble(repo, engine string) assembled {
 		if path := p.ProsePath(); path != "" {
 			body, _ = os.ReadFile(path)
 		}
-		if hasCoded(p.Dir) {
-			a.notes = append(a.notes, fmt.Sprintf("pack %s: its coded checks (worldRules/, workRules/, skills/*/checks.mjs) and tasks are not run by this engine; its declared checks are", p.Token()))
+		if hasJSChecks(p.Dir) {
+			a.notes = append(a.notes, fmt.Sprintf("pack %s: its JavaScript checks (worldRules/, workRules/, skills/*/checks.mjs) are not run by this engine; its declared checks are", p.Token()))
+		}
+		for _, task := range moduleTasks(p.Dir) {
+			a.notes = append(a.notes, fmt.Sprintf("pack %s: tasks/%s is declared by a task.mjs, which this engine does not read, so it never runs; write its task.json", p.Token(), task))
 		}
 		n := 0
 		for _, s := range p.Skills {
@@ -113,11 +118,12 @@ func pendingLine(set packset.Set) string {
 	return "[cn] adoption questions pending (" + strings.Join(ids, ", ") + "): in an interactive session, at a natural moment, ask the person and record each with cn settings answer; an unattended session ignores this"
 }
 
-// hasCoded reports whether a pack ships modules the Node engine ran and
-// this engine does not: rule modules, tasks, or a skill's checks.mjs.
-func hasCoded(dir string) bool {
+// hasJSChecks reports whether a pack ships the Node engine's coded
+// rules, which this engine does not run: rule modules or a skill's
+// checks.mjs.
+func hasJSChecks(dir string) bool {
 	found := false
-	for _, sub := range []string{"worldRules", "workRules", "tasks"} {
+	for _, sub := range []string{"worldRules", "workRules"} {
 		_ = filepath.WalkDir(filepath.Join(dir, sub), func(path string, d fs.DirEntry, err error) error {
 			if err == nil && !d.IsDir() && strings.HasSuffix(path, ".mjs") {
 				found = true
@@ -130,6 +136,28 @@ func hasCoded(dir string) bool {
 		found = true
 	}
 	return found
+}
+
+// moduleTasks are a pack's task folders declared by the Node engine's
+// task.mjs alone, sorted. Task discovery reads only a task descriptor, so
+// these never run; a folder with one runs, its .mjs workers and
+// preconditions included.
+func moduleTasks(dir string) []string {
+	entries, _ := os.ReadDir(filepath.Join(dir, "tasks"))
+	var out []string
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		task := filepath.Join(dir, "tasks", e.Name())
+		if st, err := os.Stat(filepath.Join(task, "task.mjs")); err != nil || !st.Mode().IsRegular() {
+			continue
+		}
+		if _, _, err := descriptor.Find(task, taskspec.DeclarationName); errors.Is(err, descriptor.ErrAbsent) {
+			out = append(out, e.Name())
+		}
+	}
+	return out
 }
 
 // mount copies each offered skill to .claude/skills/<name>/SKILL.md, the

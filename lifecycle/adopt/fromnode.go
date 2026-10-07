@@ -89,6 +89,9 @@ func FromNode(in Input) error {
 	if err != nil {
 		return fmt.Errorf("the imported settings do not read back: %w", err)
 	}
+	if err := ownPacksLoad(in.Repo, declared.Local); err != nil {
+		return err
+	}
 	chosen, err := resolve(in.Reader, declared.Declared, nil, packsChannel(in.Channel), got.Version, in.Out)
 	if err != nil {
 		return err
@@ -160,6 +163,21 @@ func FromNode(in Input) error {
 		First: []string{"git rm " + node.File + " (the Node declaration, now read into .claudinite/settings.yaml)"}, Out: in.Out})
 	if err != nil {
 		return halfMoved(in.Repo, err)
+	}
+	return nil
+}
+
+// ownPacksLoad refuses the move when a declared local pack would not
+// load, since the rules index and the checks would leave it out.
+func ownPacksLoad(repo string, local []string) error {
+	var bad []string
+	for _, name := range local {
+		if _, err := packset.LoadLocal(repo, name); err != nil {
+			bad = append(bad, fmt.Sprintf("%s%s: %v", settings.LocalPrefix, name, err))
+		}
+	}
+	if len(bad) > 0 {
+		return fmt.Errorf("cn would not load the declared local pack %s; fix or undeclare it, and run the move again; the repo is as it was", strings.Join(bad, "; and "))
 	}
 	return nil
 }
