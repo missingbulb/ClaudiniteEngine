@@ -35,5 +35,35 @@
         "source": "generated"
       }
     ]
+  },
+  "divergence": "record-145",
+  "cn": {
+    "fault": null,
+    "pack": "acme-pack",
+    "problems": [],
+    "repo": [
+      "h",
+      "n"
+    ],
+    "widgets": [
+      {
+        "glyph": null,
+        "id": "h",
+        "kind": "heatmap",
+        "known": false,
+        "label": "heat",
+        "noun": "",
+        "source": "generated"
+      },
+      {
+        "glyph": null,
+        "id": "n",
+        "kind": null,
+        "known": false,
+        "label": "n",
+        "noun": "",
+        "source": "generated"
+      }
+    ]
   }
 }

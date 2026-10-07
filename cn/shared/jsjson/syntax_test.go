@@ -35,7 +35,7 @@ func TestSyntaxErrorAgainstNode(t *testing.T) {
 	if err != nil || !strings.HasPrefix(string(out), "v22.") {
 		t.Skip("needs Node 22 on PATH")
 	}
-	seeds := []string{`{"widgets": [{"id": "a", "kind": "stat", "noun": "n"}], "repo": ["a"], "fleet": {"member": "a"}}`,
+	seeds := []string{`{"widgets": [{"id": "a", "kind": "stat", "noun": "n"}], "repo": ["a"], "views": {"main": "a"}}`,
 		"[1, -2.5e+3, true, false, null, \"é\\u00e9\\n\", {\"k\": []}]", "{\n  \"a\": {\"b\": [0, 10, \"x\"]}\r\n}"}
 	alphabet := []string{"{", "}", "[", "]", ":", ",", "\"", "\\", "-", "0", "1", ".", "e", "+", "t", "n", "u", "x", " ", "\n", "\r", "\x01", "é", "😀"}
 	r := rand.New(rand.NewSource(65))

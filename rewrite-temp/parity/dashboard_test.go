@@ -21,8 +21,6 @@ import (
 //	             packs/<pack>/dashboard.json (the file field dropped)
 //	usable       {files}: the descriptor-usable rule over a tree, cn's
 //	             `cndecide dashboard decide usable --world`
-//	dormancy     {configs}: the page's own isDormant, cn's `cn fleet decide
-//	             dormancy --world`
 //	flat-member  {files}: no Node answer, since no Node engine writes the
 //	             member file; cn writes it with `cn tasks flat --write` over
 //	             the tree, and expect is the file written by hand once
@@ -69,8 +67,6 @@ func askDashboard(e Engine, f UpdateFixture, scratch string) (any, error) {
 			args, strip = []string{"dashboard", "descriptor", "--json", file}, "file"
 		case "usable":
 			args = []string{"dashboard", "decide", "usable", "--world", in}
-		case "dormancy":
-			args = []string{"fleet", "decide", "dormancy", "--world", in}
 		case "flat-member":
 			return flatMember(e, dir, f.Input)
 		default:

@@ -18,7 +18,7 @@ import (
 // order, the claim arbiter) asked one fixture at a time. A fixture is
 // testdata/tasks/<kind>/<name>.json holding {"input": …, "expect": …};
 // the Node engine answers it through testdata/shims/tasks.mjs over the
-// frozen shelf, cn through `cn tasks <kind> --world <input>`, and both
+// frozen shelf, cn through `cndecide tasks <kind> --world <input>`, and both
 // answers must equal expect. CLAUDINITE_PARITY_RECORD=1 writes the Node
 // answer into expect: a fixture is written against the Node engine first.
 // Where cn decides otherwise on purpose, the fixture carries "divergence"
@@ -98,7 +98,7 @@ func askTasks(e Engine, f TaskFixture, scratch string) (any, error) {
 		}
 		stdout, stderr, code, err = run(scratch, []string{nodeEnv + "=" + e.Root}, string(f.Input), "node", shim, f.Kind)
 	case Cn:
-		stdout, stderr, code, err = run(scratch, e.env(scratch), "", e.Binary, "tasks", f.Kind, "--world", in)
+		stdout, stderr, code, err = run(scratch, e.env(scratch), "", e.Decide, "tasks", f.Kind, "--world", in)
 	default:
 		return nil, fmt.Errorf("no tasks face on %s", e.Name())
 	}

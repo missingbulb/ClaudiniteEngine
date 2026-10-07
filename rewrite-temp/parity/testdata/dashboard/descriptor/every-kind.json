@@ -58,5 +58,55 @@
         "source": "generated"
       }
     ]
+  },
+  "divergence": "record-145",
+  "cn": {
+    "fault": null,
+    "pack": "acme-pack",
+    "problems": [],
+    "repo": [
+      "s",
+      "e",
+      "w",
+      "l"
+    ],
+    "widgets": [
+      {
+        "glyph": null,
+        "id": "s",
+        "kind": "stat",
+        "known": true,
+        "label": "a stat",
+        "noun": "things",
+        "source": "generated"
+      },
+      {
+        "glyph": null,
+        "id": "e",
+        "kind": "event",
+        "known": true,
+        "label": "released",
+        "noun": "",
+        "source": "generated"
+      },
+      {
+        "glyph": null,
+        "id": "w",
+        "kind": "window",
+        "known": true,
+        "label": "merged",
+        "noun": "PRs",
+        "source": "generated"
+      },
+      {
+        "glyph": null,
+        "id": "l",
+        "kind": "list",
+        "known": true,
+        "label": "recent",
+        "noun": "",
+        "source": "generated"
+      }
+    ]
   }
 }

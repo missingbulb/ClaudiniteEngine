@@ -171,7 +171,6 @@ func cmdScheduleRun(args []string, stdout io.Writer, env world.Env) (err error) 
 	}
 	meter := &queue.CostMeter{Workflow: "scheduler", RunID: env("GITHUB_RUN_ID"), Now: time.Now,
 		Calls: func() *int { n := int(client.CallCount()); return &n }}
-	readFleet := fleetSignal(env.Repo())
 	var terms *localterms.Asker
 	if unpacked, err := runner.Unpack(paths.CacheRoot()); err != nil {
 		fmt.Fprintf(stdout, "! could not unpack the task runner (%v) — a task naming its own terms is not filed and the run fails\n", err)
@@ -181,11 +180,11 @@ func cmdScheduleRun(args []string, stdout io.Writer, env world.Env) (err error) 
 	}
 	out, runErr := schedule.Run(schedule.RunIn{
 		Issues: issues, Tasks: r.tasks, Now: clock.Now(), Disabled: r.disabledTasks(),
-		PackConfig: r.packConfig, Wake: *wake, HasFleet: readFleet != nil, LocalTerms: terms,
+		PackConfig: r.packConfig, Wake: *wake, LocalTerms: terms,
 		Collector: func(items []workitem.Issue) *signals.Collector {
 			return &signals.Collector{Issues: issues, Repo: gw, DefaultBranch: env.DefaultBranch(),
 				Packs: r.set.Declared.Declared, PackConfig: r.packConfig, EngineVersion: version.Version(),
-				Items: items, Local: signals.ReadLocal(r.root, r.set.Declared.Declared, r.packConfig), Fleet: readFleet}
+				Items: items, Local: signals.ReadLocal(r.root, r.set.Declared.Declared, r.packConfig)}
 		},
 		Log: func(s string) { fmt.Fprintln(stdout, s) },
 		SetOutput: func(k, v string) error {

@@ -31,14 +31,14 @@ func readerNames(r *packs.Reader) string {
 }
 
 func TestPackReaderReadsTheRepoSources(t *testing.T) {
-	member := writeSettings(t, devPin+"packs:\n  sources:\n    - \"acme/fleet\"\n  declared:\n    - hello\n")
+	member := writeSettings(t, devPin+"packs:\n  sources:\n    - \"acme/packs\"\n  declared:\n    - hello\n")
 	r, closer, err := packReader(member, nil, io.Discard)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer closer()
-	if got := readerNames(r); got != "acme/fleet" {
-		t.Errorf("a fleet member reads %s, not its manager alone", got)
+	if got := readerNames(r); got != "acme/packs" {
+		t.Errorf("a repo listing one source reads %s, not that source alone", got)
 	}
 	single := writeSettings(t, devPin+"packs:\n  declared:\n    - hello\n")
 	r, closer, err = packReader(single, nil, io.Discard)

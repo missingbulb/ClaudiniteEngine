@@ -225,7 +225,7 @@ func TestWorkWritesTheQueueMarkersAndTheRequestFile(t *testing.T) {
 	t.Parallel()
 	r := unpacked(t)
 	dir := taskDir(t, map[string]string{
-		"fail.mjs":    "import { fail } from '@claudinite/sdk';\nexport function worker() { fail('action', 'FLEET_GITHUB_TOKEN lacks Actions: write'); }\n",
+		"fail.mjs":    "import { fail } from '@claudinite/sdk';\nexport function worker() { fail('action', 'ACME_TOKEN lacks Actions: write'); }\n",
 		"triage.mjs":  "export const worker = () => ({ triage: { kind: 'decision', detail: 'two releases disagree' } });\n",
 		"requeue.mjs": "import { requeue } from '@claudinite/sdk';\nexport const worker = () => requeue('2026-10-05T12:00:00Z', 'not yet live');\n",
 		"agent.mjs":   "import { requestAgent } from '@claudinite/sdk';\nexport const worker = () => requestAgent({ delivered: { pr: 9 }, reason: { code: 'gate' } });\n",
@@ -234,7 +234,7 @@ func TestWorkWritesTheQueueMarkersAndTheRequestFile(t *testing.T) {
 	run := func(module string, extra ...string) Result {
 		return r.Work(Step{Dir: dir, Env: baseEnv(extra...), Timeout: 30 * time.Second}, module, nil, "")
 	}
-	if res := run("fail.mjs"); res.OK || !strings.Contains(res.Output, "claudinite-needs-human: action - FLEET_GITHUB_TOKEN lacks Actions: write") {
+	if res := run("fail.mjs"); res.OK || !strings.Contains(res.Output, "claudinite-needs-human: action - ACME_TOKEN lacks Actions: write") {
 		t.Errorf("%+v %s", res, res.Output)
 	}
 	if res := run("triage.mjs"); res.OK || res.Code != 1 || !strings.Contains(res.Output, "claudinite-needs-human: decision - two releases disagree") {

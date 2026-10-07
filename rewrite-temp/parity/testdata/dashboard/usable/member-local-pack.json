@@ -11,5 +11,7 @@
       "fix": "give the widget a short \"noun\" — what the quantity is of — so the phrase reads \"18 stars\" rather than \"18\"",
       "what": "its fleet mini-card \"a\" is a stat with no \"noun\", so it would render as a bare number"
     }
-  ]
+  ],
+  "divergence": "record-145",
+  "cn": []
 }

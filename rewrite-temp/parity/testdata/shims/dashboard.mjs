@@ -8,7 +8,6 @@
 //               findings over that one file at packs/<pack>/dashboard.json,
 //               in the shape `cn dashboard descriptor --json` prints
 //   usable      the descriptor-usable rule's run over a tree of files
-//   dormancy    the page's isDormant over each declaration
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -46,10 +45,6 @@ const cores = {
   },
   async usable() {
     return usable(input.files);
-  },
-  async dormancy() {
-    const d = await dashboard('src/read/dormancy.mjs');
-    return input.configs.map((cfg) => d.isDormant(cfg));
   },
 };
 

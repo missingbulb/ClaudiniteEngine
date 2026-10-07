@@ -5850,7 +5850,7 @@
       "problems": [
         {
           "what": "\"invocation_endpoint\" is not a kebab-case endpoint name",
-          "fix": "name a key from the repo's taskScheduler.agenticTaskInvocationEndpoints map, e.g. \"fleet\" — never a URL"
+          "fix": "name a key from the repo's taskScheduler.agenticTaskInvocationEndpoints map, e.g. \"default\" — never a URL"
         }
       ],
       "scheduled": true,
@@ -5886,7 +5886,7 @@
       "problems": [
         {
           "what": "\"invocation_endpoint\" is not a kebab-case endpoint name",
-          "fix": "name a key from the repo's taskScheduler.agenticTaskInvocationEndpoints map, e.g. \"fleet\" — never a URL"
+          "fix": "name a key from the repo's taskScheduler.agenticTaskInvocationEndpoints map, e.g. \"default\" — never a URL"
         }
       ],
       "scheduled": true,
@@ -5922,7 +5922,7 @@
       "problems": [
         {
           "what": "\"invocation_endpoint\" is not a kebab-case endpoint name",
-          "fix": "name a key from the repo's taskScheduler.agenticTaskInvocationEndpoints map, e.g. \"fleet\" — never a URL"
+          "fix": "name a key from the repo's taskScheduler.agenticTaskInvocationEndpoints map, e.g. \"default\" — never a URL"
         }
       ],
       "scheduled": true,

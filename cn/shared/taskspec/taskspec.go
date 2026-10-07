@@ -48,7 +48,7 @@ var ModelFamilies = []string{"opus", "sonnet", "haiku", "none"}
 var InterruptPolicies = []string{"requeue", "needs-human"}
 
 // SignalNames are the signal collectors.
-var SignalNames = []string{"commits", "prs", "issues", "branches", "release", "localPacks", "sharedMount", "conversationLogs", "stamp", "fleet", "request"}
+var SignalNames = []string{"commits", "prs", "issues", "branches", "release", "localPacks", "sharedMount", "conversationLogs", "stamp", "request"}
 
 // DescriptionMaxWords bounds a description to a summary.
 const DescriptionMaxWords = 50
@@ -389,7 +389,7 @@ func Validate(raw any, terms Terms) []Problem {
 	}
 	if v, present := d["invocation_endpoint"]; present {
 		if s, ok := v.(string); !ok || !isKebab(s) {
-			bad(`"invocation_endpoint" is not a kebab-case endpoint name`, `name a key from the repo's taskScheduler.agenticTaskInvocationEndpoints map, e.g. "fleet" — never a URL`)
+			bad(`"invocation_endpoint" is not a kebab-case endpoint name`, `name a key from the repo's taskScheduler.agenticTaskInvocationEndpoints map, e.g. "default" — never a URL`)
 		}
 	}
 	secrets, secretsAreList := d["code_work_required_secrets"].([]any)

@@ -23,5 +23,23 @@
         "source": "generated"
       }
     ]
+  },
+  "divergence": "record-145",
+  "cn": {
+    "fault": null,
+    "pack": "acme-pack",
+    "problems": [],
+    "repo": [],
+    "widgets": [
+      {
+        "glyph": null,
+        "id": "e",
+        "kind": "event",
+        "known": true,
+        "label": "e",
+        "noun": "",
+        "source": "generated"
+      }
+    ]
   }
 }

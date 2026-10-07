@@ -84,7 +84,7 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "22"
-      # The dashboard mode's step 7 publishes the real dashboard pack, from ClaudinitePacks at the pinned commit.
+      # The dashboard mode's step 5 publishes the real dashboard pack, from ClaudinitePacks at the pinned commit.
       - id: packs
         run: echo "ref=$(cat dev/claudinitepacks.ref)" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -136,7 +136,7 @@ jobs:
         working-directory: claudinitepacks
         env:
           CLAUDINITE_CN: ${{ runner.temp }}/cn
-      # The dashboard pack's suite, whose copies of the engine's predicates are held to this cn.
+      # The dashboard pack's suite, against this cn.
       - run: node --test 'packs/claudinite-dashboard/test/**/*.test.mjs'
         working-directory: claudinitepacks
         env:

@@ -37,7 +37,6 @@ The failures worth a gate, by who pays for them:
 | A pack uses engine behavior newer than its `minEngineVersion` | Members on older engines | Engine floor matrix |
 | A check fires falsely and turns CI red | Every member: their updates stop, since updates skip while main is red | Differential findings on canaries |
 | A workflow patch in an update's issue does not apply or does not turn its task back on | Members who need that task | A canary applies the patch |
-| A fleet run's owner check breaks | Paid fleet sweeps refuse, or run unverified | A fleet manager canary's scheduled sweep |
 
 The gates below are layered so the cheap ones run on every pull request and the expensive, real ones run once per release.
 

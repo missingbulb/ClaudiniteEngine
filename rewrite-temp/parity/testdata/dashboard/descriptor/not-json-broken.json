@@ -15,5 +15,18 @@
     ],
     "repo": null,
     "widgets": null
+  },
+  "divergence": "record-145",
+  "cn": {
+    "fault": "its dashboard.json is not valid JSON — Expected property name or '}' in JSON at position 2 (line 1 column 3)",
+    "pack": "acme-pack",
+    "problems": [
+      {
+        "fix": "make it satisfy packs/claudinite-dashboard/dashboard-descriptor.schema.json — at minimum a \"widgets\" array whose entries each carry an \"id\" and a \"kind\" from stat, event, window, list",
+        "what": "the dashboard reader rejects it: its dashboard.json is not valid JSON — Expected property name or '}' in JSON at position 2 (line 1 column 3)"
+      }
+    ],
+    "repo": null,
+    "widgets": null
   }
 }

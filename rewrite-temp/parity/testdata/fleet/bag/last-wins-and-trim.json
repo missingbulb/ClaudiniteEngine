@@ -1,9 +1,0 @@
-{
-  "input": {
-    "raw": "  REPOS = a  \nREPOS=b c\nKEY_2=x=y"
-  },
-  "expect": {
-    "KEY_2": "x=y",
-    "REPOS": "b c"
-  }
-}

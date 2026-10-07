@@ -7,9 +7,9 @@ import (
 )
 
 var sourcesSamples = map[Format]string{
-	YAML: "engine:\n" + enginePart + "packs:\n  sources:\n    - \"acme/fleet\"\n    - \"https://packs.example.com\"\n  declared:\n    - hello\n",
-	TOML: "[engine]\nversion = \"1.1.0\"\nmanifest = \"" + pin1 + "\"\n\n[packs]\nsources = [\"acme/fleet\", \"https://packs.example.com\"]\ndeclared = [\"hello\"]\n",
-	JSON: "{\n  \"engine\": {\"version\": \"1.1.0\", \"manifest\": \"" + pin1 + "\"},\n  \"packs\": {\"sources\": [\"acme/fleet\", \"https://packs.example.com\"], \"declared\": [\"hello\"]}\n}\n",
+	YAML: "engine:\n" + enginePart + "packs:\n  sources:\n    - \"acme/packs\"\n    - \"https://packs.example.com\"\n  declared:\n    - hello\n",
+	TOML: "[engine]\nversion = \"1.1.0\"\nmanifest = \"" + pin1 + "\"\n\n[packs]\nsources = [\"acme/packs\", \"https://packs.example.com\"]\ndeclared = [\"hello\"]\n",
+	JSON: "{\n  \"engine\": {\"version\": \"1.1.0\", \"manifest\": \"" + pin1 + "\"},\n  \"packs\": {\"sources\": [\"acme/packs\", \"https://packs.example.com\"], \"declared\": [\"hello\"]}\n}\n",
 }
 
 func TestReadPacksSources(t *testing.T) {
@@ -18,7 +18,7 @@ func TestReadPacksSources(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", f, err)
 		}
-		if !reflect.DeepEqual(p.Sources, []string{"acme/fleet", "https://packs.example.com"}) {
+		if !reflect.DeepEqual(p.Sources, []string{"acme/packs", "https://packs.example.com"}) {
 			t.Errorf("%s: sources %v", f, p.Sources)
 		}
 	}
@@ -34,10 +34,10 @@ func TestReadPacksRefusesBadSources(t *testing.T) {
 	cases := map[string]string{
 		"empty":     `[]`,
 		"not text":  `[3]`,
-		"not list":  `"acme/fleet"`,
+		"not list":  `"acme/packs"`,
 		"plain url": `["http://packs.example.com"]`,
-		"bare name": `["fleet"]`,
-		"twice":     `["acme/fleet", "acme/fleet"]`,
+		"bare name": `["packs"]`,
+		"twice":     `["acme/packs", "acme/packs"]`,
 	}
 	for name, list := range cases {
 		raw := "{\"engine\": {\"version\": \"1.1.0\", \"manifest\": \"" + pin1 + "\"}, \"packs\": {\"sources\": " + list + "}}"
@@ -49,7 +49,7 @@ func TestReadPacksRefusesBadSources(t *testing.T) {
 
 func TestSetSources(t *testing.T) {
 	for f, c := range entrySamples {
-		out, err := SetSources([]byte(c.raw), f, []string{"acme/fleet"})
+		out, err := SetSources([]byte(c.raw), f, []string{"acme/packs"})
 		if err != nil {
 			t.Fatalf("%s: %v", f, err)
 		}
@@ -57,7 +57,7 @@ func TestSetSources(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v\n%s", f, err, out)
 		}
-		if !reflect.DeepEqual(p.Sources, []string{"acme/fleet"}) || strings.Join(p.Declared, ",") != "hello,acme-pack" || p.Channel != "canary" {
+		if !reflect.DeepEqual(p.Sources, []string{"acme/packs"}) || strings.Join(p.Declared, ",") != "hello,acme-pack" || p.Channel != "canary" {
 			t.Errorf("%s: %+v\n%s", f, p, out)
 		}
 		before, after := outside(t, []byte(c.raw), f)
@@ -69,7 +69,7 @@ func TestSetSources(t *testing.T) {
 }
 
 func TestSetSourcesRefusesWhatItWouldNotRead(t *testing.T) {
-	if _, err := SetSources([]byte(sourcesSamples[YAML]), YAML, []string{"fleet"}); err == nil {
+	if _, err := SetSources([]byte(sourcesSamples[YAML]), YAML, []string{"packs"}); err == nil {
 		t.Fatal("wrote a source no reader takes")
 	}
 	if _, err := SetSources([]byte(sourcesSamples[YAML]), YAML, nil); err == nil {
@@ -92,12 +92,12 @@ func TestAddDeclaredBesideSources(t *testing.T) {
 
 func TestSetSourcesAddsAPacksBlockWhereThereIsNone(t *testing.T) {
 	for f, s := range pinSamples {
-		out, err := SetSources([]byte(s), f, []string{"acme/fleet"})
+		out, err := SetSources([]byte(s), f, []string{"acme/packs"})
 		if err != nil {
 			t.Fatalf("%s: %v", f, err)
 		}
 		p, err := ReadPacks(out, f)
-		if err != nil || len(p.Sources) != 1 || p.Sources[0] != "acme/fleet" || len(p.Declared) != 0 {
+		if err != nil || len(p.Sources) != 1 || p.Sources[0] != "acme/packs" || len(p.Declared) != 0 {
 			t.Errorf("%s: %+v %v\n%s", f, p, err, out)
 		}
 		if f != JSON && !strings.HasPrefix(string(out), s) {

@@ -31,8 +31,6 @@ type RunIn struct {
 	// already holds; nil collects nothing, so every term over a signal
 	// fails open.
 	Collector func(items []workitem.Issue) *signals.Collector
-	// HasFleet reports whether a fleet reader exists for the fleet signal.
-	HasFleet bool
 	// LocalTerms asks a task's own terms through the runner; with none, a
 	// task naming one is unasked and the run fails.
 	LocalTerms *localterms.Asker
@@ -182,9 +180,6 @@ func (in *RunIn) evaluate(task taskspec.Task, collect *signals.Collector, unaske
 		return first
 	}
 	names := taskspec.Signals(task.Decl.Preconditions(), task.Terms)
-	if has(names, "fleet") && !in.HasFleet {
-		return precondition.Verdict{Error: "the `fleet` signal needs FLEET_GITHUB_TOKEN, which the scheduler run does not hold"}
-	}
 	s := collect.Collect(task, now, nil, nil)
 	for _, n := range names {
 		if e := signalError(s, n); e != "" {

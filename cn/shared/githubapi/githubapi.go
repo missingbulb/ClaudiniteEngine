@@ -118,8 +118,7 @@ func (c *Client) do(method, path string, in, out any) error {
 }
 
 // Raw is one REST call answered whatever its status: the status and the
-// body, an error only when GitHub was not reached. The fleet's client
-// judges every status itself, as the Node sweeps did.
+// body, an error only when GitHub was not reached.
 func (c *Client) Raw(method, path string, in any) (int, []byte, error) {
 	c.calls.Add(1)
 	label := method + " " + strings.SplitN(path, "?", 2)[0]

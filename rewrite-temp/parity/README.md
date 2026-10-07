@@ -2,20 +2,19 @@
 
 The harness that runs the frozen Node engine (missingbulb/Claudinite at the
 commit `CLAUDINITE_NODE_ENGINE` checks out) and `cn` over the same input and
-asserts they agree. The two faces only this harness asks, `update decide` and `dashboard decide usable`, are answered by `../cndecide`, built beside `cn`, so the shipped binary carries neither. Package documentation is in `engine.go`; each face's
+asserts they agree. The decision faces (tasks, update, growth and the dashboard's usable core) are answered by `../cndecide`, built beside `cn`, so the shipped binary carries none of them. Package documentation is in `engine.go`; each face's
 fixture format is at the top of its test file.
 
 | Face | Fixtures | Node side | cn side |
 | --- | --- | --- | --- |
 | scenarios | `testdata/scenarios/<name>/` | the engine's own commands | `cn` commands |
 | differential | real trees in `CLAUDINITE_PARITY_TREES` | `check_the_world`, `check_the_work` | `cn check world`, `cn check work` |
-| tasks | `testdata/tasks/<kind>/<name>.json` | `testdata/shims/tasks.mjs` | `cn tasks <kind> --world` |
+| tasks | `testdata/tasks/<kind>/<name>.json` | `testdata/shims/tasks.mjs` | `cndecide tasks <kind> --world` |
 | update | `testdata/update/<core>/<name>.json` | `testdata/shims/update.mjs` | `cndecide update decide <core> --world` |
 | verify answers | `testdata/answered/<rule>/<case>.json` | `testdata/shims/answered.mjs`: the rule's `run` over `nodeFiles` | `cn verify` over `cnShape` with `cnFiles` laid over it |
 | settings | `testdata/settings/<name>/`: a declaration and the tree it sits in | `testdata/shims/settings.mjs`: the reader, the registry and `legacy-shape-in-use` | `cn settings import`, then `cn verify` over the imported member |
-| growth | `testdata/growth/<core>/<name>.json` | `testdata/shims/growth.mjs`: `capture-log.mjs` and `prune-logs.mjs` | `cn growth decide <core> --world` |
-| fleet | `testdata/fleet/<core>/<name>.json` | `testdata/shims/fleet.mjs`: the sheepdog's modules over a fake `gh` built from the fixture's `calls` table, and the tasks pack's fleet signal reader | `cn fleet decide <core> --world` |
-| dashboard | `testdata/dashboard/<core>/<name>.json` | `testdata/shims/dashboard.mjs`: the page's `parseDescriptor` and `isDormant`, and the `descriptor-usable` rule's `run` | `cn dashboard descriptor --json`, `cndecide dashboard decide usable --world`, `cn fleet decide dormancy --world`; `flat-member` is cn's alone, `cn tasks flat --write` against a hand-written file |
+| growth | `testdata/growth/<core>/<name>.json` | `testdata/shims/growth.mjs`: `capture-log.mjs` and `prune-logs.mjs` | `cndecide growth decide <core> --world` |
+| dashboard | `testdata/dashboard/<core>/<name>.json` | `testdata/shims/dashboard.mjs`: the page's `parseDescriptor` and the `descriptor-usable` rule's `run` | `cn dashboard descriptor --json`, `cndecide dashboard decide usable --world`; `flat-member` is cn's alone, `cn tasks flat --write` against a hand-written file |
 | from-node | real Node trees in `CLAUDINITE_PARITY_TREES`, moved in `lifecycle/adopt`'s `TestFromNodeOverRealMembers` | none: no Node answer exists for a `cn` tree | `cn init --from-node` over a copy, then `cn verify`: only `node-leftovers`, `local-pack-shape` and the shelf's legacy minimums |
 
 A fixture's `expect` is always the Node engine's answer, written by
@@ -56,7 +55,7 @@ version, where Node read none below a date-anchored one.
 
 ## Divergences
 
-Scenarios face divergences: 2 of 282 fixtures.
+Scenarios face divergences: 2 of 276 fixtures.
 
 A coded scenario whose `cn` world findings differ on purpose carries
 `"divergence": "record-<row>"` and `cn`'s findings as `"cnWorld"`, its
@@ -68,11 +67,18 @@ Node engine, reading `.mjs` alone, never saw), and
 
 Growth face divergences: 0 of 57 fixtures.
 
-Dashboard face divergences: 0 of 48 fixtures.
+Dashboard face divergences: 39 of 47 fixtures.
+
+Each is record row 145: cn's
+descriptor reader has no `fleet` block, so `cn dashboard descriptor` prints
+no `fleet` field and `descriptor-usable` judges only the ids the repo view
+selects, with no fleet mini-card findings. The dormancy core left with
+`cn fleet`.
 
 Tasks face divergences: 1 of 10 fixtures. `contract/invalid` is record row
 89: `log-past-retention` is a built-in term, so the contract's lists of
-built-ins name it.
+built-ins name it; and, by record row 145, the invocation endpoint's example
+key is `default`, no longer `fleet`.
 
 A ported pack file ClaudinitePacks changed on purpose after the freeze is
 listed in `diverged.txt` with its record row; cn reads it at the frozen
@@ -116,33 +122,8 @@ Settings face divergences: 4 of 19 fixtures.
 | 79 | local-js-rules | cn runs no JavaScript check; verify breaks on each one in a local pack |
 | 80 | renamed-ids-config | Node's reader lets the last entry for an id replace the config wholesale, losing basics' own; the import does what Node's barriers-absorbed record writes, nesting barriers' config under `config.barriers` and merging |
 
-The fleet slice added the `fleet` face: the token grant, the manager's
-config, dormancy, dispatch classes, the update's scope, freshness, the
-roster's views, the four reports, the adoption issues' convergence, the
-follow loop and the signal reader; 15b added the add-packs sweep's
-parameters, force, work-list protocol and mark, fingerprint fit, scan and
-the pack-seed classification and write. cn has no canon repo: current is what
-each member's own update would move it to, and a repo once named canon is
-judged as any other.
-
-Fleet face divergences: 27 of 147 fixtures.
-
-| Row | Fixtures | Why |
-| --- | --- | --- |
-| 94 | config/canon-repo, freshness/engine-behind, freshness/fresh, freshness/non-version-skipped, freshness/pack-behind, freshness/pack-canon-lacks, freshness/packs-only-stamp, reports/freshness-full, reports/update-dry-run, reports/update-live, reports/update-nothing-dispatched, reports/verdict-not-current, scope/canon, signal/canon-skipped, views/canon | there is no canon: freshness is judged against the published engine and pack versions a member's own update reads, and a repo Node set aside as canon is measured like any member |
-| 95 | freshness/no-stamp | a cn member's held versions are its engine pin and its vendored manifests, so the no-stamp detail names `.claudinite/settings.*` |
-| 95 | force/resolve-targets, force/resolve-targets-refused, scan/run-scan, scan/run-scan-scoped | a member's shape is read from its `.claudinite/` listing before the Node file, one call more per member, and an uncovered repo is named as lacking both |
-| 98 | adoption/create-refused, adoption/open-new | the adoption issue asks for `cn init` and names `.claudinite/settings.*` |
-| 99 | scan/fit-summary, scan/fit-summary-scoped-clean, scan/suspected-body | the corpus is the shelf's signed catalog, not a canon clone, and the undecided fingerprints are settled by running them over the member's checkout rather than by a Node module the fleet no longer ships |
-| 101 | seeds/with-seeds, seeds/with-seeds-not-object | a seed is spliced into the member's settings file in its own format, comments and every byte outside `packs` kept, rather than round-tripped through two-space JSON |
-
-The 15b chunk also added `scenarios/lifecycle-fleet/*` (six cases:
-`fleet-pack-seed-agrees` over a seed that agrees, disagrees, is declared on
-one side only, is not declared, is malformed, or is absent), with no
-divergence. The settings file's line is not compared in a finding there:
-the two engines write the declaration in different formats, so the same
-entry sits on different lines. Porting the sheepdog lists its tasks under
-record row 93 and its skill under row 94 in `diverged.txt`.
+The fleet slice added a `fleet` face and 15b added `scenarios/lifecycle-fleet/*`;
+both were deleted with `cn fleet` (record row 145).
 
 The 16a chunk added the `dashboard` face (37 descriptors read by the page
 and judged by `descriptor-usable`, six trees under that rule, the page's
