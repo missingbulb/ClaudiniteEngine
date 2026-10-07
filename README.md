@@ -6,7 +6,7 @@ The Claudinite Engine Binary
 - `cn/`: everything compiled into the shipped `cn` binary.
 - `dev/`: the tools that build, sign and release `cn`: the release pipeline (`dev/release`), the key-ceremony tool (`dev/cn-keys`) and the public development keys (`dev/testkeys`).
 - `docs/`: the documents below.
-- `rewrite-temp/`: tools that exist only for the move off the Node engine: the parity harness, the decision faces only it asks (`cndecide`) and the timing probes.
+- `rewrite-temp/`: tools that exist only for the move off the Node engine: the parity harness, the decision faces only it asks (`cndecide`), the timing probes and `fromnode`, which moves a member off the Node engine (`go run ./rewrite-temp/fromnode --repo DIR`).
 
 ## Documents
 
