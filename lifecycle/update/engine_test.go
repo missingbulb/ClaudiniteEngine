@@ -893,3 +893,44 @@ func TestTheUpdatePRMovesALegacyPinToTheCanaryChannel(t *testing.T) {
 		}
 	}
 }
+
+// npm lists a fresh version minutes before it serves its tarballs; the
+// update waits that out instead of failing the run.
+func TestProposeWaitsForNpmToServeTheTarballs(t *testing.T) {
+	t.Parallel()
+	w := newWorld(t, settings.YAML)
+	w.publish(t, v2, relOpts{})
+	w.reg.notServed["/"+pkg+"/-/cli-"+v2+".tgz"] = 2
+	w.reg.notServed["/"+pkg+"-"+version.Platform()+"/-/cli-"+version.Platform()+"-"+v2+".tgz"] = 1
+	d := w.deps(t)
+	var slept []time.Duration
+	d.Sleep = func(s time.Duration) { slept = append(slept, s) }
+	v, err := Engine(d, Options{})
+	if err != nil || v != "opened #1 for "+v2 {
+		t.Fatalf("%q %v\n%s", v, err, w.out)
+	}
+	if len(slept) != 3 || slept[0] != 20*time.Second {
+		t.Errorf("slept %v, want three 20s waits", slept)
+	}
+	if !strings.Contains(w.out.String(), "npm lists "+v2+" but does not serve") {
+		t.Errorf("the wait is not reported:\n%s", w.out)
+	}
+
+	// A tarball still missing after ten minutes is an error, not a skip.
+	w = newWorld(t, settings.YAML)
+	w.publish(t, v2, relOpts{})
+	w.reg.notServed["/"+pkg+"/-/cli-"+v2+".tgz"] = 1000
+	d = w.deps(t)
+	slept = nil
+	d.Sleep = func(s time.Duration) { slept = append(slept, s) }
+	if v, err := Engine(d, Options{}); err == nil || !strings.Contains(err.Error(), "404") {
+		t.Fatalf("never served: %q %v", v, err)
+	}
+	var total time.Duration
+	for _, s := range slept {
+		total += s
+	}
+	if total != 10*time.Minute {
+		t.Errorf("waited %v in all, want 10m", total)
+	}
+}

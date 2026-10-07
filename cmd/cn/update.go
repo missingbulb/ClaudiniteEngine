@@ -59,7 +59,7 @@ func updateDepsWith(repo, token string, stdout io.Writer) (update.Deps, error) {
 		return update.Deps{}, report.Wrap(report.Internal, "update", err)
 	}
 	return update.Deps{GitHub: gh, Registry: reg, Git: gitcmd.Repo{Dir: repo, Token: token}, Roots: roots,
-		CacheRoot: paths.CacheRoot(), Platform: version.Platform(), Now: time.Now,
+		CacheRoot: paths.CacheRoot(), Platform: version.Platform(), Now: time.Now, Sleep: time.Sleep,
 		Repo: repo, Out: stdout, Timeout: childTimeout, Exe: exe}, nil
 }
 
