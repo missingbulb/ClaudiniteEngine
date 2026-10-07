@@ -61,9 +61,9 @@ type Engine interface {
 	Skills(dir string) (string, error)
 	// Mounts are the skills the engine mounted, with each SKILL.md.
 	Mounts(dir string) (map[string]string, error)
-	// Flat is the flat task and dashboard declarations the active packs
-	// produce, both files' text in order; cn's member file, which Node
-	// has no counterpart of, is left out.
+	// Flat is the flat task declarations the active packs produce; cn's
+	// member file, which Node has no counterpart of, and Node's dashboard
+	// file, which cn no longer writes, are left out.
 	Flat(dir string) (string, error)
 	// World and Work are the findings of a whole-repo sweep and of the
 	// change; Work reads the session transcript at transcript, "" for none.
@@ -185,7 +185,8 @@ func (n Node) Flat(dir string) (string, error) {
 	if err != nil || code != 0 {
 		return "", fmt.Errorf("generate-flat-declarations: exit %d %v: %s", code, err, stderr)
 	}
-	return out, nil
+	rest, _, err := splitDoc(out, "dashboards")
+	return rest, err
 }
 
 func (n Node) Mounts(dir string) (map[string]string, error) {
@@ -339,7 +340,7 @@ func (c Cn) Flat(dir string) (string, error) {
 	if err != nil || code != 0 {
 		return "", fmt.Errorf("cn tasks flat: exit %d %v: %s", code, err, stderr)
 	}
-	rest, _, err := splitMemberFile(out)
+	rest, _, err := splitDoc(out, "settings")
 	return rest, err
 }
 
@@ -353,7 +354,7 @@ func (c Cn) WriteMemberFile(dir string) error {
 	if err != nil || code != 0 {
 		return fmt.Errorf("cn tasks flat: exit %d %v: %s", code, err, stderr)
 	}
-	_, member, err := splitMemberFile(out)
+	_, member, err := splitDoc(out, "settings")
 	if err != nil || member == "" {
 		return err
 	}
@@ -364,10 +365,10 @@ func (c Cn) WriteMemberFile(dir string) error {
 	return os.WriteFile(p, []byte(member), 0o644)
 }
 
-// splitMemberFile parts cn's flat output into the documents Node writes
-// too and the member file, the document stating a settings file, which
-// only cn writes; each keeps its bytes.
-func splitMemberFile(out string) (rest, member string, err error) {
+// splitDoc parts an engine's flat output into the document carrying key
+// (the member file's settings, which only cn writes; the dashboards,
+// which only Node writes) and the rest; each keeps its bytes.
+func splitDoc(out, key string) (rest, picked string, err error) {
 	dec := json.NewDecoder(strings.NewReader(out))
 	var kept strings.Builder
 	for {
@@ -375,13 +376,13 @@ func splitMemberFile(out string) (rest, member string, err error) {
 		var doc map[string]json.RawMessage
 		if err := dec.Decode(&doc); err != nil {
 			if errors.Is(err, io.EOF) {
-				return kept.String(), member, nil
+				return kept.String(), picked, nil
 			}
-			return "", "", fmt.Errorf("cn tasks flat: %v", err)
+			return "", "", fmt.Errorf("flat declarations: %v", err)
 		}
 		text := strings.TrimLeft(out[start:dec.InputOffset()], "\n") + "\n"
-		if _, ok := doc["settings"]; ok {
-			member = text
+		if _, ok := doc[key]; ok {
+			picked = text
 			continue
 		}
 		kept.WriteString(text)
