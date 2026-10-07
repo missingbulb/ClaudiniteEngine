@@ -178,7 +178,6 @@ func cmdExecuteLoop(args []string, stdout io.Writer, env world.Env) (err error) 
 	delivery := land.DeliveryFor(tasksConfig)
 	endpoints, _ := tasksConfig[execute.EndpointsKey].(map[string]any)
 	withheld := execute.WithheldSecrets(r.tasks, endpoints)
-	termsEnv := envList(execute.TaskEnv(nil, withheld, jobEnv))
 	lane := land.Lane{API: gw, Now: time.Now, Sleep: time.Sleep, Log: log}
 	git := gitcmd.Repo{Dir: r.root, Token: token}
 	declaredRules := mergepolicy.DeclaredBy(r.set.Packs)
@@ -218,7 +217,7 @@ func cmdExecuteLoop(args []string, stdout io.Writer, env world.Env) (err error) 
 		Heartbeat: queue.HeartbeatEvery, Ticker: queue.RealTicker{},
 		Exists: func(dir string) bool { _, err := os.Stat(dir); return err == nil },
 		Evaluate: execute.Picker{Collector: collector(nil), PackConfig: r.packConfig, Runner: run,
-			Env: termsEnv, Echo: echo}.Evaluate,
+			Env: termsEnv(r, jobEnv), Echo: echo}.Evaluate,
 		ResolveTarget: func(t taskspec.Task, at time.Time) execute.Target {
 			return execute.ResolveTarget(execute.TargetIn{Issues: gw, Repo: gw, Pulls: gw, Lane: gw, TaskID: t.Path(),
 				Outcome: t.Decl.Outcome(), Delivery: delivery, Now: at, Seed: newNonce(0), Sleep: time.Sleep, Log: log, Judgement: judgement(t)})
@@ -294,6 +293,13 @@ func engineDir() string {
 		exe = real
 	}
 	return filepath.Dir(exe)
+}
+
+// termsEnv is the environment a task's own precondition terms run with:
+// the job's, less every secret a task or an endpoint names.
+func termsEnv(r taskRepo, job map[string]string) []string {
+	endpoints, _ := r.packConfig(workitem.TasksPackID)[execute.EndpointsKey].(map[string]any)
+	return envList(execute.TaskEnv(nil, execute.WithheldSecrets(r.tasks, endpoints), job))
 }
 
 // workStepEnv is the job's environment as the work steps receive it: the job

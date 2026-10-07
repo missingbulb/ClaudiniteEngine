@@ -10,6 +10,7 @@ import (
 
 	"github.com/missingbulb/ClaudiniteEngine/shared/taskspec"
 	"github.com/missingbulb/ClaudiniteEngine/shared/workitem"
+	"github.com/missingbulb/ClaudiniteEngine/tasks/localterms"
 	"github.com/missingbulb/ClaudiniteEngine/tasks/precondition"
 	"github.com/missingbulb/ClaudiniteEngine/tasks/runner"
 	"github.com/missingbulb/ClaudiniteEngine/tasks/signals"
@@ -22,7 +23,7 @@ func gatedTask(t *testing.T, preconditions []any, module string) taskspec.Task {
 	tk := loopTask("a", map[string]any{"preconditions": preconditions})
 	tk.Dir = t.TempDir()
 	if module != "" {
-		_ = os.WriteFile(filepath.Join(tk.Dir, LocalTermsFile), []byte(module), 0o644)
+		_ = os.WriteFile(filepath.Join(tk.Dir, localterms.File), []byte(module), 0o644)
 		tk.Terms = taskspec.TermsFromText(module)
 	}
 	return tk
@@ -64,7 +65,7 @@ func TestTheTasksOwnTermsAreAskedOnceThroughTheRunner(t *testing.T) {
 		t.Errorf("a throw is an error, never a decline: %+v", v)
 	}
 	broken := gatedTask(t, []any{"my-gate"}, module)
-	_ = os.WriteFile(filepath.Join(broken.Dir, LocalTermsFile), []byte("export const terms = {;\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(broken.Dir, localterms.File), []byte("export const terms = {;\n"), 0o644)
 	if v := p.Evaluate(broken, woken, loopNow); v.Error == "" || !strings.Contains(v.Error, "did not load") {
 		t.Errorf("%+v", v)
 	}

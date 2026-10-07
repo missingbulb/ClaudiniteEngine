@@ -18,8 +18,17 @@ func fakeBuilder(t *testing.T, s Service, key string, ok bool) string {
 	if !ok {
 		okJSON, failed = "false", "touch "+filepath.Join(dir, "build.failed")+"\nexit 1\n"
 	}
-	script := filepath.Join(t.TempDir(), "fake-cn")
-	body := "#!/bin/sh\nsleep 0.3\nmkdir -p " + dir + "\n" +
+	tmp := t.TempDir()
+	script := filepath.Join(tmp, "fake-cn")
+	started, ended := filepath.Join(tmp, "started"), filepath.Join(tmp, "ended")
+	// A run can start a second build beside the test's own; the temp dirs go
+	// only once every one of them has exited.
+	t.Cleanup(func() {
+		for i := 0; i < 400 && lineCount(started) != lineCount(ended); i++ {
+			time.Sleep(10 * time.Millisecond)
+		}
+	})
+	body := "#!/bin/sh\necho >> " + started + "\ntrap 'echo >> " + ended + "' EXIT\nsleep 0.3\nmkdir -p " + dir + "\n" +
 		"printf '{\"atMs\": %s, \"ms\": 1234, \"ok\": " + okJSON + "}' $(date +%s%3N) > " + filepath.Join(dir, "build.json") + "\n" +
 		failed +
 		"printf '#!/bin/sh\\nexit 1\\n' > " + s.Build.Binary(key) + "\nchmod 555 " + s.Build.Binary(key) + "\n"
@@ -27,6 +36,11 @@ func fakeBuilder(t *testing.T, s Service, key string, ok bool) string {
 		t.Fatal(err)
 	}
 	return script
+}
+
+func lineCount(path string) int {
+	raw, _ := os.ReadFile(path)
+	return strings.Count(string(raw), "\n")
 }
 
 func collect(s *Service) *[]string {

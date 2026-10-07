@@ -128,6 +128,9 @@ func scheduleHolds(s Signals, o Opts) Outcome {
 	}
 	opened, _, _ := calendar.PeriodStart(cadence, *o.Now)
 	for _, r := range runsOf(s) {
+		if r.NeverRan() {
+			continue
+		}
 		if onOrAfter(r.CreatedAt, opened) || onOrAfter(r.ClosedAt, opened) {
 			return Outcome{Reason: "#" + itoa(r.Number) + " already ran in the " + cadence + " period that opened " + calendar.ISO(opened)}
 		}
