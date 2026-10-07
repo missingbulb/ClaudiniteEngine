@@ -82,6 +82,9 @@ const (
 	VerdictGo       = "go"
 	VerdictNo       = "no"
 	VerdictFailOpen = "fail-open"
+	// VerdictUnasked is a task whose own terms could not be asked: nothing
+	// is filed for it and the run fails.
+	VerdictUnasked = "unasked"
 )
 
 // Request is an open issue wearing a mark and no status, with whether
@@ -218,6 +221,7 @@ func Plan(in PlanIn) ([]Op, []Asked, error) {
 			continue
 		default:
 			asked = append(asked, Asked{key, VerdictGo, v.Reason})
+			context = v.Context
 		}
 		ops = append(ops, Op{Kind: KindCreate, Pack: task.Pack, Task: task.ID, Title: title,
 			Labels: []string{workitem.OriginPlanned, workitem.StatusReady},

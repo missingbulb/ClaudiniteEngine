@@ -12,12 +12,15 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/shared/breadcrumb"
 	"github.com/missingbulb/ClaudiniteEngine/shared/githubapi"
 	"github.com/missingbulb/ClaudiniteEngine/shared/packset"
+	"github.com/missingbulb/ClaudiniteEngine/shared/paths"
 	"github.com/missingbulb/ClaudiniteEngine/shared/report"
 	"github.com/missingbulb/ClaudiniteEngine/shared/taskspec"
 	"github.com/missingbulb/ClaudiniteEngine/shared/version"
 	"github.com/missingbulb/ClaudiniteEngine/shared/workitem"
 	"github.com/missingbulb/ClaudiniteEngine/tasks/ghport"
+	"github.com/missingbulb/ClaudiniteEngine/tasks/localterms"
 	"github.com/missingbulb/ClaudiniteEngine/tasks/queue"
+	"github.com/missingbulb/ClaudiniteEngine/tasks/runner"
 	"github.com/missingbulb/ClaudiniteEngine/tasks/schedule"
 	"github.com/missingbulb/ClaudiniteEngine/tasks/signals"
 	"github.com/missingbulb/ClaudiniteEngine/tasks/world"
@@ -169,9 +172,16 @@ func cmdScheduleRun(args []string, stdout io.Writer, env world.Env) (err error) 
 	meter := &queue.CostMeter{Workflow: "scheduler", RunID: env("GITHUB_RUN_ID"), Now: time.Now,
 		Calls: func() *int { n := int(client.CallCount()); return &n }}
 	readFleet := fleetSignal(env.Repo())
+	var terms *localterms.Asker
+	if unpacked, err := runner.Unpack(paths.CacheRoot()); err != nil {
+		fmt.Fprintf(stdout, "! could not unpack the task runner (%v) — a task naming its own terms is not filed and the run fails\n", err)
+	} else {
+		terms = &localterms.Asker{Runner: runner.Runner{Dir: unpacked, Engine: version.Version()},
+			Env: termsEnv(r, envMap()), Echo: func(_, line string) { fmt.Fprintln(stdout, line) }}
+	}
 	out, runErr := schedule.Run(schedule.RunIn{
 		Issues: issues, Tasks: r.tasks, Now: clock.Now(), Disabled: r.disabledTasks(),
-		PackConfig: r.packConfig, Wake: *wake, HasFleet: readFleet != nil,
+		PackConfig: r.packConfig, Wake: *wake, HasFleet: readFleet != nil, LocalTerms: terms,
 		Collector: func(items []workitem.Issue) *signals.Collector {
 			return &signals.Collector{Issues: issues, Repo: gw, DefaultBranch: env.DefaultBranch(),
 				Packs: r.set.Declared.Declared, PackConfig: r.packConfig, EngineVersion: version.Version(),
