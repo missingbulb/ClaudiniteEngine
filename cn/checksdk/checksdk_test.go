@@ -209,12 +209,12 @@ func TestEngineFloorIsBehindTheClock(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	raw, err := os.ReadFile("../../dev/release/major")
+	raw, err := os.ReadFile("../../dev/build/major")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if line, err := strconv.Atoi(strings.TrimSpace(string(raw))); err != nil || major > line {
-		t.Errorf("EngineFloor %s is above dev/release/major %q", EngineFloor, raw)
+		t.Errorf("EngineFloor %s is above dev/build/major %q", EngineFloor, raw)
 	}
 	day, err := strconv.Atoi(parts[1])
 	if err != nil {

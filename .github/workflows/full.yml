@@ -31,8 +31,7 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "22"
-      # The parity harness is off CI: the port it proved is done (design record 135).
-      - run: go list ./... | grep -v /parity | xargs go test
+      - run: dev/test/test.sh
 
   build:
     runs-on: ubuntu-24.04
@@ -47,23 +46,23 @@ jobs:
         with:
           node-version: "22"
       # The rehearsal's release: built with the development roots and signed with the
-      # development keys (dev/testkeys/), which dev/release/rehearse.sh's every key chains to.
-      - run: dev/release/build.sh
+      # development keys (dev/keys/testkeys/), which dev/release/verify/rehearse.sh's every key chains to.
+      - run: dev/release/create/build.sh
         env:
           VERSION: "1.61001.1"
           REHEARSAL: "1"
           BUILD_TAGS: devroots
-      - run: dev/release/sign.sh
+      - run: dev/release/create/sign.sh
         env:
-          RELEASE_KEY: dev/testkeys/release.key
-          RELEASE_CERT: dev/testkeys/release.cert.json
+          RELEASE_KEY: dev/keys/testkeys/release.key
+          RELEASE_CERT: dev/keys/testkeys/release.cert.json
           ROOTS: cn/shared/trust/devroots
-      - run: sha256sum -c dist/SHA256SUMS
-      - run: dev/release/smoke.sh
-      - run: dev/release/repro.sh
+      - run: dev/release/verify/sums.sh
+      - run: dev/release/verify/smoke.sh
+      - run: dev/release/verify/repro.sh
         env:
           VERSION: "1.61001.1"
-      - run: dev/release/secretscan.sh dist/bin
+      - run: dev/release/verify/secretscan.sh dist/bin
       # Named apart from a calling release's own dist, since a called workflow shares its run's artifacts.
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -86,7 +85,7 @@ jobs:
           node-version: "22"
       # The dashboard mode's step 5 publishes the real dashboard pack, from ClaudinitePacks at the pinned commit.
       - id: packs
-        run: echo "ref=$(cat dev/claudinitepacks.ref)" >> "$GITHUB_OUTPUT"
+        run: echo "ref=$(cat dev/test/claudinitepacks.ref)" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: missingbulb/ClaudinitePacks
@@ -97,7 +96,7 @@ jobs:
         with:
           name: full-rehearsal-dist
           path: dist/
-      - run: dev/release/rehearse.sh
+      - run: dev/release/verify/rehearse.sh
         env:
           CLAUDINITE_PACKS_TREE: ${{ github.workspace }}/claudinitepacks
 
@@ -115,7 +114,7 @@ jobs:
           path: claudinite-frozen
           persist-credentials: false
       - id: packs
-        run: echo "ref=$(cat dev/claudinitepacks.ref)" >> "$GITHUB_OUTPUT"
+        run: echo "ref=$(cat dev/test/claudinitepacks.ref)" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: missingbulb/ClaudinitePacks
@@ -129,24 +128,9 @@ jobs:
         with:
           node-version: "22"
           package-manager-cache: false
-      - run: go build -o "$RUNNER_TEMP/cn" ./cn
-      # The ported packs' Go tests and cn check --pack fixtures, against this cn, until
-      # ClaudinitePacks pins a published one (#2).
-      - run: sh tools/checks/test.sh
-        working-directory: claudinitepacks
-        env:
-          CLAUDINITE_CN: ${{ runner.temp }}/cn
-      # The dashboard pack's suite, against this cn.
-      - run: node --test 'packs/claudinite-dashboard/test/**/*.test.mjs'
-        working-directory: claudinitepacks
-        env:
-          CLAUDINITE_CN: ${{ runner.temp }}/cn
-      # The per-call hooks' latency on the runner, held to its budgets; the table lands in the log.
-      - run: |
-          rc=0
-          sh rewrite-temp/probe/hook-latency/run.sh --node claudinite-frozen --out "$RUNNER_TEMP/hook-latency" --budget || rc=$?
-          cat "$RUNNER_TEMP"/hook-latency/*.md
-          exit "$rc"
+      # ClaudinitePacks' suites against this cn, until it pins a published one (#2), and the
+      # per-call hooks' latency on the runner, held to its budgets; the table lands in the log.
+      - run: dev/test/packs.sh claudinitepacks claudinite-frozen
 
   report:
     needs: [test, build, rehearse, packs]
@@ -155,17 +139,10 @@ jobs:
     permissions:
       issues: write
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - env:
           GH_TOKEN: ${{ github.token }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: |
-          api="$GITHUB_API_URL/repos/$GITHUB_REPOSITORY"
-          title="The nightly full check is red"
-          curl -fsS -H "Authorization: Bearer $GH_TOKEN" "$api/issues?state=open&creator=github-actions%5Bbot%5D&per_page=100" > open.json
-          number=$(jq -r --arg t "$title" 'map(select(.title == $t and (.pull_request | not))) | first | .number // empty' open.json)
-          body="$(date -u +%F): $RUN_URL failed. After a fix, run full from the Actions tab to confirm."
-          if [ -n "$number" ]; then
-            jq -n --arg b "$body" '{body: $b}' | curl -fsS -H "Authorization: Bearer $GH_TOKEN" -X POST "$api/issues/$number/comments" -d @- > /dev/null
-          else
-            jq -n --arg t "$title" --arg b "$body" '{title: $t, body: $b}' | curl -fsS -H "Authorization: Bearer $GH_TOKEN" -X POST "$api/issues" -d @- > /dev/null
-          fi
+        run: dev/test/report-red.sh "$RUN_URL"
