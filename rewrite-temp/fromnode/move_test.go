@@ -1,4 +1,4 @@
-package adopt
+package main
 
 import (
 	"crypto/sha256"
@@ -104,11 +104,11 @@ func nodeMember(t *testing.T) string {
 	return repo
 }
 
-func TestFromNodeMovesANodeMember(t *testing.T) {
+func TestMoveMovesANodeMember(t *testing.T) {
 	repo := nodeMember(t)
 	ci, _ := os.ReadFile(filepath.Join(repo, ".github/workflows/ci.yml"))
 	in, out := input(t, repo)
-	if err := FromNode(in); err != nil {
+	if err := move(in); err != nil {
 		t.Fatalf("%v\n%s", err, out)
 	}
 	s := out.String()
@@ -164,27 +164,29 @@ func TestFromNodeMovesANodeMember(t *testing.T) {
 	if g, _ := os.ReadFile(filepath.Join(repo, ".claudinite/.gitignore")); string(g) != "/temp/\nbin/\n" {
 		t.Errorf(".claudinite/.gitignore %q", g)
 	}
-	// What verify says after the move: the Node engine's leftovers the move
-	// pull request drops, and nothing about the hooks, the workflows or the
-	// indexes.
-	var leftovers []string
+	// What verify says after the move: nothing about the hooks, the
+	// workflows or the indexes; the leftovers are the Node engine's files
+	// the move pull request drops.
 	for _, f := range verify.Verify(verify.Input{Repo: repo, Launcher: []byte(launcherBody)}) {
-		switch f.ID {
-		case "node-leftovers":
-			leftovers = append(leftovers, f.Path)
-		case "local-pack-shape":
-		default:
+		if f.ID != "local-pack-shape" {
 			t.Errorf("verify: %s", f)
 		}
 	}
-	if strings.Join(leftovers, " ") != ".claudinite-settings.json .github/workflows/ci.yml .gitignore" {
-		t.Errorf("node-leftovers %v", leftovers)
+	var paths []string
+	for _, f := range leftovers(repo) {
+		if f.ID != "node-leftovers" || f.Class != findings.Deprecation {
+			t.Errorf("leftover: %s", f)
+		}
+		paths = append(paths, f.Path)
+	}
+	if strings.Join(paths, " ") != ".claudinite-settings.json .github/workflows/ci.yml .gitignore" {
+		t.Errorf("node-leftovers %v", paths)
 	}
 }
 
 // A refused import key, or a declared pack no index lists, leaves the repo
 // as it was found.
-func TestFromNodeRefusalWritesNothing(t *testing.T) {
+func TestMoveRefusalWritesNothing(t *testing.T) {
 	for name, decl := range map[string]string{
 		"refused key":  `{"packs": ["hello"], "maintenance": {"automerge": true}}`,
 		"unknown pack": `{"packs": ["hello", "nowhere"]}`,
@@ -195,7 +197,7 @@ func TestFromNodeRefusalWritesNothing(t *testing.T) {
 			_ = os.WriteFile(filepath.Join(repo, ".claudinite-settings.json"), []byte(decl), 0o644)
 			before := treeHash(t, repo)
 			in, out := input(t, repo)
-			if err := FromNode(in); err == nil {
+			if err := move(in); err == nil {
 				t.Fatalf("moved:\n%s", out)
 			}
 			if after := treeHash(t, repo); after != before {
@@ -205,7 +207,7 @@ func TestFromNodeRefusalWritesNothing(t *testing.T) {
 	}
 }
 
-func TestFromNodeRefusesWhatIsNotANodeMember(t *testing.T) {
+func TestMoveRefusesWhatIsNotANodeMember(t *testing.T) {
 	for name, edit := range map[string]func(string){
 		"no declaration": func(r string) { _ = os.Remove(filepath.Join(r, ".claudinite-settings.json")) },
 		"already pinned": func(r string) { _ = os.WriteFile(filepath.Join(r, ".claudinite/settings.toml"), nil, 0o644) },
@@ -214,14 +216,9 @@ func TestFromNodeRefusesWhatIsNotANodeMember(t *testing.T) {
 		repo := nodeMember(t)
 		edit(repo)
 		in, out := input(t, repo)
-		if err := FromNode(in); err == nil {
+		if err := move(in); err == nil {
 			t.Errorf("%s: moved:\n%s", name, out)
 		}
-	}
-	repo := nodeMember(t)
-	in, _ := input(t, repo, "hello")
-	if err := Init(in); err == nil || !strings.Contains(err.Error(), "--from-node") {
-		t.Errorf("init on a Node member: %v", err)
 	}
 }
 
@@ -230,7 +227,7 @@ func TestFromNodeRefusesWhatIsNotANodeMember(t *testing.T) {
 // moved with its canon packs published from that checkout, and verify
 // then names only the Node engine's leftovers, the local packs' shape and
 // the shelf's own legacy minimums.
-func TestFromNodeOverRealMembers(t *testing.T) {
+func TestMoveOverRealMembers(t *testing.T) {
 	trees, shelf := os.Getenv("CLAUDINITE_PARITY_TREES"), os.Getenv("CLAUDINITE_PACKS_TREE")
 	if trees == "" || shelf == "" {
 		t.Skip("CLAUDINITE_PARITY_TREES and CLAUDINITE_PACKS_TREE name no member trees and no packs checkout")
@@ -244,10 +241,10 @@ func TestFromNodeOverRealMembers(t *testing.T) {
 			copyTree(t, src, repo)
 			in, out := input(t, repo)
 			in.Reader = shelfPacks(t, filepath.Join(shelf, "packs"))
-			if err := FromNode(in); err != nil {
+			if err := move(in); err != nil {
 				t.Fatalf("%v\n%s", err, out)
 			}
-			t.Logf("cn init --from-node over %s:\n%s", src, out)
+			t.Logf("fromnode over %s:\n%s", src, out)
 			cs, _ := os.ReadFile(filepath.Join(repo, ".claude/settings.json"))
 			if hooks := nodeHookCommands(t, cs); len(hooks) > 0 {
 				t.Errorf("the move kept the Node engine's hooks %v", hooks)
@@ -257,12 +254,18 @@ func TestFromNodeOverRealMembers(t *testing.T) {
 				got = append(got, f)
 				// pack-min-engine is about the shelf's packs, not the member: a
 				// pack published before the three-part form.
-				if f.ID != "node-leftovers" && f.ID != "local-pack-shape" && f.ID != "pack-min-engine" {
+				if f.ID != "local-pack-shape" && f.ID != "pack-min-engine" {
 					t.Errorf("verify: %s", f)
 				}
 			}
 			for _, f := range got {
 				t.Logf("verify: %s", f)
+			}
+			for _, f := range leftovers(repo) {
+				if f.Class == findings.Break {
+					t.Errorf("leftover: %s", f)
+				}
+				t.Logf("leftover: %s", f)
 			}
 		})
 	}
@@ -342,7 +345,7 @@ func (f *fakePacks) add(id string, files map[string][]byte) {
 // A move that fails after it began writing removes the launcher and the
 // settings file it wrote, so a re-run is not refused as a cn member, and
 // names the restore for the rest.
-func TestFromNodeFailurePartWayLeavesARerunnableRepo(t *testing.T) {
+func TestMoveFailurePartWayLeavesARerunnableRepo(t *testing.T) {
 	repo := nodeMember(t)
 	// The rules index cannot be written under a file.
 	_ = os.RemoveAll(filepath.Join(repo, ".claudinite", "cache"))
@@ -350,7 +353,7 @@ func TestFromNodeFailurePartWayLeavesARerunnableRepo(t *testing.T) {
 		t.Fatal(err)
 	}
 	in, out := input(t, repo)
-	err := FromNode(in)
+	err := move(in)
 	if err == nil {
 		t.Fatalf("moved:\n%s", out)
 	}
@@ -388,9 +391,9 @@ func TestMovedWorkflowKeepsTheMembersOwnCron(t *testing.T) {
 	}
 }
 
-// MissingBulbWebsite: cn init --from-node kept no owner-chosen single
+// MissingBulbWebsite: the move kept no owner-chosen single
 // daily tick, rewriting 39 4 to the repo's hash.
-func TestFromNodeKeepsAnOwnerChosenSingleTick(t *testing.T) {
+func TestMoveKeepsAnOwnerChosenSingleTick(t *testing.T) {
 	repo := nodeMember(t)
 	p := filepath.Join(repo, ".github/workflows/claudinite-scheduler.yml")
 	raw, _ := os.ReadFile(p)
@@ -398,7 +401,7 @@ func TestFromNodeKeepsAnOwnerChosenSingleTick(t *testing.T) {
 		t.Fatal(err)
 	}
 	in, out := input(t, repo)
-	if err := FromNode(in); err != nil {
+	if err := move(in); err != nil {
 		t.Fatalf("%v\n%s", err, out)
 	}
 	sched, _ := os.ReadFile(p)

@@ -200,7 +200,7 @@ func unadopted(t *testing.T, change func(dir string)) string {
 	t.Helper()
 	dir := t.TempDir()
 	git(t, dir, "init", "-q", "-b", "main")
-	write(t, dir, ".claudinite-settings.json", "{}\n")
+	write(t, dir, "README.md", "unadopted\n")
 	git(t, dir, "add", "-A")
 	git(t, dir, "commit", "-q", "-m", "base")
 	git(t, dir, "checkout", "-q", "-b", "change")

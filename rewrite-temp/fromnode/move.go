@@ -1,4 +1,4 @@
-package adopt
+package main
 
 import (
 	"bytes"
@@ -9,13 +9,13 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/missingbulb/ClaudiniteEngine/cn/lifecycle/adopt"
 	"github.com/missingbulb/ClaudiniteEngine/cn/lifecycle/packs"
 	"github.com/missingbulb/ClaudiniteEngine/cn/lifecycle/rulesindex"
-	"github.com/missingbulb/ClaudiniteEngine/cn/lifecycle/verify"
 	"github.com/missingbulb/ClaudiniteEngine/cn/lifecycle/workflows"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/packset"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/settings"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/settings/node"
+	"github.com/missingbulb/ClaudiniteEngine/rewrite-temp/fromnode/node"
 )
 
 // The move's mechanical half: a Node member becomes a cn member. The
@@ -25,11 +25,11 @@ import (
 // stamped secrets and cron survive. No member-owned file is deleted: the
 // Node declaration stays until the move's pull request drops it.
 
-// LocalTree answers the Node import's question of a member's own packs.
-type LocalTree string
+// localTree answers the Node import's question of a member's own packs.
+type localTree string
 
 // HasLocal reports whether .claudinite/local/packs/<name>/ is a directory.
-func (t LocalTree) HasLocal(name string) bool {
+func (t localTree) HasLocal(name string) bool {
 	if strings.ContainsAny(name, `/\`) || name == "." || name == ".." {
 		return false
 	}
@@ -50,18 +50,18 @@ func fromNodeState(repo string) error {
 		found = append(found, ".claudinite/launch")
 	}
 	if len(found) > 0 {
-		return fmt.Errorf("%s already exists: this repo is a cn member, and --from-node moves a Node member only", strings.Join(found, " and "))
+		return fmt.Errorf("%s already exists: this repo is a cn member, and fromnode moves a Node member only", strings.Join(found, " and "))
 	}
 	if _, err := os.Stat(filepath.Join(repo, node.File)); err != nil {
-		return fmt.Errorf("%s is absent: --from-node moves a Node member, which declares its packs there; cn init --packs adopts from nothing", node.File)
+		return fmt.Errorf("%s is absent: fromnode moves a Node member, which declares its packs there; cn init --packs adopts from nothing", node.File)
 	}
 	return nil
 }
 
-// FromNode moves in.Repo from the Node engine to cn. Every read happens
+// move moves in.Repo from the Node engine to cn. Every read happens
 // first: the declaration's import, the engine and every declared canon
 // pack; a refused import key or an unresolvable pack writes nothing.
-func FromNode(in Input) error {
+func move(in adopt.Input) error {
 	if err := fromNodeState(in.Repo); err != nil {
 		return err
 	}
@@ -69,7 +69,7 @@ func FromNode(in Input) error {
 	if err != nil {
 		return err
 	}
-	decl, rep, err := node.Read(raw, LocalTree(in.Repo))
+	decl, rep, err := node.Read(raw, localTree(in.Repo))
 	if err != nil {
 		return err
 	}
@@ -77,7 +77,7 @@ func FromNode(in Input) error {
 	if rep.Refused() {
 		return fmt.Errorf("the import refused a key of %s; the repo is as it was", node.File)
 	}
-	got, err := pickEngine(&in)
+	got, err := adopt.PickEngine(&in)
 	if err != nil {
 		return err
 	}
@@ -92,7 +92,7 @@ func FromNode(in Input) error {
 	if err := ownPacksLoad(in.Repo, declared.Local); err != nil {
 		return err
 	}
-	chosen, err := resolve(in.Reader, declared.Declared, nil, packsChannel(in.Channel), got.Version, in.Out)
+	chosen, err := adopt.Resolve(in.Reader, declared.Declared, nil, adopt.PacksChannel(in.Channel), got.Version, in.Out)
 	if err != nil {
 		return err
 	}
@@ -101,12 +101,12 @@ func FromNode(in Input) error {
 		held[id] = true
 	}
 	for _, v := range chosen {
-		if !held[v.id] {
-			if cfg, err = settings.AddDeclared(cfg, settings.YAML, v.id); err != nil {
+		if !held[v.ID] {
+			if cfg, err = settings.AddDeclared(cfg, settings.YAML, v.ID); err != nil {
 				return err
 			}
 		}
-		fmt.Fprintf(in.Out, "pack: %s %s\n", v.id, v.entry.Version)
+		fmt.Fprintf(in.Out, "pack: %s %s\n", v.ID, v.Entry.Version)
 	}
 	if _, err := settings.ParseFile(cfg, settings.YAML); err != nil {
 		return fmt.Errorf("the imported settings do not read back: %w", err)
@@ -145,11 +145,11 @@ func FromNode(in Input) error {
 	if err := writeFiles(in.Repo, files); err != nil {
 		return halfMoved(in.Repo, err)
 	}
-	if err := ensureSkillsIgnore(in.Repo); err != nil {
+	if err := adopt.EnsureSkillsIgnore(in.Repo); err != nil {
 		return halfMoved(in.Repo, err)
 	}
 	for _, v := range chosen {
-		if err := packs.Unpack(v.archive, packset.Tree(in.Repo, v.id)); err != nil {
+		if err := packs.Unpack(v.Archive, packset.Tree(in.Repo, v.ID)); err != nil {
 			return halfMoved(in.Repo, err)
 		}
 	}
@@ -159,7 +159,7 @@ func FromNode(in Input) error {
 	if _, err := rulesindex.EnsureImport(in.Repo); err != nil {
 		return halfMoved(in.Repo, err)
 	}
-	err = finish(finishInput{Repo: in.Repo, Engine: got.Version, Answers: in.Answers, Core: true, NoSeed: true,
+	err = adopt.Finish(adopt.FinishInput{Repo: in.Repo, Engine: got.Version, Answers: in.Answers, Core: true, NoSeed: true,
 		First: []string{"git rm " + node.File + " (the Node declaration, now read into .claudinite/settings.yaml)"}, Out: in.Out})
 	if err != nil {
 		return halfMoved(in.Repo, err)
@@ -203,9 +203,9 @@ func halfMoved(repo string, cause error) error {
 // then the imported checks block.
 func movedSettings(channel, version, integrity string, decl node.Decl) ([]byte, error) {
 	var b bytes.Buffer
-	b.WriteString(engineBlock(channel, version, integrity))
+	b.WriteString(adopt.EngineBlock(channel, version, integrity))
 	p := settings.NewOrdered()
-	p.Set("channel", packsChannel(channel))
+	p.Set("channel", adopt.PacksChannel(channel))
 	if decl.Packs != nil {
 		for _, k := range decl.Packs.Keys() {
 			if k == "channel" {
@@ -224,7 +224,7 @@ func movedSettings(channel, version, integrity string, decl node.Decl) ([]byte, 
 // Node engine's hooks removed and cn's six wirings merged in; a group left
 // with no command goes, and the member's own commands survive.
 func movedHooks(path string) ([]byte, error) {
-	obj, err := readClaudeSettings(path)
+	obj, err := adopt.ReadClaudeSettings(path)
 	if err != nil {
 		return nil, err
 	}
@@ -244,7 +244,7 @@ func movedHooks(path string) ([]byte, error) {
 			}
 		}
 	}
-	return mergeHooksInto(obj)
+	return adopt.MergeHooksInto(obj)
 }
 
 // withoutNodeHooks is group with its Node engine commands dropped, and
@@ -261,7 +261,7 @@ func withoutNodeHooks(group any) (any, bool) {
 	var kept []any
 	for _, c := range list {
 		cm, _ := c.(map[string]any)
-		if cmd, _ := cm["command"].(string); verify.NodeHook.MatchString(cmd) {
+		if cmd, _ := cm["command"].(string); nodeHook.MatchString(cmd) {
 			continue
 		}
 		kept = append(kept, c)

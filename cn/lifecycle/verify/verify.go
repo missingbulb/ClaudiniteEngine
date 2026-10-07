@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 
@@ -29,7 +28,6 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/packset"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/provenance"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/settings"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/settings/node"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/version"
 )
 
@@ -87,7 +85,6 @@ var rules = []rule{
 	{"skills-index-current", checkSkillsIndex},
 	{"claude-md-import", checkClaudeMDImport},
 	{"local-pack-shape", checkLocalPackShape},
-	{"node-leftovers", checkNodeLeftovers},
 }
 
 // Verify's rules are claudinite-lifecycle's checks, folded into the
@@ -148,9 +145,6 @@ func anySettings(in Input) bool {
 
 func checkSettingsFile(in Input) []findings.Finding {
 	if _, _, err := settings.Find(in.Repo); err != nil && !anySettings(in) {
-		if _, ok := read(in, node.File); ok {
-			return []findings.Finding{brk("settings-file", node.File, "this repo is on the Node engine; `cn settings import` reads its declaration once the pin is written")}
-		}
 		return []findings.Finding{brk("settings-file", ".claudinite", err.Error())}
 	}
 	return nil
@@ -239,10 +233,6 @@ var Hooks = []HookWiring{
 	{"SessionEnd", ".claudinite/bin/cn hook session-end"},
 }
 
-// NodeHook matches a command that runs the Node engine's hooks, in a
-// member (under .claudinite/shared/) or in the canon (from its root).
-var NodeHook = regexp.MustCompile(`(^|[^\w.-])(\.claudinite/shared/)?engine/hooks/`)
-
 func checkHooks(in Input) []findings.Finding {
 	var cfg struct {
 		Hooks map[string][]struct {
@@ -256,20 +246,6 @@ func checkHooks(in Input) []findings.Finding {
 		_ = json.Unmarshal(raw, &cfg)
 	}
 	var out []findings.Finding
-	events := make([]string, 0, len(cfg.Hooks))
-	for e := range cfg.Hooks {
-		events = append(events, e)
-	}
-	sort.Strings(events)
-	for _, event := range events {
-		for _, group := range cfg.Hooks[event] {
-			for _, c := range group.Hooks {
-				if NodeHook.MatchString(c.Command) {
-					return []findings.Finding{brk("hooks", ".claude/settings.json", event+" runs the Node engine's hooks (engine/hooks/), which the move removes; the move skill wires every hook to cn")}
-				}
-			}
-		}
-	}
 	for _, h := range Hooks {
 		wired := false
 		for _, group := range cfg.Hooks[h.Event] {
@@ -391,10 +367,6 @@ func checkPackDeclared(in Input) []findings.Finding {
 	for _, id := range declared {
 		isDeclared[id] = true
 		if _, err := packset.ReadManifest(packset.Tree(in.Repo, id)); errors.Is(err, packset.ErrNoManifest) {
-			if today, ok := node.Renamed[id]; ok {
-				out = append(out, brk("pack-declared", packset.TreeRel(id), "the settings declare "+id+", which was renamed to or absorbed into "+today+"; declare "+today+" instead"))
-				continue
-			}
 			out = append(out, brk("pack-declared", packset.TreeRel(id), "the settings declare "+id+" but the repo does not hold it; vendor it with `cn adopt "+id+"`, or remove it from packs.declared"))
 		}
 	}

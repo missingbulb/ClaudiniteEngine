@@ -12,10 +12,10 @@ fixture format is at the top of its test file.
 | tasks | `testdata/tasks/<kind>/<name>.json` | `testdata/shims/tasks.mjs` | `cndecide tasks <kind> --world` |
 | update | `testdata/update/<core>/<name>.json` | `testdata/shims/update.mjs` | `cndecide update decide <core> --world` |
 | verify answers | `testdata/answered/<rule>/<case>.json` | `testdata/shims/answered.mjs`: the rule's `run` over `nodeFiles` | `cn verify` over `cnShape` with `cnFiles` laid over it |
-| settings | `testdata/settings/<name>/`: a declaration and the tree it sits in | `testdata/shims/settings.mjs`: the reader, the registry and `legacy-shape-in-use` | `cn settings import`, then `cn verify` over the imported member |
+| settings | `testdata/settings/<name>/`: a declaration and the tree it sits in | `testdata/shims/settings.mjs`: the reader, the registry and `legacy-shape-in-use` | `fromnode import`, then `cn verify` over the imported member |
 | growth | `testdata/growth/<core>/<name>.json` | `testdata/shims/growth.mjs`: `capture-log.mjs` and `prune-logs.mjs` | `cndecide growth decide <core> --world` |
 | dashboard | `testdata/dashboard/<core>/<name>.json` | `testdata/shims/dashboard.mjs`: the page's `parseDescriptor` and the `descriptor-usable` rule's `run` | `cn dashboard descriptor --json`, `cndecide dashboard decide usable --world`; `flat-member` is cn's alone, `cn tasks flat --write` against a hand-written file |
-| from-node | real Node trees in `CLAUDINITE_PARITY_TREES`, moved in `lifecycle/adopt`'s `TestFromNodeOverRealMembers` | none: no Node answer exists for a `cn` tree | `cn init --from-node` over a copy, then `cn verify`: only `node-leftovers`, `local-pack-shape` and the shelf's legacy minimums |
+| from-node | real Node trees in `CLAUDINITE_PARITY_TREES`, moved in `../fromnode`'s `TestMoveOverRealMembers` | none: no Node answer exists for a `cn` tree | `fromnode` over a copy, then `cn verify`: only `local-pack-shape` and the shelf's legacy minimums, and `fromnode leftovers` no break |
 
 A fixture's `expect` is always the Node engine's answer, written by
 `CLAUDINITE_PARITY_RECORD=1` before the Go side existed.

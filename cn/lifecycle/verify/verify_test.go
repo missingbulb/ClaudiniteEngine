@@ -319,28 +319,6 @@ func TestRules(t *testing.T) {
 		{"a renamed pack declared", func(t *testing.T, d string) {
 			declare(t, d, "tidy-repo", "")
 		}, []string{"pack-declared"}, nil},
-		{"the Node declaration beside", func(t *testing.T, d string) {
-			write(t, d, ".claudinite-settings.json", `{"packs": []}`)
-		}, nil, []string{"node-leftovers"}},
-		{"the Node mount left", func(t *testing.T, d string) {
-			write(t, d, ".claudinite/shared/engine/hooks/x.mjs", "\n")
-		}, nil, []string{"node-leftovers"}},
-		{"an index at the old path", func(t *testing.T, d string) {
-			write(t, d, ".claudinite/claudinite-rules.GENERATED.md", "\n")
-			write(t, d, ".claudinite/claudinite-skills.GENERATED.md", "\n")
-		}, nil, []string{"node-leftovers", "node-leftovers"}},
-		{"a workflow step running the Node checks", func(t *testing.T, d string) {
-			write(t, d, ".github/workflows/ci.yml", "jobs:\n  c:\n    steps:\n      - run: node .claudinite/shared/engine/checks/check_the_world.mjs\n")
-		}, nil, []string{"node-leftovers"}},
-		{"the Node hook log ignored", func(t *testing.T, d string) {
-			write(t, d, ".gitignore", "node_modules/\n/.claudinite-hooks.log*\n")
-		}, nil, []string{"node-leftovers"}},
-		{"the session pack root ignored from the repo root", func(t *testing.T, d string) {
-			write(t, d, ".gitignore", "node_modules/\n/.claudinite/temp/\n")
-		}, nil, []string{"node-leftovers"}},
-		{"both Node lines ignored from the repo root", func(t *testing.T, d string) {
-			write(t, d, ".gitignore", "/.claudinite-hooks.log*\n.claudinite/temp\n")
-		}, nil, []string{"node-leftovers", "node-leftovers"}},
 		{"a declared pack's skill with no skills index", func(t *testing.T, d string) {
 			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "1.60930.1"}`)
 			write(t, d, ".claudinite/shared/packs/acme-pack/skills/demo/SKILL.md", "---\nname: demo\ndescription: d\n---\n")
@@ -356,12 +334,6 @@ func TestRules(t *testing.T) {
 			write(t, d, ".claudinite/shared/packs/acme-pack/skills/draft/SKILL.md", "---\nname: draft\ndescription: d\n---\n")
 			write(t, d, ".claudinite/cache/claudinite-skills.GENERATED.md", "| `demo` | acme-pack | d |\n")
 		}, nil, nil},
-		{"hooks naming the Node engine", func(t *testing.T, d string) {
-			write(t, d, ".claude/settings.json", `{"hooks": {"SessionStart": [{"hooks": [{"type": "command", "command": "node .claudinite/shared/engine/hooks/run-session-start.mjs"}]}]}}`)
-		}, []string{"hooks"}, nil},
-		{"hooks naming the canon's own engine", func(t *testing.T, d string) {
-			write(t, d, ".claude/settings.json", `{"hooks": {"Stop": [{"hooks": [{"type": "command", "command": "node $CLAUDE_PROJECT_DIR/engine/hooks/stop-command.mjs"}]}]}}`)
-		}, []string{"hooks"}, nil},
 		{"malformed packs block", func(t *testing.T, d string) {
 			raw, _ := os.ReadFile(filepath.Join(d, ".claudinite/settings.yaml"))
 			write(t, d, ".claudinite/settings.yaml", string(raw)+"packs:\n  channel: \"nightly\"\n")
@@ -382,17 +354,6 @@ func TestRules(t *testing.T) {
 				t.Errorf("%s: finding without a path or sentence: %+v", c.name, f)
 			}
 		}
-	}
-}
-
-// A repo on the Node engine, with no cn settings at all, gets the one
-// settings-file break, and it names the import.
-func TestANodeMemberBreaksNamingTheImport(t *testing.T) {
-	dir := t.TempDir()
-	write(t, dir, ".claudinite-settings.json", `{"packs": ["basics"]}`)
-	fs := run(t, dir)
-	if len(fs) != 1 || fs[0].ID != "settings-file" || fs[0].Class != findings.Break || !strings.Contains(fs[0].Sentence, "cn settings import") {
-		t.Fatalf("%v", fs)
 	}
 }
 
@@ -561,23 +522,5 @@ func TestCorpusGrowsWithTheRuleSet(t *testing.T) {
 	sort.Strings(last)
 	if strings.Join(got, " ") != strings.Join(last, " ") {
 		t.Errorf("verify registers [%s] but rules.txt's newest line says [%s]: add a line with a new prefix and its fixture", strings.Join(got, " "), strings.Join(last, " "))
-	}
-}
-
-// NodeHook matches the Node engine's hooks under either root, and nothing
-// that merely ends in engine/hooks/.
-func TestNodeHookMatchesBothRoots(t *testing.T) {
-	for cmd, want := range map[string]bool{
-		"node $CLAUDE_PROJECT_DIR/.claudinite/shared/engine/hooks/stop-command.mjs": true,
-		"node $CLAUDE_PROJECT_DIR/engine/hooks/stop-command.mjs":                    true,
-		"node engine/hooks/stop-command.mjs":                                        true,
-		"bash \"$CLAUDE_PROJECT_DIR\"/engine/hooks/session-start-command.sh":        true,
-		"sh tools/myengine/hooks/stop.sh":                                           false,
-		"sh tools/my.engine/hooks/stop.sh":                                          false,
-		".claudinite/bin/cn hook stop":                                              false,
-	} {
-		if got := NodeHook.MatchString(cmd); got != want {
-			t.Errorf("%q: %v, want %v", cmd, got, want)
-		}
 	}
 }

@@ -35,8 +35,8 @@
 #   adopt    the adoption flow over hello and the hello-asks probe: cn init
 #            ends on QUESTIONS and HANDOVER with the seed written and the
 #            task secret stamped, adoption-answers-pending blocks Stop until
-#            cn settings answer, cn adopt does the same for a pack added
-#            later, and cn init --from-node moves a Node-shaped member.
+#            cn settings answer, and cn adopt does the same for a pack
+#            added later.
 #   tasks    a member on hello 1.4 with the three workflows runs the task
 #            queue against ghstub (its routine route and dev/release/stub-
 #            agent.sh): tasks list and the declaration check,
@@ -1444,23 +1444,6 @@ GO
       member=$dir
       selftest_member 4
       step "adopt 4: with no credential and no license server, cn init asks for no plan; cn login is gone"
-
-      member=$work/adopt-node
-      cp -R cn/lifecycle/adopt/testdata/node-member "$member"
-      printf '{\n  "packs": [\n    "hello",\n    "local/mine"\n  ]\n}\n' > "$member/.claudinite-settings.json"
-      printf '{}\n' > "$member/.claudinite/local/packs/mine/pack.json"
-      printf 'node_modules/\n' > "$member/.gitignore"
-      rm "$member/.github/workflows/ci.yml"
-      (cd "$member" && "$npx/.bin/cn" init --from-node --channel canary --repo "$member") > "$work/init.out" 2>&1 \
-        || fail "adopt 5: init --from-node: $(cat "$work/init.out")"
-      grep -q '^pack: hello 1.0$' "$work/init.out" || fail "adopt 5: hello not vendored: $(cat "$work/init.out")"
-      grep -q '^NEXT: git rm .claudinite-settings.json' "$work/init.out" || fail "adopt 5: NEXT does not start with the declaration's removal: $(cat "$work/init.out")"
-      [ ! -e "$member/.claudinite/shared/engine" ] || fail "adopt 5: the Node engine survived the move"
-      verify_out=$(launch verify) || fail "adopt 5: verify: $verify_out"
-      [ "$verify_out" = "deprecation node-leftovers .claudinite-settings.json: the Node engine's declaration, which cn no longer reads; the move pull request deletes it" ] \
-        || fail "adopt 5: verify reported: $verify_out"
-      selftest_member 5
-      step "adopt 5: cn init --from-node moves the Node-shaped fixture; verify names the declaration alone"
       ;;
     growth)
       step "growth: a member declaring claudinite-growth with a GitHub origin and ghstub"

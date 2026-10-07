@@ -4,15 +4,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/descriptor"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/findings"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/flatdecl"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/packset"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/settings"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/settings/node"
 )
 
 // ownPack is a member's own pack: a declared local pack or a temp pack
@@ -121,49 +118,6 @@ func severityUses(in Input, rel string) []findings.Finding {
 		f := dep("local-pack-shape", rel, fmt.Sprintf("the declared check %q carries \"severity\": %q, the retired name of its on_fail; write \"on_fail\": %q", id, s, to))
 		f.Line = lines[fmt.Sprintf("%s%d.severity", prefix, i)]
 		out = append(out, f)
-	}
-	return out
-}
-
-// checkNodeLeftovers deprecates what a half-moved member still carries
-// of the Node engine.
-func checkNodeLeftovers(in Input) []findings.Finding {
-	var out []findings.Finding
-	if _, _, err := settings.Find(in.Repo); err == nil {
-		if _, ok := read(in, node.File); ok {
-			out = append(out, dep("node-leftovers", node.File, "the Node engine's declaration, which cn no longer reads; the move pull request deletes it"))
-		}
-	}
-	if st, err := os.Stat(filepath.Join(in.Repo, ".claudinite", "shared", "engine")); err == nil && st.IsDir() {
-		out = append(out, dep("node-leftovers", ".claudinite/shared/engine", "the Node engine's mount; the move removes .claudinite/shared/ and cn fetches the packs again"))
-	}
-	for _, name := range []string{"claudinite-rules.GENERATED.md", "claudinite-skills.GENERATED.md"} {
-		rel := ".claudinite/" + name
-		if _, ok := read(in, rel); ok {
-			out = append(out, dep("node-leftovers", rel, "an index at its path from before "+flatdecl.Dir+"/, which nothing writes any more; delete it"))
-		}
-	}
-	workflows, _ := filepath.Glob(filepath.Join(in.Repo, ".github", "workflows", "*.y*ml"))
-	sort.Strings(workflows)
-	for _, w := range workflows {
-		rel := ".github/workflows/" + filepath.Base(w)
-		if text, ok := read(in, rel); ok && strings.Contains(string(text), ".claudinite/shared/engine/checks/") {
-			out = append(out, dep("node-leftovers", rel, "a step runs the Node engine's checks under .claudinite/shared/engine/checks/, which the move removes; the move pull request drops the step (claudinite-ci.yml runs cn check world)"))
-		}
-	}
-	if text, ok := read(in, ".gitignore"); ok {
-		hookLog, temp := false, false
-		for _, l := range strings.Split(string(text), "\n") {
-			l = strings.TrimSpace(l)
-			if !hookLog && strings.HasPrefix(l, "/.claudinite-hooks.log") {
-				hookLog = true
-				out = append(out, dep("node-leftovers", ".gitignore", "ignores the Node engine's hook log ("+l+"), which cn never writes; the move pull request drops the line"))
-			}
-			if !temp && strings.TrimSuffix(strings.TrimPrefix(l, "/"), "/") == ".claudinite/temp" {
-				temp = true
-				out = append(out, dep("node-leftovers", ".gitignore", "ignores the session pack root ("+l+") from the repo root; .claudinite/.gitignore holds /temp/, so the move pull request drops the line and the comment above it"))
-			}
-		}
 	}
 	return out
 }

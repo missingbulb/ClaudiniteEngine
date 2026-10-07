@@ -16,7 +16,7 @@ var update = flag.Bool("update", false, "rewrite testdata/<fixture>.report from 
 
 // The parity settings face's fixtures are the declarations under test:
 // one Node declaration and the member tree beside it each.
-const fixtures = "../../../../rewrite-temp/parity/testdata/settings"
+const fixtures = "../../parity/testdata/settings"
 
 type dirTree string
 

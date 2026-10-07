@@ -1,4 +1,4 @@
-package adopt
+package main
 
 import (
 	"os"
@@ -13,14 +13,14 @@ import (
 // A local pack whose pack.json still carries the Node manifest's rule
 // lists moves with the member: its prose reaches the rules index, and the
 // index init writes is the one verify asks for.
-func TestFromNodeKeepsALocalPackWithRuleLists(t *testing.T) {
+func TestMoveKeepsALocalPackWithRuleLists(t *testing.T) {
 	repo := nodeMember(t)
 	manifest := filepath.Join(repo, ".claudinite/local/packs/mine/pack.json")
 	if err := os.WriteFile(manifest, []byte(`{"worldRules": [], "workRules": []}`+"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	in, out := input(t, repo)
-	if err := FromNode(in); err != nil {
+	if err := move(in); err != nil {
 		t.Fatalf("%v\n%s", err, out)
 	}
 	index, err := os.ReadFile(filepath.Join(repo, filepath.FromSlash(rulesindex.File)))
@@ -33,7 +33,6 @@ func TestFromNodeKeepsALocalPackWithRuleLists(t *testing.T) {
 	var shape []string
 	for _, f := range verify.Verify(verify.Input{Repo: repo, Launcher: []byte(launcherBody)}) {
 		switch f.ID {
-		case "node-leftovers":
 		case "local-pack-shape":
 			shape = append(shape, f.String())
 		default:
@@ -50,7 +49,7 @@ func TestFromNodeKeepsALocalPackWithRuleLists(t *testing.T) {
 // A declared local pack cn would not load stops the move before it writes
 // anything, naming the pack and why, rather than leaving it out of the
 // rules index.
-func TestFromNodeRefusesALocalPackItCannotLoad(t *testing.T) {
+func TestMoveRefusesALocalPackItCannotLoad(t *testing.T) {
 	for name, edit := range map[string]func(string){
 		"unknown key": func(r string) {
 			_ = os.WriteFile(filepath.Join(r, ".claudinite/local/packs/mine/pack.json"), []byte(`{"bogus": true}`), 0o644)
@@ -65,7 +64,7 @@ func TestFromNodeRefusesALocalPackItCannotLoad(t *testing.T) {
 			edit(repo)
 			before := treeHash(t, repo)
 			in, out := input(t, repo)
-			err := FromNode(in)
+			err := move(in)
 			if err == nil {
 				t.Fatalf("moved:\n%s", out)
 			}

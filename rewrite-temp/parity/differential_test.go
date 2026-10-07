@@ -23,7 +23,7 @@ func TestDifferential(t *testing.T) {
 		t.Skip(treesEnv + " is not set")
 	}
 	node := Node{Root: nodeRoot(t)}
-	cn := Cn{Binary: cnBinary(t), Cache: t.TempDir()}
+	cn := Cn{Binary: cnBinary(t), FromNode: fromNodeBinary(t), Cache: t.TempDir()}
 	for _, tree := range trees {
 		tree := tree
 		t.Run(filepath.Base(tree), func(t *testing.T) {

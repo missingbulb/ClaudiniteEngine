@@ -50,7 +50,7 @@ type Member struct {
 }
 
 // ReadMember is the member file's content for repo: false when the repo
-// keeps no .claudinite/settings.* (a Node member, or the shelf). packs
+// keeps no .claudinite/settings.* (an unadopted repo, or the shelf). packs
 // are the loaded packs, whose canon versions are the held ones.
 func ReadMember(repo string, packs []packset.Pack) (Member, bool, error) {
 	path, f, err := settings.Find(repo)
