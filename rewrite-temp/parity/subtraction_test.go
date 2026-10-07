@@ -75,7 +75,7 @@ func TestDeferredFileParses(t *testing.T) {
 		}
 	}
 	if d["descriptor-usable"] != "" {
-		t.Error("deferred.txt still defers descriptor-usable, which the dashboard slice ported as a built-in")
+		t.Error("deferred.txt still defers descriptor-usable, which the dashboard pack carries as its own Go check")
 	}
 	for id, slice := range d {
 		if slice == "task-runner" {
