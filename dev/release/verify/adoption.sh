@@ -20,7 +20,7 @@ while [ $# -gt 0 ]; do
   esac
   shift 2
 done
-[ -n "$channel" ] && [ -n "$version" ] && [ -n "$pin" ] || usage
+if [ -z "$channel" ] || [ -z "$version" ] || [ -z "$pin" ]; then usage; fi
 DIST=${DIST:-dist}
 
 stub=$(mktemp -d)

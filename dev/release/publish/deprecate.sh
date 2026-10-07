@@ -11,7 +11,7 @@
 #
 #   dev/release/publish/deprecate.sh hold|revoke|release VERSION [REASON]
 set -eu
-[ $# -ge 2 ] && [ $# -le 3 ] || { echo "usage: dev/release/publish/deprecate.sh hold|revoke|release VERSION [REASON]" >&2; exit 2; }
+case $# in 2|3) ;; *) echo "usage: dev/release/publish/deprecate.sh hold|revoke|release VERSION [REASON]" >&2; exit 2 ;; esac
 cd "$(dirname "$0")/../../.."
 action=$1 version=$2 reason=${3:-}
 summary=${GITHUB_STEP_SUMMARY:-/dev/stdout}
