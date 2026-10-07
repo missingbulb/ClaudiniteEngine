@@ -80,13 +80,15 @@ type HandoverStep struct {
 	Step, Breaks, Done string
 }
 
-// RetiredKeys are the Node manifest spec's retired fields, which a local
+// RetiredKeys are the Node manifest fields cn does not read, which a local
 // or temp pack's manifest may still carry: the fingerprint relevanceDetector
-// replaced (#2374) and the pack contributions (#2395). Nothing reads them;
-// a canon manifest carrying one fails as an unknown key.
+// replaced (#2374), the pack contributions (#2395), and the coded rule
+// lists, whose only JSON value Node could run was empty and which cn has
+// no runner for. Nothing reads them; a canon manifest carrying one fails
+// as an unknown key.
 //
 // @legacy-tolerance advisory:local-pack-shape retire:#51
-var RetiredKeys = []string{"detect", "marker", "contributes", "contributedRules"}
+var RetiredKeys = []string{"detect", "marker", "contributes", "contributedRules", "worldRules", "workRules"}
 
 // ManifestName is the manifest's descriptor name.
 const ManifestName = "pack"
