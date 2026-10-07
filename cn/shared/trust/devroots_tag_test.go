@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-// dev/release/rehearse.sh lets a devroots rebuild stand for a release
+// dev/release/verify/rehearse.sh lets a devroots rebuild stand for a release
 // candidate, so the tag may change nothing but which roots are embedded:
 // only the roots files and their tests read it.
 func TestOnlyTheRootsFilesReadTheDevrootsTag(t *testing.T) {

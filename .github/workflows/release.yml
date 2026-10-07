@@ -5,7 +5,7 @@
 # opted-in repos take. The build tests initial adoption on linux-x64 against
 # regstub; a full release also reads the real pack shelf (live-packs, which
 # holds promotion on failure) and proves its own updater moves a member off it (hop,
-# dev/release/hop.sh). Once the gates pass, the publish job signs the manifest,
+# dev/release/verify/hop.sh). Once the gates pass, the publish job signs the manifest,
 # tags the commit, publishes every package under the one tag with trusted
 # publishing, checks that npm's version documents name the bytes it built and
 # starts from-npm.yml, which installs the release from npm once npm serves
@@ -65,42 +65,21 @@ jobs:
       - id: kind
         env:
           KIND: ${{ inputs.kind }}
-        run: |
-          go run ./dev/release/pipeline release-kind --kind "$KIND" > "$RUNNER_TEMP/kind"
-          cat "$RUNNER_TEMP/kind" >> "$GITHUB_OUTPUT"
-          echo "PLATFORMS=$(sed -n 's/^platforms=//p' "$RUNNER_TEMP/kind")" >> "$GITHUB_ENV"
+        run: dev/release/kind.sh "$KIND"
       - id: next
-        run: |
-          npm view @claudinite/cli versions --json > "$RUNNER_TEMP/taken.json" 2>/dev/null || true
-          version=$(dev/release/version.sh next --taken "$RUNNER_TEMP/taken.json")
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "VERSION=$version" >> "$GITHUB_ENV"
-      - run: dev/release/build.sh
-      - run: dev/release/smoke.sh
+        run: dev/build/next-version.sh
+      - run: dev/release/create/build.sh
+      - run: dev/release/verify/smoke.sh
       - if: inputs.kind == 'full'
-        run: dev/release/repro.sh
-      - run: dev/release/secretscan.sh dist/bin
+        run: dev/release/verify/repro.sh
+      - run: dev/release/verify/secretscan.sh dist/bin
       - id: out
-        run: |
-          echo "sums=$(sha256sum dist/SHA256SUMS | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
-          echo "integrity=$(cat dist/manifest.integrity)" >> "$GITHUB_OUTPUT"
-      # linux-x64 alone until there are paying customers (#47); a full release
-      # still publishes all five platforms.
+        run: dev/release/create/dist-id.sh
       - name: Test Initial Adoption on Clean Repo (linux-x64, against regstub)
         env:
           INTEGRITY: ${{ steps.out.outputs.integrity }}
           CHANNEL: ${{ steps.kind.outputs.channel }}
-        run: |
-          stub=$PWD/.smoke
-          mkdir -p "$stub"
-          go build -o "$stub/regstub" ./dev/release/regstub
-          "$stub/regstub" --dist dist --ready "$stub/ready" --ca-out "$stub/ca.pem" &
-          trap 'kill $! 2>/dev/null; rm -rf "$stub"' EXIT
-          for _ in $(seq 100); do [ -f "$stub/ready" ] && break; sleep 0.1; done
-          [ -f "$stub/ready" ] || { echo "::error::regstub did not start"; exit 1; }
-          CURL_CA_BUNDLE=$stub/ca.pem NO_PROXY=127.0.0.1,localhost \
-            sh dev/release/smoke-platform.sh --registry "$(cat "$stub/ready")" --channel "$CHANNEL" \
-            --version "$VERSION" --pin "$INTEGRITY" --dist dist --platform linux-x64
+        run: dev/release/verify/adoption.sh --channel "$CHANNEL" --version "$VERSION" --pin "$INTEGRITY"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: dist
@@ -128,20 +107,13 @@ jobs:
         with:
           name: dist
           path: dist/
-      - run: dev/release/rehearse.sh --mode live-packs 2>&1 | tee "$RUNNER_TEMP/live-packs.log"
+      - run: dev/release/verify/rehearse.sh --mode live-packs 2>&1 | tee "$RUNNER_TEMP/live-packs.log"
       - name: open a release-blocker issue
         if: failure()
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ needs.build.outputs.version }}
-        run: |
-          go run ./dev/release/pipeline blocker-issue --gate live-packs --version "$VERSION" \
-            --run-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
-            --log "$RUNNER_TEMP/live-packs.log" > "$RUNNER_TEMP/issue.md"
-          gh label create release-blocker --repo "$GITHUB_REPOSITORY" --color B60205 \
-            --description "Holds the named version back from promotion" 2>/dev/null || true
-          gh issue create --repo "$GITHUB_REPOSITORY" --label release-blocker \
-            --title "$(head -n 1 "$RUNNER_TEMP/issue.md")" --body "$(tail -n +3 "$RUNNER_TEMP/issue.md")"
+        run: dev/release/verify/blocker-issue.sh --gate live-packs --version "$VERSION" --log "$RUNNER_TEMP/live-packs.log"
 
   hop:
     needs: build
@@ -164,10 +136,8 @@ jobs:
       - name: the files build hashed
         env:
           SUMS: ${{ needs.build.outputs.sums }}
-        run: |
-          echo "$SUMS  dist/SHA256SUMS" | sha256sum -c
-          sha256sum -c --quiet dist/SHA256SUMS
-      - run: dev/release/hop.sh
+        run: dev/release/verify/sums.sh "$SUMS"
+      - run: dev/release/verify/hop.sh
 
   # Signs and publishes in one job, the only one holding the release key and
   # the npm trust. A staging build skipped the hop; anything but success
@@ -207,50 +177,29 @@ jobs:
       - name: the files build hashed
         env:
           SUMS: ${{ needs.build.outputs.sums }}
-        run: |
-          echo "$SUMS  dist/SHA256SUMS" | sha256sum -c
-          sha256sum -c --quiet dist/SHA256SUMS
+        run: dev/release/verify/sums.sh "$SUMS"
+      # The key exists only inside this step, and the signature is verified
+      # against the roots a released cn trusts before anything is published.
       - id: sign
         env:
           CN_RELEASE_KEY: ${{ secrets.CN_RELEASE_KEY }}
           CN_RELEASE_CERT: ${{ secrets.CN_RELEASE_CERT }}
-        run: |
-          if [ -z "$CN_RELEASE_KEY" ] || [ -z "$CN_RELEASE_CERT" ]; then
-            echo "::error::the release environment must hold both CN_RELEASE_KEY and CN_RELEASE_CERT (dev/cn-keys/README.md)"
-            exit 1
-          fi
-          ( umask 077
-            printf '%s\n' "$CN_RELEASE_KEY" > "$RUNNER_TEMP/release.key"
-            printf '%s\n' "$CN_RELEASE_CERT" > "$RUNNER_TEMP/release.cert.json" )
-          RELEASE_KEY=$RUNNER_TEMP/release.key RELEASE_CERT=$RUNNER_TEMP/release.cert.json dev/release/sign.sh
-          echo "signing=release" >> "$GITHUB_OUTPUT"
-      - if: always()
-        run: rm -f "$RUNNER_TEMP/release.key" "$RUNNER_TEMP/release.cert.json"
-      - run: go run ./dev/release/manifest verify --dist dist --roots cn/shared/trust/roots --platforms "$PLATFORMS"
+        run: dev/release/create/sign-release.sh
       - id: mode
         env:
           SIGNING: ${{ steps.sign.outputs.signing }}
           DRY_RUN: ${{ inputs.dry_run }}
-        run: |
-          npm view @claudinite/cli versions --json > "$RUNNER_TEMP/versions.json" 2>/dev/null || true
-          go run ./dev/release/pipeline publish-mode --tag "$TAG" --signing "$SIGNING" \
-            --dry-run "$DRY_RUN" --npm-versions "$RUNNER_TEMP/versions.json" >> "$GITHUB_OUTPUT"
+        run: dev/release/publish/mode.sh --tag "$TAG" --signing "$SIGNING" --dry-run "$DRY_RUN"
       - if: steps.mode.outputs.mode == 'real'
         name: tag the commit
-        # Before npm, so a run that fails once npm took the version leaves
-        # the next run a fresh one.
-        run: |
-          git tag "v$VERSION" "$GITHUB_SHA"
-          git push origin "v$VERSION"
+        run: dev/release/publish/tag.sh "$VERSION"
       - if: steps.mode.outputs.mode == 'real'
-        run: dev/release/publish.sh --tag "$TAG" --auth oidc
+        run: dev/release/publish/publish.sh --tag "$TAG" --auth oidc
       - if: steps.mode.outputs.mode == 'real'
         name: npm holds the bytes this run built
         run: go run ./dev/release/pipeline npm-holds --dist dist --version "$VERSION" --channel "$CHANNEL" --repo "$GITHUB_REPOSITORY"
       - if: steps.mode.outputs.mode != 'real'
-        run: |
-          dev/release/publish.sh --tag "$TAG" --dry-run
-          echo "::notice::nothing was published, so no tag and no from-npm.yml"
+        run: dev/release/publish/publish.sh --tag "$TAG" --dry-run
 
   from-npm:
     needs: [build, publish]

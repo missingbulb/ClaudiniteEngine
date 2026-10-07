@@ -476,7 +476,7 @@ sequenceDiagram
   ER->>NPM: Publish cli, platform binaries and sdk
 ```
 
-**Version format.** `<major>.<day>.<n>`: the major version, which the owner raises by hand in `dev/release/major` and which is the major the paragraph on engine versions and member files means; the day number; and the release's build that day, from 1. Versions compare as numbers, major then day then build, so they sort in release order, and every published version stays downloadable forever.
+**Version format.** `<major>.<day>.<n>`: the major version, which the owner raises by hand in `dev/build/major` and which is the major the paragraph on engine versions and member files means; the day number; and the release's build that day, from 1. Versions compare as numbers, major then day then build, so they sort in release order, and every published version stays downloadable forever.
 
 ## Security design
 

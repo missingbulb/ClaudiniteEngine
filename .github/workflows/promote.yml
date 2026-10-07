@@ -8,7 +8,7 @@
 # move dist-tags. With no canary workflow named the gate answers
 # no-canaries, which passes only when the dispatch's confirm input repeats
 # the version. The hourly schedule lands with the first canary workflow
-# named in dev/release/canaries.json.
+# named in dev/release/publish/canaries.json.
 #
 # action hold or revoke instead marks the version on npm with a "held:" or
 # "revoked:" deprecation, which the updater and cn check world read;
@@ -89,34 +89,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
           VERSION: ${{ inputs.version }}
-        run: go run ./dev/release/promote gate --version "$VERSION" --canaries dev/release/canaries.json >> "$GITHUB_OUTPUT"
+        run: go run ./dev/release/publish/promote gate --version "$VERSION" --canaries dev/release/publish/canaries.json >> "$GITHUB_OUTPUT"
       - id: allowed
         env:
           VERSION: ${{ inputs.version }}
           CONFIRM: ${{ inputs.confirm }}
           VERDICT: ${{ steps.gate.outputs.verdict }}
           HOP: ${{ steps.gate.outputs.hop }}
-        run: |
-          allowed=false
-          case $VERDICT in
-            pass) allowed=true; why="every gate passed" ;;
-            no-canaries)
-              if [ "$CONFIRM" = "$VERSION" ]; then
-                allowed=true; why="no canary is registered, and the dispatch typed the version twice"
-              else
-                why="no canary is registered; dispatch again with confirm set to the version to promote anyway"
-              fi ;;
-            *) why="the gate answered $VERDICT" ;;
-          esac
-          {
-            echo "### Promotion of @claudinite/cli $VERSION"
-            echo
-            echo "- gate: \`$VERDICT\` ($why)"
-            echo "- hop: \`$HOP\` (advisory until a canary runs candidates; release.yml's hop job proved this candidate's updater before it was published)"
-            echo "- promoting: $allowed"
-          } >> "$GITHUB_STEP_SUMMARY"
-          echo "::notice::gate $VERDICT, $HOP: $why"
-          echo "allowed=$allowed" >> "$GITHUB_OUTPUT"
+        run: dev/release/publish/allowed.sh "$VERSION" "$CONFIRM" "$VERDICT" "$HOP"
 
   check:
     needs: gate
@@ -139,26 +119,8 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "22"
-      # A staging build has no tarball on four platform packages; check
-      # names it as one from its manifest.
-      - name: download the candidate's tarballs
-        run: |
-          mkdir candidate-tarballs
-          for name in $(go run ./dev/release/pipeline names); do
-            npm pack "$name@$VERSION" --pack-destination candidate-tarballs --silent \
-              || echo "::notice::npm has no $name@$VERSION"
-          done
-          for f in candidate-tarballs/claudinite-*.tgz; do mv "$f" "candidate-tarballs/$(basename "$f" | sed 's/^claudinite-//')"; done
-          ls -l candidate-tarballs
       - id: check
-        run: go run ./dev/release/promote check --version "$VERSION" --tarballs candidate-tarballs --roots cn/shared/trust/roots --source candidate >> "$GITHUB_OUTPUT"
-      - if: steps.check.outputs.check != 'pass'
-        env:
-          REASON: ${{ steps.check.outputs.reason }}
-        run: |
-          echo "### $VERSION not promoted: $REASON" >> "$GITHUB_STEP_SUMMARY"
-          echo "::error::promote check refused $VERSION: $REASON"
-          exit 1
+        run: dev/release/publish/candidate.sh "$VERSION" candidate
 
   deprecate:
     if: inputs.action == 'hold' || inputs.action == 'revoke' || inputs.action == 'release'
@@ -182,38 +144,7 @@ jobs:
       - name: npm deprecate
         env:
           NPM_DEPRECATE_TOKEN: ${{ secrets.NPM_DEPRECATE_TOKEN }}
-        run: |
-          mkdir -p "$RUNNER_TEMP/versions/@claudinite"
-          for name in $(go run ./dev/release/pipeline names); do
-            out=$RUNNER_TEMP/versions/$name.json
-            if ! npm view "$name" versions --json > "$out" 2> "$RUNNER_TEMP/view.err"; then
-              if grep -q E404 "$out" "$RUNNER_TEMP/view.err"; then
-                : > "$out"
-              else
-                echo "::error::npm view $name failed, so which packages hold $VERSION is unknown; nothing deprecated: $(cat "$out" "$RUNNER_TEMP/view.err" | tr '\n' ' ')"
-                exit 1
-              fi
-            fi
-          done
-          go run ./dev/release/pipeline deprecate-commands --action "$ACTION" --version "$VERSION" --reason "$REASON" \
-            --versions-dir "$RUNNER_TEMP/versions" > "$RUNNER_TEMP/commands.sh"
-          if [ ! -s "$RUNNER_TEMP/commands.sh" ]; then
-            echo "### $ACTION $VERSION: npm has no such version; nothing done" >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-          {
-            echo "### $ACTION $VERSION"
-            echo
-            echo '```'
-            cat "$RUNNER_TEMP/commands.sh"
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
-          if [ -z "$NPM_DEPRECATE_TOKEN" ]; then
-            echo "::error::the promote environment has no NPM_DEPRECATE_TOKEN secret, an npm token with write access to @claudinite; add it and dispatch again (the commands are in this job's summary)"
-            exit 1
-          fi
-          NODE_AUTH_TOKEN=$NPM_DEPRECATE_TOKEN sh -e "$RUNNER_TEMP/commands.sh"
-          echo "deprecated now: $(npm view "@claudinite/cli@$VERSION" deprecated)" >> "$GITHUB_STEP_SUMMARY"
+        run: dev/release/publish/deprecate.sh "$ACTION" "$VERSION" "$REASON"
 
   unpublish:
     if: inputs.action == 'unpublish'
@@ -225,13 +156,6 @@ jobs:
       VERSION: ${{ inputs.version }}
       CONFIRM: ${{ inputs.confirm }}
     steps:
-      - name: confirm
-        run: |
-          if [ "$CONFIRM" != "$VERSION" ]; then
-            echo "::error::unpublish cannot be undone; dispatch again with confirm set to the version, $VERSION"
-            echo "### unpublish $VERSION: refused, confirm does not repeat the version; nothing unpublished" >> "$GITHUB_STEP_SUMMARY"
-            exit 1
-          fi
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
@@ -243,45 +167,7 @@ jobs:
       - name: npm unpublish
         env:
           NPM_DEPRECATE_TOKEN: ${{ secrets.NPM_DEPRECATE_TOKEN }}
-        run: |
-          if ! npm view @claudinite/cli dist-tags --json > "$RUNNER_TEMP/dist-tags.json" 2> "$RUNNER_TEMP/view.err"; then
-            echo "::error::npm view @claudinite/cli dist-tags failed, so whether $VERSION is latest is unknown; nothing unpublished: $(cat "$RUNNER_TEMP/dist-tags.json" "$RUNNER_TEMP/view.err" | tr '\n' ' ')"
-            exit 1
-          fi
-          mkdir -p "$RUNNER_TEMP/versions/@claudinite"
-          for name in $(go run ./dev/release/pipeline names); do
-            out=$RUNNER_TEMP/versions/$name.json
-            if ! npm view "$name" versions --json > "$out" 2> "$RUNNER_TEMP/view.err"; then
-              if grep -q E404 "$out" "$RUNNER_TEMP/view.err"; then
-                : > "$out"
-              else
-                echo "::error::npm view $name failed, so whether $VERSION is its only version is unknown; nothing unpublished: $(cat "$out" "$RUNNER_TEMP/view.err" | tr '\n' ' ')"
-                exit 1
-              fi
-            fi
-          done
-          if ! go run ./dev/release/pipeline unpublish-commands --version "$VERSION" --versions-dir "$RUNNER_TEMP/versions" \
-            --dist-tags "$RUNNER_TEMP/dist-tags.json" > "$RUNNER_TEMP/commands.sh"; then
-            echo "### unpublish $VERSION: refused; nothing unpublished (the error is in this job's log)" >> "$GITHUB_STEP_SUMMARY"
-            exit 1
-          fi
-          if [ ! -s "$RUNNER_TEMP/commands.sh" ]; then
-            echo "### unpublish $VERSION: npm has no such version; nothing done" >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-          {
-            echo "### unpublish $VERSION"
-            echo
-            echo '```'
-            cat "$RUNNER_TEMP/commands.sh"
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
-          if [ -z "$NPM_DEPRECATE_TOKEN" ]; then
-            echo "::error::the promote environment has no NPM_DEPRECATE_TOKEN secret, an npm token with write access to @claudinite; add it and dispatch again (the commands are in this job's summary)"
-            exit 1
-          fi
-          NODE_AUTH_TOKEN=$NPM_DEPRECATE_TOKEN sh -e "$RUNNER_TEMP/commands.sh"
-          echo "versions now: $(npm view @claudinite/cli versions --json | tr -d '\n ')" >> "$GITHUB_STEP_SUMMARY"
+        run: dev/release/publish/unpublish.sh "$VERSION" "$CONFIRM"
 
   # The full check on the commit this version was built from: a staging or rc
   # release skips it, and stable never does.
@@ -309,21 +195,11 @@ jobs:
     env:
       VERSION: ${{ inputs.version }}
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "22"
           registry-url: https://registry.npmjs.org
       - run: npm install -g npm@11.21.0
       - name: npm dist-tag add
-        run: |
-          before=$(npm view @claudinite/cli dist-tags.latest)
-          if ! npm_config_loglevel=verbose npm dist-tag add "@claudinite/cli@$VERSION" latest; then
-            echo "::error::npm refused to move latest onto $VERSION; check the promote.yml trusted publisher of @claudinite/cli and its Allow npm dist-tag box on https://github.com/missingbulb/ClaudiniteEngine/issues/2"
-            exit 1
-          fi
-          after=$(npm view @claudinite/cli dist-tags.latest)
-          echo "### latest: $before -> $after" >> "$GITHUB_STEP_SUMMARY"
-          if [ "$after" != "$VERSION" ]; then
-            echo "::error::npm accepted the dist-tag, but latest reads $after, not $VERSION"
-            exit 1
-          fi
+        run: dev/release/publish/latest.sh "$VERSION"
