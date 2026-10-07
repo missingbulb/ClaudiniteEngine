@@ -189,7 +189,7 @@ func TestStubFollowsADispatchedRunByEventAndID(t *testing.T) {
 		}
 		return resp.StatusCode
 	}
-	post := httptest.NewRequest("POST", srv.URL+"/repos/acme/member/actions/workflows/claudinite-dashboard-pages.yml/dispatches", strings.NewReader(`{"ref":"main"}`))
+	post := httptest.NewRequest("POST", srv.URL+"/repos/acme/member/actions/workflows/claudinite-single-repo-dashboard-pages.yml/dispatches", strings.NewReader(`{"ref":"main"}`))
 	post.RequestURI = ""
 	post.Header.Set("Authorization", "Bearer tok")
 	resp, err := srv.Client().Do(post)
@@ -201,7 +201,7 @@ func TestStubFollowsADispatchedRunByEventAndID(t *testing.T) {
 	var listed struct {
 		Runs []run `json:"workflow_runs"`
 	}
-	if code := get("/actions/workflows/claudinite-dashboard-pages.yml/runs?event=workflow_dispatch&created=%3E%3D2026-01-01T00%3A00%3A00Z&per_page=5", &listed); code != 200 || len(listed.Runs) != 1 {
+	if code := get("/actions/workflows/claudinite-single-repo-dashboard-pages.yml/runs?event=workflow_dispatch&created=%3E%3D2026-01-01T00%3A00%3A00Z&per_page=5", &listed); code != 200 || len(listed.Runs) != 1 {
 		t.Fatalf("%d %+v", code, listed)
 	}
 	r := listed.Runs[0]
@@ -222,7 +222,7 @@ func TestStubFollowsADispatchedRunByEventAndID(t *testing.T) {
 	var bySha struct {
 		Runs []run `json:"workflow_runs"`
 	}
-	if get("/actions/workflows/claudinite-dashboard-pages.yml/runs", &bySha); len(bySha.Runs) != 0 {
+	if get("/actions/workflows/claudinite-single-repo-dashboard-pages.yml/runs", &bySha); len(bySha.Runs) != 0 {
 		t.Errorf("a listing naming neither sha nor event answered %+v", bySha.Runs)
 	}
 }
