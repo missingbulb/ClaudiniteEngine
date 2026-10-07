@@ -43,26 +43,15 @@ from, where Node's tool found no carrier at all).
 Phase 7 added `scenarios/provenance/*`'s maintainer verbs (nineteen more,
 52 in all: `reduce`, `apply`, `convert-references` and `brief`, whose
 repos carry authors, an origin, a sweep, a moved rule, a rule reworded in
-place, a promoted pack and a declaration re-spelled to the same value) and
-`scenarios/pack-history/*` (three: the shelf, one pack, an earlier ref),
-where Node's `pack-versions.mjs` answers through `shims/pack-history.mjs`
-in `cn pack history --json`'s shape, and `scenarios/promote-scope/*`
-(four: inside the roots, outside, a second root from config, no merge
-base), Node's rule through `shims/promote-scope.mjs` against `--base`. The fixtures keep to what both read:
-cn drops a pack's `test/`, `docs/` and `checks/*_test.go` as the vendored
-set does, where Node dropped only `*.test.mjs`, and reads any dotted pack
-version, where Node read none below a date-anchored one.
+place, a promoted pack and a declaration re-spelled to the same value).
 
 ## Divergences
 
-Scenarios face divergences: 2 of 276 fixtures.
+Scenarios face divergences: 1 of 268 fixtures.
 
 A coded scenario whose `cn` world findings differ on purpose carries
 `"divergence": "record-<row>"` and `cn`'s findings as `"cnWorld"`, its
-`world` staying the Node engine's: `coded-claudinite-canon-curation/pack-no-enforcement-narration-fires`
-is record row 124 (a pack's Go checks name its own rules, which the
-Node engine, reading `.mjs` alone, never saw), and
-`flat-declarations/fires` is record row 137 (cn generates under
+`world` staying the Node engine's: `flat-declarations/fires` is record row 137 (cn generates under
 `.claudinite/cache/`, where the Node engine wrote `.claudinite/flat/`).
 
 Growth face divergences: 0 of 57 fixtures.
