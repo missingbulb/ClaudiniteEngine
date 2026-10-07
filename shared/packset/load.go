@@ -193,6 +193,16 @@ func load(repo, engine string, session bool) (Set, error) {
 	return s, nil
 }
 
+// LoadLocal loads the local pack name as Load would, or says why it
+// would not load.
+func LoadLocal(repo, name string) (Pack, error) {
+	p, why := loadOne(repo, Local, name, LocalDir+"/"+name, "0.0.0")
+	if why != "" {
+		return Pack{}, errors.New(why)
+	}
+	return p, nil
+}
+
 func loadOne(repo string, kind Kind, id, rel, engine string) (Pack, string) {
 	dir := filepath.Join(repo, filepath.FromSlash(rel))
 	if st, err := os.Stat(dir); err != nil || !st.IsDir() {

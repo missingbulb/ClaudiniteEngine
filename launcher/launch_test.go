@@ -718,3 +718,79 @@ func TestLauncherStalledRegistry(t *testing.T) {
 	}
 	m.cachedNothing(t)
 }
+
+// The @claudinite/cli bin outside init runs the member's own pin: the
+// member is the directory --repo names, or the working directory. Nothing
+// beside the bin in node_modules is a member.
+func TestNpmEntryRunsTheMembersPin(t *testing.T) {
+	rel := makeRelease(t, releaseOpts{})
+	bin := npxLayout(t, "@claudinite/cli", map[string][]byte{"manifest.json": rel.manifest})
+
+	runFrom := func(t *testing.T, m *member, dir string, args ...string) (string, string, int) {
+		t.Helper()
+		cmd := exec.Command(bin, args...)
+		cmd.Dir = dir
+		cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "HOME=" + m.home, "XDG_CACHE_HOME=" + m.cache,
+			"CLAUDINITE_REGISTRY=" + m.registry, "CURL_CA_BUNDLE=" + m.ca, "NO_PROXY=127.0.0.1,localhost"}
+		var out, errb bytes.Buffer
+		cmd.Stdout, cmd.Stderr = &out, &errb
+		err := cmd.Run()
+		code := 0
+		if ee, ok := err.(*exec.ExitError); ok {
+			code = ee.ExitCode()
+		} else if err != nil {
+			t.Fatal(err)
+		}
+		return out.String(), errb.String(), code
+	}
+	ranThePin := func(t *testing.T, m *member, errOut string, code int) {
+		t.Helper()
+		if strings.Contains(errOut, "claudinite launch:") {
+			t.Fatalf("the launcher refused: exit %d\n%s", code, errOut)
+		}
+		if _, err := os.Stat(filepath.Join(m.vdir(), hostBin)); err != nil {
+			t.Errorf("the member's pinned engine is not cached: %v", err)
+		}
+		if _, err := os.Lstat(filepath.Join(m.dir, ".claudinite", "bin", hostBin)); err != nil {
+			t.Errorf("the member's .claudinite/bin/cn was not linked: %v", err)
+		}
+	}
+
+	t.Run("from the member's directory", func(t *testing.T) {
+		t.Parallel()
+		m := newMember(t, startStub(t, rel.dist))
+		m.settings(t, "settings.yaml", yaml(testVersion, rel.pin))
+		out, errOut, code := runFrom(t, m, m.dir, "version")
+		ranThePin(t, m, errOut, code)
+		if code != 0 || !strings.Contains(out, testVersion) {
+			t.Errorf("exit %d, stdout %q, stderr %q", code, out, errOut)
+		}
+	})
+
+	t.Run("with --repo from elsewhere", func(t *testing.T) {
+		t.Parallel()
+		m := newMember(t, startStub(t, rel.dist))
+		m.settings(t, "settings.yaml", yaml(testVersion, rel.pin))
+		_, errOut, code := runFrom(t, m, t.TempDir(), "selftest", "--repo", m.dir)
+		ranThePin(t, m, errOut, code)
+	})
+
+	t.Run("with --repo=DIR from elsewhere", func(t *testing.T) {
+		t.Parallel()
+		m := newMember(t, startStub(t, rel.dist))
+		m.settings(t, "settings.json", fmt.Sprintf("{\"engine\": {\"version\": %q, \"manifest\": %q}}\n", testVersion, rel.pin))
+		_, errOut, code := runFrom(t, m, t.TempDir(), "selftest", "--repo="+m.dir)
+		ranThePin(t, m, errOut, code)
+	})
+
+	t.Run("a directory that is no member is refused", func(t *testing.T) {
+		t.Parallel()
+		m := newMember(t, startStub(t, rel.dist))
+		elsewhere := t.TempDir()
+		_, errOut, code := runFrom(t, m, elsewhere, "version")
+		if code != 1 || !strings.Contains(errOut, "found 0") || !strings.Contains(errOut, elsewhere) {
+			t.Errorf("exit %d, stderr %q", code, errOut)
+		}
+		m.cachedNothing(t)
+	})
+}
