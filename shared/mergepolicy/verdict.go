@@ -336,7 +336,13 @@ func Judge(policy any, entries []Entry, declared Declared) Verdict {
 		file := e.File
 		if policySources.MatchString(file) && !isCommentOnlyChange(e) {
 			mount := false
-			if vendoredMount.MatchString(file) {
+			for _, n := range norm.Allow {
+				if r, ok := resolve(n); ok && r.CoversPolicySource && r.AppliesTo(e) {
+					mount = true
+					break
+				}
+			}
+			if !mount && vendoredMount.MatchString(file) {
 				for _, n := range norm.Allow {
 					if r, ok := resolve(n); ok && r.CoversMount && r.AppliesTo(e) {
 						mount = true

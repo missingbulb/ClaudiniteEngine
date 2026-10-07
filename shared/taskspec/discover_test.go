@@ -1,6 +1,7 @@
 package taskspec
 
 import (
+	"github.com/missingbulb/ClaudiniteEngine/shared/mergepolicy"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -150,6 +151,11 @@ func TestTheUpdateTask(t *testing.T) {
 	}
 	if u.Pack != BuiltinPack || !u.Engine || u.Decl.AgentModel() != "sonnet" || u.TaskPath() != UpdateTaskPath {
 		t.Fatalf("%+v path %s", u, u.TaskPath())
+	}
+	// The update PR's predicted shape: the pin moved, the member file and
+	// the managed workflows, nothing wider.
+	if got := mergepolicy.Expression(u.Decl["automerge"]); got != "engine-pin-move;engine-update-files" {
+		t.Errorf("automerge %q", got)
 	}
 	if !strings.Contains(EngineInstructions(u), ".claudinite/cache/pending-workflows/") {
 		t.Error("the update's agent stage carries no instructions")

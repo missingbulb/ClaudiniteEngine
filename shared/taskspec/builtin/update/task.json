@@ -6,7 +6,7 @@
     "schedule:at-most-daily"
   ],
   "expected_outcome": "supersede_existing_pr",
-  "automerge": "nothing",
+  "automerge": ["engine-pin-move", "engine-update-files"],
   "agent_model": "sonnet",
   "code_work": "cn update engine && cn update packs",
   "code_work_timeout": 1800,

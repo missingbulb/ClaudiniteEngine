@@ -37,9 +37,11 @@ it to the branch.
 
 GitHub refuses a merge that changes `.github/workflows/` when the job token
 asks, so the engine's own `land` job skips this pull request and the merge is
-yours, behind the engine's gate. This task's `automerge` is `nothing` because
-no delivery lane may merge it: the only authority to merge is that gate,
-`cn update land --check`, at the head it passed.
+yours. Two things authorize it, and you need both: this task's `automerge`,
+`engine-pin-move` and `engine-update-files`, which covers the pin moved, the
+member file and the three managed workflows and nothing else, and the
+engine's gate, `cn update land --check`, at the head it passed. A diff the
+policy does not cover is not yours to merge.
 
 1. Dispatch the workflow `claudinite-ci.yml` on `Target-branch:` with the input
    `pr` set to the pull request's number. Its `check` job runs the new engine
