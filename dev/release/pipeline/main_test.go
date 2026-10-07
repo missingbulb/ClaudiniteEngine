@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/missingbulb/ClaudiniteEngine/cn/shared/npmreg"
 )
 
 func pipeline(t *testing.T, args ...string) (string, string, int) {
@@ -76,5 +78,17 @@ func TestUnpublishCommandsReadsTheDistTags(t *testing.T) {
 	out, e, code := pipeline(t, "deprecate-commands", "--action", "hold", "--version", "1.61005.2", "--reason", "x", "--versions-dir", dir)
 	if code != 0 || strings.Count(out, "npm deprecate") != 6 {
 		t.Errorf("deprecate: exit %d\n%s%s", code, out, e)
+	}
+}
+
+// npm-holds waits as long as cn update does for npm to serve a release,
+// and needs the repository and channel its way-on message names.
+func TestNPMHoldsWaitsTheServeWait(t *testing.T) {
+	in, ok := holdsFlags([]string{"--dist", "dist", "--version", "1.61005.9", "--channel", "canary", "--repo", "o/r"})
+	if !ok || in.Timeout != npmreg.ServeWait || in.Channel != "canary" || in.Repo != "o/r" {
+		t.Errorf("ok %v, timeout %v, channel %q; want npmreg.ServeWait (%v) and canary", ok, in.Timeout, in.Channel, npmreg.ServeWait)
+	}
+	if _, e, code := pipeline(t, "npm-holds", "--dist", "dist", "--version", "1.61005.9", "--repo", "o/r"); code != 2 || !strings.Contains(e, "usage") {
+		t.Errorf("no --channel: exit %d %s", code, e)
 	}
 }
