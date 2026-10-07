@@ -47,23 +47,23 @@ jobs:
         with:
           node-version: "22"
       # The rehearsal's release: built with the development roots and signed with the
-      # development keys (testkeys/), which release/rehearse.sh's every key chains to.
-      - run: release/build.sh
+      # development keys (dev/testkeys/), which dev/release/rehearse.sh's every key chains to.
+      - run: dev/release/build.sh
         env:
           VERSION: "1.61001.1"
           REHEARSAL: "1"
           BUILD_TAGS: devroots
-      - run: release/sign.sh
+      - run: dev/release/sign.sh
         env:
-          RELEASE_KEY: testkeys/release.key
-          RELEASE_CERT: testkeys/release.cert.json
-          ROOTS: shared/trust/devroots
+          RELEASE_KEY: dev/testkeys/release.key
+          RELEASE_CERT: dev/testkeys/release.cert.json
+          ROOTS: cn/shared/trust/devroots
       - run: sha256sum -c dist/SHA256SUMS
-      - run: release/smoke.sh
-      - run: release/repro.sh
+      - run: dev/release/smoke.sh
+      - run: dev/release/repro.sh
         env:
           VERSION: "1.61001.1"
-      - run: release/secretscan.sh dist/bin
+      - run: dev/release/secretscan.sh dist/bin
       # Named apart from a calling release's own dist, since a called workflow shares its run's artifacts.
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -86,7 +86,7 @@ jobs:
           node-version: "22"
       # The dashboard mode's step 7 publishes the real dashboard pack, from ClaudinitePacks at the pinned commit.
       - id: packs
-        run: echo "ref=$(cat parity/claudinitepacks.ref)" >> "$GITHUB_OUTPUT"
+        run: echo "ref=$(cat dev/claudinitepacks.ref)" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: missingbulb/ClaudinitePacks
@@ -97,7 +97,7 @@ jobs:
         with:
           name: full-rehearsal-dist
           path: dist/
-      - run: release/rehearse.sh
+      - run: dev/release/rehearse.sh
         env:
           CLAUDINITE_PACKS_TREE: ${{ github.workspace }}/claudinitepacks
 
@@ -115,7 +115,7 @@ jobs:
           path: claudinite-frozen
           persist-credentials: false
       - id: packs
-        run: echo "ref=$(cat parity/claudinitepacks.ref)" >> "$GITHUB_OUTPUT"
+        run: echo "ref=$(cat dev/claudinitepacks.ref)" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: missingbulb/ClaudinitePacks
@@ -129,7 +129,7 @@ jobs:
         with:
           node-version: "22"
           package-manager-cache: false
-      - run: go build -o "$RUNNER_TEMP/cn" ./cmd/cn
+      - run: go build -o "$RUNNER_TEMP/cn" ./cn
       # The ported packs' Go tests and cn check --pack fixtures, against this cn, until
       # ClaudinitePacks pins a published one (#2).
       - run: sh tools/checks/test.sh
@@ -144,7 +144,7 @@ jobs:
       # The per-call hooks' latency on the runner, held to its budgets; the table lands in the log.
       - run: |
           rc=0
-          sh probe/hook-latency/run.sh --node claudinite-frozen --out "$RUNNER_TEMP/hook-latency" --budget || rc=$?
+          sh rewrite-temp/probe/hook-latency/run.sh --node claudinite-frozen --out "$RUNNER_TEMP/hook-latency" --budget || rc=$?
           cat "$RUNNER_TEMP"/hook-latency/*.md
           exit "$rc"
 
