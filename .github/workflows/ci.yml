@@ -54,9 +54,9 @@ jobs:
       - run: |
           golangci-lint run > golangci.out 2>&1 &
           gl=$!
-          shellcheck -s sh launcher/launch release/*.sh probe/desktop-timings/run.sh probe/hook-latency/run.sh probe/ci-speed/p75.sh > shellcheck.out 2>&1 &
+          shellcheck -s sh cn/launcher/launch dev/release/*.sh rewrite-temp/probe/desktop-timings/run.sh rewrite-temp/probe/hook-latency/run.sh rewrite-temp/probe/ci-speed/p75.sh > shellcheck.out 2>&1 &
           sc=$!
-          go run github.com/rhysd/actionlint/cmd/actionlint@393031adb9afb225ee52ae2ccd7a5af5525e03e8 .github/workflows/*.yml lifecycle/workflows/templates/*.yml > actionlint.out 2>&1 &
+          go run github.com/rhysd/actionlint/cmd/actionlint@393031adb9afb225ee52ae2ccd7a5af5525e03e8 .github/workflows/*.yml cn/lifecycle/workflows/templates/*.yml > actionlint.out 2>&1 &
           al=$!
           rc=0
           go list ./... | grep -v /parity | xargs go test -short -count=1 -p 8 || rc=1
