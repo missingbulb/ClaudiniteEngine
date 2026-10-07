@@ -54,11 +54,17 @@ func holdsDist(t *testing.T) (string, map[string]string) {
 		sum := sha512.Sum512(body)
 		want[pkg] = "sha512-" + base64.StdEncoding.EncodeToString(sum[:])
 	}
+	if err := os.WriteFile(filepath.Join(dir, "manifest.integrity"), []byte(manifestPin+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	return dir, want
 }
 
+// manifestPin is the dist's manifest.integrity, the pin from-npm.yml takes.
+const manifestPin = "sha512-manifestpin"
+
 func holdsInput(dist, registry string, log *bytes.Buffer) HoldsInput {
-	return HoldsInput{Dist: dist, Version: "1.61005.9", Registry: registry, HTTP: http.DefaultClient,
+	return HoldsInput{Dist: dist, Version: "1.61005.9", Channel: "canary", Repo: "missingbulb/ClaudiniteEngine", Registry: registry, HTTP: http.DefaultClient,
 		Timeout: 2 * time.Second, Every: time.Millisecond, Log: log}
 }
 
@@ -98,16 +104,57 @@ func TestNPMHoldsRefusesOtherBytes(t *testing.T) {
 	}
 }
 
-func TestNPMHoldsGivesUpAtItsTimeout(t *testing.T) {
+// Publish has already put every package on npm when the wait runs out, so
+// re-running it is refused; the error carries the one way on, from-npm.yml
+// dispatched with this release's values, and names every package npm has
+// not listed yet.
+func TestNPMHoldsGivesUpWithTheWayOn(t *testing.T) {
 	t.Parallel()
-	dist, _ := holdsDist(t)
-	srv := httptest.NewServer(&docNPM{seen: map[string]int{}, integrity: map[string]string{}})
+	dist, want := holdsDist(t)
+	f := &docNPM{seen: map[string]int{}, integrity: map[string]string{"@claudinite/cli": want["@claudinite/cli"]}}
+	srv := httptest.NewServer(f)
 	defer srv.Close()
 	var log bytes.Buffer
 	in := holdsInput(dist, srv.URL, &log)
 	in.Timeout = 50 * time.Millisecond
-	if err := NPMHolds(in); err == nil || !strings.Contains(err.Error(), "does not list") {
-		t.Fatalf("err %v, want a timeout\n%s", err, log.String())
+	err := NPMHolds(in)
+	if err == nil {
+		t.Fatalf("NPMHolds passed a registry that never lists cli-linux-x64\n%s", log.String())
+	}
+	msg := err.Error()
+	for _, w := range []string{
+		"does not list @claudinite/cli-linux-x64 1.61005.9",
+		"gh workflow run from-npm.yml --repo missingbulb/ClaudiniteEngine --ref v1.61005.9 -f version=1.61005.9 -f integrity=" + manifestPin + " -f channel=canary",
+	} {
+		if !strings.Contains(msg, w) {
+			t.Errorf("error lacks %q:\n%s", w, msg)
+		}
+	}
+	if strings.Contains(msg, "@claudinite/cli 1.61005.9") {
+		t.Errorf("error names cli, which npm listed:\n%s", msg)
+	}
+	if f.seen["@claudinite/cli"] != 1 {
+		t.Errorf("looked at cli %d times; once it matched, want no more looks", f.seen["@claudinite/cli"])
+	}
+}
+
+// Every package is looked at in each round, so the log records when each
+// one landed and a slow package does not hide the state of those after it.
+func TestNPMHoldsLooksAtEveryPackageEachRound(t *testing.T) {
+	t.Parallel()
+	dist, want := holdsDist(t)
+	f := &docNPM{seen: map[string]int{}, integrity: map[string]string{"@claudinite/cli-linux-x64": want["@claudinite/cli-linux-x64"]}}
+	srv := httptest.NewServer(f)
+	defer srv.Close()
+	var log bytes.Buffer
+	in := holdsInput(dist, srv.URL, &log)
+	in.Timeout = 50 * time.Millisecond
+	err := NPMHolds(in)
+	if err == nil || !strings.Contains(err.Error(), "does not list @claudinite/cli 1.61005.9") {
+		t.Fatalf("err %v, want one naming cli\n%s", err, log.String())
+	}
+	if !strings.Contains(log.String(), "npm-holds: @claudinite/cli-linux-x64 1.61005.9 matches") {
+		t.Errorf("linux-x64 was never looked at while cli was missing:\n%s", log.String())
 	}
 }
 

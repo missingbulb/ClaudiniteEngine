@@ -251,6 +251,19 @@ func TestReleaseGatesThePublish(t *testing.T) {
 			t.Errorf("the from-npm job lacks %q:\n%s", want, fromNPM)
 		}
 	}
+	// A timed-out npm-holds prints the dispatch this job would have run;
+	// the two must stay one command.
+	dispatch := fromNPM[strings.Index(fromNPM, "gh workflow run"):]
+	end := strings.Index(dispatch, `-f channel="$CHANNEL"`) + len(`-f channel="$CHANNEL"`)
+	dispatch = strings.Join(strings.Fields(strings.ReplaceAll(dispatch[:end], "\\\n", "")), " ")
+	dispatch = strings.NewReplacer(`"`, "", "$GITHUB_REPOSITORY", "o/r", "$VERSION", "1.61005.9", "$INTEGRITY", "sha512-x", "$CHANNEL", "canary").Replace(dispatch)
+	if got := FromNPMDispatch("o/r", "1.61005.9", "sha512-x", "canary"); got != dispatch {
+		t.Errorf("npm-holds prints\n  %s\nbut the from-npm job runs\n  %s", got, dispatch)
+	}
+	if !strings.Contains(publish, "CHANNEL: ${{ needs.build.outputs.channel }}") ||
+		!strings.Contains(publish, `pipeline npm-holds --dist dist --version "$VERSION" --channel "$CHANNEL" --repo "$GITHUB_REPOSITORY"`) {
+		t.Errorf("the publish job does not hand npm-holds the channel and repository its way-on message names:\n%s", publish)
+	}
 	if strings.Contains(fromNPM, "npm-wait") || jobBlock(t, wf, "smoke-published") != "" {
 		t.Error("release.yml still waits for npm to serve its tarballs")
 	}
