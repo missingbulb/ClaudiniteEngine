@@ -1,6 +1,6 @@
 # The first half of phase 7's gate: cn, built from this commit with the development roots beside
 # the ceremony's and signed with the development keys, adopts, loads, checks and updates the real packs from the pack CDN and ClaudinitePacks'
-# vendored branch (release/rehearse.sh --mode live-packs). Nightly, since the shelf moves without
+# vendored branch (dev/release/rehearse.sh --mode live-packs). Nightly, since the shelf moves without
 # this repo, and on demand; pull requests and main wait only on ci.yml's fast check.
 name: live-packs
 
@@ -28,5 +28,5 @@ jobs:
         with:
           node-version: "22"
       # Today's version, so the build meets every floor the shelf names.
-      - run: VERSION="$(cat release/major).$(go run ./cmd/cn version --day).1" REHEARSAL=1 BUILD_TAGS=devroots release/build.sh
-      - run: release/rehearse.sh --mode live-packs
+      - run: VERSION="$(cat dev/release/major).$(go run ./cn version --day).1" REHEARSAL=1 BUILD_TAGS=devroots dev/release/build.sh
+      - run: dev/release/rehearse.sh --mode live-packs

@@ -8,7 +8,7 @@
 # move dist-tags. With no canary workflow named the gate answers
 # no-canaries, which passes only when the dispatch's confirm input repeats
 # the version. The hourly schedule lands with the first canary workflow
-# named in release/canaries.json.
+# named in dev/release/canaries.json.
 #
 # action hold or revoke instead marks the version on npm with a "held:" or
 # "revoked:" deprecation, which the updater and cn check world read;
@@ -89,7 +89,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
           VERSION: ${{ inputs.version }}
-        run: go run ./release/promote gate --version "$VERSION" --canaries release/canaries.json >> "$GITHUB_OUTPUT"
+        run: go run ./dev/release/promote gate --version "$VERSION" --canaries dev/release/canaries.json >> "$GITHUB_OUTPUT"
       - id: allowed
         env:
           VERSION: ${{ inputs.version }}
@@ -144,14 +144,14 @@ jobs:
       - name: download the candidate's tarballs
         run: |
           mkdir candidate-tarballs
-          for name in $(go run ./release/pipeline names); do
+          for name in $(go run ./dev/release/pipeline names); do
             npm pack "$name@$VERSION" --pack-destination candidate-tarballs --silent \
               || echo "::notice::npm has no $name@$VERSION"
           done
           for f in candidate-tarballs/claudinite-*.tgz; do mv "$f" "candidate-tarballs/$(basename "$f" | sed 's/^claudinite-//')"; done
           ls -l candidate-tarballs
       - id: check
-        run: go run ./release/promote check --version "$VERSION" --tarballs candidate-tarballs --roots shared/trust/roots --source candidate >> "$GITHUB_OUTPUT"
+        run: go run ./dev/release/promote check --version "$VERSION" --tarballs candidate-tarballs --roots cn/shared/trust/roots --source candidate >> "$GITHUB_OUTPUT"
       - if: steps.check.outputs.check != 'pass'
         env:
           REASON: ${{ steps.check.outputs.reason }}
@@ -184,7 +184,7 @@ jobs:
           NPM_DEPRECATE_TOKEN: ${{ secrets.NPM_DEPRECATE_TOKEN }}
         run: |
           mkdir -p "$RUNNER_TEMP/versions/@claudinite"
-          for name in $(go run ./release/pipeline names); do
+          for name in $(go run ./dev/release/pipeline names); do
             out=$RUNNER_TEMP/versions/$name.json
             if ! npm view "$name" versions --json > "$out" 2> "$RUNNER_TEMP/view.err"; then
               if grep -q E404 "$out" "$RUNNER_TEMP/view.err"; then
@@ -195,7 +195,7 @@ jobs:
               fi
             fi
           done
-          go run ./release/pipeline deprecate-commands --action "$ACTION" --version "$VERSION" --reason "$REASON" \
+          go run ./dev/release/pipeline deprecate-commands --action "$ACTION" --version "$VERSION" --reason "$REASON" \
             --versions-dir "$RUNNER_TEMP/versions" > "$RUNNER_TEMP/commands.sh"
           if [ ! -s "$RUNNER_TEMP/commands.sh" ]; then
             echo "### $ACTION $VERSION: npm has no such version; nothing done" >> "$GITHUB_STEP_SUMMARY"
@@ -249,7 +249,7 @@ jobs:
             exit 1
           fi
           mkdir -p "$RUNNER_TEMP/versions/@claudinite"
-          for name in $(go run ./release/pipeline names); do
+          for name in $(go run ./dev/release/pipeline names); do
             out=$RUNNER_TEMP/versions/$name.json
             if ! npm view "$name" versions --json > "$out" 2> "$RUNNER_TEMP/view.err"; then
               if grep -q E404 "$out" "$RUNNER_TEMP/view.err"; then
@@ -260,7 +260,7 @@ jobs:
               fi
             fi
           done
-          if ! go run ./release/pipeline unpublish-commands --version "$VERSION" --versions-dir "$RUNNER_TEMP/versions" \
+          if ! go run ./dev/release/pipeline unpublish-commands --version "$VERSION" --versions-dir "$RUNNER_TEMP/versions" \
             --dist-tags "$RUNNER_TEMP/dist-tags.json" > "$RUNNER_TEMP/commands.sh"; then
             echo "### unpublish $VERSION: refused; nothing unpublished (the error is in this job's log)" >> "$GITHUB_STEP_SUMMARY"
             exit 1

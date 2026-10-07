@@ -33,7 +33,7 @@ linters:
             - "!**/shared/taskspec/**"
           allow:
             - $gostd
-            - github.com/missingbulb/ClaudiniteEngine/shared
+            - github.com/missingbulb/ClaudiniteEngine/cn/shared
         growth:
           list-mode: strict
           files:
@@ -41,24 +41,24 @@ linters:
             - "!**/shared/growth/**"
           allow:
             - $gostd
-            - github.com/missingbulb/ClaudiniteEngine/shared
-            - github.com/missingbulb/ClaudiniteEngine/growth
+            - github.com/missingbulb/ClaudiniteEngine/cn/shared
+            - github.com/missingbulb/ClaudiniteEngine/cn/growth
         fleet:
           list-mode: strict
           files:
             - "**/fleet/**"
           allow:
             - $gostd
-            - github.com/missingbulb/ClaudiniteEngine/shared
-            - github.com/missingbulb/ClaudiniteEngine/fleet
+            - github.com/missingbulb/ClaudiniteEngine/cn/shared
+            - github.com/missingbulb/ClaudiniteEngine/cn/fleet
         tasks:
           list-mode: strict
           files:
             - "**/tasks/**"
           allow:
             - $gostd
-            - github.com/missingbulb/ClaudiniteEngine/shared
-            - github.com/missingbulb/ClaudiniteEngine/tasks
+            - github.com/missingbulb/ClaudiniteEngine/cn/shared
+            - github.com/missingbulb/ClaudiniteEngine/cn/tasks
         jsregex:
           # Pack data writes its patterns for the ECMAScript regex engine
           # (a skill's force-load triggers, a pack's merge rules), as the
@@ -81,8 +81,8 @@ linters:
             - "**/shared/taskspec/**"
           allow:
             - $gostd
-            - github.com/missingbulb/ClaudiniteEngine/shared
-            - github.com/missingbulb/ClaudiniteEngine/checksdk
+            - github.com/missingbulb/ClaudiniteEngine/cn/shared
+            - github.com/missingbulb/ClaudiniteEngine/cn/checksdk
         descriptor:
           # The one place the descriptor formats' parsers are imported
           # (pack, declared-checks and settings in JSON, YAML or TOML);
@@ -100,12 +100,12 @@ linters:
             - "**/lifecycle/**"
           allow:
             - $gostd
-            - github.com/missingbulb/ClaudiniteEngine/shared
-            - github.com/missingbulb/ClaudiniteEngine/lifecycle
+            - github.com/missingbulb/ClaudiniteEngine/cn/shared
+            - github.com/missingbulb/ClaudiniteEngine/cn/lifecycle
             # One landing lane for every pull request a run delivers: the
             # update's landing enters it at the pinned-sha merge, so the
             # update and a task cannot drift on how a PR lands.
-            - github.com/missingbulb/ClaudiniteEngine/tasks/land
+            - github.com/missingbulb/ClaudiniteEngine/cn/tasks/land
         checks:
           list-mode: strict
           files:
@@ -113,13 +113,13 @@ linters:
             - "!**/checks/declared/**"
           allow:
             - $gostd
-            - github.com/missingbulb/ClaudiniteEngine/shared
-            - github.com/missingbulb/ClaudiniteEngine/checks/
+            - github.com/missingbulb/ClaudiniteEngine/cn/shared
+            - github.com/missingbulb/ClaudiniteEngine/cn/checks/
             # The engine side of the coded checks' pipe: the run hands each
             # built checks binary a server answering its SDK calls.
-            - github.com/missingbulb/ClaudiniteEngine/sdkserver
+            - github.com/missingbulb/ClaudiniteEngine/cn/sdkserver
             # The SDK sources a pack's checks build compiles against.
-            - github.com/missingbulb/ClaudiniteEngine/checksdk
+            - github.com/missingbulb/ClaudiniteEngine/cn/checksdk
         checks-declared:
           # The declarative check engine also takes the ECMAScript regex
           # engine the shelf's patterns are written for (lookaround,
@@ -129,13 +129,13 @@ linters:
             - "**/checks/declared/**"
           allow:
             - $gostd
-            - github.com/missingbulb/ClaudiniteEngine/shared
-            - github.com/missingbulb/ClaudiniteEngine/checks/declared
+            - github.com/missingbulb/ClaudiniteEngine/cn/shared
+            - github.com/missingbulb/ClaudiniteEngine/cn/checks/declared
             - github.com/dlclark/regexp2
             # The scanning helpers the declared views share with coded
             # checks (comment stripping, fence blanking) live in the SDK,
             # so the two engines read a file the same way.
-            - github.com/missingbulb/ClaudiniteEngine/checksdk
+            - github.com/missingbulb/ClaudiniteEngine/cn/checksdk
         parity:
           # The two-engine harness drives both engines as black boxes: it
           # imports nothing of the engine, so a scenario cannot pass by
@@ -161,4 +161,4 @@ linters:
             - "**/cmd/cn-keys/**"
           allow:
             - $gostd
-            - github.com/missingbulb/ClaudiniteEngine/shared
+            - github.com/missingbulb/ClaudiniteEngine/cn/shared
