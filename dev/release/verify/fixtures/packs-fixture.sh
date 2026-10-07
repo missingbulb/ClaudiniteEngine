@@ -4,7 +4,7 @@
 # (which dev/release/verify/stubs/cdnstub serves at the CDN's paths) and mirror.git (which
 # CLAUDINITE_PACKS_REPO names), laid out and signed as ClaudinitePacks'
 # branch is. The first call issues a packs key certified by the
-# development root (dev/keys/testkeys/root.key) and publishes v1; later calls apply
+# development root (dev/release/keys/testkeys/root.key) and publishes v1; later calls apply
 # their operations in order, commit once and push.
 #
 #   dev/release/verify/fixtures/packs-fixture.sh DIR --min-engine VERSION      first call: v1
@@ -28,10 +28,10 @@ g() { git -C "$tree" -c user.name=packs-fixture -c user.email=p@x -c commit.gpgs
 if [ ! -d "$dir/cdn.git" ]; then
   if [ "${1:-}" != --min-engine ] || [ -z "${2:-}" ]; then fail "the first call takes --min-engine VERSION"; fi
   mkdir -p "$tools" "$dir/keys"
-  (cd "$here" && go build -o "$tools/cn-keys" ./dev/keys/cn-keys && go build -o "$tools/packfixture" ./dev/release/verify/fixtures/packfixture) \
+  (cd "$here" && go build -o "$tools/cn-keys" ./dev/release/keys/cn-keys && go build -o "$tools/packfixture" ./dev/release/verify/fixtures/packfixture) \
     || fail "building the tools"
   "$tools/cn-keys" key new --out "$dir/keys" --name packs > /dev/null
-  "$tools/cn-keys" certify --root "$here/dev/keys/testkeys/root.key" --subject "$dir/keys/packs.pub" --use packs --days 90 \
+  "$tools/cn-keys" certify --root "$here/dev/release/keys/testkeys/root.key" --subject "$dir/keys/packs.pub" --use packs --days 90 \
     --out "$dir/keys/packs.cert.json" > /dev/null
   printf '%s\n' "$2" > "$dir/min-engine"
   shift 2

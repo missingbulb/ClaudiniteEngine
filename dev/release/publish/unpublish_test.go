@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/missingbulb/ClaudiniteEngine/dev/internal/scripttest"
 	"github.com/missingbulb/ClaudiniteEngine/dev/release"
+	"github.com/missingbulb/ClaudiniteEngine/dev/test/scripttest"
 )
 
 // tags is npm's dist-tags for @claudinite/cli, with latest on a version
