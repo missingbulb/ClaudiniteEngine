@@ -28,5 +28,18 @@
       "fix": "declare the widget in \"widgets\", or drop the id from the view that names it — the page silently renders nothing for an id it cannot resolve",
       "what": "selects widget id(s) it does not declare: x, z, y"
     }
+  ],
+  "divergence": "record-143",
+  "cn": [
+    {
+      "file": "packs/p1/dashboard.json",
+      "fix": "declare the widget in \"widgets\", or drop the id from the view that names it — the page silently renders nothing for an id it cannot resolve",
+      "what": "selects widget id(s) it does not declare: ghost"
+    },
+    {
+      "file": "packs/p4/dashboard.json",
+      "fix": "declare the widget in \"widgets\", or drop the id from the view that names it — the page silently renders nothing for an id it cannot resolve",
+      "what": "selects widget id(s) it does not declare: x"
+    }
   ]
 }

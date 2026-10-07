@@ -98,5 +98,98 @@
         "source": "generated"
       }
     ]
+  },
+  "divergence": "record-143",
+  "cn": {
+    "fault": null,
+    "pack": "acme-pack",
+    "problems": [
+      {
+        "fix": "declare the widget in \"widgets\", or drop the id from the view that names it — the page silently renders nothing for an id it cannot resolve",
+        "what": "selects widget id(s) it does not declare: ghost"
+      }
+    ],
+    "repo": [
+      "a",
+      "b",
+      "c",
+      "d",
+      "e",
+      "f"
+    ],
+    "widgets": [
+      {
+        "glyph": null,
+        "id": "a",
+        "kind": "stat",
+        "known": true,
+        "label": "a",
+        "noun": "n",
+        "source": "generated"
+      },
+      {
+        "glyph": null,
+        "id": "b",
+        "kind": "stat",
+        "known": true,
+        "label": "b",
+        "noun": "n",
+        "source": "generated"
+      },
+      {
+        "glyph": null,
+        "id": "c",
+        "kind": "stat",
+        "known": true,
+        "label": "c",
+        "noun": "n",
+        "source": "generated"
+      },
+      {
+        "glyph": null,
+        "id": "d",
+        "kind": "stat",
+        "known": true,
+        "label": "d",
+        "noun": "n",
+        "source": "generated"
+      },
+      {
+        "glyph": null,
+        "id": "e",
+        "kind": "stat",
+        "known": true,
+        "label": "e",
+        "noun": "n",
+        "source": "generated"
+      },
+      {
+        "glyph": null,
+        "id": "f",
+        "kind": "stat",
+        "known": true,
+        "label": "f",
+        "noun": "n",
+        "source": "generated"
+      },
+      {
+        "glyph": null,
+        "id": "g",
+        "kind": "stat",
+        "known": true,
+        "label": "g",
+        "noun": "n",
+        "source": "generated"
+      },
+      {
+        "glyph": null,
+        "id": "h",
+        "kind": "stat",
+        "known": true,
+        "label": "h",
+        "noun": "n",
+        "source": "generated"
+      }
+    ]
   }
 }

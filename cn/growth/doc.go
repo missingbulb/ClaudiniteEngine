@@ -6,7 +6,6 @@
 // (cn growth prune, the logs-prune task's code-work); provenance is the
 // member's provenance verbs over shared/provenance (cn provenance);
 // scaffold creates and declares the local pack a lesson lands in
-// (cn pack new). Decide answers the parity face's questions of the
-// capture and prune cores. The extract, dedup and review tasks that turn
+// (cn pack new). The extract, dedup and review tasks that turn
 // captures into pack content are pack tasks the runner executes.
 package growth

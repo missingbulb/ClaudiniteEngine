@@ -1,9 +1,0 @@
-{
-  "input": {
-    "raw": "Filed by the scheduler run: the operator asked for this.\nREPOS=alpha, FOLLOW_MINUTES=5\nlower=case\n9START=x\n=empty"
-  },
-  "expect": {
-    "FOLLOW_MINUTES": "5",
-    "REPOS": "alpha"
-  }
-}

@@ -59,5 +59,59 @@
         "source": "generated"
       }
     ]
+  },
+  "divergence": "record-143",
+  "cn": {
+    "fault": null,
+    "pack": "acme-pack",
+    "problems": [],
+    "repo": [],
+    "widgets": [
+      {
+        "glyph": null,
+        "id": "a",
+        "kind": "stat",
+        "known": true,
+        "label": "1.5e+21",
+        "noun": "",
+        "source": "generated"
+      },
+      {
+        "glyph": null,
+        "id": "b",
+        "kind": "stat",
+        "known": true,
+        "label": "1,2,,x",
+        "noun": "",
+        "source": "generated"
+      },
+      {
+        "glyph": null,
+        "id": "c",
+        "kind": "stat",
+        "known": true,
+        "label": "[object Object]",
+        "noun": "",
+        "source": "generated"
+      },
+      {
+        "glyph": null,
+        "id": "d",
+        "kind": "stat",
+        "known": true,
+        "label": "true",
+        "noun": "",
+        "source": "generated"
+      },
+      {
+        "glyph": null,
+        "id": "e",
+        "kind": "stat",
+        "known": true,
+        "label": "e",
+        "noun": "",
+        "source": "generated"
+      }
+    ]
   }
 }

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -11,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/growth"
 	"github.com/missingbulb/ClaudiniteEngine/cn/growth/capture"
 	"github.com/missingbulb/ClaudiniteEngine/cn/growth/promotescope"
 	"github.com/missingbulb/ClaudiniteEngine/cn/growth/prune"
@@ -51,15 +49,13 @@ func crumbOf(o capture.Outcome) breadcrumb.Outcome {
 
 func cmdGrowth(args []string, stdout, stderr io.Writer, start time.Time) error {
 	if len(args) == 0 {
-		return report.New(report.Usage, "growth takes capture, prune, decide or promote-scope")
+		return report.New(report.Usage, "growth takes capture, prune or promote-scope")
 	}
 	switch args[0] {
 	case "capture":
 		return growthCapture(args[1:], stdout, stderr, start)
 	case "prune":
 		return growthPrune(args[1:], stdout)
-	case "decide":
-		return growthDecide(args[1:], stdout)
 	case "promote-scope":
 		return growthPromoteScope(args[1:], stdout, stderr)
 	}
@@ -225,29 +221,4 @@ func retentionDeclared(root string) (value any, present, readable bool) {
 		return v, true, true
 	}
 	return nil, false, false
-}
-
-// growthDecide answers one of the capture's and the prune's decision
-// cores over a fixture, printing JSON: the parity harness's growth face,
-// never a run.
-func growthDecide(args []string, stdout io.Writer) error {
-	if len(args) == 0 {
-		return report.New(report.Usage, "growth decide needs a core")
-	}
-	fs := flag.NewFlagSet("growth decide", flag.ContinueOnError)
-	world := fs.String("world", "", "")
-	if err := flags(fs, args[1:]); err != nil {
-		return err
-	}
-	raw, err := os.ReadFile(*world)
-	if err != nil {
-		return report.Wrap(report.IO, "growth decide", err)
-	}
-	answer, err := growth.Decide(args[0], raw)
-	if err != nil {
-		return report.New(report.Usage, err.Error())
-	}
-	enc := json.NewEncoder(stdout)
-	enc.SetEscapeHTML(false)
-	return enc.Encode(answer)
 }

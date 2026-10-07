@@ -167,28 +167,6 @@ commands:
                  a canon shelf's version walk at REF (HEAD): each pack's
                  last version move, the shipping files changed since and
                  the pull requests each version carried
-  fleet roster [--repo DIR] [--api URL]
-                 a fleet manager's sweep: one fleet-adoption issue per
-                 uncovered repo and the coverage and freshness report;
-                 needs FLEET_GITHUB_TOKEN; exit 1 on any unknown
-  fleet update [--repo DIR] [--api URL]
-                 dispatch every covered member's update and follow each
-                 to an outcome; REPOS, DRY_RUN, INCLUDE_DORMANT and
-                 FOLLOW_MINUTES ride CLAUDINITE_CONTEXT
-  fleet add-packs --scan-for-needed-packs=B --repos=R [--repo DIR] [--api URL]
-                 fingerprint members against the shelf's catalog and place
-                 a marked add-packs work list where a pack is suspected;
-                 a forced run's ADD_PACKS, PACK_CONFIG and PACK_ANSWER ride
-                 CLAUDINITE_CONTEXT and are refused whole on any problem
-  fleet pack-seeds [--repo DIR] [--api URL]
-                 write the manager's packSeeds into each cn member's
-                 settings file, nothing outside packs touched
-  fleet judge <owner/name> [--json] [--repo DIR] [--api URL]
-                 one repository's shape, dormancy and freshness
-  fleet token [--sweep S] [--json]
-                 what FLEET_GITHUB_TOKEN must be granted
-  fleet protocol [--json]
-                 the add-packs work-list constants
   dashboard descriptor FILE... [--json]
                  each pack dashboard descriptor as the page's reader and
                  the descriptor-usable check see it; exit 1 on a problem
@@ -329,8 +307,6 @@ func dispatch(args []string, stdin io.Reader, stdout, stderr io.Writer, start ti
 		return cmdPack(args[1:], stdout)
 	case "session":
 		return cmdSession(args[1:], stdout)
-	case "fleet":
-		return cmdFleet(args[1:], stdout, stderr, start)
 	case "dashboard":
 		return cmdDashboard(args[1:], stdout)
 	}

@@ -1,7 +1,6 @@
 package schedule_test
 
 import (
-	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -20,7 +19,6 @@ var t0 = time.Date(2026, 10, 1, 9, 17, 40, 0, time.UTC)
 
 type harness struct {
 	t      *testing.T
-	fleet  func(since string) (any, error)
 	terms  *localterms.Asker
 	gh     *sim.GitHub
 	repo   *sim.Repo
@@ -47,9 +45,9 @@ func (h *harness) run(wake string) schedule.RunOut {
 	h.t.Helper()
 	h.logs = nil
 	out, err := schedule.Run(schedule.RunIn{
-		Issues: h.gh, Tasks: h.tasks, Now: h.gh.Clock.Now(), Wake: wake, HasFleet: h.fleet != nil, LocalTerms: h.terms,
+		Issues: h.gh, Tasks: h.tasks, Now: h.gh.Clock.Now(), Wake: wake, LocalTerms: h.terms,
 		Collector: func(items []workitem.Issue) *signals.Collector {
-			return &signals.Collector{Issues: h.gh, Repo: h.repo, DefaultBranch: "main", Items: items, Fleet: h.fleet}
+			return &signals.Collector{Issues: h.gh, Repo: h.repo, DefaultBranch: "main", Items: items}
 		},
 		Log:       func(s string) { h.logs = append(h.logs, s) },
 		SetOutput: func(k, v string) error { h.output[k] = v; return nil },
@@ -174,40 +172,6 @@ func TestAnUnreadableSignalFailsOpen(t *testing.T) {
 	}
 	if !strings.Contains(open[0].Body, "The scheduler could not decide this occurrence") {
 		t.Fatalf("body %q", open[0].Body)
-	}
-}
-
-func fleetTask() taskspec.Task {
-	tk := task("promote", map[string]any{"preconditions": []any{"schedule:at-most-daily", "fleet-moved"}})
-	tk.Terms = taskspec.Terms{{Name: "fleet-moved", Signals: []string{"fleet"}}}
-	return tk
-}
-
-func TestAFleetTaskWithoutTheTokenFailsOpenOnNodesSentence(t *testing.T) {
-	h := newHarness(t, fleetTask())
-	out := h.run("")
-	if len(out.Asked) != 1 || out.Asked[0].Verdict != schedule.VerdictFailOpen ||
-		out.Asked[0].Reason != "the `fleet` signal needs FLEET_GITHUB_TOKEN, which the scheduler run does not hold" {
-		t.Fatalf("asked %+v", out.Asked)
-	}
-}
-
-func TestAFleetTaskWithTheTokenAsksTheReader(t *testing.T) {
-	h := newHarness(t, fleetTask())
-	var since []string
-	h.fleet = func(s string) (any, error) {
-		since = append(since, s)
-		return nil, errors.New("no repositories owned by acme")
-	}
-	out := h.run("")
-	if len(since) != 1 || len(out.Asked) != 1 || out.Asked[0].Reason != "the `fleet` signal failed: no repositories owned by acme" {
-		t.Fatalf("since %v asked %+v", since, out.Asked)
-	}
-	h = newHarness(t, fleetTask())
-	h.fleet = func(string) (any, error) { return map[string]any{"owner": "acme", "members": []any{}}, nil }
-	out = h.run("")
-	if len(out.Asked) != 1 || strings.Contains(out.Asked[0].Reason, "signal") {
-		t.Fatalf("a read fleet is no failure: %+v", out.Asked)
 	}
 }
 
@@ -392,7 +356,7 @@ func TestTheEnginesUpdateIsFiledOnceADay(t *testing.T) {
 	if out := h.run(""); len(h.open()) != 0 || out.Asked[0].Verdict != schedule.VerdictNo {
 		t.Fatalf("a second occurrence in one day: open %v, asked %+v", h.open(), out.Asked)
 	}
-	// The fleet's force lever sends the bare id; it reaches the engine's
+	// A force lever sends the bare id; it reaches the engine's
 	// update, minting the standing item the cadence declined.
 	if h.run("update"); len(h.open()) != 1 || h.open()[0].Title != "[claudinite-work] engine/update" {
 		t.Fatalf("a forced update the same day: %+v", h.open())

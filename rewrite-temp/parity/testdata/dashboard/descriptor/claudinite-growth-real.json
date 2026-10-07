@@ -35,5 +35,35 @@
         "source": "generated"
       }
     ]
+  },
+  "divergence": "record-143",
+  "cn": {
+    "fault": null,
+    "pack": "claudinite-growth",
+    "problems": [],
+    "repo": [
+      "usage-findings",
+      "usage-newest"
+    ],
+    "widgets": [
+      {
+        "glyph": "◎",
+        "id": "usage-findings",
+        "kind": "window",
+        "known": true,
+        "label": "usage findings",
+        "noun": "findings",
+        "source": "generated"
+      },
+      {
+        "glyph": "◎",
+        "id": "usage-newest",
+        "kind": "list",
+        "known": true,
+        "label": "newest findings",
+        "noun": "",
+        "source": "generated"
+      }
+    ]
   }
 }

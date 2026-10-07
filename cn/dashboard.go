@@ -30,7 +30,6 @@ type verdict struct {
 	Pack     string             `json:"pack"`
 	Widgets  []dashdesc.Widget  `json:"widgets"`
 	Repo     []string           `json:"repo"`
-	Fleet    *dashdesc.Fleet    `json:"fleet"`
 	Fault    *string            `json:"fault"`
 	Problems []dashdesc.Problem `json:"problems"`
 }
@@ -46,7 +45,7 @@ func verdictOf(file string, text []byte) verdict {
 		v.Fault = &d.Fault
 		return v
 	}
-	v.Widgets, v.Repo, v.Fleet = d.Widgets, d.Repo, &d.Fleet
+	v.Widgets, v.Repo = d.Widgets, d.Repo
 	return v
 }
 

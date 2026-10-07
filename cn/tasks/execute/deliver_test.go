@@ -14,7 +14,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/runner"
 )
 
-const rosterPath = ".claudinite/fleet/roster.GENERATED.json"
+const reportPath = ".claudinite/acme/report.GENERATED.json"
 
 // checkout is a clone of a bare origin whose main holds one commit.
 func checkout(t *testing.T) (root, origin string) {
@@ -78,7 +78,7 @@ func clean(t *testing.T, root string) {
 	}
 }
 
-const writeRoster = `mkdir -p "$CLAUDINITE_REPO_ROOT/.claudinite/fleet" && printf '%s\n' "$ROSTER" > "$CLAUDINITE_REPO_ROOT/` + rosterPath + `"`
+const writeReport = `mkdir -p "$CLAUDINITE_REPO_ROOT/.claudinite/acme" && printf '%s\n' "$REPORT" > "$CLAUDINITE_REPO_ROOT/` + reportPath + `"`
 
 // A shell code_work's tree change under an outcome that opens a pull
 // request is committed with the task's trailers, pushed to the target
@@ -88,31 +88,31 @@ func TestAShellCodeWorksTreeChangeIsDelivered(t *testing.T) {
 	root, origin := checkout(t)
 	gh := newSDKWorld(t)
 	w := deliveringWorker(t, root, gh)
-	tk := shellTask(t, writeRoster, map[string]any{"expected_outcome": "amend_existing_or_create_new_pr", "automerge": []any{"fleet-roster-artifact"}})
+	tk := shellTask(t, writeReport, map[string]any{"expected_outcome": "amend_existing_or_create_new_pr", "automerge": []any{"acme-report"}})
 	branch := "claudinite/acme-pack/a/2026-10-03-x"
 
-	w.Env["ROSTER"] = "one"
+	w.Env["REPORT"] = "one"
 	res := w.Run(tk, Work{Item: workitem.Issue{Number: 4}, Target: Target{Mode: ModeFresh, Branch: branch}})
 	if !res.OK || res.DeliveredPR == 0 || res.Branch != branch {
 		t.Fatalf("%+v", res)
 	}
-	if got := remoteFile(t, origin, branch, rosterPath); got != "one\n" {
+	if got := remoteFile(t, origin, branch, reportPath); got != "one\n" {
 		t.Errorf("pushed %q", got)
 	}
 	msg := remoteMessage(t, origin, branch)
-	for _, want := range []string{"acme-pack/a: code-work for #4", rosterPath, "Claudinite-Task: acme-pack/a", "Claudinite-Automerge-Policy: fleet-roster-artifact"} {
+	for _, want := range []string{"acme-pack/a: code-work for #4", reportPath, "Claudinite-Task: acme-pack/a", "Claudinite-Automerge-Policy: acme-report"} {
 		if !strings.Contains(msg, want) {
 			t.Errorf("the commit lacks %q:\n%s", want, msg)
 		}
 	}
 	clean(t, root)
 
-	w.Env["ROSTER"] = "two"
+	w.Env["REPORT"] = "two"
 	again := w.Run(tk, Work{Item: workitem.Issue{Number: 5}, Target: Target{Mode: ModeAmend, Branch: branch, PR: res.DeliveredPR}})
 	if !again.OK || again.DeliveredPR != res.DeliveredPR {
 		t.Fatalf("the amend reached %+v, not #%d", again, res.DeliveredPR)
 	}
-	if got := remoteFile(t, origin, branch, rosterPath); got != "two\n" {
+	if got := remoteFile(t, origin, branch, reportPath); got != "two\n" {
 		t.Errorf("amended %q", got)
 	}
 	if pulls, _ := gh.repo.PullsPage("open", "", "", 1); len(pulls) != 1 {
@@ -144,21 +144,21 @@ func TestAShellCodeWorksTreeChangeIsDelivered(t *testing.T) {
 			t.Fatalf("git %v: %v\n%s", args, err, out)
 		}
 	}
-	_ = os.MkdirAll(filepath.Join(other, ".claudinite/fleet"), 0o755)
-	_ = os.WriteFile(filepath.Join(other, rosterPath), []byte("merged\n"), 0o644)
+	_ = os.MkdirAll(filepath.Join(other, ".claudinite/acme"), 0o755)
+	_ = os.WriteFile(filepath.Join(other, reportPath), []byte("merged\n"), 0o644)
 	for _, args := range [][]string{{"-C", other, "add", "-A"}, {"-C", other, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "--quiet", "-m", "merged"}, {"-C", other, "push", "--quiet", "origin", "HEAD:main"}} {
 		if out, err := exec.Command("git", args...).CombinedOutput(); err != nil {
 			t.Fatalf("git %v: %v\n%s", args, err, out)
 		}
 	}
-	w.Env["ROSTER"] = "merged"
+	w.Env["REPORT"] = "merged"
 	if res := w.Run(tk, Work{Item: workitem.Issue{Number: 7}, Target: Target{Mode: ModeFresh, Branch: "claudinite/acme-pack/a/again"}}); !res.OK || res.DeliveredPR != 0 {
 		t.Errorf("a change the base already holds delivered %+v", res)
 	}
 	clean(t, root)
 
 	// A run that leaves nothing new delivers nothing.
-	w.Env["ROSTER"] = "two"
+	w.Env["REPORT"] = "two"
 	tk = shellTask(t, "true", map[string]any{"expected_outcome": "amend_existing_or_create_new_pr"})
 	if res := w.Run(tk, Work{Item: workitem.Issue{Number: 6}, Target: Target{Mode: ModeFresh, Branch: "claudinite/acme-pack/a/other"}}); !res.OK || res.DeliveredPR != 0 {
 		t.Errorf("a run with no change delivered %+v", res)
@@ -171,12 +171,12 @@ func TestAShellCodeWorkWithNoTargetDeliversNothing(t *testing.T) {
 	root, _ := checkout(t)
 	gh := newSDKWorld(t)
 	w := deliveringWorker(t, root, gh)
-	w.Env["ROSTER"] = "one"
-	res := w.Run(shellTask(t, writeRoster, nil), Work{Item: workitem.Issue{Number: 4}, Target: Target{Mode: ModeNone}})
+	w.Env["REPORT"] = "one"
+	res := w.Run(shellTask(t, writeReport, nil), Work{Item: workitem.Issue{Number: 4}, Target: Target{Mode: ModeNone}})
 	if !res.OK || res.DeliveredPR != 0 {
 		t.Fatalf("%+v", res)
 	}
-	if _, err := os.Stat(filepath.Join(root, rosterPath)); err != nil {
+	if _, err := os.Stat(filepath.Join(root, reportPath)); err != nil {
 		t.Error("the change was removed")
 	}
 }
@@ -198,7 +198,7 @@ func TestAModuleWorkerAndAShellCodeWorkReachTheSamePR(t *testing.T) {
 	w.Runner = runner.Runner{Dir: dir, Engine: "0.0.0-test"}
 	branch := "claudinite/acme-pack/a/2026-10-03-y"
 	mod := loopTask("a", map[string]any{"agent_model": "none", "code_worker_mjs": "worker.mjs", "code_work_timeout": 30,
-		"expected_outcome": "amend_existing_or_create_new_pr", "automerge": []any{"fleet-roster-artifact"}})
+		"expected_outcome": "amend_existing_or_create_new_pr", "automerge": []any{"acme-report"}})
 	mod.Dir = t.TempDir()
 	_ = os.WriteFile(filepath.Join(mod.Dir, "worker.mjs"), []byte(`import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -206,9 +206,9 @@ import { git, github, commitMessage } from '@claudinite/sdk';
 const must = async (...args) => { const r = await git(...args); if (r.code !== 0) throw new Error(args[0] + ': ' + r.stderr); return r.stdout; };
 export async function worker(params) {
   const root = process.env.CLAUDINITE_REPO_ROOT;
-  mkdirSync(join(root, '.claudinite/fleet'), { recursive: true });
-  writeFileSync(join(root, '`+rosterPath+`'), 'one\n');
-  await must('add', '`+rosterPath+`');
+  mkdirSync(join(root, '.claudinite/acme'), { recursive: true });
+  writeFileSync(join(root, '`+reportPath+`'), 'one\n');
+  await must('add', '`+reportPath+`');
   await must('commit', '--quiet', '-m', commitMessage('Roster'));
   await must('push', '--quiet', '--force', 'origin', 'HEAD:refs/heads/' + params.target.branch);
   await must('reset', '--quiet', '--hard', 'HEAD~1');
@@ -224,13 +224,13 @@ export async function worker(params) {
 	}
 	clean(t, root)
 
-	w.Env["ROSTER"] = "two"
-	sh := shellTask(t, writeRoster, map[string]any{"expected_outcome": "amend_existing_or_create_new_pr", "automerge": []any{"fleet-roster-artifact"}})
+	w.Env["REPORT"] = "two"
+	sh := shellTask(t, writeReport, map[string]any{"expected_outcome": "amend_existing_or_create_new_pr", "automerge": []any{"acme-report"}})
 	second := w.Run(sh, Work{Item: workitem.Issue{Number: 5}, Target: Target{Mode: ModeAmend, Branch: branch, PR: first.DeliveredPR}})
 	if !second.OK || second.DeliveredPR != first.DeliveredPR || second.Branch != first.Branch {
 		t.Fatalf("the shell code_work reached %+v, the module worker %+v", second, first)
 	}
-	if got := remoteFile(t, origin, branch, rosterPath); got != "two\n" {
+	if got := remoteFile(t, origin, branch, reportPath); got != "two\n" {
 		t.Errorf("the branch holds %q", got)
 	}
 	clean(t, root)
@@ -241,8 +241,8 @@ export async function worker(params) {
 func TestAFailedShellCodeWorkPutsTheCheckoutBack(t *testing.T) {
 	root, _ := checkout(t)
 	w := deliveringWorker(t, root, newSDKWorld(t))
-	w.Env["ROSTER"] = "one"
-	tk := shellTask(t, writeRoster+" && exit 1", map[string]any{"expected_outcome": "amend_existing_or_create_new_pr"})
+	w.Env["REPORT"] = "one"
+	tk := shellTask(t, writeReport+" && exit 1", map[string]any{"expected_outcome": "amend_existing_or_create_new_pr"})
 	if res := w.Run(tk, Work{Item: workitem.Issue{Number: 4}, Target: Target{Mode: ModeFresh, Branch: "claudinite/acme-pack/a/x"}}); res.OK {
 		t.Fatalf("%+v", res)
 	}
@@ -254,8 +254,8 @@ func TestAFailedShellCodeWorkPutsTheCheckoutBack(t *testing.T) {
 func TestAShellDeliveryRefusesABranchOutsideTheExecutorsRoot(t *testing.T) {
 	root, origin := checkout(t)
 	w := deliveringWorker(t, root, newSDKWorld(t))
-	w.Env["ROSTER"] = "one"
-	tk := shellTask(t, writeRoster, map[string]any{"expected_outcome": "amend_existing_or_create_new_pr"})
+	w.Env["REPORT"] = "one"
+	tk := shellTask(t, writeReport, map[string]any{"expected_outcome": "amend_existing_or_create_new_pr"})
 	for _, branch := range []string{"feature/theirs", "claudinite", "refs/heads/main"} {
 		res := w.Run(tk, Work{Item: workitem.Issue{Number: 4}, Target: Target{Mode: ModeAmend, Branch: branch, PR: 9}})
 		if res.OK || res.DeliveredPR != 0 {
@@ -276,16 +276,16 @@ func TestAShellDeliveryCommitsWhatThePolicyCovers(t *testing.T) {
 	w := deliveringWorker(t, root, newSDKWorld(t))
 	w.Log = func(s string) { logged = append(logged, s) }
 	w.Rules = mergepolicy.Compile([]mergepolicy.PackRules{{ID: "acme-pack", File: "merge-rules.json", Specs: []any{map[string]any{
-		"name": "acme-roster", "pathMatching": `/^\.claudinite\/fleet\/roster\.GENERATED\.json$/`, "changeKinds": []any{"added", "modified"}, "editShape": "any"}}}})
-	w.Env["ROSTER"] = "one"
+		"name": "acme-report-rule", "pathMatching": `/^\.claudinite\/acme\/report\.GENERATED\.json$/`, "changeKinds": []any{"added", "modified"}, "editShape": "any"}}}})
+	w.Env["REPORT"] = "one"
 	branch := "claudinite/acme-pack/a/y"
-	tk := shellTask(t, writeRoster+` && echo stray > "$CLAUDINITE_REPO_ROOT/STRAY.md"`, map[string]any{"expected_outcome": "amend_existing_or_create_new_pr", "automerge": []any{"acme-roster"}})
+	tk := shellTask(t, writeReport+` && echo stray > "$CLAUDINITE_REPO_ROOT/STRAY.md"`, map[string]any{"expected_outcome": "amend_existing_or_create_new_pr", "automerge": []any{"acme-report-rule"}})
 	res := w.Run(tk, Work{Item: workitem.Issue{Number: 4}, Target: Target{Mode: ModeFresh, Branch: branch}})
 	if !res.OK || res.DeliveredPR == 0 {
 		t.Fatalf("%+v", res)
 	}
 	out, _ := exec.Command("git", "--git-dir", origin, "diff", "--name-only", "main", branch).Output()
-	if string(out) != rosterPath+"\n" {
+	if string(out) != reportPath+"\n" {
 		t.Errorf("the branch changes %q", out)
 	}
 	if !strings.Contains(strings.Join(logged, "\n"), "STRAY.md") {
@@ -301,7 +301,7 @@ func TestAShellDeliveryRefusesASymlink(t *testing.T) {
 	_ = os.WriteFile(secret, []byte("s3cret\n"), 0o644)
 	w := deliveringWorker(t, root, newSDKWorld(t))
 	w.Env["SECRET"] = secret
-	tk := shellTask(t, `mkdir -p "$CLAUDINITE_REPO_ROOT/.claudinite/fleet" && ln -s "$SECRET" "$CLAUDINITE_REPO_ROOT/`+rosterPath+`"`, map[string]any{"expected_outcome": "amend_existing_or_create_new_pr"})
+	tk := shellTask(t, `mkdir -p "$CLAUDINITE_REPO_ROOT/.claudinite/acme" && ln -s "$SECRET" "$CLAUDINITE_REPO_ROOT/`+reportPath+`"`, map[string]any{"expected_outcome": "amend_existing_or_create_new_pr"})
 	res := w.Run(tk, Work{Item: workitem.Issue{Number: 4}, Target: Target{Mode: ModeFresh, Branch: "claudinite/acme-pack/a/z"}})
 	if res.OK || res.DeliveredPR != 0 || !strings.Contains(res.Detail, "symlink") {
 		t.Errorf("a symlink was delivered: %+v", res)

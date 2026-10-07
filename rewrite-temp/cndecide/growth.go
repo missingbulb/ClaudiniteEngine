@@ -1,4 +1,4 @@
-package growth
+package main
 
 import (
 	"encoding/json"
@@ -12,12 +12,12 @@ import (
 	sharedgrowth "github.com/missingbulb/ClaudiniteEngine/cn/shared/growth"
 )
 
-// Cores are the decisions Decide answers.
-var Cores = []string{"parselines", "bundle", "slice", "redactions", "scrub", "logname", "parsename", "findtranscript", "prune", "retention"}
+// growthCores are the decisions growthDecide answers.
+var growthCores = []string{"parselines", "bundle", "slice", "redactions", "scrub", "logname", "parsename", "findtranscript", "prune", "retention"}
 
-// Decide answers one of the capture's and the prune's decision cores over
+// growthDecide answers one of the capture's and the prune's decision cores over
 // a fixture's input: the parity harness's growth face, never a run.
-func Decide(core string, raw []byte) (any, error) {
+func growthDecide(core string, raw []byte) (any, error) {
 	var in struct {
 		Text        string                         `json:"text"`
 		Streams     []string                       `json:"streams"`
@@ -161,5 +161,5 @@ func Decide(core string, raw []byte) (any, error) {
 		v, present := probe["declared"]
 		return map[string]any{"days": sharedgrowth.ResolveRetentionDays(v, present)}, nil
 	}
-	return nil, fmt.Errorf("unknown growth core %q: one of %v", core, Cores)
+	return nil, fmt.Errorf("unknown growth core %q: one of %v", core, growthCores)
 }

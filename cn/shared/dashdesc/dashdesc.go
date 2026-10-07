@@ -1,11 +1,11 @@
 // Package dashdesc reads a pack's dashboard descriptor the way the
 // dashboard page's own reader does: the closed vocabulary of kinds and
 // sources, a kind the reader predates kept as an unknown widget, the
-// repo card's six-widget clip, a list refused as a fleet mini-card, the
+// repo card's six-widget clip, the
 // label and noun caps, and one named fault for a file the page cannot use.
 // Parse is the page's parseDescriptor (packs/claudinite-dashboard/src/
 // read/contributions.mjs at missingbulb/Claudinite@057841ac) verdict for
-// verdict, and Problems is the descriptor-usable check's four findings
+// verdict, and Problems is the descriptor-usable check's findings
 // over the same file, so the page's copy, the shelf's test and the check
 // are held to one reader through `cn dashboard descriptor`.
 package dashdesc
@@ -20,9 +20,8 @@ import (
 // the page predates its descriptor; a source outside Sources reads as
 // generated.
 var (
-	Kinds      = []string{"stat", "event", "window", "list"}
-	Sources    = []string{"generated", "latest-release", "repo-stars"}
-	FleetKinds = []string{"stat", "event", "window"}
+	Kinds   = []string{"stat", "event", "window", "list"}
+	Sources = []string{"generated", "latest-release", "repo-stars"}
 )
 
 // The renderer-owned budgets.
@@ -49,13 +48,6 @@ type Widget struct {
 	Source string  `json:"source"`
 }
 
-// Fleet is what a fleet page selects: the member mini-card's widget id,
-// nil for none, and the deployment cards' ids.
-type Fleet struct {
-	Member     *string  `json:"member"`
-	Deployment []string `json:"deployment"`
-}
-
 // Descriptor is a parsed descriptor: Fault is the one reason the page
 // cannot use it, and then nothing else is set.
 type Descriptor struct {
@@ -63,7 +55,6 @@ type Descriptor struct {
 	Fault   string
 	Widgets []Widget
 	Repo    []string
-	Fleet   Fleet
 }
 
 // Widget is the descriptor's widget id, false when it declares none.
@@ -152,23 +143,6 @@ func normalise(raw jsjson.Value) (Widget, bool) {
 	return w, true
 }
 
-// fleetObj is `doc.fleet` when reading a property of it can yield one: a
-// JSON object.
-func fleetObj(doc jsjson.Value) (jsjson.Value, bool) {
-	f, ok := doc.Prop("fleet")
-	return f, ok && f.Kind == jsjson.Object
-}
-
-// MemberID is `doc.fleet.member` when it is a string.
-func MemberID(doc jsjson.Value) (string, bool) {
-	f, ok := fleetObj(doc)
-	if !ok {
-		return "", false
-	}
-	m, ok := f.Prop("member")
-	return m.Str, ok && m.Kind == jsjson.String
-}
-
 // list is a property when it is an array.
 func list(o jsjson.Value, key string) []jsjson.Value {
 	if v, ok := o.Prop(key); ok && v.Kind == jsjson.Array {
@@ -220,15 +194,6 @@ func FromDoc(doc jsjson.Value, pack string) Descriptor {
 	d.Repo = pick(list(doc, "repo"))
 	if len(d.Repo) > MaxRepoWidgets {
 		d.Repo = d.Repo[:MaxRepoWidgets]
-	}
-	d.Fleet.Deployment = []string{}
-	if f, ok := fleetObj(doc); ok {
-		d.Fleet.Deployment = pick(list(f, "deployment"))
-	}
-	if id, ok := MemberID(doc); ok {
-		if w, found := d.Widget(id); found && (!w.Known || contains(FleetKinds, *w.Kind)) {
-			d.Fleet.Member = &id
-		}
 	}
 	return d
 }

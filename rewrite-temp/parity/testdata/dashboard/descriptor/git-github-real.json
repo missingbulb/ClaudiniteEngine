@@ -25,5 +25,25 @@
         "source": "repo-stars"
       }
     ]
+  },
+  "divergence": "record-143",
+  "cn": {
+    "fault": null,
+    "pack": "git-github",
+    "problems": [],
+    "repo": [
+      "stars"
+    ],
+    "widgets": [
+      {
+        "glyph": "★",
+        "id": "stars",
+        "kind": "stat",
+        "known": true,
+        "label": "stars",
+        "noun": "stars",
+        "source": "repo-stars"
+      }
+    ]
   }
 }

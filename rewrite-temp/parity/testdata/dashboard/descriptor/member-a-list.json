@@ -39,5 +39,34 @@
         "source": "generated"
       }
     ]
+  },
+  "divergence": "record-143",
+  "cn": {
+    "fault": null,
+    "pack": "acme-pack",
+    "problems": [],
+    "repo": [
+      "r"
+    ],
+    "widgets": [
+      {
+        "glyph": null,
+        "id": "r",
+        "kind": "list",
+        "known": true,
+        "label": "recent",
+        "noun": "",
+        "source": "generated"
+      },
+      {
+        "glyph": null,
+        "id": "s",
+        "kind": "stat",
+        "known": true,
+        "label": "s",
+        "noun": "n",
+        "source": "generated"
+      }
+    ]
   }
 }

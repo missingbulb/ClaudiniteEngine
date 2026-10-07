@@ -28,12 +28,12 @@ func TestAnEndpointResolvesFromTheMembersMap(t *testing.T) {
 	if e.URL != "https://x/fire" || e.TokenSecret != "MY_TOKEN" || e.Headers["anthropic-beta"] != "newer" {
 		t.Errorf("%+v", e)
 	}
-	fleet := loopTask("a", map[string]any{"invocation_endpoint": "fleet"})
-	if e := ResolveEndpoint(endpoints, fleet); !strings.Contains(e.Error, `no invocation endpoint "fleet"`) {
+	acme := loopTask("a", map[string]any{"invocation_endpoint": "acme"})
+	if e := ResolveEndpoint(endpoints, acme); !strings.Contains(e.Error, `no invocation endpoint "acme"`) {
 		t.Error(e)
 	}
-	endpoints["fleet"] = map[string]any{"url": "https://y"}
-	if e := ResolveEndpoint(endpoints, fleet); !strings.Contains(e.Error, "tokenSecret") {
+	endpoints["acme"] = map[string]any{"url": "https://y"}
+	if e := ResolveEndpoint(endpoints, acme); !strings.Contains(e.Error, "tokenSecret") {
 		t.Error("only default has a default secret:", e)
 	}
 	if e := ResolveEndpoint(map[string]any{"default": map[string]any{}}, tk); !strings.Contains(e.Error, "declares no url") {

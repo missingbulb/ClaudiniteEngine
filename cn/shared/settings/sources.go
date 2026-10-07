@@ -10,8 +10,8 @@ import (
 // each later one a backup:
 //
 //	packs:                       [packs]                        "packs": {
-//	  sources:                   sources = ["acme/fleet"]         "sources": ["acme/fleet"]
-//	    - "acme/fleet"                                          }
+//	  sources:                   sources = ["acme/packs"]         "sources": ["acme/packs"]
+//	    - "acme/packs"                                          }
 //
 // "<owner>/<name>" is that GitHub repo's vendored branch and
 // "https://<host>" a CDN base. A block naming no sources reads the shelf.

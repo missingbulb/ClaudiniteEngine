@@ -70,7 +70,7 @@ var AskedForOrigins = []string{OriginManual, OriginAdHoc}
 const Urgent = "task:urgent"
 
 // The legacy spellings, written never and read forever: labels are stored
-// data on open and closed issues across the fleet.
+// data on open and closed issues in every member.
 const (
 	LegacyBlocked      = "task:blocked"
 	LegacyReady        = "task:ready"

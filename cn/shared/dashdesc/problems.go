@@ -19,8 +19,7 @@ type Problem struct {
 const SchemaPath = "packs/claudinite-dashboard/dashboard-descriptor.schema.json"
 
 // Problems are the check's findings over one descriptor: the reader's
-// fault, else the ids its views select and it does not declare, a list
-// named as the fleet mini-card, and a mini-card quantity with no noun.
+// fault, else the ids its repo view selects and it does not declare.
 func Problems(text []byte, pack string) []Problem {
 	d := Parse(text, pack)
 	if d.Fault != "" {
@@ -34,13 +33,6 @@ func Problems(text []byte, pack string) []Problem {
 
 	var selected []jsjson.Value
 	selected = append(selected, list(doc, "repo")...)
-	if f, ok := fleetObj(doc); ok {
-		selected = append(selected, list(f, "deployment")...)
-	}
-	member, hasMember := MemberID(doc)
-	if hasMember {
-		selected = append(selected, jsjson.Value{Kind: jsjson.String, Str: member})
-	}
 	var dangling []string
 	seen := map[string]bool{}
 	for _, id := range selected {
@@ -71,20 +63,6 @@ func Problems(text []byte, pack string) []Problem {
 		})
 	}
 
-	if hasMember {
-		if w, ok := d.Widget(member); ok && w.Known && !contains(FleetKinds, *w.Kind) {
-			out = append(out, Problem{
-				What: `names "` + w.ID + `" as its fleet mini-card, but a ` + *w.Kind + " cannot be one line",
-				Fix:  "point fleet.member at a widget whose kind is one of " + strings.Join(FleetKinds, ", ") + ", or drop it and contribute to the repo page only",
-			})
-		}
-		if w, ok := d.Widget(member); ok && member != "" && w.Kind != nil && (*w.Kind == "stat" || *w.Kind == "window") && w.Noun == "" {
-			out = append(out, Problem{
-				What: `its fleet mini-card "` + member + `" is a ` + *w.Kind + ` with no "noun", so it would render as a bare number`,
-				Fix:  `give the widget a short "noun" — what the quantity is of — so the phrase reads "18 stars" rather than "18"`,
-			})
-		}
-	}
 	return out
 }
 

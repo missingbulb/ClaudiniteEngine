@@ -32,5 +32,30 @@
         "source": "repo-stars"
       }
     ]
+  },
+  "divergence": "record-143",
+  "cn": {
+    "fault": null,
+    "pack": "acme-pack",
+    "problems": [
+      {
+        "fix": "declare the widget in \"widgets\", or drop the id from the view that names it — the page silently renders nothing for an id it cannot resolve",
+        "what": "selects widget id(s) it does not declare: ghost, 3"
+      }
+    ],
+    "repo": [
+      "stars"
+    ],
+    "widgets": [
+      {
+        "glyph": "★",
+        "id": "stars",
+        "kind": "stat",
+        "known": true,
+        "label": "stars",
+        "noun": "stars",
+        "source": "repo-stars"
+      }
+    ]
   }
 }

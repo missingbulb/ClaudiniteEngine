@@ -4,8 +4,8 @@
 // from --origin, a bare repository, and a merge squashes onto its main
 // there, as GitHub would. cn reaches it through CLAUDINITE_GITHUB_API.
 //
-// It answers an Actions job's OIDC token at GET /_oidc/token, the token a
-// fleet run trades for its key at licstub (session.go). For the
+// It answers an Actions job's OIDC token at GET /_oidc/token
+// (session.go). For the
 // task queue it answers the issues, repository and landing-lane calls
 // over an in-memory repository, and a routine's fire route (tasks.go).
 //
@@ -19,9 +19,6 @@
 //	                      adds a run with it on the ref's head; "" adds none
 //	GET  /_stub/state     pulls, issues, dispatches, fires, agent runs,
 //	                      armed auto-merges and the call log
-//
-// For a fleet manager's sweeps it answers GET /user/repos and every call
-// on a fleet member, each a directory on disk (fleet.go).
 //
 // It writes its base URL to --ready once listening and the certificate to
 // --ca-out.
@@ -90,8 +87,6 @@ type dispatch struct {
 	Workflow string            `json:"workflow"`
 	Ref      string            `json:"ref"`
 	Inputs   map[string]string `json:"inputs"`
-	// Repo is a fleet member's; the manager's own dispatches leave it out.
-	Repo string `json:"repo,omitempty"`
 }
 
 // stubState is what GET /_stub/state answers.
@@ -103,8 +98,6 @@ type stubState struct {
 	Fires      []fire     `json:"fires"`
 	Agent      []agentRun `json:"agent"`
 	Armed      []string   `json:"armed"`
-	// Fleet is each member's issues, by owner/name.
-	Fleet map[string][]issue `json:"fleet"`
 }
 
 type stub struct {
@@ -131,9 +124,6 @@ type stub struct {
 
 	sess   session
 	rsaKey *rsa.PrivateKey
-
-	// fleet is the members a fleet token reaches beside the repo (fleet.go).
-	fleet []*fleetMember
 }
 
 // defaultSession is a public repo of a User, administered by acme-dev.
@@ -246,9 +236,6 @@ func (s *stub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if s.serveTopLevel(w, r, body) {
 		return
 	}
-	if s.serveFleet(w, r, body) {
-		return
-	}
 	if s.serveSession(w, r) {
 		return
 	}
@@ -262,9 +249,6 @@ func (s *stub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	path := strings.TrimPrefix(r.URL.Path, prefix)
-	if s.serveGitData(w, r, path, body) {
-		return
-	}
 	num := func(re *regexp.Regexp) int {
 		m := re.FindStringSubmatch(path)
 		if m == nil {
@@ -362,8 +346,7 @@ func (s *stub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// serveIssues answers the issue writes on s.gh, the manager's store or,
-// swapped in by serveFleet, a member's.
+// serveIssues answers the issue writes on s.gh.
 func (s *stub) serveIssues(w http.ResponseWriter, r *http.Request, path string, body map[string]any) bool {
 	str := func(k string) string { v, _ := body[k].(string); return v }
 	num := func(re *regexp.Regexp) int {
@@ -527,15 +510,9 @@ func (s *stub) control(w http.ResponseWriter, r *http.Request, str func(string) 
 			st.Pulls = append(st.Pulls, *p)
 		}
 		st.Issues = wireIssues(s.gh)
-		st.Fleet = map[string][]issue{}
-		for _, m := range s.fleet {
-			st.Fleet[m.full] = wireIssues(m.gh)
-		}
 		reply(w, 200, st)
 	case "/_stub/routine", "/_stub/converge":
 		s.taskControl(w, r.URL.Path, body)
-	case "/_stub/advance", "/_stub/deny":
-		s.fleetControl(w, r.URL.Path, body)
 	default:
 		fail(w, http.StatusNotFound, "no such control")
 	}
@@ -543,8 +520,7 @@ func (s *stub) control(w http.ResponseWriter, r *http.Request, str func(string) 
 
 func main() {
 	origin := flag.String("origin", "", "the member's bare origin repository")
-	rs := &repos{home: "acme/member"}
-	flag.Var(rs, "repo", "the owner/name GITHUB_REPOSITORY names; owner/name=DIR[;archived][;fork], repeatable, adds a fleet member served from DIR")
+	repo := flag.String("repo", "acme/member", "the owner/name GITHUB_REPOSITORY names")
 	token := flag.String("token", "", "the token cn must present")
 	addr := flag.String("addr", "127.0.0.1:0", "listen address")
 	ready := flag.String("ready", "", "file to write the base URL to once listening")
@@ -560,7 +536,7 @@ func main() {
 	flag.StringVar(&sess.WorkflowRef, "workflow-ref", "", "the OIDC token's job_workflow_ref (default the update workflow on main)")
 	flag.Parse()
 	if *origin == "" || *token == "" {
-		fmt.Fprintln(os.Stderr, "usage: ghstub --origin BARE.git --token T [--repo O/N] [--repo O/N=DIR]... [--ready F] [--ca-out F]")
+		fmt.Fprintln(os.Stderr, "usage: ghstub --origin BARE.git --token T [--repo O/N] [--ready F] [--ca-out F]")
 		os.Exit(2)
 	}
 	cert, pemBytes, err := stubtls.SelfSigned("ghstub")
@@ -576,8 +552,7 @@ func main() {
 	if err != nil {
 		die(err)
 	}
-	st := newStub(*origin, rs.home, *token)
-	st.fleet = rs.members
+	st := newStub(*origin, *repo, *token)
 	st.agent, st.routineToken = *agent, *routine
 	st.sess = sess
 	srv := &http.Server{Handler: st, ReadHeaderTimeout: 10 * time.Second}

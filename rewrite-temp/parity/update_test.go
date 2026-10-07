@@ -19,7 +19,7 @@ import (
 // A fixture is testdata/update/<core>/<name>.json holding {"input": …,
 // "expect": …}: the Node engine answers it through testdata/shims/
 // update.mjs over packs/claudinite-lifecycle at the frozen commit, cn
-// through `cn update decide <core> --world <input>`. CLAUDINITE_PARITY_
+// through `cndecide update decide <core> --world <input>`. CLAUDINITE_PARITY_
 // RECORD=1 writes the Node answer into expect.
 //
 // Where cn decides otherwise on purpose, the fixture names the design

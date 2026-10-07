@@ -17,8 +17,8 @@ import (
 // retention prune's plan, asked one fixture at a time. A fixture is
 // testdata/growth/<core>/<name>.json in the update face's format: the
 // Node engine answers it through testdata/shims/growth.mjs over
-// packs/claudinite-growth at the frozen commit, cn through `cn growth
-// decide <core> --world <input>`. CLAUDINITE_PARITY_RECORD=1 writes the
+// packs/claudinite-growth at the frozen commit, cn through `cndecide
+// growth decide <core> --world <input>`. CLAUDINITE_PARITY_RECORD=1 writes the
 // Node answer into expect.
 
 func askGrowth(e Engine, f UpdateFixture, scratch string) (any, error) {
@@ -37,7 +37,7 @@ func askGrowth(e Engine, f UpdateFixture, scratch string) (any, error) {
 		}
 		stdout, stderr, code, err = run(scratch, []string{nodeEnv + "=" + e.Root}, string(f.Input), "node", shim, f.Core)
 	case Cn:
-		stdout, stderr, code, err = run(scratch, e.env(scratch), "", e.Binary, "growth", "decide", f.Core, "--world", in)
+		stdout, stderr, code, err = run(scratch, e.env(scratch), "", e.Decide, "growth", "decide", f.Core, "--world", in)
 	default:
 		return nil, fmt.Errorf("no growth face on %s", e.Name())
 	}

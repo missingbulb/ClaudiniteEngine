@@ -14,16 +14,14 @@ func whats(ps []Problem) []string {
 	return out
 }
 
-// Each of the check's four findings, and a descriptor clean of all of
-// them; the parity face holds the sentences to the Node rule.
+// Each of the check's findings, and a descriptor clean of them; a fleet
+// block is the pack's own business and selects nothing here.
 func TestProblems(t *testing.T) {
 	for name, c := range map[string]struct{ text, want string }{
-		"usable":   {`{"widgets": [{"id": "s", "kind": "stat", "noun": "stars"}], "repo": ["s"], "fleet": {"member": "s"}}`, ""},
+		"usable":   {`{"widgets": [{"id": "s", "kind": "stat", "noun": "stars"}], "repo": ["s"], "fleet": {"member": "zz"}}`, ""},
 		"rejected": {`{"widgets": []}`, "the dashboard reader rejects it: its dashboard.json declares no usable widget"},
-		"dangling": {`{"widgets": [{"id": "s", "kind": "event"}], "repo": ["s", "x", "x"], "fleet": {"deployment": ["y"]}}`, "selects widget id(s) it does not declare: x, y"},
-		"list":     {`{"widgets": [{"id": "l", "kind": "list"}], "fleet": {"member": "l"}}`, `names "l" as its fleet mini-card, but a list cannot be one line`},
-		"noun":     {`{"widgets": [{"id": "w", "kind": "window"}], "fleet": {"member": "w"}}`, `its fleet mini-card "w" is a window with no "noun", so it would render as a bare number`},
-		"unknown":  {`{"widgets": [{"id": "h", "kind": "heatmap"}], "fleet": {"member": "h"}}`, ""},
+		"dangling": {`{"widgets": [{"id": "s", "kind": "event"}], "repo": ["s", "x", "x", "y"]}`, "selects widget id(s) it does not declare: x, y"},
+		"unknown":  {`{"widgets": [{"id": "h", "kind": "heatmap"}], "repo": ["h"]}`, ""},
 	} {
 		got := strings.Join(whats(Problems([]byte(c.text), "acme-pack")), "|")
 		if got != c.want {
