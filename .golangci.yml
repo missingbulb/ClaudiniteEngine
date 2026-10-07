@@ -150,7 +150,7 @@ linters:
           # with no module downloads: standard library and shared/ only.
           list-mode: strict
           files:
-            - "**/cmd/cn-keys/**"
+            - "**/release/keys/cn-keys/**"
           allow:
             - $gostd
             - github.com/missingbulb/ClaudiniteEngine/cn/shared

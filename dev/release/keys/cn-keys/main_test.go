@@ -157,7 +157,7 @@ func TestDependsOnlyOnStdlibAndShared(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, p := range strings.Fields(string(out)) {
-		if p == "github.com/missingbulb/ClaudiniteEngine/dev/keys/cn-keys" || strings.HasPrefix(p, "github.com/missingbulb/ClaudiniteEngine/cn/shared/") {
+		if p == "github.com/missingbulb/ClaudiniteEngine/dev/release/keys/cn-keys" || strings.HasPrefix(p, "github.com/missingbulb/ClaudiniteEngine/cn/shared/") {
 			continue
 		}
 		t.Errorf("cn-keys depends on %s", p)
