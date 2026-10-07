@@ -1,6 +1,6 @@
 {
   "id": "update",
-  "description": "The engine's built-in nightly update: opens a pull request for the newest allowed engine version, then for the declared packs' newest versions, or says why not. `cn update land` lands each once CI passes; workflows the engine expects ride its pull request staged, for the agent stage to move.",
+  "description": "The engine's built-in nightly update: opens a pull request for the newest allowed engine version, then for the declared packs' newest versions, or says why not. each lands on its approved CI run; workflows the engine expects ride its pull request staged, for the agent stage to move.",
   "trigger": "schedule",
   "preconditions": [
     "schedule:at-most-daily"

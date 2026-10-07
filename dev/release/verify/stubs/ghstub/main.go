@@ -17,6 +17,13 @@
 //	                      status completed by default)
 //	POST /_stub/dispatch  {"conclusion"}: every later workflow_dispatch
 //	                      adds a run with it on the ref's head; "" adds none
+//	POST /_stub/approve   {"conclusion"}: what a held run concludes once
+//	                      approved (success until set); "" leaves it queued
+//
+// A pull request it opens gets a claudinite-ci.yml pull_request run held
+// at action_required, as GitHub holds those of a PR the job token opened,
+// and POST /actions/runs/{id}/approve releases it.
+//
 //	GET  /_stub/state     pulls, issues, dispatches, fires, agent runs,
 //	                      armed auto-merges and the call log
 //
@@ -75,6 +82,7 @@ type issue struct {
 
 type run struct {
 	ID         int64  `json:"id"`
+	Name       string `json:"name"`
 	HeadSHA    string `json:"head_sha"`
 	Event      string `json:"event"`
 	Status     string `json:"status"`
@@ -110,8 +118,10 @@ type stub struct {
 	pulls  []*pull
 	runs   []run
 	onDisp string
-	disps  []dispatch
-	calls  []string
+	// onApprove is what an approved held run concludes.
+	onApprove string
+	disps     []dispatch
+	calls     []string
 	// gh holds the issues, pull requests' issue records among them, so the
 	// two share one numbering as GitHub's do.
 	gh       *sim.GitHub
@@ -138,7 +148,7 @@ func newStub(origin, repo, token string) *stub {
 	gh := sim.NewGitHub(clock)
 	gh.Repo = repo
 	return &stub{origin: origin, repo: repo, token: token, clock: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
-		gh: gh, simClock: clock, routineToken: routineToken, sess: defaultSession, rsaKey: k}
+		gh: gh, simClock: clock, routineToken: routineToken, sess: defaultSession, rsaKey: k, onApprove: "success"}
 }
 
 func (s *stub) git(args ...string) (string, error) {
@@ -166,7 +176,7 @@ func (s *stub) addRun(sha, event, status, conclusion string) {
 	if event == "" {
 		event = "push"
 	}
-	s.runs = append(s.runs, run{ID: s.runID, HeadSHA: sha, Event: event, Status: status, Conclusion: conclusion, CreatedAt: s.clock.Format(time.RFC3339),
+	s.runs = append(s.runs, run{ID: s.runID, Name: "claudinite-ci", HeadSHA: sha, Event: event, Status: status, Conclusion: conclusion, CreatedAt: s.clock.Format(time.RFC3339),
 		HTMLURL: fmt.Sprintf("https://github.com/%s/actions/runs/%d", s.repo, s.runID)})
 }
 
@@ -212,6 +222,7 @@ var (
 	runsPath     = regexp.MustCompile(`^/actions/workflows/([^/]+)/runs$`)
 	dispatchPath = regexp.MustCompile(`^/actions/workflows/([^/]+)/dispatches$`)
 	runPath      = regexp.MustCompile(`^/actions/runs/(\d+)$`)
+	approvePath  = regexp.MustCompile(`^/actions/runs/(\d+)/approve$`)
 	pullPath     = regexp.MustCompile(`^/pulls/(\d+)$`)
 	mergePath    = regexp.MustCompile(`^/pulls/(\d+)/merge$`)
 	labelsPath   = regexp.MustCompile(`^/issues/(\d+)/labels$`)
@@ -284,6 +295,25 @@ func (s *stub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		fail(w, http.StatusNotFound, "Not Found")
+	case r.Method == http.MethodPost && approvePath.MatchString(path):
+		id, _ := strconv.ParseInt(approvePath.FindStringSubmatch(path)[1], 10, 64)
+		for i := range s.runs {
+			if s.runs[i].ID != id {
+				continue
+			}
+			if s.runs[i].Conclusion != "action_required" {
+				fail(w, http.StatusForbidden, "This run is not waiting for approval")
+				return
+			}
+			s.runs[i].Status, s.runs[i].Conclusion = "queued", ""
+			if s.onApprove != "" {
+				s.runs[i].Status, s.runs[i].Conclusion = "completed", s.onApprove
+			}
+			s.calls = append(s.calls, fmt.Sprintf("approve %d", id))
+			reply(w, http.StatusCreated, map[string]any{})
+			return
+		}
+		fail(w, http.StatusNotFound, "Not Found")
 	case r.Method == http.MethodGet && path == "/pages":
 		reply(w, 200, map[string]string{"build_type": "workflow"})
 	case r.Method == http.MethodPost && dispatchPath.MatchString(path):
@@ -322,6 +352,7 @@ func (s *stub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		n := s.gh.Seed(sim.StoredIssue{Issue: workitem.Issue{Title: str("title"), Body: str("body")}, PullRequest: true, Author: bot})
 		p := &pull{Number: n, Title: str("title"), Body: str("body"), Head: str("head"), Base: str("base"), State: "open", Labels: []string{}}
 		s.pulls = append(s.pulls, p)
+		s.addRun(s.headOf(p.Head), "pull_request", "completed", "action_required")
 		s.calls = append(s.calls, fmt.Sprintf("create-pull %d %s", p.Number, p.Head))
 		reply(w, http.StatusCreated, s.wire(p))
 	case pullPath.MatchString(path) && (r.Method == http.MethodGet || r.Method == http.MethodPatch):
@@ -501,6 +532,9 @@ func (s *stub) control(w http.ResponseWriter, r *http.Request, str func(string) 
 		reply(w, 200, map[string]string{"sha": sha})
 	case "/_stub/dispatch":
 		s.onDisp = str("conclusion")
+		reply(w, 200, map[string]string{})
+	case "/_stub/approve":
+		s.onApprove = str("conclusion")
 		reply(w, 200, map[string]string{})
 	case "/_stub/state":
 		st := stubState{Pulls: []pull{}, Issues: []issue{}, Dispatches: append([]dispatch{}, s.disps...), Calls: append([]string{}, s.calls...),
