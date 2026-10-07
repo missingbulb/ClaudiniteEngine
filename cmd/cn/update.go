@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/missingbulb/ClaudiniteEngine/lifecycle/packs"
@@ -46,6 +47,18 @@ func updateDepsWith(repo, token string, stdout io.Writer) (update.Deps, error) {
 	if err != nil {
 		return update.Deps{}, report.Wrap(report.IO, "update", err)
 	}
+	d, err := localDeps(repo, token, stdout)
+	if err != nil {
+		return update.Deps{}, err
+	}
+	d.GitHub, d.FullName = gh, gh.Repo
+	return d, nil
+}
+
+// localDeps are the updater's dependencies but GitHub's: the registry, the
+// trust roots and git over repo, whose remote token may be empty. The
+// repo's owner/name is read as cn init reads it.
+func localDeps(repo, token string, stdout io.Writer) (update.Deps, error) {
 	reg, err := npmreg.FromEnv()
 	if err != nil {
 		return update.Deps{}, report.Wrap(report.IO, "update", err)
@@ -58,9 +71,9 @@ func updateDepsWith(repo, token string, stdout io.Writer) (update.Deps, error) {
 	if err != nil {
 		return update.Deps{}, report.Wrap(report.Internal, "update", err)
 	}
-	return update.Deps{GitHub: gh, Registry: reg, Git: gitcmd.Repo{Dir: repo, Token: token}, Roots: roots,
+	return update.Deps{Registry: reg, Git: gitcmd.Repo{Dir: repo, Token: token}, Roots: roots,
 		CacheRoot: paths.CacheRoot(), Platform: version.Platform(), Now: time.Now, Sleep: time.Sleep,
-		Repo: repo, Out: stdout, Timeout: childTimeout, Exe: exe}, nil
+		Repo: repo, FullName: repoFullName(repo), Out: stdout, Timeout: childTimeout, Exe: exe}, nil
 }
 
 // packReader reads the pack indexes from the pack sources repo's settings
@@ -141,8 +154,20 @@ func cmdUpdate(args []string, stdout io.Writer) error {
 	force := fs.Bool("force", false, "")
 	pr := fs.Int("pr", 0, "")
 	sha := fs.String("sha", "", "")
+	check := fs.Bool("check", false, "")
+	base := fs.String("base", "", "")
+	head := fs.String("head", "", "")
 	if err := flags(fs, args[1:]); err != nil {
 		return err
+	}
+	if *check && args[0] != "land" {
+		return report.New(report.Usage, "--check is update land's")
+	}
+	if !*check && (*base != "" || *head != "") {
+		return report.New(report.Usage, "--base and --head are update land --check's")
+	}
+	if *check {
+		return cmdLandCheck(*repo, *base, *head, *pr, *sha, stdout)
 	}
 	if args[0] == "land" {
 		if *pr <= 0 {
@@ -178,10 +203,50 @@ func cmdUpdate(args []string, stdout io.Writer) error {
 	return nil
 }
 
+// cmdLandCheck is update land --check: the landing gate over an engine
+// update PR's base and head commits, from git alone, so the agent stage
+// that merges a workflow-changing PR needs no GitHub token to run it.
+func cmdLandCheck(repo, base, head string, pr int, sha string, stdout io.Writer) error {
+	if pr != 0 || sha != "" {
+		return report.New(report.Usage, "--check takes --base and --head, not --pr or --sha")
+	}
+	if base == "" || head == "" {
+		return report.New(report.Usage, "--check needs --base and --head, the PR's base and head commits, both fetched")
+	}
+	d, err := localDeps(repo, "", stdout)
+	if err != nil {
+		return err
+	}
+	verdict, err := update.CheckLand(d, base, head)
+	if err != nil {
+		return report.Wrap(report.IO, "update land --check", err)
+	}
+	fmt.Fprintln(stdout, verdict)
+	return nil
+}
+
+// updateTaskResult is the engine/update task's result once its steps said
+// said and the engine step left eng: done, or, where the engine PR carries
+// staged workflows, a hand-off to the task's agent stage on that PR, whose
+// credential may write .github/workflows/.
+func updateTaskResult(said []string, eng update.EngineResult) execute.CodeWorkResult {
+	r := execute.CodeWorkResult{OK: true, Said: said}
+	if len(eng.Staged) == 0 {
+		return r
+	}
+	r.AgentRequested = true
+	r.DeliveredPR, r.Branch = eng.PR, eng.Branch
+	r.Reason = fmt.Sprintf("Withheld workflow files: #%d carries %s, staged because the update job's token may not push .github/workflows/.",
+		eng.PR, strings.Join(eng.Staged, ", "))
+	r.HandOff = &execute.Target{Mode: execute.ModeAmend, Branch: eng.Branch, PR: eng.PR, Supersedes: []int{}}
+	return r
+}
+
 // runUpdateTask is the engine/update task's code-work, run in the
 // executor's process: the engine update, then the packs update, from the
 // default branch, each verdict said on the item's close. The update's pull
-// requests are its own, landed by cn update land, so it delivers none.
+// requests are its own, landed by cn update land; one carrying staged
+// workflows goes to the agent stage (updateTaskResult).
 func runUpdateTask(repo, token, branch string, out io.Writer) execute.CodeWorkResult {
 	d, err := updateDepsWith(repo, token, out)
 	if err != nil {
@@ -199,10 +264,15 @@ func runUpdateTask(repo, token, branch string, out io.Writer) execute.CodeWorkRe
 	defer closeReader()
 	d.Packs = reader
 	var said []string
+	var eng update.EngineResult
 	for _, step := range []struct {
 		name string
 		run  func(update.Deps, update.Options) (string, error)
-	}{{"cn update engine", update.Engine}, {"cn update packs", update.Packs}} {
+	}{{"cn update engine", func(d update.Deps, o update.Options) (string, error) {
+		var err error
+		eng, err = update.EngineRun(d, o)
+		return eng.Verdict, err
+	}}, {"cn update packs", update.Packs}} {
 		verdict, err := step.run(d, update.Options{})
 		if err != nil {
 			return execute.CodeWorkResult{Why: "engine/update: " + step.name + " failed", Detail: err.Error(), Said: said}
@@ -210,19 +280,39 @@ func runUpdateTask(repo, token, branch string, out io.Writer) execute.CodeWorkRe
 		fmt.Fprintln(out, step.name+": "+verdict)
 		said = append(said, step.name+": "+verdict)
 	}
-	return execute.CodeWorkResult{OK: true, Said: said}
+	return updateTaskResult(said, eng)
 }
 
+// cmdWorkflows is workflows diff, the patch to the workflows this version
+// expects, and workflows stage, which writes them into the staging
+// directory an engine update PR carries. Both read the repo's owner/name
+// from --name, else repoFullName; a scheduler whose cron needs it and
+// finds none fails rather than takes the template's placeholder.
 func cmdWorkflows(args []string, stdout io.Writer) error {
-	if len(args) == 0 || args[0] != "diff" {
-		return report.New(report.Usage, "workflows takes diff")
+	if len(args) == 0 || (args[0] != "diff" && args[0] != "stage") {
+		return report.New(report.Usage, "workflows takes diff or stage")
 	}
-	fs := flag.NewFlagSet("workflows diff", flag.ContinueOnError)
+	fs := flag.NewFlagSet("workflows "+args[0], flag.ContinueOnError)
 	repo := fs.String("repo", ".", "")
+	name := fs.String("name", "", "")
 	if err := flags(fs, args[1:]); err != nil {
 		return err
 	}
-	d, err := workflows.Diff(*repo)
+	full := *name
+	if full == "" {
+		full = repoFullName(*repo)
+	}
+	if args[0] == "stage" {
+		staged, err := workflows.Stage(*repo, full)
+		if err != nil {
+			return report.Wrap(report.IO, "workflows stage", err)
+		}
+		for _, s := range staged {
+			fmt.Fprintln(stdout, s)
+		}
+		return nil
+	}
+	d, err := workflows.Diff(*repo, full)
 	if err != nil {
 		return report.Wrap(report.IO, "workflows diff", err)
 	}

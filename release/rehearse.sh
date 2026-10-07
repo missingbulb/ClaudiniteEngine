@@ -11,7 +11,10 @@
 #            still run the verified engine linked before
 #   update   cn update engine, against regstub and release/ghstub, moves a
 #            member with a bare origin from this release to dist2/ by a
-#            merged update PR, then refuses a dist3/ whose selftest fails a
+#            merged update PR that stages the cronless scheduler the member
+#            holds, which land refuses until a scripted agent stage moves
+#            it into .github/workflows/, after which land skips it and the
+#            agent merges it behind cn update land --check, then refuses a dist3/ whose selftest fails a
 #            probe over the member or whose verify breaks it (built with the
 #            rehearsal_break tag), holds back on a red main, skips held and
 #            revoked versions, files the revoked pin's issue, and runs as the
@@ -489,6 +492,11 @@ for mode in $modes; do
       mkdir -p "$member/.claudinite/shared/packs/hello"
       printf '{\n  "version": "1.0",\n  "minEngineVersion": "%s"\n}\n' "$version" > "$member/.claudinite/shared/packs/hello/pack.json"
       printf 'packs:\n  declared:\n    - hello\n' >> "$member/.claudinite/settings.yaml"
+      # Its scheduler carries no cron, so the new engine expects the repo's
+      # hashed one there: the update PR stages it for the agent stage.
+      sched=.github/workflows/claudinite-scheduler.yml
+      staged=.claudinite/cache/pending-workflows/claudinite-scheduler.yml
+      grep -v '^    - cron: ' "$member/$sched" > "$work/sched.yml" && mv "$work/sched.yml" "$member/$sched"
       (cd "$member" && git init -q -b main) || fail "update: git init"
       (cd "$member" && sh .claudinite/launch rules-index) > "$work/index.out" 2>&1 || fail "update: rules-index: $(cat "$work/index.out")"
       grep -q '"hello": "1.0"' "$member/.claudinite/cache/member.GENERATED.json" || fail "update: rules-index wrote no member file holding hello"
@@ -515,15 +523,29 @@ for mode in $modes; do
       update_engine
       expect_verdict "opened #1 for $next"
       [ "$(git --git-dir "$origin" rev-list --count "main..$branch")" = 1 ] || fail "update 1: $branch is not one commit on main"
-      [ "$(git --git-dir "$origin" diff --name-only main "$branch" | tr '\n' ' ')" = ".claudinite/cache/member.GENERATED.json .claudinite/settings.yaml " ] \
-        || fail "update 1: the branch changes more than the pin and the member file: $(git --git-dir "$origin" diff --name-only main "$branch")"
+      [ "$(git --git-dir "$origin" diff --name-only main "$branch" | tr '\n' ' ')" = ".claudinite/cache/member.GENERATED.json $staged .claudinite/settings.yaml " ] \
+        || fail "update 1: the branch changes more than the pin, the member file and the staged scheduler: $(git --git-dir "$origin" diff --name-only main "$branch")"
       git --git-dir "$origin" show "$branch:.claudinite/cache/member.GENERATED.json" | grep -q "\"version\": \"$next\"" || fail "update 1: the member file does not state $next"
-      [ "$(gh_count 'st.dispatches.filter(d=>d.ref==="'"$branch"'"&&d.inputs.pr==="1").length')" = 1 ] || fail "update 1: dispatches $(gh_state)"
+      git --git-dir "$origin" show "$branch:$staged" | grep -q '^    - cron: "[0-9]* [0-9]*,[0-9]* \* \* \*"$' || fail "update 1: the staged scheduler carries no hashed cron: $(git --git-dir "$origin" show "$branch:$staged")"
+      [ "$(gh_count 'st.dispatches.filter(d=>d.ref==="'"$branch"'").length')" = 0 ] || fail "update 1: CI was dispatched before the agent stage moved the staged file: $(gh_state)"
+      [ "$(gh_count 'st.issues ? st.issues.length : 0')" = 0 ] || fail "update 1: an issue was filed: $(gh_state)"
       # The candidate's verify ran in this checkout: the token reached the
       # push child alone, never the checkout's config.
       [ -z "$(git -C "$member" config --get http.https://github.com/.extraheader)" ] || fail "update 1: the checkout holds an extraheader"
       if grep -qi 'authorization' "$member/.git/config"; then fail "update 1: .git/config holds a credential"; fi
-      step "update 1: $verdict"
+      step "update 1: $verdict, the scheduler staged and no CI dispatched"
+
+      head=$(git --git-dir "$origin" rev-parse "$branch")
+      ctl /_stub/run "{\"sha\":\"$head\",\"event\":\"workflow_dispatch\",\"conclusion\":\"success\"}"
+      if cn_member update land --pr 1 --sha "$head" > "$work/land.out" 2>&1; then fail "update 1: land took a PR still carrying the staged file"; fi
+      grep -q "still carries staged workflow files" "$work/land.out" || fail "update 1: the refusal names no staged file: $(cat "$work/land.out")"
+      # The agent stage: the staged file moved unedited, and pushed.
+      agent=$work/agent
+      git clone -q "$origin" "$agent" || fail "update 1: agent clone"
+      (cd "$agent" && git checkout -q "$branch" && git mv -f "$staged" "$sched" \
+        && git -c user.name=agent -c user.email=a@x commit -q -m "Move the staged workflows" && git push -q origin "$branch") || fail "update 1: the agent stage's move"
+      [ -z "$(git --git-dir "$origin" ls-tree -r --name-only "$branch" .claudinite/cache/pending-workflows)" ] || fail "update 1: the staging directory is not empty"
+      step "update 1: land refuses the staged PR; the agent stage moves the file"
 
       head=$(git --git-dir "$origin" rev-parse "$branch")
       (cd "$member" && git fetch -q origin && git checkout -q "$head") || fail "update 2: checkout"
@@ -535,17 +557,38 @@ for mode in $modes; do
       step "update 2: check world passes the bot's pin and refuses a person's"
 
       ctl /_stub/run "{\"sha\":\"$head\",\"event\":\"workflow_dispatch\",\"conclusion\":\"success\"}"
+      # CI's land job, on main's engine and the job token: the PR changes
+      # .github/workflows/, so it skips without failing and merges nothing.
       cn_member update land --pr 1 --sha "$head" > "$work/land.out" 2>&1 || fail "update 3: land: $(cat "$work/land.out")"
       verdict=$(sed -n '$p' "$work/land.out")
-      expect_verdict "landed $next"
-      [ -z "$(git --git-dir "$origin" branch --list "$branch")" ] || fail "update 3: $branch was not deleted"
+      case $verdict in "skipped: #1 changes .github/workflows/claudinite-scheduler.yml"*) ;; *) fail "update 3: land did not skip the workflow-changing PR: $(cat "$work/land.out")" ;; esac
+      [ "$(gh_count 'st.pulls.filter(p=>p.number===1&&p.merged).length')" = 0 ] || fail "update 3: land merged a workflow-changing PR"
+      [ -n "$(git --git-dir "$origin" branch --list "$branch")" ] || fail "update 3: land deleted $branch"
+      # The agent stage: CI green on the head, the gate from a checkout at
+      # that head, then the squash-merge at that head with its own
+      # credential, the branch deleted and CI dispatched on main.
+      # The gate reads git alone: no GitHub token reaches it.
+      (cd "$member" && git fetch -q origin && git checkout -q "$head") || fail "update 3: agent checkout"
+      mainsha=$(git -C "$member" rev-parse origin/main)
+      (cd "$member" && env -u GITHUB_TOKEN CLAUDINITE_GITHUB_API=https://127.0.0.1:9/unreachable .claudinite/bin/cn update land --check --base "$mainsha" --head "$head") > "$work/check.out" 2>&1 \
+        || fail "update 3: the gate refused: $(cat "$work/check.out")"
+      [ "$(sed -n '$p' "$work/check.out")" = "ok: $head may land $next" ] || fail "update 3: gate verdict: $(cat "$work/check.out")"
+      (cd "$member" && git checkout -q main) || fail "update 3: back to main"
+      [ "$(gh_count 'st.pulls.filter(p=>p.number===1&&p.merged).length')" = 0 ] || fail "update 3: the gate merged"
+      gh_api() { curl -sS --fail -X "$1" -H 'Authorization: Bearer rehearsal-token' -H 'Content-Type: application/json' -d "$3" "$gh/repos/acme/member$2" > /dev/null; }
+      gh_api PUT /pulls/1/merge "{\"sha\":\"$head\",\"merge_method\":\"squash\",\"commit_title\":\"Claudinite engine $next (#1)\"}" || fail "update 3: the agent's merge"
+      git --git-dir "$origin" branch -q -D "$branch" || fail "update 3: the agent's branch delete"
+      gh_api POST /actions/workflows/claudinite-ci.yml/dispatches '{"ref":"main"}' || fail "update 3: the agent's dispatch on main"
+      verdict="landed $next"
       [ "$(gh_count 'st.dispatches.filter(d=>d.ref==="main").length')" = 1 ] || fail "update 3: no dispatch on main: $(gh_state)"
       (cd "$member" && git fetch -q origin && git reset -q --hard origin/main) || fail "update 3: pull"
       grep -q "version: \"$next\"" "$member/.claudinite/settings.yaml" || fail "update 3: main does not pin $next"
       grep -q "\"version\": \"$next\"" "$member/.claudinite/cache/member.GENERATED.json" || fail "update 3: main's member file does not state $next"
       if grep -q '^license:' "$member/.claudinite/settings.yaml"; then fail "update 3: main kept the retired license block"; fi
       grep -q '^  declared:$' "$member/.claudinite/settings.yaml" || fail "update 3: dropping the license block took the packs block: $(cat "$member/.claudinite/settings.yaml")"
-      step "update 3: $verdict, the member file beside the pin, the retired license block dropped"
+      grep -q '^    - cron: "[0-9]* [0-9]*,[0-9]* \* \* \*"$' "$member/$sched" || fail "update 3: main's scheduler carries no hashed cron: $(cat "$member/$sched")"
+      [ ! -e "$member/.claudinite/cache/pending-workflows" ] || fail "update 3: main holds the staging directory"
+      step "update 3: landed $next, merged by the agent stage once land skipped it and the gate passed; the member file and the moved scheduler beside the pin, the retired license block dropped"
 
       : > "$work/requests.log"
       out=$(session_start) || fail "update 4: SessionStart exited non-zero"

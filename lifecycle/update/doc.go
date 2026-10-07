@@ -7,14 +7,22 @@
 // member's channel package that is newer than the pin and neither held,
 // revoked nor deprecated, downloads and verifies it exactly as the
 // launcher would, placing it in the launcher's cache, runs its selftest
-// and its verify against this repo, and opens a pin-only PR on
-// claudinite/engine-<version>, superseding an older open update PR.
+// and its verify against this repo, and opens a PR moving the pin on
+// claudinite/engine-<version>, superseding an older open update PR. The
+// workflows the new binary expects of this repo (`cn workflows stage`) ride
+// that PR staged under .claudinite/cache/pending-workflows/, since the job
+// token may not push .github/workflows/; the engine/update task's agent
+// stage moves them into place. Land accepts there exactly what the pinned
+// engine expects, but skips such a PR rather than merge it, since GitHub
+// refuses that merge to the job token: the agent stage merges it with its
+// own credential once land --check, the same gate run from git alone over
+// the PR's base and head with no GitHub call and no write, passes.
 //
 // The GitHub calls, all with the workflow job's GITHUB_TOKEN: list
 // workflow runs for a head sha, list open PRs, get one PR, create, close
 // and squash-merge a PR (the merge pinned to the head sha CI ran on), add
-// a label, comment, dispatch a workflow, and list, create and update
-// issues. Branches are pushed and deleted with git, on the credentials
+// a label, comment, dispatch a workflow, and list, create, update and
+// close issues. Branches are pushed and deleted with git, on the credentials
 // the checkout configured.
 //
 // Events the job token causes start no workflow runs, except

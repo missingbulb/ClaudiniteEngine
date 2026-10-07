@@ -389,6 +389,37 @@ func TestTheEnginesUpdateRunsAndClosesOnItsVerdicts(t *testing.T) {
 	}
 }
 
+// An engine update whose PR carries staged workflows hands that PR, not a
+// branch the resolver minted, to the agent stage; one with none closes.
+func TestTheEnginesUpdateHandsItsOwnPRToTheAgentStage(t *testing.T) {
+	all, errs := taskspec.Discover(t.TempDir(), nil)
+	if len(errs) > 0 {
+		t.Fatal(errs)
+	}
+	h := newLoop(t)
+	h.gh.Seed(sim.StoredIssue{Issue: workitem.Issue{Number: 1, Title: "[claudinite-work] engine/update",
+		Body: taskspec.UpdateTaskPath + "\n\nExecute the Claudinite task above.\n", Labels: []string{workitem.StatusReady}}})
+	invoked := 0
+	h.drive(all, func(in *In) {
+		in.ResolveTarget = func(taskspec.Task, time.Time) Target {
+			return Target{Mode: ModeFresh, Branch: "claudinite/engine/update/2026-10-06-x", Supersedes: []int{}, Reason: "r"}
+		}
+		in.CodeWork = func(taskspec.Task, Work) CodeWorkResult {
+			return CodeWorkResult{OK: true, AgentRequested: true, DeliveredPR: 5, Branch: "claudinite/engine-1.61006.1",
+				Reason: "staged workflows", HandOff: &Target{Mode: ModeAmend, Branch: "claudinite/engine-1.61006.1", PR: 5, Supersedes: []int{}}}
+		}
+		in.Invoke = func(taskspec.Task, workitem.Issue, string) Invocation {
+			invoked++
+			return Invocation{OK: true, Answered: true}
+		}
+	})
+	h.wants(1, "open", workitem.StatusRunningAgent)
+	f := workitem.ParseFields(h.get(1).Body)
+	if workitem.Str(f.TargetBranch) != "claudinite/engine-1.61006.1" || f.TargetPR == nil || *f.TargetPR != 5 || invoked != 1 {
+		t.Errorf("invoked %d, %+v\n%s", invoked, f, h.get(1).Body)
+	}
+}
+
 // A delivery whose diff the task's policy does not authorize stands for a
 // person: the item parks for action with the policy's reason.
 func TestADeliveryOutsideThePolicyParksForAction(t *testing.T) {

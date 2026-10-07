@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/missingbulb/ClaudiniteEngine/lifecycle/selftest"
+	"github.com/missingbulb/ClaudiniteEngine/lifecycle/workflows"
 	"os"
 	"os/exec"
 	"strings"
@@ -103,16 +104,29 @@ func RunVerify(binary, repo string, timeout time.Duration) (string, bool, error)
 	return out, false, fmt.Errorf("verify exited %d: %s", code, strings.TrimSpace(out+errOut))
 }
 
-// WorkflowsDiff runs `<binary> workflows diff --repo DIR` and returns the
-// unified diff of the member's workflows against that binary's templates,
-// empty when they match.
-func WorkflowsDiff(binary, repo string, timeout time.Duration) (string, error) {
-	out, errOut, code, err := child(binary, timeout, "workflows", "diff", "--repo", repo)
+// StageWorkflows runs `<binary> workflows stage --repo DIR --name NAME`,
+// which writes into DIR's staging directory each workflow that binary
+// expects of the member name and DIR does not carry, and returns the
+// staged paths, repo-relative; none when the workflows already match.
+func StageWorkflows(binary, repo, name string, timeout time.Duration) ([]string, error) {
+	if name == "" {
+		return nil, errors.New("workflows stage: this repo's owner/name is unknown (GITHUB_REPOSITORY is not set)")
+	}
+	out, errOut, code, err := child(binary, timeout, "workflows", "stage", "--repo", repo, "--name", name)
 	if err != nil {
-		return "", fmt.Errorf("workflows diff: %w", err)
+		return nil, fmt.Errorf("workflows stage: %w", err)
 	}
 	if code != 0 {
-		return "", fmt.Errorf("workflows diff exited %d: %s", code, strings.TrimSpace(out+errOut))
+		return nil, fmt.Errorf("workflows stage exited %d: %s", code, strings.TrimSpace(out+errOut))
 	}
-	return out, nil
+	var staged []string
+	for _, l := range strings.Split(out, "\n") {
+		if l = strings.TrimSpace(l); l != "" {
+			if !strings.HasPrefix(l, workflows.StagingDir+"/") || strings.Contains(strings.TrimPrefix(l, workflows.StagingDir+"/"), "/") {
+				return nil, fmt.Errorf("workflows stage named %q, not a file in %s", l, workflows.StagingDir)
+			}
+			staged = append(staged, l)
+		}
+	}
+	return staged, nil
 }

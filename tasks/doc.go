@@ -63,6 +63,9 @@
 //     engine's path, and the fleet's bare force id reaches it; it closes on
 //     its verdicts. schedule.TestTheEnginesUpdateIsFiledOnceADay,
 //     execute.TestTheEnginesUpdateRunsAndClosesOnItsVerdicts
+//   - The engine's update hands its agent stage the engine PR it opened,
+//     amending that PR's branch, only when that PR carries staged workflow
+//     files. execute.TestTheEnginesUpdateHandsItsOwnPRToTheAgentStage
 //   - A schedule_after dependent yields while its scheduled upstream is live.
 //     execute.TestADependentYieldsWhileItsScheduledUpstreamIsLive
 //

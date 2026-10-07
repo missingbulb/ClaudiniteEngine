@@ -157,6 +157,22 @@ func (f *fakeGitHub) CreateIssue(title, body, label string) (int, error) {
 	return n, nil
 }
 
+func (f *fakeGitHub) CloseIssue(n int) error {
+	if err := f.record("close-issue %d", n); err != nil {
+		return err
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	var open []githubapi.Issue
+	for _, is := range f.issues {
+		if is.Number != n {
+			open = append(open, is)
+		}
+	}
+	f.issues = open
+	return nil
+}
+
 func (f *fakeGitHub) UpdateIssueBody(n int, body string) error {
 	if err := f.record("update-issue %d", n); err != nil {
 		return err
@@ -169,4 +185,17 @@ func (f *fakeGitHub) UpdateIssueBody(n int, body string) error {
 		}
 	}
 	return nil
+}
+
+// writes is calls with the reads (pull, pulls, runs, issues) left out.
+func writes(calls []string) []string {
+	var out []string
+	for _, c := range calls {
+		switch strings.SplitN(c, " ", 2)[0] {
+		case "pull", "pulls", "runs", "issues":
+		default:
+			out = append(out, c)
+		}
+	}
+	return out
 }

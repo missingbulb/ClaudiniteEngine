@@ -211,6 +211,9 @@ func TestPacksAddTheImportToAnExistingClaudeMD(t *testing.T) {
 		if got != c.want {
 			t.Errorf("%s: CLAUDE.md on the branch %q, want %q", name, got, c.want)
 		}
+		if _, err := gateAt(t, w.repo, w.deps(t), pr); err == nil || !strings.Contains(err.Error(), "not only the settings file") {
+			t.Errorf("%s: the gate took a pack PR: %v", name, err)
+		}
 		if v, err := Land(w.deps(t), pr.Number, pr.HeadSHA); err != nil || v != "landed packs hello 1.1" {
 			t.Errorf("%s: %q %v", name, v, err)
 		}

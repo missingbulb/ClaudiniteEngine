@@ -233,18 +233,28 @@ func fleetRoot(repo string) (string, error) {
 // fleetHome is the manager's owner/name: GITHUB_REPOSITORY, else the
 // executor's CLAUDINITE_REPO, else the checkout's origin remote.
 func fleetHome(root string) (string, error) {
+	if r := repoFullName(root); r != "" {
+		return r, nil
+	}
+	return "", errors.New("GITHUB_REPOSITORY is not set and the checkout's origin names no GitHub repository")
+}
+
+// repoFullName is the checkout's owner/name: GITHUB_REPOSITORY, else the
+// executor's CLAUDINITE_REPO, else the checkout's origin remote; "" when
+// none names one.
+func repoFullName(root string) string {
 	for _, k := range []string{"GITHUB_REPOSITORY", "CLAUDINITE_REPO"} {
 		if r := os.Getenv(k); strings.Contains(r, "/") {
-			return r, nil
+			return r
 		}
 	}
 	out, err := exec.Command("git", "-C", root, "remote", "get-url", "origin").Output()
 	if err == nil {
 		if r, ok := githubapi.ParseRemote(strings.TrimSpace(string(out))); ok {
-			return r, nil
+			return r
 		}
 	}
-	return "", errors.New("GITHUB_REPOSITORY is not set and the checkout's origin names no GitHub repository")
+	return ""
 }
 
 // fleetConfig reads the manager's own claudinite-fleet-sheepdog entry out

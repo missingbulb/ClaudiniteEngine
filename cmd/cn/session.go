@@ -12,6 +12,7 @@ import (
 
 	"github.com/missingbulb/ClaudiniteEngine/growth/userpack"
 	"github.com/missingbulb/ClaudiniteEngine/shared/report"
+	"github.com/missingbulb/ClaudiniteEngine/shared/taskspec"
 	"github.com/missingbulb/ClaudiniteEngine/shared/workitem"
 	"github.com/missingbulb/ClaudiniteEngine/tasks/items"
 	"github.com/missingbulb/ClaudiniteEngine/tasks/world"
@@ -123,6 +124,9 @@ func cmdWorkValidate(args []string, stdout io.Writer) error {
 	}
 	fmt.Fprintf(stdout, "item #%s is this session's: %s\ntask file: %s\nmodel: %s\noutcome ceiling: %s\n",
 		strconv.Itoa(item.Number), v.Task.Path(), v.TaskPath, v.Model, v.Outcome)
+	if text := taskspec.EngineInstructions(v.Task); text != "" {
+		fmt.Fprintf(stdout, "\nThe engine carries this task's file, which no checkout holds; run these instructions as the task file:\n\n%s", text)
+	}
 	return nil
 }
 

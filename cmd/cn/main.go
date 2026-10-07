@@ -50,7 +50,13 @@ commands:
                  versions as a pack-only PR, once this repo's check world
                  passes over it; needs GITHUB_TOKEN
   update land --pr N --sha SHA [--repo DIR]
-                 merge update PR N (engine or packs), whose CI passed on SHA
+                 merge update PR N (engine or packs), whose CI passed on SHA;
+                 an engine PR changing .github/workflows/ is skipped for its
+                 agent stage to merge
+  update land --check --base SHA --head SHA [--repo DIR]
+                 an engine update PR's landing gate from git alone, both
+                 commits fetched: no GitHub call, no write; exit 1 with the
+                 reason it fails
   init --packs ID[,ID] [--answer PACK/Q=TEXT]... [--channel stable|canary|staging]
                  [--repo DIR]
                  adopt a repo: pin the newest allowed engine, write the
@@ -115,9 +121,15 @@ commands:
   execute continue
                  dispatch the next executor run after one died, or past
                  the chain's depth report it
-  workflows diff [--repo DIR]
+  workflows diff [--repo DIR] [--name OWNER/NAME]
                  the patch that brings a member's workflows to this
-                 version's templates; empty when they match
+                 version's templates; empty when they match. The name
+                 (else GITHUB_REPOSITORY, else the origin remote) gives a
+                 scheduler cron the hash did not write the repo's own
+  workflows stage [--repo DIR] [--name OWNER/NAME]
+                 write those workflows into .claudinite/cache/
+                 pending-workflows/ for an engine update PR's agent stage
+                 to move into place; print each staged path
   growth capture (--pr N | --issue N) [--transcript PATH] [--session ID]
                  [--branch NAME] [--repo DIR]
                  push the session's transcript, scrubbed, as a delta onto

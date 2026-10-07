@@ -13,6 +13,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/launcher"
 	"github.com/missingbulb/ClaudiniteEngine/lifecycle/update"
 	"github.com/missingbulb/ClaudiniteEngine/lifecycle/verify"
+	"github.com/missingbulb/ClaudiniteEngine/lifecycle/workflows"
 	"github.com/missingbulb/ClaudiniteEngine/shared/descriptor"
 	"github.com/missingbulb/ClaudiniteEngine/shared/findings"
 	"github.com/missingbulb/ClaudiniteEngine/shared/gitcmd"
@@ -105,7 +106,11 @@ func cmdCheckWorld(args []string, stdout, stderr io.Writer) error {
 	// then lists the coded checks from.
 	ran := allFindings(*repo, "world", declared.Selection{Tags: []string{"world"}}, false, stderr)
 	all := append(verifyFindings(*repo, stderr), ran...)
-	in := world.Input{Repo: *repo, PRAuthor: *author, BaseRef: *base, Git: g, CheckPin: checkPin, Findings: all}
+	full := repoFullName(*repo)
+	in := world.Input{Repo: *repo, PRAuthor: *author, BaseRef: *base, Git: g, CheckPin: checkPin, Findings: all,
+		Workflows: workflows.Names, ExpectedWorkflow: func(name string, base []byte) ([]byte, error) {
+			return workflows.Expected(name, base, full)
+		}}
 	var code int
 	if *author == "" || *base == "" {
 		code = world.Report(stdout, in)

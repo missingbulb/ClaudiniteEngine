@@ -8,10 +8,13 @@
 // A list is a union, `&&` is the one narrowing operator, `reject:<name>`
 // vetoes, `under:<dir>` scopes to a folder, and an unknown name fails
 // closed. The built-in classes and the composite are string-identical with
-// the Node engine's merge-policy.mjs at missingbulb/Claudinite@057841ac; a
+// the Node engine's merge-policy.mjs at missingbulb/Claudinite@057841ac,
+// but for the two engine-update classes Node has no counterpart of; a
 // pack adds its own as data in merge-rules.json (or .yaml, .toml). Under a
 // list policy the files that define policies are never coverable unless
-// the edit is comment-only, so a run cannot widen its own authorization.
+// the edit is comment-only, so a run cannot widen its own authorization;
+// the one exception is engine-pin-move, a settings edit moving nothing but
+// the engine pin.
 package mergepolicy
 
 import (
@@ -22,8 +25,10 @@ import (
 	"strings"
 
 	"github.com/missingbulb/ClaudiniteEngine/checksdk"
+	"github.com/missingbulb/ClaudiniteEngine/shared/flatdecl"
 	"github.com/missingbulb/ClaudiniteEngine/shared/jsjson"
 	"github.com/missingbulb/ClaudiniteEngine/shared/jsregex"
+	"github.com/missingbulb/ClaudiniteEngine/shared/settings"
 )
 
 // The two whole policies.
@@ -167,12 +172,51 @@ func isRealCodeChange(e Entry) bool {
 
 // Rule is one diff class. AppliesTo answers both roles a policy can use
 // the name in; Constraint, when set, is a whole-diff condition over the
-// entries the rule covered, returning "" when it holds.
+// entries the rule covered, returning "" when it holds. CoversPolicySource
+// lets the rule cover a policy source it applies to: engine-pin-move's
+// alone, which no declaration can set.
 type Rule struct {
-	Name        string
-	AppliesTo   func(Entry) bool
-	Constraint  func([]Entry) string
-	CoversMount bool
+	Name               string
+	AppliesTo          func(Entry) bool
+	Constraint         func([]Entry) string
+	CoversMount        bool
+	CoversPolicySource bool
+}
+
+// settingsFile is the member's settings file, whose pin an engine update
+// moves.
+var settingsFile = regexp.MustCompile(`^\.claudinite/settings\.(json|yaml|toml)$`)
+
+// EngineWorkflows are the workflows the engine manages, which an engine
+// update pull request may carry. The workflows package's tests hold this
+// list equal to its own, which this package cannot import.
+var EngineWorkflows = []string{"claudinite-ci.yml", "claudinite-scheduler.yml", "claudinite-executor.yml"}
+
+// isEnginePinMove is a settings edit moving only engine.version and
+// engine.manifest (settings.PinOnlyChange).
+func isEnginePinMove(e Entry) bool {
+	m := settingsFile.FindStringSubmatch(e.File)
+	if m == nil || e.ChangeKind() != "modified" {
+		return false
+	}
+	return settings.PinOnlyChange([]byte(*e.Before), []byte(*e.After), settings.Format(m[1])) == nil
+}
+
+// isEngineUpdateFile is the member file, at its path or the legacy one,
+// or a managed workflow, added or modified.
+func isEngineUpdateFile(e Entry) bool {
+	if e.ChangeKind() == "deleted" {
+		return false
+	}
+	if e.File == flatdecl.MemberFile || e.File == flatdecl.LegacyPath(flatdecl.MemberFile) {
+		return true
+	}
+	for _, n := range EngineWorkflows {
+		if e.File == ".github/workflows/"+n {
+			return true
+		}
+	}
+	return false
 }
 
 var jsFiles = regexp.MustCompile(`\.(mjs|cjs|jsx?|mts|cts|tsx?)$`)
@@ -181,7 +225,7 @@ var jsFiles = regexp.MustCompile(`\.(mjs|cjs|jsx?|mts|cts|tsx?)$`)
 var builtinOrder = []string{
 	"doc-changes", "readme-changes", "comment-only-changes", "test-changes", "markdown-line-removals",
 	"markdown-trims", "file-additions", "generated-file-changes", "javascript-changes",
-	"single-file-code-changes", "single-folder-code-changes",
+	"single-file-code-changes", "single-folder-code-changes", "engine-pin-move", "engine-update-files",
 }
 
 // Builtins are the built-in diff classes by name.
@@ -210,6 +254,8 @@ var Builtins = map[string]Rule{
 		}
 		return "code changed in " + itoa(len(files)) + " files: " + strings.Join(files, ", ")
 	}},
+	"engine-pin-move":     {AppliesTo: isEnginePinMove, CoversPolicySource: true},
+	"engine-update-files": {AppliesTo: isEngineUpdateFile},
 	"single-folder-code-changes": {AppliesTo: isRealCodeChange, Constraint: func(covered []Entry) string {
 		dirs := uniqueSorted(covered, func(e Entry) string { return path.Dir(e.File) })
 		if len(dirs) <= 1 {

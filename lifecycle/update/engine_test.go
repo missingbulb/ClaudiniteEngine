@@ -24,14 +24,21 @@ const (
 )
 
 // cnScript is a stand-in binary: selftest reports ver, verify runs
-// verifyBody, workflows diff prints diffBody.
-func cnScript(ver, verifyBody, diffBody string) []byte {
+// verifyBody, and workflows stage stages the scheduler as staged followed by
+// " for <the --name it was given>", or stages nothing when staged is empty.
+func cnScript(ver, verifyBody, staged string) []byte {
+	stage := ""
+	if staged != "" {
+		stage = `mkdir -p "$d"; printf '%s for %s\n' '` + staged + `' "$6" > "$d/claudinite-scheduler.yml"; echo ` + stagedScheduler + "; "
+	}
 	return []byte("#!/bin/sh\ncase \"$1\" in\n" +
 		"selftest) echo \"version " + ver + "\"; echo \"platform test\" ;;\n" +
 		"verify) " + verifyBody + " ;;\n" +
-		"workflows) printf '%s' '" + diffBody + "' ;;\n" +
+		`workflows) [ "$2" = stage ] && [ "$5" = --name ] || exit 2; d="$4/.claudinite/cache/pending-workflows"; rm -rf "$d"; ` + stage + ";;\n" +
 		"esac\n")
 }
+
+const stagedScheduler = ".claudinite/cache/pending-workflows/claudinite-scheduler.yml"
 
 func settingsFor(f settings.Format, ver, pin string) string {
 	switch f {
@@ -101,7 +108,7 @@ func (w *world) mainRun(t *testing.T, state string) {
 func (w *world) deps(t *testing.T) Deps {
 	return Deps{GitHub: w.hub, Registry: w.reg.client(), Git: gitcmd.Repo{Dir: w.repo}, Roots: rootsOf(testRoot),
 		CacheRoot: filepath.Join(t.TempDir(), "claudinite"), Platform: version.Platform(), Now: func() time.Time { return t0 },
-		Repo: w.repo, Out: w.out, Timeout: 10 * time.Second}
+		Repo: w.repo, FullName: "o/r", Out: w.out, Timeout: 10 * time.Second}
 }
 
 func (w *world) publish(t *testing.T, ver string, o relOpts) {
@@ -408,6 +415,10 @@ func TestLand(t *testing.T) {
 	if _, err := Land(w.deps(t), 4, "0000000000000000000000000000000000000000"); err == nil || !strings.Contains(err.Error(), "moved") {
 		t.Errorf("a moved head landed: %v", err)
 	}
+	before := len(w.hub.calls)
+	if v, err := gateAt(t, w.repo, w.deps(t), w.hub.pulls[0]); err != nil || v != "ok: "+sha+" may land "+v2 || len(writes(w.hub.calls[before:])) != 0 {
+		t.Errorf("the gate on a pin-only PR: %q %v, calls %v", v, err, w.hub.calls[before:])
+	}
 	v, err := Land(w.deps(t), 4, sha)
 	if err != nil || v != "landed "+v2 {
 		t.Fatalf("%q %v", v, err)
@@ -492,53 +503,6 @@ func TestVerdictForms(t *testing.T) {
 	}
 	if IsVerdict("landed") || IsVerdict("error: x") {
 		t.Error("a non-verdict matched")
-	}
-}
-
-const sampleDiff = "--- a/.github/workflows/claudinite-ci.yml\n+++ b/.github/workflows/claudinite-ci.yml\n@@ -1,1 +1,1 @@\n-old\n+new\n"
-
-func TestAWorkflowChangeIsFiledAsAnIssue(t *testing.T) {
-	t.Parallel()
-	w := newWorld(t, settings.YAML)
-	w.publish(t, v2, relOpts{binary: cnScript(v2, "exit 0", sampleDiff)})
-	if v, err := Engine(w.deps(t), Options{}); err != nil || v != "opened #1 for "+v2 {
-		t.Fatalf("%q %v\n%s", v, err, w.out)
-	}
-	if got := w.hub.called("create-issue"); len(got) != 1 || got[0] != "create-issue Claudinite engine "+v2+" needs a workflow change|claudinite-update" {
-		t.Fatalf("issues %v", got)
-	}
-	body := w.hub.issues[0].Body
-	if !strings.Contains(body, "```diff\n"+sampleDiff+"```") || !strings.Contains(body, "stays on the current workflows until a person commits") {
-		t.Errorf("body:\n%s", body)
-	}
-	if idx := strings.Index(strings.Join(w.hub.calls, "\n"), "create-issue"); idx < strings.Index(strings.Join(w.hub.calls, "\n"), "create-pull") {
-		t.Error("the issue was filed before the PR")
-	}
-}
-
-func TestAnOpenWorkflowIssueIsUpdatedNotDuplicated(t *testing.T) {
-	t.Parallel()
-	w := newWorld(t, settings.YAML)
-	w.publish(t, v2, relOpts{binary: cnScript(v2, "exit 0", sampleDiff)})
-	w.hub.issues = []githubapi.Issue{{Number: 9, Title: "Claudinite engine " + v2 + " needs a workflow change", Body: "stale"}}
-	w.hub.next = 10
-	if v, err := Engine(w.deps(t), Options{}); err != nil || v != "opened #10 for "+v2 {
-		t.Fatalf("%q %v\n%s", v, err, w.out)
-	}
-	if len(w.hub.called("create-issue")) != 0 || len(w.hub.called("update-issue 9")) != 1 || !strings.Contains(w.hub.issues[0].Body, sampleDiff) {
-		t.Errorf("calls %v", w.hub.calls)
-	}
-}
-
-func TestEqualWorkflowsFileNoIssue(t *testing.T) {
-	t.Parallel()
-	w := newWorld(t, settings.YAML)
-	w.publish(t, v2, relOpts{})
-	if _, err := Engine(w.deps(t), Options{}); err != nil {
-		t.Fatal(err)
-	}
-	if len(w.hub.called("create-issue")) != 0 || len(w.hub.called("issues")) != 0 {
-		t.Errorf("calls %v", w.hub.calls)
 	}
 }
 
