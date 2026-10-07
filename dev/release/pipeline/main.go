@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/missingbulb/ClaudiniteEngine/dev/release"
+	"github.com/missingbulb/ClaudiniteEngine/cn/shared/npmreg"
 )
 
 const usage = `usage:
@@ -25,7 +26,7 @@ const usage = `usage:
   pipeline publish-mode --tag rc|staging --signing release --dry-run true|false --npm-versions FILE
   pipeline deprecate-commands --action hold|revoke|release --version V [--reason R] --versions-dir DIR
   pipeline unpublish-commands --version V --versions-dir DIR --dist-tags FILE
-  pipeline npm-holds --dist DIR --version V [--registry URL] [--timeout DURATION]
+  pipeline npm-holds --dist DIR --version V --channel C --repo OWNER/NAME [--registry URL] [--timeout DURATION]
 
 A --versions-dir holds each CLI package's ` + "`npm view <pkg> versions --json`" + ` at
 <DIR>/<package name>.json.
@@ -107,22 +108,32 @@ func publishMode(args []string, stdout, stderr io.Writer) int {
 // npmHolds exits 0 once the registry names the integrity of every
 // tarball the dist holds.
 func npmHolds(args []string, stdout, stderr io.Writer) int {
-	fs := flag.NewFlagSet("npm-holds", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-	in := release.HoldsInput{HTTP: &http.Client{Timeout: 30 * time.Second}, Every: 5 * time.Second, Log: stdout}
-	fs.StringVar(&in.Dist, "dist", "", "")
-	fs.StringVar(&in.Version, "version", "", "")
-	fs.StringVar(&in.Registry, "registry", "https://registry.npmjs.org", "")
-	fs.DurationVar(&in.Timeout, "timeout", 3*time.Minute, "")
-	if err := fs.Parse(args); err != nil || fs.NArg() != 0 || in.Dist == "" || in.Version == "" {
+	in, ok := holdsFlags(args)
+	if !ok {
 		fmt.Fprint(stderr, usage)
 		return 2
 	}
+	in.Log = stdout
 	if err := release.NPMHolds(in); err != nil {
 		fmt.Fprintln(stderr, err)
 		return 1
 	}
 	return 0
+}
+
+// holdsFlags reads npm-holds' flags; it waits as long as cn update does.
+func holdsFlags(args []string) (release.HoldsInput, bool) {
+	fs := flag.NewFlagSet("npm-holds", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	in := release.HoldsInput{HTTP: &http.Client{Timeout: 30 * time.Second}, Every: 5 * time.Second}
+	fs.StringVar(&in.Dist, "dist", "", "")
+	fs.StringVar(&in.Version, "version", "", "")
+	fs.StringVar(&in.Channel, "channel", "", "")
+	fs.StringVar(&in.Repo, "repo", "", "")
+	fs.StringVar(&in.Registry, "registry", npmreg.DefaultRegistry, "")
+	fs.DurationVar(&in.Timeout, "timeout", npmreg.ServeWait, "")
+	err := fs.Parse(args)
+	return in, err == nil && fs.NArg() == 0 && in.Dist != "" && in.Version != "" && in.Channel != "" && in.Repo != ""
 }
 
 // blockerIssue prints the issue's title, a blank line, then its body.

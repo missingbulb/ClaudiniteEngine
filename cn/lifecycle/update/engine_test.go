@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/flatdecl"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/gitcmd"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/githubapi"
+	"github.com/missingbulb/ClaudiniteEngine/cn/shared/npmreg"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/settings"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/version"
 )
@@ -120,7 +122,7 @@ func (w *world) publish(t *testing.T, ver string, o relOpts) {
 
 func TestRedMainSkipsBeforeAnyNpmRead(t *testing.T) {
 	t.Parallel()
-	for state, reason := range map[string]string{"failure": "failure", "cancelled": "cancelled", "in_progress": "in_progress", "none": "no run"} {
+	for state, reason := range map[string]string{"failure": "failure", "cancelled": "cancelled", "in_progress": "in_progress"} {
 		w := newWorld(t, settings.YAML)
 		w.publish(t, v2, relOpts{})
 		w.mainRun(t, state)
@@ -134,6 +136,39 @@ func TestRedMainSkipsBeforeAnyNpmRead(t *testing.T) {
 		}
 		if len(w.hub.called("create-pull")) != 0 {
 			t.Errorf("%s: opened a PR", state)
+		}
+	}
+}
+
+// A main head with no CI run (a merge the job token made starts none)
+// gets one dispatched, and the run waits for its verdict rather than
+// stalling until a person starts one; a run still in flight is pending
+// too, and neither reads npm.
+func TestAMainWithNoCIRunDispatchesOne(t *testing.T) {
+	t.Parallel()
+	for state, pending := range map[string]bool{"none": true, "in_progress": true, "failure": false} {
+		w := newWorld(t, settings.YAML)
+		w.publish(t, v2, relOpts{})
+		w.mainRun(t, state)
+		r, err := EngineRun(w.deps(t), Options{})
+		if err != nil || r.MainPending != pending {
+			t.Errorf("%s: %+v %v", state, r, err)
+		}
+		dispatched := w.hub.called("dispatch ")
+		if state != "none" {
+			if len(dispatched) != 0 {
+				t.Errorf("%s: dispatched %v", state, dispatched)
+			}
+			continue
+		}
+		if r.Verdict != MainCIDispatched || !reflect.DeepEqual(dispatched, []string{"dispatch " + CIWorkflow + " main pr="}) {
+			t.Errorf("%q %v", r.Verdict, dispatched)
+		}
+		if reqs := w.reg.requests(); len(reqs) != 0 {
+			t.Errorf("npm read: %v", reqs)
+		}
+		if !IsVerdict(r.Verdict) {
+			t.Errorf("%q is no verdict form", r.Verdict)
 		}
 	}
 }
@@ -880,7 +915,7 @@ func TestProposeWaitsForNpmToServeTheTarballs(t *testing.T) {
 		t.Errorf("the wait is not reported:\n%s", w.out)
 	}
 
-	// A tarball still missing after ten minutes is an error, not a skip.
+	// A tarball still missing after npm's serve wait is an error, not a skip.
 	w = newWorld(t, settings.YAML)
 	w.publish(t, v2, relOpts{})
 	w.reg.notServed["/"+pkg+"/-/cli-"+v2+".tgz"] = 1000
@@ -894,7 +929,7 @@ func TestProposeWaitsForNpmToServeTheTarballs(t *testing.T) {
 	for _, s := range slept {
 		total += s
 	}
-	if total != 10*time.Minute {
-		t.Errorf("waited %v in all, want 10m", total)
+	if total != npmreg.ServeWait {
+		t.Errorf("waited %v in all, want npmreg.ServeWait (%v)", total, npmreg.ServeWait)
 	}
 }

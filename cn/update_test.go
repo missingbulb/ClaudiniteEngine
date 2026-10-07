@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/lifecycle/update"
 	"github.com/missingbulb/ClaudiniteEngine/cn/lifecycle/workflows"
@@ -81,16 +82,33 @@ func TestWorkflowsDiffCommand(t *testing.T) {
 func TestTheUpdateTaskHandsOffOnlyWhatIsStaged(t *testing.T) {
 	t.Parallel()
 	said := []string{"cn update engine: opened #5 for 1.61006.1", "cn update packs: skipped: engine PR #5 is open"}
-	plain := updateTaskResult(said, update.EngineResult{Verdict: "opened #5 for 1.61006.1"})
-	if !plain.OK || plain.AgentRequested || plain.HandOff != nil || !reflect.DeepEqual(plain.Said, said) {
+	plain := updateTaskResult(said, update.EngineResult{Verdict: "opened #5 for 1.61006.1"}, time.Time{})
+	if !plain.OK || plain.AgentRequested || plain.HandOff != nil || plain.Requeue != nil || !reflect.DeepEqual(plain.Said, said) {
 		t.Errorf("nothing staged: %+v", plain)
 	}
 	staged := updateTaskResult(said, update.EngineResult{Verdict: "opened #5 for 1.61006.1", PR: 5, Branch: "claudinite/engine-1.61006.1",
-		Staged: []string{workflows.StagedPath("claudinite-scheduler.yml")}})
+		Staged: []string{workflows.StagedPath("claudinite-scheduler.yml")}}, time.Time{})
 	if !staged.OK || !staged.AgentRequested || staged.DeliveredPR != 5 || staged.Branch != "claudinite/engine-1.61006.1" ||
 		staged.HandOff == nil || staged.HandOff.Mode != execute.ModeAmend || staged.HandOff.PR != 5 || staged.HandOff.Branch != "claudinite/engine-1.61006.1" ||
 		!strings.Contains(staged.Reason, workflows.StagedPath("claudinite-scheduler.yml")) || !reflect.DeepEqual(staged.Said, said) {
 		t.Errorf("staged: %+v", staged)
+	}
+}
+
+// An update that waited on main's CI, which has no verdict yet, requeues
+// its item rather than closing it: a close would cover the day, and the
+// next run would come a day later.
+func TestTheUpdateTaskRequeuesWhileMainsCIHasNoVerdict(t *testing.T) {
+	t.Parallel()
+	now := time.Date(2026, 10, 7, 14, 0, 0, 0, time.UTC)
+	said := []string{"cn update engine: " + update.MainCIDispatched}
+	r := updateTaskResult(said, update.EngineResult{Verdict: update.MainCIDispatched, MainPending: true}, now)
+	if !r.OK || r.AgentRequested || r.Requeue == nil || r.Requeue.Until != "2026-10-07T14:15:00.000Z" || r.Requeue.Reason == "" {
+		t.Errorf("%+v %+v", r, r.Requeue)
+	}
+	red := updateTaskResult([]string{"cn update engine: skipped: main is not green (failure)"}, update.EngineResult{Verdict: "skipped: main is not green (failure)"}, now)
+	if red.Requeue != nil {
+		t.Errorf("a red main requeued: %+v", red.Requeue)
 	}
 }
 

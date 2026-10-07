@@ -69,7 +69,7 @@ Growth face divergences: 0 of 57 fixtures.
 
 Dashboard face divergences: 39 of 47 fixtures.
 
-Each is record row 143: cn's
+Each is record row 145: cn's
 descriptor reader has no `fleet` block, so `cn dashboard descriptor` prints
 no `fleet` field and `descriptor-usable` judges only the ids the repo view
 selects, with no fleet mini-card findings. The dormancy core left with
@@ -77,7 +77,7 @@ selects, with no fleet mini-card findings. The dormancy core left with
 
 Tasks face divergences: 1 of 10 fixtures. `contract/invalid` is record row
 89: `log-past-retention` is a built-in term, so the contract's lists of
-built-ins name it; and, by record row 143, the invocation endpoint's example
+built-ins name it; and, by record row 145, the invocation endpoint's example
 key is `default`, no longer `fleet`.
 
 A ported pack file ClaudinitePacks changed on purpose after the freeze is
@@ -123,7 +123,7 @@ Settings face divergences: 4 of 19 fixtures.
 | 80 | renamed-ids-config | Node's reader lets the last entry for an id replace the config wholesale, losing basics' own; the import does what Node's barriers-absorbed record writes, nesting barriers' config under `config.barriers` and merging |
 
 The fleet slice added a `fleet` face and 15b added `scenarios/lifecycle-fleet/*`;
-both were deleted with `cn fleet` (record row 143).
+both were deleted with `cn fleet` (record row 145).
 
 The 16a chunk added the `dashboard` face (37 descriptors read by the page
 and judged by `descriptor-usable`, six trees under that rule, the page's

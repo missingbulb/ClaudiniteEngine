@@ -230,7 +230,7 @@ func ResolveTarget(in TargetIn) Target {
 		disposition = land.PullDisposition(in.Delivery, runs)
 	}
 	if disposition == land.DispMerge {
-		pr := land.PR{Number: newest.Number, NodeID: newest.NodeID, HeadRef: newest.HeadRef, HeadSHA: newest.HeadSHA}
+		pr := land.PR{Number: newest.Number, NodeID: newest.NodeID, HeadRef: newest.HeadRef, HeadSHA: newest.HeadSHA, Base: newest.BaseRef}
 		mergeErr, tidy := land.Pinned(in.Lane, pr, "", in.TaskID, in.Judgement)
 		if mergeErr != nil {
 			in.Log(fmt.Sprintf("could not land #%d (%v) — superseding it instead", newest.Number, mergeErr))
@@ -239,6 +239,9 @@ func ResolveTarget(in TargetIn) Target {
 			in.Log(fmt.Sprintf("landed #%d — %s's previous delivery had concluded green and was never merged", newest.Number, in.TaskID))
 			if tidy != nil {
 				in.Log(fmt.Sprintf("could not delete branch %s (%v)", newest.HeadRef, tidy))
+			}
+			if pr.Base != "" {
+				land.DispatchBaseCI(in.Lane, pr.Base, in.Log)
 			}
 		}
 	}

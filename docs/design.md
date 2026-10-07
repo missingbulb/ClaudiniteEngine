@@ -8,7 +8,7 @@ Claudinite's engine is one closed Go binary per platform, published on npm and p
 
 ## Architecture and repositories
 
-We build four repositories and run one service, the license server (a key Worker and a sync Worker); npm, GitHub, Cloudflare and Anthropic host the rest. The binary runs in two kinds of place, a Claude Code session (web VM or desktop) and a GitHub Actions job, and the engine asks a license of nothing: a fleet's sweeps, and any license check they make, are the fleet manager's own code (record row 143). Only Actions reaches R2 for a cloud member.
+We build four repositories and run one service, the license server (a key Worker and a sync Worker); npm, GitHub, Cloudflare and Anthropic host the rest. The binary runs in two kinds of place, a Claude Code session (web VM or desktop) and a GitHub Actions job, and the engine asks a license of nothing: a fleet's sweeps, and any license check they make, are the fleet manager's own code (record row 145). Only Actions reaches R2 for a cloud member.
 
 ```mermaid
 flowchart LR
@@ -45,7 +45,7 @@ Each arrow is one actor delivering one thing. The engine update verifies the rel
 | ClaudiniteWebsite | Private | The commercial website, the single-repo dashboard and other lower-criticality website work | Cloudflare Pages |
 | ClaudiniteLicenses | Private | The license server: the key Worker, which only reads D1 and KV, and the sync Worker, the only writer, which handles Polar and the queue; their deploys | Cloudflare (Workers, D1, KV) |
 | Member repo | The customer's | The engine pin, the launcher, and the vendored packs; the scheduler, executor and CI workflows | Nothing; receives update PRs |
-| Fleet manager | Private, one per customer account | Fleet-wide tasks across the organization's member repos, in its own code: `cn` carries no fleet command (record row 143) | Fleet PRs |
+| Fleet manager | Private, one per customer account | Fleet-wide tasks across the organization's member repos, in its own code: `cn` carries no fleet command (record row 145) | Fleet PRs |
 
 ## Technology selections
 
@@ -217,7 +217,7 @@ The same hooks run the same launcher, which picks the macOS, Linux or Windows bi
 
 A single repository, public or private, is free, and the engine asks it for nothing: no session, hook, `cn init`, task item or update checks a license, and nothing about a license is committed (record row 131). Only a fleet is paid. The Personal fleet plan is $9 per personal GitHub account; the Organization fleet plan is $99 per user. The license server's own design (plans, billing, the signing chain) lives with ClaudiniteLicenses; this section says only where the engine stands.
 
-The engine meets it nowhere: `cn` checks no license, and a fleet run's owner check left with `cn fleet` (record row 143). A fleet manager that sells or checks a plan does so in its own code.
+The engine meets it nowhere: `cn` checks no license, and a fleet run's owner check left with `cn fleet` (record row 145). A fleet manager that sells or checks a plan does so in its own code.
 
 A retired `license` block in a member's settings still parses: verify names it as a retired shape (`license-plan`, a deprecation), and the next engine update PR drops it.
 
@@ -234,7 +234,7 @@ Packs are immutable per-version archives on a public R2 bucket behind the CDN, f
 
 **Who fetches.** The nightly update task, running in an executor job in Actions with open internet access, `cn adopt`, and `cn init` at adoption. Every one of them reads the published sets from the repo's pack sources (below); a single repository reads them from two places: the CDN, and the `vendored` branch of the public ClaudinitePacks repo, which carries each version's archive under `<id>/` with the same signed index beside it. A Claude Code web VM on the default limited egress reaches GitHub but not our CDN domain, so there the branch answers alone. Each index is checked against its signature and each archive against the hash the index names, wherever it came from; when the two indexes answer with different serials in one read, the update takes no pack change that run and says `skipped: pack index sources disagree`, since a release is visible on the CDN a moment before the branch. Sessions and CI read packs from the member's own tree and need no network for them; every pack change reaches a member as a reviewable diff.
 
-**Pack sources.** Where a repo reads new pack versions is the settings file's `packs.sources`, an ordered list in which each later source is a backup: `https://<host>` is a CDN base and `<owner>/<name>` is that GitHub repo's `vendored` branch. A repo whose settings name no sources reads the shelf, the CDN and then ClaudinitePacks. A repo that names another repo alone reads that repo's `vendored` branch, with no CDN behind it, so that repo decides when it sees a release; keeping such a mirror, and writing `sources` into the repos that read it, is that repo's own code (a fleet manager's), not `cn`'s (record row 143). A repo verifies what it reads from a mirror against the embedded roots exactly as it would the shelf's, so the mirror needs no key of its own. It reads the branch anonymously; a private mirror is out of its reach until ClaudiniteEngine#87 is solved. Everything after the read stays the member's own: its update PR, its CI, its landing policy and its fix lane.
+**Pack sources.** Where a repo reads new pack versions is the settings file's `packs.sources`, an ordered list in which each later source is a backup: `https://<host>` is a CDN base and `<owner>/<name>` is that GitHub repo's `vendored` branch. A repo whose settings name no sources reads the shelf, the CDN and then ClaudinitePacks. A repo that names another repo alone reads that repo's `vendored` branch, with no CDN behind it, so that repo decides when it sees a release; keeping such a mirror, and writing `sources` into the repos that read it, is that repo's own code (a fleet manager's), not `cn`'s (record row 145). A repo verifies what it reads from a mirror against the embedded roots exactly as it would the shelf's, so the mirror needs no key of its own. It reads the branch anonymously; a private mirror is out of its reach until ClaudiniteEngine#87 is solved. Everything after the read stays the member's own: its update PR, its CI, its landing policy and its fix lane.
 
 **Packs from a repo.** Reading a pack from a git repo and vendoring it is a general engine capability, not only an adoption fallback. In organization and fleet modes, the organization's own packs live in a repo it controls, never on our R2. The nightly update and `cn init` read each such pack from that repo's default branch with the job's or session's GitHub access, vendor it with `cn vendor`, and commit it like any other pack. These packs have no signed index; they are trusted because they come from the organization's own repo and are reviewed in the PR that brings them in.
 
@@ -379,6 +379,7 @@ sequenceDiagram
 2. The binary plans the run or drains work items, all on that one version. Engine and packs come from the same commit, and the update only ever commits pairs that satisfy each pack's `minEngineVersion`. The scheduler files an item only when the task's precondition holds. It judges the terms the engine owns first, so a task whose cadence declines starts no Node process, then asks a task-local `preconditions.mjs` through the runner the same way the executor asks it again at the pick. The scheduler job sets up no Node of its own: it runs the module on the Node the GitHub-hosted Ubuntu image ships. When a task's own terms cannot be asked, nothing is filed for it; the run asks every other task, then fails, naming each such task and its error, and the workflow's failure job reports it. An item closed rejected never ran, so it covers no cadence period.
 3. For each item the binary executes the task's `task.json`, runs its `worker.mjs` in Node when it has one, makes named GitHub calls with the job token, and fires the agentic phase as a Claude Code Remote routine when the task has one, authenticated by the member's CCR\_ROUTINE\_TOKEN Actions secret. The fire carries the item and a nonce, which the routine session checks with `cn work validate`; no item needs a key or a grant. The routine's cloud session does the work and opens the PR.
 4. A work item that pushes a branch opens a PR whose CI runs that branch's pin.
+5. A merge the landing lane makes with the job token pushes the base without starting any workflow, so the lane dispatches `claudinite-ci.yml` on the base right after each one: a merge on the dispatched evidence, a direct merge, and a task's green earlier PR it lands. A PR it arms for native auto-merge merges later, under the identity that armed it, so that push starts none either and the lane is no longer running; the engine update dispatches the missing run when it finds main's head without one (Engine update).
 
 ```mermaid
 sequenceDiagram
@@ -413,7 +414,7 @@ sequenceDiagram
 
 The nightly update is a Claudinite task, not a workflow of its own: the scheduler queues it each night and the executor runs it on `main` and makes up to two independent PRs, so a failure in one leaves the others alone.
 
-**Engine update.** It does not run while main's CI is red. It finds a newer engine that is allowed: above the member's floor, not held or revoked according to npm's deprecation message, and satisfying every committed pack's `minEngineVersion`. It asks no license. It downloads the new engine, verifies the manifest hash and the manifest's signature by a release key the embedded root certifies, and runs the new binary's self-test. It then runs the new binary's verify against the repo as it stands. If verify finds the new engine would break the repo, no PR is opened, and the run reports what broke for a person to fix in a Claude session. `cn update engine --force` skips verify. The PR carries the new pin, drops a retired `license` block from the settings file when one is still there, and carries under `.claudinite/cache/pending-workflows/` any workflow the new binary expects differently. With nothing staged, CI runs the new engine against the committed packs: green auto-merges, and red leaves `main` where it was and reports. With files staged, the task's agent stage moves them into `.github/workflows/`, starts that CI itself, and merges the PR behind `cn update land --check` (Workflow files); a later night finding the PR still carrying them hands it to the agent stage again.
+**Engine update.** It does not run while main's CI is red. When main's head has no `claudinite-ci.yml` run at all, as after a merge the job token made, it dispatches one and skips with `skipped: main has no CI run yet; dispatched one`. While main's CI has no verdict yet, just dispatched or still running, the `engine/update` task requeues its item 15 minutes out instead of closing it, and the first scheduler run after that readies it, rather than the next day's. It finds a newer engine that is allowed: above the member's floor, not held or revoked according to npm's deprecation message, and satisfying every committed pack's `minEngineVersion`. It asks no license. It downloads the new engine, waiting up to ten minutes while npm lists the version but does not serve its tarballs yet, verifies the manifest hash and the manifest's signature by a release key the embedded root certifies, and runs the new binary's self-test. It then runs the new binary's verify against the repo as it stands. If verify finds the new engine would break the repo, no PR is opened, and the run reports what broke for a person to fix in a Claude session. `cn update engine --force` skips verify. The PR carries the new pin, drops a retired `license` block from the settings file when one is still there, and carries under `.claudinite/cache/pending-workflows/` any workflow the new binary expects differently. With nothing staged, CI runs the new engine against the committed packs: green auto-merges, and red leaves `main` where it was and reports. With files staged, the task's agent stage moves them into `.github/workflows/`, starts that CI itself, and merges the PR behind `cn update land --check` (Workflow files); a later night finding the PR still carrying them hands it to the agent stage again.
 
 ```mermaid
 sequenceDiagram
@@ -436,7 +437,7 @@ sequenceDiagram
   GH->>GH: CI runs v2 with the committed packs, green auto-merges
 ```
 
-**Pack update.** It skips its turn while an engine PR is open or main's CI is red. Otherwise it reads each declared pack's index, picks the newest versions whose `minEngineVersion` the pinned engine meets, downloads and verifies them, and runs the pinned engine's checks with the new packs. If they fail it stops and reports; otherwise it opens a PR with pack changes only; CI runs the pinned engine with the new packs, and green auto-merges.
+**Pack update.** It skips its turn while an engine PR is open or main's CI is red, and dispatches a missing main run as the engine update does. Otherwise it reads each declared pack's index, picks the newest versions whose `minEngineVersion` the pinned engine meets, downloads and verifies them, and runs the pinned engine's checks with the new packs. If they fail it stops and reports; otherwise it opens a PR with pack changes only; CI runs the pinned engine with the new packs, and green auto-merges.
 
 ```mermaid
 sequenceDiagram
@@ -463,7 +464,7 @@ The ClaudiniteEngine repo's release workflow cuts every release; members move to
 
 1. **Build.** Go binaries for the five platforms, `CGO_ENABLED=0` and stripped, plus `manifest.json` with each binary's SHA-256. The runner script and SDK are embedded in each binary.
 2. **Gate.** The canary rehearsal runs the Linux binary through the launcher with the SDK and the current vendored packs from ClaudinitePacks. A release must run the packs members already hold, since the engine update PR does not change packs. CI also greps the built binary for secret-shaped strings.
-3. **Publish to npm** with trusted publishing, after signing manifest.json with the release key: `@claudinite/cli`, one `@claudinite/cli-<platform>` per binary, and `@claudinite/sdk`.
+3. **Publish to npm** with trusted publishing, after signing manifest.json with the release key: `@claudinite/cli`, one `@claudinite/cli-<platform>` per binary, and `@claudinite/sdk`. npm accepts a publish before it lists the version, so the publish job then waits until npm names, for every package it published, the integrity of the tarball it built, looking at every package not yet matched each round, for up to the same ten minutes the engine update waits for npm to serve a version. Other bytes fail it at once. If one is still unlisted then, npm already holds every package and would refuse a re-run's publish, so the failure prints the `from-npm.yml` dispatch, with the release's version, manifest integrity and channel, that carries the release on.
 
 ```mermaid
 sequenceDiagram
@@ -479,7 +480,7 @@ sequenceDiagram
 
 ## Security design
 
-The design protects two boundaries in the engine: what binary runs and what pack JavaScript can reach. Which fleet holds a valid key is the license server's and the fleet manager's, outside `cn` (record row 143).
+The design protects two boundaries in the engine: what binary runs and what pack JavaScript can reach. Which fleet holds a valid key is the license server's and the fleet manager's, outside `cn` (record row 145).
 
 | Boundary | Controls |
 | --- | --- |

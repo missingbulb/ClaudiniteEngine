@@ -80,16 +80,8 @@ func botPRs(d Deps, prs []githubapi.PR, prefix string) ([]githubapi.PR, error) {
 // allowed version moves, in one commit on a fresh branch that this repo's
 // own check world must pass before it is pushed and proposed.
 func Packs(d Deps, o Options) (string, error) {
-	head, err := d.Git.Head()
-	if err != nil {
-		return "", err
-	}
-	runs, err := d.GitHub.WorkflowRuns(CIWorkflow, head)
-	if err != nil {
-		return "", err
-	}
-	if s := runState(latest(runs, "")); s != "success" {
-		return "skipped: main is not green (" + s + ")", nil
+	if verdict, _, err := mainGate(d); err != nil || verdict != "" {
+		return verdict, err
 	}
 	all, err := d.GitHub.OpenPulls()
 	if err != nil {

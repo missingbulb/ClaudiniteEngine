@@ -16,10 +16,13 @@ import (
 )
 
 // HoldsInput is what NPMHolds checks: the dist a release published, and the
-// registry it published to.
+// registry it published to. Channel and Repo name the from-npm.yml dispatch
+// a run that gives up prints.
 type HoldsInput struct {
 	Dist     string
 	Version  string
+	Channel  string
+	Repo     string
 	Registry string
 	HTTP     *http.Client
 	Timeout  time.Duration
@@ -27,14 +30,17 @@ type HoldsInput struct {
 	Log      io.Writer
 }
 
-// NPMHolds proves the registry holds exactly the tarballs in Dist/tarballs: for each
-// CLI package Dist has a tarball of, it polls the registry's version
-// document, which npm serves within seconds of a publish while the tarball
-// itself can answer 404 for minutes, until it names that tarball's
-// integrity. A document naming other bytes fails at once.
+// NPMHolds proves the registry holds exactly the tarballs in Dist/tarballs:
+// for each CLI package Dist has a tarball of, it polls the registry's
+// version document until it names that tarball's integrity, looking at
+// every package not yet matched in each round. A document naming other
+// bytes fails at once. When Timeout runs out the packages are already on
+// npm, which refuses a second publish, so the error names the from-npm.yml
+// dispatch that carries the release on.
 func NPMHolds(in HoldsInput) error {
 	start := time.Now()
-	checked := 0
+	want := map[string]string{}
+	var pending []string
 	for i, pkg := range CLIPackages() {
 		file := filepath.Join(in.Dist, "tarballs", strings.TrimPrefix(pkg, "@claudinite/")+"-"+in.Version+".tgz")
 		raw, err := os.ReadFile(file)
@@ -45,33 +51,53 @@ func NPMHolds(in HoldsInput) error {
 			return err
 		}
 		sum := sha512.Sum512(raw)
-		want := "sha512-" + base64.StdEncoding.EncodeToString(sum[:])
-		if err := holds(in, pkg, want, start); err != nil {
-			return err
-		}
-		checked++
+		want[pkg] = "sha512-" + base64.StdEncoding.EncodeToString(sum[:])
+		pending = append(pending, pkg)
 	}
-	fmt.Fprintf(in.Log, "npm-holds: %d packages of %s match the dist after %s\n", checked, in.Version, time.Since(start).Round(time.Second))
-	return nil
-}
-
-func holds(in HoldsInput, pkg, want string, start time.Time) error {
+	checked := len(pending)
 	for {
-		got, status, err := registryIntegrity(in, pkg)
-		elapsed := time.Since(start).Round(time.Second)
-		switch {
-		case err == nil && got == want:
-			fmt.Fprintf(in.Log, "npm-holds: %s %s matches (+%s)\n", pkg, in.Version, elapsed)
+		var still, why []string
+		for _, pkg := range pending {
+			got, status, err := registryIntegrity(in, pkg)
+			elapsed := time.Since(start).Round(time.Second)
+			switch {
+			case err == nil && got == want[pkg]:
+				fmt.Fprintf(in.Log, "npm-holds: %s %s matches (+%s)\n", pkg, in.Version, elapsed)
+				continue
+			case err == nil:
+				return fmt.Errorf("npm-holds: %s %s on the registry is %s, but the dist built %s", pkg, in.Version, got, want[pkg])
+			}
+			fmt.Fprintf(in.Log, "npm-holds: %s %s +%s %s\n", pkg, in.Version, elapsed, status)
+			still = append(still, pkg)
+			why = append(why, fmt.Sprintf("%s %s (%v)", pkg, in.Version, err))
+		}
+		if len(still) == 0 {
+			fmt.Fprintf(in.Log, "npm-holds: %d packages of %s match the dist after %s\n", checked, in.Version, time.Since(start).Round(time.Second))
 			return nil
-		case err == nil:
-			return fmt.Errorf("npm-holds: %s %s on the registry is %s, but the dist built %s", pkg, in.Version, got, want)
 		}
-		fmt.Fprintf(in.Log, "npm-holds: %s %s +%s %s\n", pkg, in.Version, elapsed, status)
 		if time.Since(start) >= in.Timeout {
-			return fmt.Errorf("npm-holds: the registry still does not list %s %s after %s: %v", pkg, in.Version, in.Timeout, err)
+			return fmt.Errorf("npm-holds: after %s the registry still does not list %s.\n"+
+				"npm took every package of %s, so re-running this job is refused. Carry the release on with\n  %s",
+				in.Timeout, strings.Join(why, ", "), in.Version, wayOn(in))
 		}
+		pending = still
 		time.Sleep(in.Every)
 	}
+}
+
+// wayOn is the from-npm.yml dispatch release.yml's from-npm job runs once
+// npm-holds passes.
+func wayOn(in HoldsInput) string {
+	raw, err := os.ReadFile(filepath.Join(in.Dist, "manifest.integrity"))
+	if err != nil {
+		return fmt.Sprintf("the from-npm.yml dispatch, though its integrity is unknown: %v", err)
+	}
+	return FromNPMDispatch(in.Repo, in.Version, strings.TrimSpace(string(raw)), in.Channel)
+}
+
+// FromNPMDispatch is the command that starts from-npm.yml on one release.
+func FromNPMDispatch(repo, version, integrity, channel string) string {
+	return fmt.Sprintf("gh workflow run from-npm.yml --repo %s --ref v%s -f version=%s -f integrity=%s -f channel=%s", repo, version, version, integrity, channel)
 }
 
 // registryIntegrity reads one version document through a URL no cache has seen.

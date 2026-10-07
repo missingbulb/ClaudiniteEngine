@@ -12,6 +12,10 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/workitem"
 )
 
+// CIWorkflow is the member workflow whose runs on the default branch the
+// engine's update needs green before it acts.
+const CIWorkflow = "claudinite-ci.yml"
+
 // The member's two delivery preferences.
 const (
 	AutoMerge = "auto-merge"
@@ -303,12 +307,13 @@ func FailureSummary(runs []Run) string {
 	return "no successful run on its head sha"
 }
 
-// PR is a delivered pull request at its current head.
+// PR is a delivered pull request at its current head, into Base.
 type PR struct {
 	Number  int
 	NodeID  string
 	HeadRef string
 	HeadSHA string
+	Base    string
 }
 
 // Merge is one squash merge pinned to the head the evidence was read on.
@@ -431,7 +436,8 @@ type Delivered struct {
 // Deliver lands a delivered PR under the member's delivery: it starts the
 // PR's checks first (a push over the Actions token emits no pull_request
 // run), reads the base's gate, then merges, lands on the dispatched
-// evidence, or arms with the landing poll as fallback. task names the
+// evidence, or arms with the landing poll as fallback; each merge it makes
+// dispatches CI on base (DispatchBaseCI). task names the
 // task whose trailer the merge commit carries ("" for none). j judges the
 // diff before any of it: a refusal is Delivered.Refused.
 func (l Lane) Deliver(pr PR, base, delivery, task string, j *Judgement) Delivered {
@@ -452,6 +458,7 @@ func (l Lane) Deliver(pr PR, base, delivery, task string, j *Judgement) Delivere
 		gate = ClassifyMergeGate(p, rules, rerr == nil)
 	}
 	action := DeliveryAction(delivery, hasCI, gate)
+	pr.Base = base
 	out := Delivered{Action: action}
 	switch action {
 	case ActMerge:
@@ -477,8 +484,8 @@ func (l Lane) Deliver(pr PR, base, delivery, task string, j *Judgement) Delivere
 }
 
 // Merge is the lane's pinned-sha squash merge alone, for a caller that
-// already holds the evidence: it merges pr at its head and tidies the
-// branch.
+// already holds the evidence: it merges pr at its head, tidies the branch
+// and, when pr names its base, dispatches CI there.
 func (l Lane) Merge(pr PR, title, task string) error {
 	return l.squash(pr, title, task)
 }
@@ -488,7 +495,32 @@ func (l Lane) squash(pr PR, title, task string) error {
 	if tidy != nil {
 		l.Log(fmt.Sprintf("could not delete branch %s (%v)", pr.HeadRef, tidy))
 	}
+	if err == nil && pr.Base != "" {
+		DispatchBaseCI(l.API, pr.Base, l.Log)
+	}
 	return err
+}
+
+// Dispatcher starts a workflow on a ref.
+type Dispatcher interface {
+	DispatchWorkflow(name, ref string) error
+}
+
+// DispatchBaseCI starts CIWorkflow on base after a merge made with the
+// job's token: that merge's push starts no workflow, and the engine's
+// update refuses to act while base's head has no CI run. A dispatch that
+// fails leaves the merge standing and says why.
+func DispatchBaseCI(d Dispatcher, base string, log func(string)) {
+	if err := d.DispatchWorkflow(CIWorkflow, base); err != nil {
+		hint := ""
+		var se *StatusError
+		if errors.As(err, &se) && se.Status == 403 {
+			hint = " — the workflow needs `actions: write`"
+		}
+		log(fmt.Sprintf("could not dispatch %s on %s after the merge (%v)%s; the engine's update dispatches it when it finds no run", CIWorkflow, base, err, hint))
+		return
+	}
+	log(fmt.Sprintf("dispatched %s on %s — a merge with the job's token starts no workflow there", CIWorkflow, base))
 }
 
 // dispatchCI starts every pull_request workflow the branch's tree can
