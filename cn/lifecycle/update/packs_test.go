@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strings"
 	"testing"
@@ -135,6 +136,19 @@ func TestPacksRedMainSkipsBeforeAnyPackRead(t *testing.T) {
 	v, err := Packs(w.deps(t), Options{})
 	if err != nil || v != "skipped: main is not green (failure)" || w.packs.reads != 0 {
 		t.Errorf("%q %v, %d reads", v, err, w.packs.reads)
+	}
+}
+
+func TestPacksDispatchCIOnAMainWithNoRun(t *testing.T) {
+	t.Parallel()
+	w := newPackWorld(t)
+	w.mainRun(t, "none")
+	v, err := Packs(w.deps(t), Options{})
+	if err != nil || v != MainCIDispatched || w.packs.reads != 0 {
+		t.Errorf("%q %v, %d reads", v, err, w.packs.reads)
+	}
+	if got := w.hub.called("dispatch "); !reflect.DeepEqual(got, []string{"dispatch " + CIWorkflow + " main pr="}) {
+		t.Errorf("%v", got)
 	}
 }
 

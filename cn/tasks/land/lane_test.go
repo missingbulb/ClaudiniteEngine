@@ -422,3 +422,61 @@ func TestDeliverJudgesBeforeArmingOrMerging(t *testing.T) {
 		t.Errorf("the refusal names no file: %q (%v)", got.Refused, *logs)
 	}
 }
+
+// A merge the job token makes pushes the base without starting a
+// workflow, so every merge the lane makes dispatches CI on the base; an
+// arm, whose merge comes later, dispatches nothing there.
+func TestEveryMergeTheLaneMakesDispatchesCIOnTheBase(t *testing.T) {
+	ci := map[string]bool{"test.yml": true, CIWorkflow: true}
+	onBase := func(api *fakeAPI) []string {
+		var out []string
+		for _, d := range api.dispatched {
+			if strings.HasSuffix(d, "@main") {
+				out = append(out, d)
+			}
+		}
+		return out
+	}
+	want := []string{CIWorkflow + "@main"}
+
+	api := &fakeAPI{files: []WorkflowFile{{"release.yml", "on:\n  workflow_dispatch:\n"}}, dispatchOK: ci}
+	l, _ := lane(api)
+	if got := l.Deliver(pr, "main", AutoMerge, "", nil); !got.Merged || !reflect.DeepEqual(onBase(api), want) {
+		t.Errorf("merge: %+v %v", got, api.dispatched)
+	}
+
+	no := false
+	api = &fakeAPI{files: []WorkflowFile{{"test.yml", prCI}}, dispatchOK: ci, protected: &no, runs: [][]Run{{done("success", "test")}}}
+	l, _ = lane(api)
+	if got := l.Deliver(pr, "main", AutoMerge, "", nil); !got.Merged || !reflect.DeepEqual(onBase(api), want) {
+		t.Errorf("land: %+v %v", got, api.dispatched)
+	}
+
+	yes := true
+	api = &fakeAPI{files: []WorkflowFile{{"test.yml", prCI}}, dispatchOK: ci, protected: &yes}
+	l, _ = lane(api)
+	if got := l.Deliver(pr, "main", AutoMerge, "", nil); got.Action != ActArm || len(onBase(api)) != 0 {
+		t.Errorf("arm: %+v %v", got, api.dispatched)
+	}
+
+	api = &fakeAPI{dispatchOK: ci}
+	l, _ = lane(api)
+	based := pr
+	based.Base = "main"
+	if err := l.Merge(based, "t", ""); err != nil || !reflect.DeepEqual(onBase(api), want) {
+		t.Errorf("Merge: %v %v", err, api.dispatched)
+	}
+}
+
+// A base CI that cannot be dispatched leaves the merge standing and says
+// why.
+func TestABaseCIThatCannotBeDispatchedLeavesTheMerge(t *testing.T) {
+	api := &fakeAPI{files: []WorkflowFile{{"release.yml", "on:\n  workflow_dispatch:\n"}}}
+	l, logs := lane(api)
+	if got := l.Deliver(pr, "main", AutoMerge, "", nil); !got.Merged {
+		t.Fatalf("%+v", got)
+	}
+	if !strings.Contains(strings.Join(*logs, "\n"), "could not dispatch "+CIWorkflow+" on main") {
+		t.Errorf("%v", *logs)
+	}
+}

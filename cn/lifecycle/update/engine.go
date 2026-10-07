@@ -22,12 +22,13 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/npmreg"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/settings"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/version"
+	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/land"
 )
 
 const (
 	// CIWorkflow is the member workflow whose runs gate main and update
 	// PRs, and which the updater dispatches.
-	CIWorkflow = "claudinite-ci.yml"
+	CIWorkflow = land.CIWorkflow
 	// Label marks the PRs and issues the updater owns.
 	Label = "claudinite-update"
 	// BranchPrefix starts every update branch; the version follows.
@@ -119,7 +120,14 @@ type EngineResult struct {
 	PR      int
 	Branch  string
 	Staged  []string
+	// MainPending is a run that waited on main's CI, which has no verdict
+	// yet: still running, or just dispatched (MainCIDispatched).
+	MainPending bool
 }
+
+// MainCIDispatched is the verdict of a run that found no CI run on main's
+// head and dispatched one.
+const MainCIDispatched = "skipped: main has no CI run yet; dispatched one"
 
 // latest is the newest run that counts: gated action_required runs never
 // do, and keep, when non-empty, limits the events that do.
@@ -182,17 +190,41 @@ func EngineRun(d Deps, o Options) (EngineResult, error) {
 	return r, nil
 }
 
-func engine(d Deps, o Options, res *EngineResult) (string, error) {
+// mainGate reads main's CI on the checkout's head: "" when it is green,
+// else the skip verdict, pending while a verdict is still to come. A head
+// with no run gets one dispatched, since nothing else would start it: a
+// merge the job token made starts no workflow.
+func mainGate(d Deps) (verdict string, pending bool, err error) {
 	head, err := d.Git.Head()
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
 	runs, err := d.GitHub.WorkflowRuns(CIWorkflow, head)
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
-	if s := runState(latest(runs, "")); s != "success" {
-		return "skipped: main is not green (" + s + ")", nil
+	r := latest(runs, "")
+	if r == nil {
+		if err := d.GitHub.Dispatch(CIWorkflow, mainBranch, map[string]string{}); err != nil {
+			return "", false, fmt.Errorf("main's head %s has no %s run, and dispatching one failed: %w", head, CIWorkflow, err)
+		}
+		return MainCIDispatched, true, nil
+	}
+	switch s := runState(r); s {
+	case "success":
+		return "", false, nil
+	case "queued", "in_progress", "waiting", "pending", "requested":
+		return "skipped: main is not green (" + s + ")", true, nil
+	default:
+		return "skipped: main is not green (" + s + ")", false, nil
+	}
+}
+
+func engine(d Deps, o Options, res *EngineResult) (string, error) {
+	verdict, pending, err := mainGate(d)
+	if err != nil || verdict != "" {
+		res.MainPending = pending
+		return verdict, err
 	}
 
 	all, err := d.GitHub.OpenPulls()

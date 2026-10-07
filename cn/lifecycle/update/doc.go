@@ -2,7 +2,8 @@
 // member's engine pin by pull request, one action per run.
 //
 // A run reads main's claudinite-ci.yml runs first and does nothing more
-// while main is not green, before any npm read. A green open update PR is
+// while main is not green, before any npm read; a head with no run at all
+// gets one dispatched, since a merge the job token made starts none. A green open update PR is
 // landed and the run stops. Otherwise it picks the newest version of the
 // member's channel package that is newer than the pin and neither held,
 // revoked nor deprecated, downloads and verifies it exactly as the

@@ -22,6 +22,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/settings"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/trust"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/version"
+	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/calendar"
 	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/execute"
 )
 
@@ -193,12 +194,22 @@ func cmdLandCheck(repo, base, head string, pr int, sha string, stdout io.Writer)
 	return nil
 }
 
+// mainCIRetry is how long a requeued update waits for main's CI verdict;
+// the item is readied by the first scheduler run after it.
+const mainCIRetry = 15 * time.Minute
+
 // updateTaskResult is the engine/update task's result once its steps said
-// said and the engine step left eng: done, or, where the engine PR carries
-// staged workflows, a hand-off to the task's agent stage on that PR, whose
-// credential may write .github/workflows/.
-func updateTaskResult(said []string, eng update.EngineResult) execute.CodeWorkResult {
+// said and the engine step left eng at now: requeued while main's CI has no
+// verdict yet (a close would cover the day, so the next try would come a
+// day later), done, or, where the engine PR carries staged workflows, a
+// hand-off to the task's agent stage on that PR, whose credential may
+// write .github/workflows/.
+func updateTaskResult(said []string, eng update.EngineResult, now time.Time) execute.CodeWorkResult {
 	r := execute.CodeWorkResult{OK: true, Said: said}
+	if eng.MainPending {
+		r.Requeue = &execute.Requeue{Until: calendar.ISO(now.Add(mainCIRetry)), Reason: eng.Verdict}
+		return r
+	}
 	if len(eng.Staged) == 0 {
 		return r
 	}
@@ -212,7 +223,8 @@ func updateTaskResult(said []string, eng update.EngineResult) execute.CodeWorkRe
 
 // runUpdateTask is the engine/update task's code-work, run in the
 // executor's process: the engine update, then the packs update, from the
-// default branch, each verdict said on the item's close. The update's pull
+// default branch, each verdict said on the item's close; while main's CI
+// has no verdict the packs step waits with the engine's. The update's pull
 // requests are its own, landed by cn update land; one carrying staged
 // workflows goes to the agent stage (updateTaskResult).
 func runUpdateTask(repo, token, branch string, out io.Writer) execute.CodeWorkResult {
@@ -247,8 +259,11 @@ func runUpdateTask(repo, token, branch string, out io.Writer) execute.CodeWorkRe
 		}
 		fmt.Fprintln(out, step.name+": "+verdict)
 		said = append(said, step.name+": "+verdict)
+		if eng.MainPending {
+			break
+		}
 	}
-	return updateTaskResult(said, eng)
+	return updateTaskResult(said, eng, time.Now())
 }
 
 // cmdWorkflows is workflows diff, the patch to the workflows this version

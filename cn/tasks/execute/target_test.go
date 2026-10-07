@@ -256,3 +256,22 @@ func TestCloseSupersededCommentsClosesAndTidiesBestEffort(t *testing.T) {
 		t.Errorf("%s", joined)
 	}
 }
+
+// Landing a green incumbent is a merge the job token makes, so it
+// dispatches CI on the incumbent's base.
+func TestLandingAGreenIncumbentDispatchesCIOnItsBase(t *testing.T) {
+	repo := sim.NewRepo()
+	p := pull(5, "claudinite/acme-pack-b/acme-task-c/2026-09-03-bbb", "shaB")
+	p.BaseRef = "main"
+	repo.Pulls = []world.Pull{p}
+	repo.Runs["shaB"] = []land.Run{{Name: "ci", Status: "completed", Conclusion: "success"}}
+	repo.Dispatchable[land.CIWorkflow] = true
+	got, _ := resolveOn(sim.NewGitHub(sim.NewClock(targetNow)), repo, "supersede_existing_pr", land.AutoMerge)
+	if got.Landed != 5 {
+		t.Fatalf("%+v", got)
+	}
+	at := slices.Index(repo.Log, "dispatch "+land.CIWorkflow+" main")
+	if at < 0 || at < slices.Index(repo.Log, "merge #5 shaB Claudinite-Task: "+targetTask) {
+		t.Errorf("%v", repo.Log)
+	}
+}

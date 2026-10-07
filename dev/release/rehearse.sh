@@ -1285,6 +1285,8 @@ GO
       step "tasks 2: a quiet repo files nothing; a commit files #$n ready and opens the gate; a second run files nothing"
 
       ctl /_stub/dispatch '{"conclusion":"success"}'
+      ci_on_main='st.dispatches.filter(d=>d.workflow==="claudinite-ci.yml"&&d.ref==="main").length'
+      main_ci_before=$(gh_count "$ci_on_main")
       HELLO_FOLD_SECRET=rehearsal-secret
       export HELLO_FOLD_SECRET
       execute || fail "tasks 3: execute loop: $(cat "$work/exec.out")"
@@ -1296,6 +1298,8 @@ GO
       case $head_ref in claudinite/hello/hello-fold/*-*) ;; *) fail "tasks 3: PR #$pr is from $head_ref" ;; esac
       [ "$(gh_count 'st.pulls.find(p=>p.number==='"$pr"').state')" = closed ] || fail "tasks 3: PR #$pr did not land: $(cat "$work/exec.out")"
       git --git-dir "$origin" show main:HELLO_FOLD.json > /dev/null 2>&1 || fail "tasks 3: main holds no HELLO_FOLD.json"
+      # The merge was the job token's, whose push starts no workflow.
+      [ "$(gh_count "$ci_on_main")" = $((main_ci_before + 1)) ] || fail "tasks 3: the lane did not dispatch claudinite-ci.yml on main after the merge: $(gh_state)"
       head_sha=$(gh_count 'st.pulls.find(p=>p.number==='"$pr"').head_sha')
       msg=$(git --git-dir "$origin" log -1 --format=%B "$head_sha")
       case $msg in *"Claudinite-Task: hello/hello-fold"*"Claudinite-Automerge-Policy: hello-generated"*) ;; *) fail "tasks 3: the PR head's trailers: $msg" ;; esac
@@ -1313,7 +1317,7 @@ GO
       grep -q "automerge-policy-scope" "$work/work.out" || fail "tasks 3: automerge-policy-scope did not fail it: $(cat "$work/work.out")"
       (cd "$member" && git checkout -q main && git branch -q -D fold-probe) || fail "tasks 3: back to main"
       pull_after
-      step "tasks 3: #$n ran the worker, landed PR #$pr from $head_ref with both trailers and converged done; automerge-policy-scope holds the branch to the policy"
+      step "tasks 3: #$n ran the worker, landed PR #$pr from $head_ref with both trailers, dispatched CI on main and converged done; automerge-policy-scope holds the branch to the policy"
 
       unset HELLO_FOLD_SECRET
       cn_member work create hello/hello-fold --qualifier secret > "$work/create.out" 2>&1 || fail "tasks 4: work create: $(cat "$work/create.out")"
