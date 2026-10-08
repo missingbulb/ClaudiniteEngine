@@ -130,6 +130,48 @@ func TestReadEngineChannel(t *testing.T) {
 	}
 }
 
+// engine.releases names the GitHub repository whose releases serve the
+// engine instead of npm; a person sets it and the update bot never moves it.
+func TestReadEngineReleases(t *testing.T) {
+	base := "engine:\n  version: \"1.1.0\"\n  manifest: \"" + pin1 + "\"\n"
+	e, err := ReadEngine([]byte(base), YAML)
+	if err != nil || e.Releases != "" {
+		t.Errorf("absent: releases %q, %v; want none", e.Releases, err)
+	}
+	distro := base + "  releases: \"acme/acme-distro\"\n"
+	for _, f := range []struct {
+		format Format
+		body   string
+	}{
+		{YAML, distro},
+		{TOML, "[engine]\nversion = \"1.1.0\"\nmanifest = \"" + pin1 + "\"\nreleases = \"acme/acme-distro\"\n"},
+		{JSON, "{\"engine\": {\"version\": \"1.1.0\", \"manifest\": \"" + pin1 + "\", \"releases\": \"acme/acme-distro\"}}\n"},
+	} {
+		e, err := ReadEngine([]byte(f.body), f.format)
+		if err != nil || e.Releases != "acme/acme-distro" {
+			t.Errorf("%s: releases %q, %v; want acme/acme-distro", f.format, e.Releases, err)
+		}
+	}
+	for _, bad := range []string{"acme", "acme/", "/acme", "acme/a/b", "acme/..", "https://github.com/acme/acme-distro", "acme/acme distro"} {
+		if _, err := ReadEngine([]byte(base+"  releases: \""+bad+"\"\n"), YAML); err == nil {
+			t.Errorf("%q passed as a repository", bad)
+		}
+	}
+	if err := PinOnlyChange([]byte(base), []byte(distro), YAML); err == nil {
+		t.Error("the update bot's pin change may not add engine.releases")
+	}
+	if err := PinOnlyChange([]byte(distro), []byte(base), YAML); err == nil {
+		t.Error("the update bot's pin change may not drop engine.releases")
+	}
+	moved, err := SetPin([]byte(distro), YAML, "1.2.0", pin2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := PinOnlyChange([]byte(distro), moved, YAML); err != nil {
+		t.Errorf("a pin move beside engine.releases: %v", err)
+	}
+}
+
 // A pin on the retired canary package reads as the canary channel, and the
 // update that moves it turns the package line into the channel line.
 func TestFromLegacyPackage(t *testing.T) {
@@ -167,6 +209,22 @@ func TestFromLegacyPackage(t *testing.T) {
 	} {
 		if out, ok, err := FromLegacyPackage([]byte(s), YAML); ok || err != nil || string(out) != s {
 			t.Errorf("not legacy, moved: %q %v", out, err)
+		}
+	}
+}
+
+// engine.releases is validated in Go, by the launcher and by the staging
+// upload; the two shell scripts spell ReleasesPattern unanchored for
+// grep -Eqx, so this reads their spelling back and compares.
+func TestReleasesPatternIsTheScripts(t *testing.T) {
+	want := strings.TrimSuffix(strings.TrimPrefix(ReleasesPattern.String(), "^"), "$")
+	for _, script := range []string{"../../launcher/launch", "../../../dev/release/publish/distro.sh"} {
+		raw, err := os.ReadFile(script)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(string(raw), "'"+want+"'") {
+			t.Errorf("%s does not spell engine.releases' pattern as '%s'", script, want)
 		}
 	}
 }

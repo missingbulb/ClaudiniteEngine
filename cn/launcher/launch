@@ -7,7 +7,9 @@
 #
 # It reads engine.version and engine.manifest from .claudinite/settings.yaml,
 # .toml or .json, downloads that release's manifest.json and this platform's
-# binary from the npm registry, checks the manifest against the pin and the
+# binary from the npm registry, or from the GitHub releases of the
+# repository engine.releases names (owner/name, tag v<version>, assets named
+# as npm's tarballs), checks the manifest against the pin and the
 # binary against the manifest, caches the binary read-only, links
 # .claudinite/bin/cn to it and execs it. Nothing is trusted that the pin
 # does not cover; the registry's identity is immaterial to integrity.
@@ -27,11 +29,13 @@
 # Any other command run through that bin runs the member's own pin, the
 # member being the directory --repo names or else the working directory.
 #
-# CLAUDINITE_REGISTRY overrides the registry and CLAUDINITE_MAX_DOWNLOAD_BYTES
-# the download size cap; both exist for tests and the rehearsal.
+# CLAUDINITE_REGISTRY overrides the registry, CLAUDINITE_GITHUB the GitHub
+# host releases are read from and CLAUDINITE_MAX_DOWNLOAD_BYTES the download
+# size cap; all three exist for tests and the rehearsal.
 set -u
 
 registry=${CLAUDINITE_REGISTRY:-https://registry.npmjs.org}
+github=${CLAUDINITE_GITHUB:-https://github.com}
 max_bytes=${CLAUDINITE_MAX_DOWNLOAD_BYTES:-67108864}
 
 if [ "${GITHUB_ACTIONS:-}" = true ]; then
@@ -187,6 +191,7 @@ else
   manifest_pin=$(engine_value manifest)
   package=$(engine_value package)
   [ -n "$package" ] || package=@claudinite/cli
+  releases=$(engine_value releases)
 
   matches "$version" '[0-9]+\.[0-9]+\.[0-9]+' \
     || refuse "engine.version in $settings must be a quoted version like \"1.60928.1\""
@@ -194,6 +199,8 @@ else
     || refuse "engine.manifest in $settings must be a quoted sha512-... integrity string"
   matches "$package" '@claudinite/cli(-rc)?' \
     || refuse "engine.package in $settings must be \"@claudinite/cli\" or \"@claudinite/cli-rc\""
+  [ -z "$releases" ] || matches "$releases" '[A-Za-z0-9-]+/[A-Za-z0-9_-][A-Za-z0-9._-]*' \
+    || refuse "engine.releases in $settings must be a quoted GitHub repository like \"owner/name\""
 fi
 
 case $(uname -s) in
@@ -324,8 +331,13 @@ if ! cached_ok; then
   }
 
   name=${package#@claudinite/}
-  manifest_url=$registry/$package/-/$name-$version.tgz
-  binary_url=$registry/$package-$platform/-/$name-$platform-$version.tgz
+  if [ -n "${releases:-}" ]; then
+    manifest_url=$github/$releases/releases/download/v$version/$name-$version.tgz
+    binary_url=$github/$releases/releases/download/v$version/$name-$platform-$version.tgz
+  else
+    manifest_url=$registry/$package/-/$name-$version.tgz
+    binary_url=$registry/$package-$platform/-/$name-$platform-$version.tgz
+  fi
 
   fetch "$manifest_url" "$tmp/manifest.tgz"
   tar -xzf "$tmp/manifest.tgz" -C "$tmp" package/manifest.json 2>/dev/null \

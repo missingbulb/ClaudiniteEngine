@@ -2,7 +2,9 @@
 # its kind names (dev/release/packages.go): a full release is a candidate for
 # five platforms under rc, which canaries take and promote.yml can move
 # latest onto; a staging build is linux-x64 alone under staging, which only
-# opted-in repos take. The build tests initial adoption on linux-x64 against
+# opted-in repos take, and goes first to the staging distro's GitHub releases
+# (dev/release/publish/distro.sh), which repos whose engine.releases names it
+# fetch at once. The build tests initial adoption on linux-x64 against
 # regstub; a full release also reads the real pack shelf (live-packs, which
 # holds promotion on failure) and proves its own updater moves a member off it (hop,
 # dev/release/verify/hop.sh). Once the gates pass, the publish job signs the manifest,
@@ -193,11 +195,23 @@ jobs:
       - if: steps.mode.outputs.mode == 'real'
         name: tag the commit
         run: dev/release/publish/tag.sh "$VERSION"
+      # A staging build reaches engine.releases repos the moment this upload
+      # ends; npm serves it minutes later.
+      - if: steps.mode.outputs.mode == 'real' && inputs.kind == 'staging'
+        name: upload to the staging distro
+        env:
+          GH_TOKEN: ${{ secrets.STAGING_DISTRO_TOKEN }}
+          INTEGRITY: ${{ needs.build.outputs.integrity }}
+        run: dev/release/publish/distro.sh --version "$VERSION" --integrity "$INTEGRITY" --commit "$GITHUB_SHA"
       - if: steps.mode.outputs.mode == 'real'
         run: dev/release/publish/publish.sh --tag "$TAG" --auth oidc
       - if: steps.mode.outputs.mode == 'real'
         name: npm holds the bytes this run built
         run: go run ./dev/release/pipeline npm-holds --dist dist --version "$VERSION" --channel "$CHANNEL" --repo "$GITHUB_REPOSITORY"
+      - if: steps.mode.outputs.mode != 'real' && inputs.kind == 'staging'
+        env:
+          INTEGRITY: ${{ needs.build.outputs.integrity }}
+        run: dev/release/publish/distro.sh --version "$VERSION" --integrity "$INTEGRITY" --commit "$GITHUB_SHA" --dry-run
       - if: steps.mode.outputs.mode != 'real'
         run: dev/release/publish/publish.sh --tag "$TAG" --dry-run
 

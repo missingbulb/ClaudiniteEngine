@@ -16,6 +16,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/cn/lifecycle/workflows"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/descriptor"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/findings"
+	"github.com/missingbulb/ClaudiniteEngine/cn/shared/ghrelease"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/gitcmd"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/npmreg"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/paths"
@@ -136,5 +137,5 @@ func checkPin(e settings.Engine) error {
 	if err != nil {
 		return err
 	}
-	return update.CheckPin(update.Deps{Registry: reg, Roots: roots, CacheRoot: paths.CacheRoot(), Platform: version.Platform(), Now: time.Now}, e)
+	return update.CheckPin(update.Deps{Registry: reg, ReleasesHost: ghrelease.Host(), Roots: roots, CacheRoot: paths.CacheRoot(), Platform: version.Platform(), Now: time.Now}, e)
 }
