@@ -18,14 +18,13 @@ func read(t *testing.T, repo, rel string) string {
 	return string(b)
 }
 
-// A repo declaring the tasks pack gets this engine's routine procedure at
-// the path the routine's stored prompt names, replacing any older copy,
-// with a cache .gitignore that keeps the copy out of the tree; a repo
-// declaring no tasks pack gets neither.
-func TestSessionStartWritesTheRoutineInstructionsWhereTasksAreDeclared(t *testing.T) {
+// A member gets this engine's routine procedure at the path the routine's
+// stored prompt names, replacing any older copy, with a cache .gitignore
+// that keeps the copy out of the tree; a repo that is not a member gets
+// neither.
+func TestSessionStartWritesTheRoutineInstructionsInEveryMember(t *testing.T) {
 	t.Parallel()
-	tasksPack := map[string]map[string]string{workitem.TasksPackID: {"pack.json": `{"version": "1", "minEngineVersion": "0.0.0"}`}}
-	repo := member(t, []string{workitem.TasksPackID}, tasksPack)
+	repo := member(t, nil, nil)
 	put(t, repo, workitem.InstructionsFile, "an older engine's copy\n")
 	hook(t, Handler{ProjectDir: repo}, "session-start", startIn)
 	if got := read(t, repo, workitem.InstructionsFile); got != workitem.RoutineInstructions {
@@ -39,7 +38,7 @@ func TestSessionStartWritesTheRoutineInstructionsWhereTasksAreDeclared(t *testin
 		t.Errorf(".gitignore %q", ignore)
 	}
 
-	kept := member(t, []string{workitem.TasksPackID}, tasksPack)
+	kept := member(t, nil, nil)
 	put(t, kept, ".claudinite/cache/.gitignore", "/other\n")
 	hook(t, Handler{ProjectDir: kept}, "session-start", startIn)
 	hook(t, Handler{ProjectDir: kept}, "session-start", startIn)
@@ -47,9 +46,9 @@ func TestSessionStartWritesTheRoutineInstructionsWhereTasksAreDeclared(t *testin
 		t.Errorf("a member's own .gitignore became %q", got)
 	}
 
-	none := member(t, []string{"alpha"}, map[string]map[string]string{"alpha": {"pack.json": `{"version": "1", "minEngineVersion": "0.0.0"}`}})
+	none := t.TempDir()
 	hook(t, Handler{ProjectDir: none}, "session-start", startIn)
-	if _, err := os.Stat(filepath.Join(none, ".claudinite/cache")); err == nil {
-		t.Error("a repo without the tasks pack got a cache entry")
+	if _, err := os.Stat(filepath.Join(none, ".claudinite")); err == nil {
+		t.Error("a repo that is not a member got a cache entry")
 	}
 }

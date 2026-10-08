@@ -29,7 +29,7 @@ func TestADormantProjectIsNotScheduled(t *testing.T) {
 	repo := t.TempDir()
 	p := filepath.Join(repo, ".claudinite/settings.yaml")
 	_ = os.MkdirAll(filepath.Dir(p), 0o755)
-	if err := os.WriteFile(p, []byte("packs:\n  declared:\n    - id: claudinite-tasks\n      config:\n        dormant: true\n"), 0o644); err != nil {
+	if err := os.WriteFile(p, []byte("tasks:\n  dormant: true\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	var out bytes.Buffer
@@ -39,11 +39,11 @@ func TestADormantProjectIsNotScheduled(t *testing.T) {
 	if !strings.Contains(out.String(), "declares its scheduler dormant") {
 		t.Fatalf("output %q", out.String())
 	}
-	_ = os.WriteFile(p, []byte("packs:\n  declared:\n    - id: claudinite-tasks\n      config:\n        dormant: \"yes\"\n"), 0o644)
+	_ = os.WriteFile(p, []byte("tasks:\n  dormant: \"yes\"\n"), 0o644)
 	out.Reset()
 	err := cmdScheduleRun([]string{"--repo", repo}, &out, envOf(nil))
-	if !strings.Contains(out.String(), `"dormant" on the "claudinite-tasks" pack entry must be true or false`) || err == nil {
-		t.Fatalf("a mistyped dormancy reads as awake and is named: %v %q", err, out.String())
+	if err == nil || !strings.Contains(err.Error(), `"dormant" must be true or false`) {
+		t.Fatalf("a mistyped dormancy fails the run naming the key: %v %q", err, out.String())
 	}
 }
 

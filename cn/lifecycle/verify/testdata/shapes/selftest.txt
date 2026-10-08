@@ -20,3 +20,4 @@ v10-cn-floor mount=ok packs=ok hooks=ok skills=ok scheduler=ok rules=ok
 v11-engine-channel mount=skip packs=skip hooks=ok skills=skip scheduler=skip rules=skip
 v12-member-own-hook mount=ok packs=ok hooks=ok skills=ok scheduler=ok rules=ok
 v13-local-pack-on-fail mount=ok packs=ok hooks=ok skills=skip scheduler=ok rules=ok
+v14-tasks-block mount=ok packs=ok hooks=ok skills=skip scheduler=ok rules=ok

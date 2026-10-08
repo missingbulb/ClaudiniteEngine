@@ -20,10 +20,10 @@ import (
 // to cover a policy source keeps the trailer honest.
 var automergePolicyScope = declared.Builtin{
 	ID:     "automerge-policy-scope",
-	Pack:   workitem.TasksPackID,
+	Pack:   declared.EnginePack,
 	OnFail: "block",
-	Tags:   []string{"work", "builtin", workitem.TasksPackID},
-	Doc:    "packs/claudinite-tasks/README.md",
+	Tags:   []string{"work", "builtin", declared.EnginePack},
+	Doc:    "docs/tasks-principles.md",
 	Why:    "the trailer is a claim that this diff may merge with nobody looking; a diff outside the declared classes is exactly the unreviewed change the policy exists to stop, and only a check can hold the claim to the measurement",
 }
 

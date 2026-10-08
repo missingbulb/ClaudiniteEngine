@@ -7,17 +7,10 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/findings"
 )
 
-// tasksSettings declares the tasks pack beside the two folded packs.
-var tasksSettings = strings.Replace(settingsYAML, "    - local/mypack\n", "    - claudinite-tasks\n    - local/mypack\n", 1)
-
-// tasksRepo is a member declaring the tasks pack, with files merged over
-// its pack descriptor.
+// tasksRepo is a member holding files; the queue's checks run on every
+// member, so it declares nothing for them.
 func tasksRepo(files map[string]string) repo {
-	base := map[string]string{".claudinite/shared/packs/claudinite-tasks/pack.json": "{\"version\": \"1\"}\n"}
-	for k, v := range files {
-		base[k] = v
-	}
-	return repo{settings: tasksSettings, base: base}
+	return repo{base: files}
 }
 
 const goodTask = `{

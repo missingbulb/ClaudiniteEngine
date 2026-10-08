@@ -161,4 +161,3 @@ func TestValidatePrintsTheDeliveryOnlyForATaskThatDeliversAPR(t *testing.T) {
 		t.Errorf("a task that opens no PR:\n%s", none)
 	}
 }
-

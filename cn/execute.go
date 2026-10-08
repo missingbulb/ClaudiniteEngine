@@ -141,11 +141,7 @@ func cmdExecuteLoop(args []string, stdout io.Writer, env world.Env) (err error) 
 	if err != nil {
 		return err
 	}
-	dormant, problem := r.dormancy()
-	if problem != "" {
-		fmt.Fprintln(stdout, "! "+problem)
-	}
-	if dormant {
+	if r.queue.Dormant {
 		fmt.Fprintln(stdout, "- this project declares its scheduler dormant — nothing is picked up")
 		return nil
 	}
@@ -174,9 +170,8 @@ func cmdExecuteLoop(args []string, stdout io.Writer, env world.Env) (err error) 
 	run := runner.Runner{Dir: unpacked, Engine: version.Version()}
 	branch := env.DefaultBranch()
 	jobEnv := workStepEnv(envMap(), token)
-	tasksConfig := r.packConfig(workitem.TasksPackID)
-	delivery := land.DeliveryFor(tasksConfig)
-	endpoints, _ := tasksConfig[execute.EndpointsKey].(map[string]any)
+	delivery := r.queue.Delivery
+	endpoints := r.queue.Routines
 	withheld := execute.WithheldSecrets(r.tasks, endpoints)
 	lane := land.Lane{API: gw, Now: time.Now, Sleep: time.Sleep, Log: log}
 	git := gitcmd.Repo{Dir: r.root, Token: token}
@@ -297,8 +292,7 @@ func engineDir() string {
 // termsEnv is the environment a task's own precondition terms run with:
 // the job's, less every secret a task or an endpoint names.
 func termsEnv(r taskRepo, job map[string]string) []string {
-	endpoints, _ := r.packConfig(workitem.TasksPackID)[execute.EndpointsKey].(map[string]any)
-	return envList(execute.TaskEnv(nil, execute.WithheldSecrets(r.tasks, endpoints), job))
+	return envList(execute.TaskEnv(nil, execute.WithheldSecrets(r.tasks, r.queue.Routines), job))
 }
 
 // workStepEnv is the job's environment as the work steps receive it: the job

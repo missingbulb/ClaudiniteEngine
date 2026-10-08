@@ -29,6 +29,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/provenance"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/settings"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/version"
+	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/config"
 )
 
 // Input is what verify reads besides the repo: the launcher this binary
@@ -83,6 +84,7 @@ var rules = []rule{
 	{"rules-index-current", checkRulesIndex},
 	{"skills-index-current", checkSkillsIndex},
 	{"claude-md-import", checkClaudeMDImport},
+	{"tasks-settings", checkTasksSettings},
 }
 
 // Verify's rules are claudinite-lifecycle's checks, folded into the
@@ -663,4 +665,28 @@ func checkClaudeMDImport(in Input) []findings.Finding {
 		return nil
 	}
 	return []findings.Finding{dep("claude-md-import", rulesindex.ClaudeMD, "does not import "+rulesindex.File+" on a line of its own, so sessions never read the declared packs' rules; add the line `"+rulesindex.Import+"`")}
+}
+
+// checkTasksSettings reads the settings' tasks block as the queue does: a
+// value it refuses fails every queue run, and a config still on the
+// retired claudinite-tasks entry is named for its move.
+func checkTasksSettings(in Input) []findings.Finding {
+	_, f, err := settings.Find(in.Repo)
+	if err != nil {
+		return nil
+	}
+	rel := settings.RelPath(f)
+	if raw, ok := read(in, rel); !ok {
+		return nil
+	} else if _, err := settings.ParseFile(raw, f); err != nil {
+		return nil
+	}
+	c, err := config.Read(in.Repo)
+	if err != nil {
+		return []findings.Finding{brk("tasks-settings", rel, err.Error()+"; every scheduler and executor run fails until it is fixed")}
+	}
+	if c.Legacy {
+		return []findings.Finding{dep("tasks-settings", rel, "packs.declared still names "+settings.RetiredTasksPack+", whose config is now the top-level tasks block: move agenticTaskInvocationEndpoints to tasks.routines, dailyClaudiniteUpdatesRequirePrReview: true to tasks.delivery: review, disabledTasks to tasks.disabled and dormant to tasks.dormant, then remove the entry")}
+	}
+	return nil
 }

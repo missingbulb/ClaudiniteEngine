@@ -222,7 +222,7 @@ func TestInitAdoptsAnEmptyRepo(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(repo, ".github/workflows", workflows.Superseded)); err == nil {
 		t.Error("init wrote the superseded update workflow; engine/update runs the update")
 	}
-	if !strings.Contains(out.String(), "adding pack base, which hello 1.0 requires") || !strings.Contains(out.String(), "NEXT: commit everything above") {
+	if !strings.Contains(out.String(), "adding pack base, which hello 1.0 requires") || !strings.Contains(out.String(), "NEXT: create the executor routine") {
 		t.Errorf("output:\n%s", out)
 	}
 	// Launcher is the release's own here, so only that rule may speak.

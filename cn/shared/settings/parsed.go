@@ -69,14 +69,17 @@ type Checks struct {
 	Accept []Acceptance
 }
 
-// Parsed is the settings file's packs and checks blocks.
+// Parsed is the settings file's packs, checks and tasks blocks.
 type Parsed struct {
 	Packs  Packs
 	Checks Checks
+	// Tasks is the tasks block as written, nil when absent; the queue's
+	// own config package reads its keys.
+	Tasks map[string]any
 }
 
 var topSchema = descriptor.Schema{Name: "settings", Keys: map[string]descriptor.Kind{
-	"engine": descriptor.Object, "packs": descriptor.Object, "checks": descriptor.Object,
+	"engine": descriptor.Object, "packs": descriptor.Object, "checks": descriptor.Object, "tasks": descriptor.Object,
 }}
 
 var packsSchema = descriptor.Schema{Name: "packs", Keys: map[string]descriptor.Kind{
@@ -119,6 +122,7 @@ func ParseFile(raw []byte, f Format) (Parsed, error) {
 	if p.Checks, err = parseChecks(obj["checks"], "checks"); err != nil {
 		return Parsed{}, err
 	}
+	p.Tasks, _ = obj["tasks"].(map[string]any)
 	return p, nil
 }
 
