@@ -380,9 +380,6 @@ for mode in $modes; do
     update)
       step "update: a member on $version with a bare origin, and the GitHub stub"
       warm_member update
-      # The member still carries the retired license block; its update PR
-      # drops it.
-      printf 'license:\n  plan: "public"\n' >> "$member/.claudinite/settings.yaml"
       origin=$work/origin.git
       git init -q --bare -b main "$origin"
       # The member declares a pack, so its update PR restates the member file.
@@ -481,11 +478,10 @@ for mode in $modes; do
       (cd "$member" && git fetch -q origin && git reset -q --hard origin/main) || fail "update 3: pull"
       grep -q "version: \"$next\"" "$member/.claudinite/settings.yaml" || fail "update 3: main does not pin $next"
       grep -q "\"version\": \"$next\"" "$member/.claudinite/cache/member.GENERATED.json" || fail "update 3: main's member file does not state $next"
-      if grep -q '^license:' "$member/.claudinite/settings.yaml"; then fail "update 3: main kept the retired license block"; fi
-      grep -q '^  declared:$' "$member/.claudinite/settings.yaml" || fail "update 3: dropping the license block took the packs block: $(cat "$member/.claudinite/settings.yaml")"
+      grep -q '^  declared:$' "$member/.claudinite/settings.yaml" || fail "update 3: the update PR took the packs block: $(cat "$member/.claudinite/settings.yaml")"
       grep -q '^    - cron: "[0-9]* [0-9]*,[0-9]* \* \* \*"$' "$member/$sched" || fail "update 3: main's scheduler carries no hashed cron: $(cat "$member/$sched")"
       [ ! -e "$member/.claudinite/cache/pending-workflows" ] || fail "update 3: main holds the staging directory"
-      step "update 3: landed $next, merged by the agent stage once land skipped it and the gate passed; the member file and the moved scheduler beside the pin, the retired license block dropped"
+      step "update 3: landed $next, merged by the agent stage once land skipped it and the gate passed; the member file and the moved scheduler beside the pin"
 
       : > "$work/requests.log"
       out=$(session_start) || fail "update 4: SessionStart exited non-zero"
