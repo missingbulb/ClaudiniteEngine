@@ -10,6 +10,7 @@ import (
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/findings"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/flatdecl"
+	"github.com/missingbulb/ClaudiniteEngine/cn/shared/packset"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/settings"
 	"github.com/missingbulb/ClaudiniteEngine/rewrite-temp/fromnode/node"
 )
@@ -20,7 +21,8 @@ var nodeHook = regexp.MustCompile(`(^|[^\w.-])(\.claudinite/shared/)?engine/hook
 
 // leftovers is what a moved member still carries of the Node engine: a
 // hook command running it is a break, since that hook fails once the
-// mount is gone; the rest are deprecations the move's pull request drops.
+// mount is gone, and so is a JavaScript rule in a local pack, which cn
+// never runs; the rest are deprecations the move's pull request drops.
 func leftovers(repo string) []findings.Finding {
 	read := func(rel string) ([]byte, bool) {
 		raw, err := os.ReadFile(filepath.Join(repo, filepath.FromSlash(rel)))
@@ -33,6 +35,15 @@ func leftovers(repo string) []findings.Finding {
 	if event := nodeHookEvent(read); event != "" {
 		out = append(out, findings.Finding{Class: findings.Break, ID: "hooks", Path: ".claude/settings.json",
 			Sentence: event + " runs the Node engine's hooks (engine/hooks/), which the move removes; fromnode wires every hook to cn"})
+	}
+	if declared, err := packset.Declared(repo); err == nil {
+		for _, name := range declared.Local {
+			rel := packset.LocalDir + "/" + name
+			for _, js := range jsRules(filepath.Join(repo, filepath.FromSlash(rel))) {
+				out = append(out, findings.Finding{Class: findings.Break, ID: "node-leftovers", Path: rel + "/" + js,
+					Sentence: "a JavaScript check the Node engine ran, and cn runs none, so it no longer runs; port it to a declared check or a checks/*.go one, or delete it"})
+			}
+		}
 	}
 	if _, _, err := settings.Find(repo); err == nil {
 		if _, ok := read(node.File); ok {

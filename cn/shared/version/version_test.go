@@ -1,7 +1,6 @@
 package version
 
 import (
-	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -103,9 +102,6 @@ func TestDevBuildDefaults(t *testing.T) {
 }
 
 func TestParseMinEngineVersion(t *testing.T) {
-	if _, err := ParseMinEngineVersion("60928.1"); !errors.Is(err, ErrNodeEngine) {
-		t.Errorf("60928.1: %v, want ErrNodeEngine", err)
-	}
 	cur, err := ParseMinEngineVersion("1.60928.1")
 	if err != nil {
 		t.Fatalf("1.60928.1: %v", err)
@@ -116,8 +112,8 @@ func TestParseMinEngineVersion(t *testing.T) {
 			t.Errorf("1.60928.1 satisfies %s = %v, want %v", pin, got, want)
 		}
 	}
-	for _, bad := range []string{"60928", "1.60928.1.0", "", "60928.01", "v60928.1", "60928.1.x", "61001.1.0"} {
-		if _, err := ParseMinEngineVersion(bad); err == nil || errors.Is(err, ErrNodeEngine) {
+	for _, bad := range []string{"60928", "60928.1", "1.60928.1.0", "", "60928.01", "v60928.1", "60928.1.x", "61001.1.0"} {
+		if _, err := ParseMinEngineVersion(bad); err == nil {
 			t.Errorf("%q: %v", bad, err)
 		}
 	}

@@ -247,7 +247,7 @@ func importedCanon(imported map[string]any) []string {
 // member's own packs: a break from one of them, where Node reports no
 // error, is a divergence the fixture must name.
 var settingsRules = map[string]bool{
-	"settings-file": true, "settings-checks": true, "local-pack-shape": true, "pack-declared": true,
+	"settings-file": true, "settings-checks": true, "pack-declared": true,
 	"descriptor-format": true, "descriptor-duplicate": true, "node-leftovers": true,
 }
 

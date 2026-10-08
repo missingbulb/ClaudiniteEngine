@@ -15,7 +15,7 @@ fixture format is at the top of its test file.
 | settings | `testdata/settings/<name>/`: a declaration and the tree it sits in | `testdata/shims/settings.mjs`: the reader, the registry and `legacy-shape-in-use` | `fromnode import`, then `cn verify` over the imported member |
 | growth | `testdata/growth/<core>/<name>.json` | `testdata/shims/growth.mjs`: `capture-log.mjs` and `prune-logs.mjs` | `cndecide growth decide <core> --world` |
 | dashboard | `testdata/dashboard/<core>/<name>.json` | `testdata/shims/dashboard.mjs`: the page's `parseDescriptor` and the `descriptor-usable` rule's `run` | `cn dashboard descriptor --json`, `cndecide dashboard decide usable --world`; `flat-member` is cn's alone, `cn tasks flat --write` against a hand-written file |
-| from-node | real Node trees in `CLAUDINITE_PARITY_TREES`, moved in `../fromnode`'s `TestMoveOverRealMembers` | none: no Node answer exists for a `cn` tree | `fromnode` over a copy, then `cn verify`: only `local-pack-shape` and the shelf's legacy minimums, and `fromnode leftovers` no break |
+| from-node | real Node trees in `CLAUDINITE_PARITY_TREES`, moved in `../fromnode`'s `TestMoveOverRealMembers` | none: no Node answer exists for a `cn` tree | `fromnode` over a copy, then `cn verify`: nothing, and `fromnode leftovers` no break |
 
 A fixture's `expect` is always the Node engine's answer, written by
 `CLAUDINITE_PARITY_RECORD=1` before the Go side existed.
@@ -101,7 +101,7 @@ Update face divergences: 19 of 40 fixtures.
 | --- | --- | --- |
 | 8 | plan/downgrade-refused | a pin only moves forward: the plan keeps the newer held version |
 | 12 | plan/min-engine-blocks | a minimum engine is `<major>.<day>.<n>` |
-| 120 | plan/two-part-min-engine | a two-part minimum names a Node engine version, which no cn release meets: the plan blocks it |
+| 149 | plan/two-part-min-engine | a minimum that is no `<major>.<day>.<n>` version, a Node engine's two-part one included, blocks the plan: no engine loads that pack |
 | 32 | gap/unstamped, gap/old-engine, gap/mid-engine, applystage/record-asks, applystage/withheld, applystage/test-visible, terminal/apply-stage | no update migrates member files, and the one agent stage an update runs moves the engine's staged workflows only (row 141), never a plan's apply stage |
 | 39 | convergescope/mount-wiring | a pack PR carries the packs, the flat files and the CLAUDE.md import, never hook settings |
 | 41 | convergescope/stamp-only, convergescope/checkout | the declaration is `.claudinite/settings.*`, whose bookkeeping edit is the engine pin |

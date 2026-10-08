@@ -42,6 +42,16 @@ var Absorbed = map[string]AbsorbedSpec{
 	"barriers": {DropAnswers: []string{"goals"}},
 }
 
+// RetiredOnFail maps the Node engine's severity spelling (its
+// LEGACY_ON_FAIL) to cn's on_fail, which alone cn reads: in a rules
+// override and in a declared check alike.
+var RetiredOnFail = map[string]string{"blocking": "block", "advisory": "advise"}
+
+// RetiredManifestKeys are the Node manifest fields cn's pack manifest does
+// not hold: the fingerprint relevanceDetector replaced, the pack
+// contributions, and the coded rule lists.
+var RetiredManifestKeys = []string{"detect", "marker", "contributes", "contributedRules", "worldRules", "workRules"}
+
 // AbsorbedSpec is one absorbedPackConfig record.
 type AbsorbedSpec struct {
 	DropAnswers []string
@@ -355,8 +365,7 @@ func (im *importer) declare(key, id string, obj *settings.Ordered) {
 				e.object().Set(k, val)
 				im.add(Carried, sub, "", "")
 			case "via":
-				e.object().Set(k, val)
-				im.add(Carried, sub, "", "")
+				im.add(Dropped, sub, "", "cn requires every pack a declared one needs to be declared itself, so no entry records who pulled it in")
 			default:
 				im.add(Refused, sub, "", "not a pack-entry property the Node engine reads either; delete it")
 			}
@@ -420,22 +429,6 @@ func merge(survivor, absorbed *settings.Ordered) {
 			}
 		}
 	}
-	if via, ok := survivor.Get("via"); ok {
-		if list, ok := via.([]any); ok {
-			var kept []any
-			id, _ := survivor.Get("id")
-			for _, x := range list {
-				if x != id {
-					kept = append(kept, x)
-				}
-			}
-			if len(kept) == 0 {
-				survivor.Delete("via")
-			} else {
-				survivor.Set("via", kept)
-			}
-		}
-	}
 }
 
 func canonical(v any) string {
@@ -449,7 +442,7 @@ func (im *importer) rules(r *settings.Ordered, key string) *settings.Ordered {
 	for _, id := range r.Keys() {
 		v, _ := r.Get(id)
 		if s, ok := v.(string); ok {
-			if to, retired := settings.RetiredOnFail[s]; retired {
+			if to, retired := RetiredOnFail[s]; retired {
 				im.add(Mapped, fmt.Sprintf("%s.%s %q", key, id, s), fmt.Sprintf("%q", to), "the retired severity spelling")
 				v = to
 			}

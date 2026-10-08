@@ -8,8 +8,6 @@ packs:
     - id: acme-pack
       rules:
         acme-check: "off"
-license:
-  plan: "public"
 checks:
   rules:
     acme-check: "off"

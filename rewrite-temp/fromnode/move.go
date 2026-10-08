@@ -89,7 +89,8 @@ func move(in adopt.Input) error {
 	if err != nil {
 		return fmt.Errorf("the imported settings do not read back: %w", err)
 	}
-	if err := ownPacksLoad(in.Repo, declared.Local); err != nil {
+	edits, err := ownPackEdits(in.Repo, declared.Local)
+	if err != nil {
 		return err
 	}
 	chosen, err := adopt.Resolve(in.Reader, declared.Declared, nil, adopt.PacksChannel(in.Channel), got.Version, in.Out)
@@ -138,6 +139,21 @@ func move(in adopt.Input) error {
 			}
 		}
 		files = append(files, memberFile{".github/workflows/" + n, data, 0o644})
+	}
+	// The last check before the first write: a local pack cn would not
+	// load, even rewritten, refuses the move with every file as it was.
+	restore, err := applyOwnPackEdits(in.Repo, edits)
+	if err != nil {
+		return err
+	}
+	if err := ownPacksLoad(in.Repo, declared.Local); err != nil {
+		restore()
+		return err
+	}
+	for _, e := range edits {
+		for _, w := range e.what {
+			fmt.Fprintf(in.Out, "own pack: %s: %s\n", e.rel, w)
+		}
 	}
 	if err := os.RemoveAll(filepath.Join(in.Repo, ".claudinite", "shared")); err != nil {
 		return err

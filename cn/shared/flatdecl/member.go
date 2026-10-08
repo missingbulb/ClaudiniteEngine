@@ -24,12 +24,11 @@ type MemberEngine struct {
 	Channel string `json:"channel"`
 }
 
-// MemberEntry is one declared pack: its id as declared, its config and
-// its via when the declaration carries them.
+// MemberEntry is one declared pack: its id as declared and its config
+// when the declaration carries one.
 type MemberEntry struct {
 	ID     string         `json:"id"`
 	Config map[string]any `json:"config,omitempty"`
-	Via    any            `json:"via,omitempty"`
 }
 
 // Member is the member file. Engine is nil when the settings file holds
@@ -76,7 +75,7 @@ func ReadMember(repo string, packs []packset.Pack) (Member, bool, error) {
 	}
 	m.Packs.Declared = []MemberEntry{}
 	for _, e := range declared.Entries {
-		m.Packs.Declared = append(m.Packs.Declared, MemberEntry{ID: e.Token(), Config: e.Config, Via: e.Via})
+		m.Packs.Declared = append(m.Packs.Declared, MemberEntry{ID: e.Token(), Config: e.Config})
 		if !e.Local && e.ID == workitem.TasksPackID {
 			b, ok := e.Config[workitem.DormantConfigKey].(bool)
 			m.Dormant = ok && b

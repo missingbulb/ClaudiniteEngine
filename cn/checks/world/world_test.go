@@ -166,34 +166,6 @@ func TestFindingsDecideTheExit(t *testing.T) {
 	}
 }
 
-// retired is main's settings file still carrying the license block.
-var retired = settingsBody("1.1.0", pin1) + "license:\n  plan: \"public\"\n"
-
-func TestPinGuardLetsTheUpdateDropTheRetiredLicenseBlock(t *testing.T) {
-	t.Parallel()
-	cases := []struct {
-		name   string
-		body   string
-		author string
-		code   int
-		want   string
-	}{
-		{"the bot moves the pin and drops the license block", settingsBody("1.2.0", pin2), bot, 0, ""},
-		{"the bot moves the pin and keeps the license block", settingsBody("1.2.0", pin2) + "license:\n  plan: \"public\"\n", bot, 0, ""},
-		{"the bot drops only the license block", settingsBody("1.1.0", pin1), bot, 0, ""},
-		{"the bot moves the pin and changes the plan", settingsBody("1.2.0", pin2) + "license:\n  plan: \"private-repo\"\n", bot, 1, "pin-guard"},
-		{"a person drops the license block, leaving the engine block alone", settingsBody("1.1.0", pin1), "someone", 0, ""},
-		{"a person drops the license block and moves the pin", settingsBody("1.2.0", pin2), "someone", 1, "pin-guard"},
-	}
-	for _, c := range cases {
-		dir := memberOn(t, retired, func(dir string) { write(t, dir, ".claudinite/settings.yaml", c.body) })
-		code, out := runWorld(t, dir, c.author, &pinCheck{}, nil)
-		if code != c.code || !strings.Contains(out, c.want) {
-			t.Errorf("%s: exit %d, want %d; output lacks %q:\n%s", c.name, code, c.code, c.want, out)
-		}
-	}
-}
-
 // unadopted is a repo whose main holds no settings file and no launcher,
 // checked out on a branch that the change function edits and commits.
 func unadopted(t *testing.T, change func(dir string)) string {

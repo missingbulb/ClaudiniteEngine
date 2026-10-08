@@ -5,8 +5,10 @@
     ".claudinite/shared/engine/checks/check_the_world.mjs": "// sweep\n",
     ".claudinite/shared/engine/checks/ci-work-scope.mjs": "// work\n"
   },
-  "cnShape": "v8-local-retired-fields",
-  "cnFiles": {},
-  "answeredBy": "local-pack-shape",
+  "cnShape": "v5-local-pack",
+  "cnFiles": {
+    ".claudinite/local/packs/mine/pack.json": "{\n  \"marker\": [\"notes.md\"]\n}\n"
+  },
+  "answeredBy": "descriptor-format",
   "nodeFires": true
 }

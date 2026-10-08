@@ -5,5 +5,5 @@ mapped packs[1] "barriers" → packs.declared "basics": renamed or absorbed into
 mapped packs[1].config → packs.declared "basics" config.barriers: an absorbed pack's parameters nest under its old id
 dropped packs[1].answers.goals: its question was retired with the absorbed pack
 carried packs[1].answers
-carried packs[1].via
+dropped packs[1].via: cn requires every pack a declared one needs to be declared itself, so no entry records who pulled it in
 mapped packs[2] "claudinite-lifecycle" → packs.declared "claudinite-lifecycle"

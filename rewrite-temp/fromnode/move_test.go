@@ -168,9 +168,7 @@ func TestMoveMovesANodeMember(t *testing.T) {
 	// workflows or the indexes; the leftovers are the Node engine's files
 	// the move pull request drops.
 	for _, f := range verify.Verify(verify.Input{Repo: repo, Launcher: []byte(launcherBody)}) {
-		if f.ID != "local-pack-shape" {
-			t.Errorf("verify: %s", f)
-		}
+		t.Errorf("verify: %s", f)
 	}
 	var paths []string
 	for _, f := range leftovers(repo) {
@@ -225,8 +223,7 @@ func TestMoveRefusesWhatIsNotANodeMember(t *testing.T) {
 // CLAUDINITE_PARITY_TREES names real Node members (colon-separated) and
 // CLAUDINITE_PACKS_TREE a ClaudinitePacks checkout: each member is copied,
 // moved with its canon packs published from that checkout, and verify
-// then names only the Node engine's leftovers, the local packs' shape and
-// the shelf's own legacy minimums.
+// then finds nothing; the leftovers hold no break.
 func TestMoveOverRealMembers(t *testing.T) {
 	trees, shelf := os.Getenv("CLAUDINITE_PARITY_TREES"), os.Getenv("CLAUDINITE_PACKS_TREE")
 	if trees == "" || shelf == "" {
@@ -252,11 +249,7 @@ func TestMoveOverRealMembers(t *testing.T) {
 			var got []findings.Finding
 			for _, f := range verify.Verify(verify.Input{Repo: repo, Launcher: []byte(launcherBody)}) {
 				got = append(got, f)
-				// pack-min-engine is about the shelf's packs, not the member: a
-				// pack published before the three-part form.
-				if f.ID != "local-pack-shape" && f.ID != "pack-min-engine" {
-					t.Errorf("verify: %s", f)
-				}
+				t.Errorf("verify: %s", f)
 			}
 			for _, f := range got {
 				t.Logf("verify: %s", f)

@@ -76,7 +76,6 @@ var rules = []rule{
 	{"bin-ignore", checkBinIgnore},
 	{"pack-declared", checkPackDeclared},
 	{"pack-min-engine", checkPackMinEngine},
-	{"license-plan", checkLicensePlan},
 	{"engine-package", checkEnginePackage},
 	{"descriptor-format", checkDescriptorFormat},
 	{"descriptor-duplicate", checkDescriptorDuplicate},
@@ -84,7 +83,6 @@ var rules = []rule{
 	{"rules-index-current", checkRulesIndex},
 	{"skills-index-current", checkSkillsIndex},
 	{"claude-md-import", checkClaudeMDImport},
-	{"local-pack-shape", checkLocalPackShape},
 }
 
 // Verify's rules are claudinite-lifecycle's checks, folded into the
@@ -162,23 +160,6 @@ func checkEnginePin(in Input) []findings.Finding {
 	}
 	if _, err := settings.ReadEngine(raw, f); err != nil {
 		return []findings.Finding{brk("engine-pin", rel, err.Error()+"; the launcher refuses to run until the engine block holds a quoted version, manifest and, if any, package")}
-	}
-	return nil
-}
-
-// checkLicensePlan names a license block as a retired shape: nothing reads
-// it, and the next engine update PR drops it.
-func checkLicensePlan(in Input) []findings.Finding {
-	p, f, err := settings.Find(in.Repo)
-	if err != nil {
-		return nil
-	}
-	raw, err := os.ReadFile(p)
-	if err != nil {
-		return nil
-	}
-	if settings.HasRetiredLicense(raw, f) {
-		return []findings.Finding{dep("license-plan", settings.RelPath(f), "the license block is a retired shape: a single repo needs no license and nothing reads it; the next engine update PR drops it, or delete it by hand")}
 	}
 	return nil
 }
@@ -419,15 +400,10 @@ func checkPackMinEngine(in Input) []findings.Finding {
 	return out
 }
 
-// PackManifest checks a declared pack's minEngineVersion. A two-part one
-// names a Node engine version, which a pack vendored before the shelf
-// moved to the cn floor still carries: the update replaces it.
+// PackManifest checks a declared pack's minEngineVersion reads as
+// <major>.<day>.<n>.
 func PackManifest(path, minEngineVersion string) []findings.Finding {
-	_, err := version.ParseMinEngineVersion(minEngineVersion)
-	switch {
-	case errors.Is(err, version.ErrNodeEngine):
-		return []findings.Finding{dep("pack-min-engine", path, err.Error()+"; `cn update packs` moves the pack to a version naming the cn floor")}
-	case err != nil:
+	if _, err := version.ParseMinEngineVersion(minEngineVersion); err != nil {
 		return []findings.Finding{brk("pack-min-engine", path, err.Error())}
 	}
 	return nil
@@ -549,16 +525,6 @@ func checkSettingsChecks(in Input) []findings.Finding {
 		if strings.TrimSpace(a.Reason) == "" {
 			out = append(out, brk("settings-checks", rel, fmt.Sprintf("the acceptance of %s%s has no reason; an acceptance is reviewable only by its reason", a.Rule, onPath(a.Path))))
 		}
-	}
-	retired := append([]settings.RetiredOverride{}, parsed.Retired...)
-	sort.Slice(retired, func(i, k int) bool {
-		return retired[i].Where+retired[i].Rule < retired[k].Where+retired[k].Rule
-	})
-	for _, r := range retired {
-		out = append(out, dep("settings-checks", rel, fmt.Sprintf("rules.%s on %s is %q, the retired spelling; write %q", r.Rule, r.Where, r.Value, r.OnFail)))
-	}
-	if parsed.LegacySharedConstants {
-		out = append(out, dep("settings-checks", rel, "carries a top-level sharedConstants; move it to the basics entry's config (packs.declared: - id: basics, config: {sharedConstants: …}), where basics/shared-constants reads it"))
 	}
 	if dc := declaredOf(in); dc != nil && !dc.Partial {
 		known := map[string]bool{}

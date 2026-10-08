@@ -55,6 +55,13 @@ func TestLeftovers(t *testing.T) {
 		{"both Node lines ignored from the repo root", func(t *testing.T, d string) {
 			write(t, d, ".gitignore", "/.claudinite-hooks.log*\n.claudinite/temp\n")
 		}, nil, []string{"node-leftovers", "node-leftovers"}},
+		{"a local pack's JavaScript rules", func(t *testing.T, d string) {
+			raw, _ := os.ReadFile(filepath.Join(d, ".claudinite/settings.yaml"))
+			write(t, d, ".claudinite/settings.yaml", strings.Replace(string(raw), "    - id: basics\n", "    - local/mine\n    - id: basics\n", 1))
+			write(t, d, ".claudinite/local/packs/mine/pack.json", "{}\n")
+			write(t, d, ".claudinite/local/packs/mine/worldRules/a.mjs", "export default {};\n")
+			write(t, d, ".claudinite/local/packs/mine/skills/s/checks.mjs", "export default [];\n")
+		}, []string{"node-leftovers", "node-leftovers"}, nil},
 		{"hooks naming the Node engine", func(t *testing.T, d string) {
 			write(t, d, ".claude/settings.json", `{"hooks": {"SessionStart": [{"hooks": [{"type": "command", "command": "node .claudinite/shared/engine/hooks/run-session-start.mjs"}]}]}}`)
 		}, []string{"hooks"}, nil},

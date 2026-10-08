@@ -440,12 +440,6 @@ func openPR(d Deps, f settings.Format, raw []byte, got Fetched, self, verifyOut 
 	if err != nil {
 		return 0, nil, err
 	}
-	dropped := settings.HasRetiredLicense(moved, f)
-	if dropped {
-		if moved, err = settings.DropLicense(moved, f); err != nil {
-			return 0, nil, err
-		}
-	}
 	issues, err := workflowIssues(d)
 	if err != nil {
 		return 0, nil, err
@@ -490,9 +484,6 @@ func openPR(d Deps, f settings.Format, raw []byte, got Fetched, self, verifyOut 
 
 	var b strings.Builder
 	fmt.Fprintf(&b, "Moves this repo's Claudinite engine pin to **%s**. `%s` changes only `engine.version` and `engine.manifest`, with `%s` restating them.\n\n", got.Version, rel, flatdecl.MemberFile)
-	if dropped {
-		fmt.Fprintf(&b, "It also drops the retired `license` block from `%s`: a single repo needs no license, and nothing reads it.\n\n", rel)
-	}
 	fmt.Fprintf(&b, "- Manifest: `%s`\n- Key: `%s`\n\n", got.Integrity, got.KeyID)
 	fmt.Fprintf(&b, "Self-test of the new binary:\n\n```\n%s```\n\n", self)
 	if forced {
@@ -571,12 +562,6 @@ func closeUpdatePR(d Deps, pr githubapi.PR, why string) error {
 	return d.Git.DeleteRemoteBranch(remote, pr.HeadRef)
 }
 
-// retiredPlanBranchPrefix starts the plan correction branches an engine
-// before record row 131 opened; one may still stand open in a member.
-//
-// @legacy-tolerance advisory:none retire:#83
-const retiredPlanBranchPrefix = "claudinite/plan-"
-
 // Land squash-merges update PR n at head sha after checking it is the
 // updater's own change, deletes its branch and dispatches CI on main,
 // whose runs the next update needs green. The branch says which shape the
@@ -597,8 +582,6 @@ func Land(d Deps, n int, sha string) (string, error) {
 		return "", fmt.Errorf("#%d is %s", n, pr.State)
 	case pr.Author != gitcmd.BotName:
 		return "", fmt.Errorf("#%d was opened by %s, not %s", n, pr.Author, gitcmd.BotName)
-	case strings.HasPrefix(pr.HeadRef, retiredPlanBranchPrefix):
-		return "", fmt.Errorf("#%d (branch %s) is a plan correction PR, which no engine lands any more: close #%d", n, pr.HeadRef, n)
 	case !pr.HasLabel(Label) || (!strings.HasPrefix(pr.HeadRef, BranchPrefix) && !strings.HasPrefix(pr.HeadRef, PackBranchPrefix)):
 		return "", fmt.Errorf("#%d is not an update PR (label %s, branch %s* or %s*)", n, Label, BranchPrefix, PackBranchPrefix)
 	case pr.BaseRef != mainBranch:

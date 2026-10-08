@@ -4,7 +4,7 @@ mapped packs[1] "claudinite-lifecycle" → packs.declared "claudinite-lifecycle"
 dropped packs[1].version: the installed version is the vendored pack.json's
 mapped packs[2] "git-github" → packs.declared "git-github"
 dropped packs[2].version: the installed version is the vendored pack.json's
-carried packs[2].via
+dropped packs[2].via: cn requires every pack a declared one needs to be declared itself, so no entry records who pulled it in
 mapped packs[3] "claudinite-growth" → packs.declared "claudinite-growth"
 dropped packs[3].version: the installed version is the vendored pack.json's
 mapped packs[3].config → packs.declared "claudinite-growth" config
