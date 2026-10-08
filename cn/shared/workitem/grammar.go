@@ -268,9 +268,6 @@ func ParseTitle(title string) (Title, bool) {
 var (
 	packTaskPathRE    = regexp.MustCompile(`^(?:\.claudinite/shared/)?packs/([^/]+)/tasks/([^/]+)/[^/]+$`)
 	builtInTaskPathRE = regexp.MustCompile(`^(?:\.claudinite/shared/)?(?:engine/scheduler|packs/claudinite-tasks)/queue/tasks/([^/]+)/[^/]+$`)
-	// BuiltInPublicTaskPathRE is the built-in request task's spec, the path
-	// new items name.
-	BuiltInPublicTaskPathRE = regexp.MustCompile(`^(?:\.claudinite/(?:shared|local)/)?packs/claudinite-tasks/public/(implement-request)\.md$`)
 )
 
 // BuiltInPack is the id the engine's own tasks are titled with.
@@ -283,9 +280,6 @@ func TaskIDFromPath(path string) (Title, bool) {
 		return Title{Pack: CanonicalPackID(m[1]), Task: m[2]}, true
 	}
 	if m := builtInTaskPathRE.FindStringSubmatch(path); m != nil {
-		return Title{Pack: BuiltInPack, Task: m[1]}, true
-	}
-	if m := BuiltInPublicTaskPathRE.FindStringSubmatch(path); m != nil {
 		return Title{Pack: BuiltInPack, Task: m[1]}, true
 	}
 	return Title{}, false
