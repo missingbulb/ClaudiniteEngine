@@ -24,16 +24,12 @@ func cmdInit(args []string, stdout, stderr io.Writer) error {
 	packList := fs.String("packs", "", "")
 	channel := fs.String("channel", "stable", "")
 	repo := fs.String("repo", ".", "")
-	fromNode := fs.Bool("from-node", false, "")
 	var answers answerFlags
 	fs.Var(&answers, "answer", "")
 	if err := flags(fs, args); err != nil {
 		return err
 	}
-	if *fromNode && *packList != "" {
-		return report.New(report.Usage, "init --from-node reads the packs from the Node declaration; drop --packs")
-	}
-	if *packList == "" && !*fromNode {
+	if *packList == "" {
 		return report.New(report.Usage, "init needs --packs ID[,ID]; basics is the usual first pack (it requires claudinite-lifecycle and git-github), and the vendored branch's directory lists the rest")
 	}
 	roots, err := trust.Roots()
@@ -59,15 +55,9 @@ func cmdInit(args []string, stdout, stderr io.Writer) error {
 	in := adopt.Input{
 		Repo: *repo, FullName: initFullName(*repo), Channel: *channel,
 		Fetch:  update.FetchInput{Registry: reg, Roots: roots, CacheRoot: paths.CacheRoot(), Platform: version.Platform(), Now: time.Now()},
-		Reader: reader, Timeout: childTimeout, Out: stdout, Answers: answers,
+		Reader: reader, Timeout: childTimeout, Out: stdout, Answers: answers, Packs: strings.Split(*packList, ","),
 	}
-	if *fromNode {
-		err = adopt.FromNode(in)
-	} else {
-		in.Packs = strings.Split(*packList, ",")
-		err = adopt.Init(in)
-	}
-	if err != nil {
+	if err := adopt.Init(in); err != nil {
 		return report.Wrap(report.IO, "init", err)
 	}
 	return nil

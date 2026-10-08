@@ -4,8 +4,10 @@
     ".claudinite/shared/engine/checks/check_the_world.mjs": "// sweep\n",
     ".claudinite/shared/engine/checks/ci-work-scope.mjs": "// work\n"
   },
-  "cnShape": "v3-two-part-min-engine",
-  "cnFiles": {},
+  "cnShape": "v3-declared-pack",
+  "cnFiles": {
+    ".claudinite/shared/packs/acme-pack/pack.json": "{\n  \"version\": \"60928.1\",\n  \"minEngineVersion\": \"60928.1\",\n  \"requires\": []\n}\n"
+  },
   "answeredBy": "pack-min-engine",
   "nodeFires": true
 }

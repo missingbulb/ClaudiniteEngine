@@ -23,10 +23,8 @@ type Stale struct {
 	Answer string
 }
 
-// State reads the interview over set, as the Node engine's interviewState
-// did: an entry another pack pulled in (via) that the project has not
-// engaged with asks nothing, and an answered question stays answered, "n/a"
-// included. A pack whose questions did not validate did not load, so it
+// State reads the interview over set: an answered question stays
+// answered, "n/a" included. A pack whose questions did not validate did not load, so it
 // asks nothing and none of its answers is stale.
 func State(set packset.Set) ([]Pending, []Stale) {
 	var pending []Pending
@@ -36,9 +34,6 @@ func State(set packset.Set) ([]Pending, []Stale) {
 			continue
 		}
 		entry, _ := set.Declared.Entry(p.ID, p.Kind == packset.Local)
-		if entry.Pulled() {
-			continue
-		}
 		var open []packset.Question
 		asked := map[string]bool{}
 		for _, q := range p.Manifest.Questions {

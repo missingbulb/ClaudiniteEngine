@@ -50,20 +50,9 @@ type PackEntry struct {
 	Config map[string]any
 	Rules  map[string]string
 	Accept []Acceptance
-	// Via is carried opaque: the Node resolver's record of the packs that
-	// pulled this one in, which the interview reads as "not chosen".
-	Via any
 	// Answers are the adoption questions' answers, verbatim, by question
 	// id; cn settings answer is their one writer.
 	Answers map[string]string
-}
-
-// Pulled reports whether the entry was pulled in by another pack's
-// requires (a non-empty via) and the project has not engaged with it: no
-// config and no answers. Its adoption questions do not apply.
-func (e PackEntry) Pulled() bool {
-	via, _ := e.Via.([]any)
-	return len(via) > 0 && e.Config == nil && len(e.Answers) == 0
 }
 
 // Token is the entry's id as the declaration spells it.
@@ -81,39 +70,13 @@ type Checks struct {
 }
 
 // Parsed is the settings file's packs and checks blocks.
-// LegacySharedConstants is a top-level sharedConstants, the Node engine's
-// spelling, which parses so verify can name its home: the basics entry's
-// config. Phase 9's member move (#23) writes it there, which retires the
-// tolerance.
-//
-// @legacy-tolerance advisory:settings-checks retire:#23
 type Parsed struct {
-	Packs                 Packs
-	Checks                Checks
-	LegacySharedConstants bool
-	// Retired are the overrides written in the retired severity spelling,
-	// read as their on_fail.
-	Retired []RetiredOverride
+	Packs  Packs
+	Checks Checks
 }
-
-// RetiredOverride is a rules override spelling "blocking" or "advisory".
-type RetiredOverride struct {
-	// Where is "the top-level checks block" or "the <token> pack entry".
-	Where, Rule, Value, OnFail string
-}
-
-// RetiredOnFail maps the retired severity spelling, the Node engine's
-// LEGACY_ON_FAIL, to its on_fail: an override may still carry it, and so
-// may a member's own declared check (#52, checks/declared).
-//
-// @legacy-tolerance advisory:settings-checks retire:#50
-var RetiredOnFail = map[string]string{"blocking": "block", "advisory": "advise"}
 
 var topSchema = descriptor.Schema{Name: "settings", Keys: map[string]descriptor.Kind{
 	"engine": descriptor.Object, "packs": descriptor.Object, "checks": descriptor.Object,
-	// @legacy-tolerance advisory:license-plan retire:#83
-	"license":         descriptor.Object,
-	"sharedConstants": descriptor.Any,
 }}
 
 var packsSchema = descriptor.Schema{Name: "packs", Keys: map[string]descriptor.Kind{
@@ -126,16 +89,10 @@ var checksSchema = descriptor.Schema{Name: "checks", Keys: map[string]descriptor
 
 var entrySchema = descriptor.Schema{Name: "pack entry", Keys: map[string]descriptor.Kind{
 	"id": descriptor.String, "config": descriptor.Object, "rules": descriptor.Object, "accept": descriptor.List,
-	"via": descriptor.Any, "answers": descriptor.Any,
+	"answers": descriptor.Any,
 }}
 
 var localIDPattern = regexp.MustCompile(`^local/([A-Za-z0-9][A-Za-z0-9_.-]*)$`)
-
-// refusedEntryKeys are the Node engine's pack-entry keys cn reads
-// nowhere.
-var refusedEntryKeys = map[string]string{
-	"version": "the installed version is the vendored pack.json's, not the declaration's",
-}
 
 // ParseFile parses the whole settings file: every block's shape, closed at
 // each level. Values a check judges (an override outside block, advise and
@@ -155,12 +112,11 @@ func ParseFile(raw []byte, f Format) (Parsed, error) {
 	if errs := topSchema.Validate(obj); len(errs) > 0 {
 		return Parsed{}, joinErrs(errs)
 	}
-	_, legacy := obj["sharedConstants"]
-	p := Parsed{LegacySharedConstants: legacy}
-	if p.Packs, err = parsePacks(obj, &p.Retired); err != nil {
+	p := Parsed{}
+	if p.Packs, err = parsePacks(obj); err != nil {
 		return Parsed{}, err
 	}
-	if p.Checks, err = parseChecks(obj["checks"], "checks", &p.Retired); err != nil {
+	if p.Checks, err = parseChecks(obj["checks"], "checks"); err != nil {
 		return Parsed{}, err
 	}
 	return p, nil
@@ -174,7 +130,7 @@ func joinErrs(errs []error) error {
 	return errors.New(strings.Join(s, "; "))
 }
 
-func parsePacks(obj map[string]any, retired *[]RetiredOverride) (p Packs, err error) {
+func parsePacks(obj map[string]any) (p Packs, err error) {
 	p = Packs{Channel: ChannelStable}
 	raw, present := obj["packs"]
 	if !present {
@@ -202,7 +158,7 @@ func parsePacks(obj map[string]any, retired *[]RetiredOverride) (p Packs, err er
 	}
 	seen := map[string]bool{}
 	for i, e := range list {
-		entry, err := parseEntry(e, i, retired)
+		entry, err := parseEntry(e, i)
 		if err != nil {
 			return Packs{}, err
 		}
@@ -230,17 +186,12 @@ func parseID(token string) (string, bool, error) {
 	return token, false, nil
 }
 
-func parseEntry(e any, i int, retired *[]RetiredOverride) (PackEntry, error) {
+func parseEntry(e any, i int) (PackEntry, error) {
 	switch v := e.(type) {
 	case string:
 		id, local, err := parseID(v)
 		return PackEntry{ID: id, Local: local}, err
 	case map[string]any:
-		for k, why := range refusedEntryKeys {
-			if _, ok := v[k]; ok {
-				return PackEntry{}, fmt.Errorf("packs.declared[%d]: %q is not read by this engine: %s", i, k, why)
-			}
-		}
 		if errs := entrySchema.Validate(v); len(errs) > 0 {
 			return PackEntry{}, fmt.Errorf("packs.declared[%d]: %w", i, joinErrs(errs))
 		}
@@ -256,7 +207,6 @@ func parseEntry(e any, i int, retired *[]RetiredOverride) (PackEntry, error) {
 		if c, ok := v["config"].(map[string]any); ok {
 			entry.Config = c
 		}
-		entry.Via = v["via"]
 		if a, ok := v["answers"]; ok && a != nil {
 			obj, ok := a.(map[string]any)
 			if !ok {
@@ -271,7 +221,7 @@ func parseEntry(e any, i int, retired *[]RetiredOverride) (PackEntry, error) {
 				entry.Answers[q] = text
 			}
 		}
-		c, err := parseChecks(map[string]any{"rules": v["rules"], "accept": v["accept"]}, "the "+token+" pack entry", retired)
+		c, err := parseChecks(map[string]any{"rules": v["rules"], "accept": v["accept"]}, "the "+token+" pack entry")
 		if err != nil {
 			return PackEntry{}, err
 		}
@@ -284,7 +234,7 @@ func parseEntry(e any, i int, retired *[]RetiredOverride) (PackEntry, error) {
 	return PackEntry{}, fmt.Errorf("packs.declared[%d] is neither a pack id nor an entry object", i)
 }
 
-func parseChecks(raw any, where string, retired *[]RetiredOverride) (Checks, error) {
+func parseChecks(raw any, where string) (Checks, error) {
 	c := Checks{}
 	obj, _ := raw.(map[string]any)
 	if obj == nil {
@@ -305,14 +255,6 @@ func parseChecks(raw any, where string, retired *[]RetiredOverride) (Checks, err
 			s, ok := val.(string)
 			if !ok {
 				return Checks{}, fmt.Errorf("%s: rules.%s must be \"block\", \"advise\" or \"off\"", where, id)
-			}
-			if to, ok := RetiredOnFail[s]; ok {
-				label := where
-				if where == "checks" {
-					label = "the top-level checks block"
-				}
-				*retired = append(*retired, RetiredOverride{Where: label, Rule: id, Value: s, OnFail: to})
-				s = to
 			}
 			c.Rules[id] = s
 		}

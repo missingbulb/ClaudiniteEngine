@@ -6,5 +6,3 @@ packs:
   channel: "stable"
   declared:
     - acme-pack
-license:
-  plan: "public"

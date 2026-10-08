@@ -7,5 +7,3 @@ packs:
   declared:
     - acme-pack
     - local/mine
-license:
-  plan: "public"

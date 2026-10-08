@@ -63,10 +63,6 @@ commands:
                  member files, vendor the packs and what they require,
                  seed and stamp for them; ends on the QUESTIONS, HANDOVER
                  and NEXT blocks
-  init --from-node [--channel stable|canary|staging] [--repo DIR]
-                 move a Node member: pin, import .claudinite-settings.json,
-                 vendor its canon packs again, replace the Node hooks and
-                 write the workflows; deletes no member file
   adopt ID[,ID] [--answer PACK/Q=TEXT]... [--repo DIR]
                  declare and vendor more packs on an adopted repo, every
                  id resolved before any write; ends as init does
@@ -76,11 +72,6 @@ commands:
                  a declared pack entry's config as JSON (null where it
                  carries none), for a pack's own script; exit 1 when the
                  pack is not declared
-  settings import [--from FILE] [--stdout] [--repo DIR]
-                 read the Node engine's .claudinite-settings.json into the
-                 pinned .claudinite/settings.* as its packs and checks
-                 blocks, one report line per key; --stdout prints the
-                 blocks as YAML instead; exit 1 when a key is refused
   rules-index [--check] [--repo DIR]
                  write the import index of the active packs' prose that
                  CLAUDE.md imports, and the flat task declarations and
