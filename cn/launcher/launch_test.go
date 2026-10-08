@@ -694,6 +694,21 @@ func TestLauncher(t *testing.T) {
 			t.Errorf("requests %v, want none", got)
 		}
 	})
+
+	t.Run("17 an engine.releases given twice is refused before any download", func(t *testing.T) {
+		t.Parallel()
+		s := startStub(t, rel.dist)
+		m := newMember(t, s)
+		m.settings(t, "settings.yaml", strings.Replace(yaml(testVersion, rel.pin), "packs:",
+			"  releases: \"acme/acme-distro\"\n  releases: \"acme/other-distro\"\npacks:", 1))
+		_, errOut, code := m.run(t, "", "env", "install")
+		if code != 1 || !strings.Contains(errOut, "engine.releases") {
+			t.Errorf("exit %d, stderr %s; want a refusal naming engine.releases", code, errOut)
+		}
+		if got := s.requests(t); len(got) != 0 {
+			t.Errorf("requests %v, want none", got)
+		}
+	})
 }
 
 // toolsWithout is a PATH holding every command the launcher calls except
