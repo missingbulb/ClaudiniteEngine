@@ -173,6 +173,15 @@ commands:
                  what FLEET_GITHUB_TOKEN must be granted
   fleet protocol [--json]
                  the add-packs work-list constants
+  fleet promote-scope --base REF [--repo DIR]
+                 the promote pull request's gate: every path the branch
+                 touches since its merge base with REF lies under the
+                 canon's corpus roots (packs/ and the fleet block's
+                 writePaths); exit 1 names each stray path
+  fleet pack-history [<id>...] [--ref REF] [--json] [--repo DIR]
+                 a canon shelf's version walk at REF (HEAD): each pack's
+                 last version move, the shipping files changed since and
+                 the pull requests each version carried
 `
 
 // secretScanPlant is set only by the secret scan's own test build, to prove

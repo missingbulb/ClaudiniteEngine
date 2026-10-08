@@ -83,11 +83,11 @@ var topSchema = descriptor.Schema{Name: "settings", Keys: map[string]descriptor.
 }}
 
 // fleetSchema is the fleet block: whose repositories the manager covers,
-// which it leaves out, what it seeds into each member, and when a member
-// reads as stale.
+// which it leaves out, what it seeds into each member, when a member
+// reads as stale, and the corpus roots beside packs/ a promote may write.
 var fleetSchema = descriptor.Schema{Name: "fleet", Keys: map[string]descriptor.Kind{
 	"owner": descriptor.String, "kind": descriptor.String, "exclude": descriptor.List, "packSeeds": descriptor.List,
-	"staleDays": descriptor.Any,
+	"staleDays": descriptor.Any, "writePaths": descriptor.List,
 }}
 
 var packsSchema = descriptor.Schema{Name: "packs", Keys: map[string]descriptor.Kind{
