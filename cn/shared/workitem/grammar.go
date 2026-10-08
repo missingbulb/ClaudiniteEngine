@@ -222,9 +222,11 @@ func (i Issue) Outcome() string {
 // renamedPacks maps a canon pack's retired id to today's, for a title
 // filed before the rename.
 var renamedPacks = map[string]string{
-	"barriers":       "basics",
-	"tidy-repo":      "basics",
-	"static-website": "public-website",
+	"barriers":                  "basics",
+	"tidy-repo":                 "basics",
+	"static-website":            "public-website",
+	"claudinite-canon-curation": "fleet",
+	"claudinite-fleet-sheepdog": "fleet",
 }
 
 // CanonicalPackID is a pack id as it resolves today.

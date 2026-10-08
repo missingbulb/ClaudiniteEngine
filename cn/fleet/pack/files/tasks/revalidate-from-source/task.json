@@ -1,0 +1,15 @@
+{
+  "id": "revalidate-from-source",
+  "description": "Keeps the shelf current with the technologies its packs teach: reads each pack's declared upstream sources, changes pack content that has been dated, and advances the reconciliation anchors through an owner-approved pull request.",
+  "trigger": "schedule",
+  "preconditions": [
+    "schedule:at-most-monthly"
+  ],
+  "expected_outcome": "supersede_existing_pr",
+  "automerge": [
+    "under:packs && doc-changes"
+  ],
+  "agent_model": "opus",
+  "agent_instructions": "task.md",
+  "agent_execution_timeout": 2700
+}

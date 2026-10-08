@@ -1,0 +1,15 @@
+{
+  "id": "pack-version-history",
+  "description": "Retraces from the base branch's history which pull requests each pack version shipped and writes the rows its VERSIONS.md is missing, so the record of what a version changed is derived from git rather than maintained by hand in every pull request.",
+  "trigger": "schedule",
+  "preconditions": [
+    "schedule:at-most-weekly",
+    "commits-under:packs"
+  ],
+  "expected_outcome": "supersede_existing_pr",
+  "automerge": [
+    "pack-version-history"
+  ],
+  "code_worker_mjs": "worker.mjs",
+  "code_work_timeout": 600
+}

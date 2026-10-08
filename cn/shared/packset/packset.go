@@ -312,17 +312,23 @@ func stringList(v any) []string {
 
 // Declared reads the repo's settings file and its packs block.
 func Declared(repo string) (settings.Packs, error) {
+	p, err := parsedSettings(repo)
+	return p.Packs, err
+}
+
+// parsedSettings reads the repo's whole settings file.
+func parsedSettings(repo string) (settings.Parsed, error) {
 	path, f, err := settings.Find(repo)
 	if err != nil {
-		return settings.Packs{}, err
+		return settings.Parsed{}, err
 	}
 	raw, err := os.ReadFile(path)
 	if err != nil {
-		return settings.Packs{}, err
+		return settings.Parsed{}, err
 	}
-	p, err := settings.ReadPacks(raw, f)
+	p, err := settings.ParseFile(raw, f)
 	if err != nil {
-		return settings.Packs{}, fmt.Errorf("%s: %w", settings.RelPath(f), err)
+		return settings.Parsed{}, fmt.Errorf("%s: %w", settings.RelPath(f), err)
 	}
 	return p, nil
 }

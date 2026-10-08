@@ -1,0 +1,14 @@
+{
+  "id": "usage-triage",
+  "description": "Turns a usage-review finding that has stood two weeks into a proposed change to the shelf - the edit itself, one pull request per subject, for the owner to merge or decline.",
+  "trigger": "schedule",
+  "preconditions": [
+    "schedule:at-most-weekly",
+    "lasting-usage-finding"
+  ],
+  "expected_outcome": "fresh_pr",
+  "automerge": "nothing",
+  "agent_model": "opus",
+  "agent_instructions": "task.md",
+  "agent_execution_timeout": 2700
+}

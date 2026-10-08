@@ -163,8 +163,8 @@ type Task struct {
 	Decl     Decl
 	// Terms are the task's own precondition terms.
 	Terms Terms
-	// Engine is true for the engine's own tasks: a built-in, or a canon
-	// pack whose manifest says "engine": true.
+	// Engine is true for the engine's own tasks: a built-in, a pack the
+	// binary carries, or a canon pack whose manifest says "engine": true.
 	Engine bool
 }
 
@@ -191,7 +191,7 @@ func Discover(repo string, packs []packset.Pack) ([]Task, []DiscoveryError) {
 		if p.Kind != packset.Temp {
 			active = append(active, p)
 		}
-		engine[p.ID] = p.Kind == packset.Canon && p.Manifest.Engine
+		engine[p.ID] = (p.Kind == packset.Canon && p.Manifest.Engine) || p.Kind == packset.Engine
 	}
 	found, errs := DeclarationFiles(active)
 	rel := func(p string) string {

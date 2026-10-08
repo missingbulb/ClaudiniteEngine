@@ -1,0 +1,18 @@
+{
+  "id": "growth-promote",
+  "description": "The growth lifecycle's central stage: reads the participating members' merged local-pack lessons, generalises the portable ones, and opens an owner-gated pull request against the canon.",
+  "schedule_after": [
+    "claudinite-growth/growth-extract"
+  ],
+  "trigger": "schedule",
+  "preconditions": [
+    "schedule:at-most-daily",
+    "fleet-local-packs-changed"
+  ],
+  "expected_outcome": "amend_existing_or_create_new_pr",
+  "automerge": "nothing",
+  "invocation_endpoint": "fleet",
+  "agent_model": "opus",
+  "agent_instructions": "task.md",
+  "agent_execution_timeout": 2700
+}

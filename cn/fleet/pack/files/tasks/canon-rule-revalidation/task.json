@@ -1,0 +1,15 @@
+{
+  "id": "canon-rule-revalidation",
+  "description": "Re-probes the shelf's rules whose truth lives outside this repository, such as what the harness rejects or which tools exist, and corrects the ones the platform has moved under.",
+  "trigger": "schedule",
+  "preconditions": [
+    "schedule:at-most-weekly"
+  ],
+  "expected_outcome": "amend_existing_or_create_new_pr",
+  "automerge": [
+    "under:packs"
+  ],
+  "agent_model": "opus",
+  "agent_instructions": "task.md",
+  "agent_execution_timeout": 2700
+}
