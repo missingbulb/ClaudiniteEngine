@@ -174,6 +174,10 @@ commands:
                  what FLEET_GITHUB_TOKEN must be granted
   fleet protocol [--json]
                  the add-packs work-list constants
+  fleet create-dashboard-artifact [--repo DIR] [--out DIR]
+                 build the fleet dashboard's static site from the
+                 manager's fleet block into DIR (default _site at the
+                 repo), for a Pages workflow to upload
 `
 
 // secretScanPlant is set only by the secret scan's own test build, to prove

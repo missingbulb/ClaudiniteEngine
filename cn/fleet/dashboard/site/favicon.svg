@@ -1,0 +1,19 @@
+<!-- The pack badge's bar-chart mark, redrawn for a browser tab: bars thick enough to
+     survive 16px and no baseline rule, which at that size closes into a smudge. The
+     badge (badge.svg) is a catalog asset the badge renderer owns and is not published
+     with the site, so the tab icon carries its own copy of the mark. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="Claudinite fleet status">
+  <title>Claudinite fleet status</title>
+  <defs>
+    <linearGradient id="favicon-plane" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2a78d6"/>
+      <stop offset="1" stop-color="#215ea7"/>
+    </linearGradient>
+  </defs>
+  <rect width="32" height="32" rx="7" fill="url(#favicon-plane)"/>
+  <g fill="#ffffff">
+    <rect x="7" y="15" width="5" height="10" rx="1.5"/>
+    <rect x="13.5" y="8" width="5" height="17" rx="1.5"/>
+    <rect x="20" y="12" width="5" height="13" rx="1.5"/>
+  </g>
+</svg>

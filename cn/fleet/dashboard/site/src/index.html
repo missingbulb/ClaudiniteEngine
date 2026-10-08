@@ -1,0 +1,1223 @@
+<!doctype html>
+<!--
+  SERVED FROM THE DIRECTORY ABOVE THIS ONE. Every path below resolves against this
+  document's URL, which is the page's home — so `./src/app.mjs` and `./favicon.svg`
+  are written from there, not from `src/`. Opening this file directly, or serving
+  `src/` as a root, breaks both. `cn fleet create-dashboard-artifact` puts it back
+  where it belongs; nothing else should serve it.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claudinite</title>
+<link rel="icon" href="./favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,100..900;1,62..125,100..900&family=DM+Mono:ital,wght@0,400;0,500;1,400&display=swap">
+<style>
+  /* Light is the base palette; the dark steps are their own selected values under
+     both the OS setting and an explicit toggle, never an automatic inversion. */
+  :root {
+    color-scheme: light;
+    --plane:      #f9f9f7;
+    --surface:    #fcfcfb;
+    --ink:        #0b0b0b;
+    --ink-2:      #52514e;
+    --muted:      #898781;
+    --rule:       #e1e0d9;
+    --border:     rgba(11,11,11,0.10);
+
+    --good:     #0ca30c;
+    --warning:  #fab219;
+    --serious:  #ec835a;
+    --critical: #d03b3b;
+
+    --s-blue:   #2a78d6;
+    --s-orange: #eb6834;
+    --s-aqua:   #1baf7a;
+    --s-yellow: #eda100;
+    --s-violet: #4a3aa7;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --plane:   #0d0d0d;
+      --surface: #1a1a19;
+      --ink:     #ffffff;
+      --ink-2:   #c3c2b7;
+      --muted:   #898781;
+      --rule:    #2c2c2a;
+      --border:  rgba(255,255,255,0.10);
+      --s-blue:   #3987e5;
+      --s-orange: #d95926;
+      --s-aqua:   #199e70;
+      --s-yellow: #c98500;
+      --s-violet: #9085e9;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --plane:   #0d0d0d;
+    --surface: #1a1a19;
+    --ink:     #ffffff;
+    --ink-2:   #c3c2b7;
+    --muted:   #898781;
+    --rule:    #2c2c2a;
+    --border:  rgba(255,255,255,0.10);
+    --s-blue:   #3987e5;
+    --s-orange: #d95926;
+    --s-aqua:   #199e70;
+    --s-yellow: #c98500;
+    --s-violet: #9085e9;
+  }
+
+
+  /* --- the ledger sheet (docs/visual-identity.md) --------------------------------
+     The redesigned block's own palette, SCOPED TO THE SHEET rather than to :root.
+     The identity is the whole page's eventually, but it arrives one block at a time
+     and the panels below still read the tokens above — so the sheet carries its own
+     complete light set, redefined twice for dark exactly as the identity's theme
+     pattern asks, and no colour here has its only definition inside a media block. */
+  .page {
+    --paper: #eef1ef; --sheet: #fbfcfb; --ink: #16211f; --ink-2: #4b5956; --muted: #7c8a86;
+    --rule: #d5ddda; --ledger: #c3d5dc; --wash: rgba(43,98,161,0.06);
+    --machine: #2b62a1; --machine-wash: rgba(43,98,161,0.13); --dim: #b9cad8;
+    --you: #c98a12; --you-text: #8a5f05; --you-paper: #fdf3e2;
+    --good: #1f8a4c; --good-text: #17703c;
+    --serious: #d0602a; --serious-text: #a3451a;
+    --critical: #bf3b2e; --critical-text: #a02f24;
+    --sans: "Archivo", "Archivo Narrow", "Helvetica Neue", Arial, sans-serif;
+    --mono: "DM Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    background: var(--sheet); color: var(--ink);
+    border: 1px solid var(--rule); border-radius: 2px;
+    font: 400 12.5px/1.4 var(--sans); font-stretch: 100%;
+    margin: 0 0 20px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .page {
+      --paper: #131917; --sheet: #1b2321; --ink: #e6ebe7; --ink-2: #b2bdb8; --muted: #7d8a86;
+      --rule: #2c3634; --ledger: #2f4149; --wash: rgba(127,178,232,0.08);
+      --machine: #7fb2e8; --machine-wash: rgba(127,178,232,0.16); --dim: #3b5570;
+      --you: #e3b458; --you-text: #e3b458; --you-paper: #2e2717;
+      --good: #4dbb7a; --good-text: #4dbb7a;
+      --serious: #ee8a58; --serious-text: #ee8a58;
+      --critical: #ee6d60; --critical-text: #ee6d60;
+    }
+  }
+  :root[data-theme="dark"] .page {
+    --paper: #131917; --sheet: #1b2321; --ink: #e6ebe7; --ink-2: #b2bdb8; --muted: #7d8a86;
+    --rule: #2c3634; --ledger: #2f4149; --wash: rgba(127,178,232,0.08);
+    --machine: #7fb2e8; --machine-wash: rgba(127,178,232,0.16); --dim: #3b5570;
+    --you: #e3b458; --you-text: #e3b458; --you-paper: #2e2717;
+    --good: #4dbb7a; --good-text: #4dbb7a;
+    --serious: #ee8a58; --serious-text: #ee8a58;
+    --critical: #ee6d60; --critical-text: #ee6d60;
+  }
+
+  .page a { color: var(--machine); text-decoration: none; }
+  .page a:hover { text-decoration: underline; }
+  .page .mono { font-family: var(--mono); }
+  .page .cap { font-family: var(--sans); font-stretch: 78%; font-weight: 700; font-size: 10.5px;
+               letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink-2); }
+  .page .gap { color: var(--muted); font-style: italic; }
+  .page .ask { color: var(--you-text); }
+
+  /* A band is a `<section>`, and the page's own section rule gives those a bottom
+     margin — four of them put 104 px of air inside a block budgeted at 450. The sheet
+     has no gaps between bands by construction: a rule separates them. */
+  /* The sheet's band, and a `section` only — never a table row. A `<tr class="band">`
+     matched this and was laid out as a two-column grid, which drops `colSpan` and
+     stacks a grouped head's titles on top of each other; the grouped head is
+     `group-band` now, and this stays qualified so the collision cannot come back. */
+  section.band { display: grid; grid-template-columns: 112px 1fr; border-top: 1px solid var(--rule); margin: 0; }
+  section.band:first-child { border-top: 0; }
+  section.band .stub { padding: 10px 12px 10px 14px; border-right: 1px solid var(--ledger); }
+  section.band .stub .cap { display: block; line-height: 1.25; }
+  section.band .stub .q { display: block; font-size: 11px; color: var(--muted); font-style: italic;
+                   margin-top: 3px; line-height: 1.3; }
+  section.band .body { padding: 8px 16px 10px; min-width: 0; }
+
+  /* start here: the one object that sits ON the sheet */
+  .slip { background: var(--you-paper); border-radius: 2px; padding: 8px 14px 9px;
+          display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; row-gap: 4px; }
+  .slip .hl { font-size: 17px; font-weight: 700; font-stretch: 92%; letter-spacing: -0.005em;
+              line-height: 1.2; text-wrap: balance; }
+  .slip .where { font-family: var(--mono); font-size: 12px; }
+  .slip .chip { font-family: var(--mono); font-size: 12px; color: var(--you-text);
+                border: 0; padding: 0; background: none; }
+  .slip .more { color: var(--ink-2); font-size: 12px; margin-left: auto; text-align: right; }
+  /* The queue behind the prod, as a control rather than a count: the two steps, where
+     the reader is, and the whole set as one link out. It sits at the slip's right edge,
+     after `more` has taken the space it needs. */
+  .slip .nav { display: flex; align-items: baseline; gap: 6px; margin-left: auto; }
+  .slip .step { font-family: var(--mono); font-size: 13px; line-height: 1; color: var(--you-text);
+                background: none; border: 1px solid var(--ledger); border-radius: 2px;
+                padding: 2px 7px; cursor: pointer; }
+  .slip .step:hover:not(:disabled) { background: var(--wash); }
+  .slip .step:disabled { color: var(--muted); cursor: default; }
+  .slip .at { font-family: var(--mono); font-size: 11px; color: var(--ink-2); }
+  .slip .see-all { font-size: 11.5px; }
+
+  /* the machine */
+  .machine { display: grid; grid-template-columns: 0.95fr 1.7fr 1fr 0.9fr 1.6fr; gap: 0; }
+  /* Six cells one level down, where the fleet's five ask about every member: the repo
+     adds CI on main, and its heartbeat is one square per HOUR rather than per member. */
+  .machine.repo { grid-template-columns: 1.5fr 0.85fr 0.85fr 0.85fr 1.4fr; }
+  .machine.repo .cell { padding-left: 10px; padding-right: 10px; }
+  .machine.repo .cell .v { font-size: 18px; }
+  .machine .cell { padding: 2px 14px 0; border-left: 1px solid var(--ledger); min-width: 0; }
+  .machine .cell:first-child { padding-left: 0; border-left: 0; }
+  .machine .cell .k { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .page .sq { width: 7px; height: 7px; display: inline-block; flex: none; border-radius: 0; }
+  .page .sq.good { background: var(--good); } .page .sq.you { background: var(--you); }
+  .page .sq.serious { background: var(--serious); } .page .sq.critical { background: var(--critical); }
+  .page .sq.machine { background: var(--machine); } .page .sq.none { border: 1px solid var(--muted); }
+  .machine .cell .v { font-family: var(--mono); font-size: 21px; font-weight: 500; line-height: 1.15;
+                      margin-top: 4px; display: flex; align-items: baseline; gap: 7px; }
+  .machine .cell .v .u { font-family: var(--sans); font-size: 11.5px; font-weight: 400; color: var(--ink-2); }
+  .machine .cell .n { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+  .machine .cell.alarm .v, .machine .cell.alarm .n { color: var(--critical-text); }
+  .machine .cell.alarm .v { font-weight: 700; }
+  .beat { display: flex; gap: 2px; margin-top: 6px; flex-wrap: wrap; }
+  .beat i { width: 10px; height: 10px; display: block; background: var(--good); }
+  .beat i.you { background: var(--you); } .beat i.serious { background: var(--serious); }
+  .beat i.critical { background: var(--critical); }
+  .beat i.none { background: none; border: 1px solid var(--rule); }
+  .wake { margin-top: 5px; }
+  .wake svg { display: block; width: 100%; height: 30px; }
+  .wake text { font-family: var(--mono); font-size: 8.5px; fill: var(--muted); }
+
+  /* the ledger */
+  .ledger { display: grid; grid-template-columns: 1fr 1fr 1fr; }
+  .ledger .col { padding: 0 16px; border-left: 1px solid var(--ledger); min-width: 0; }
+  .ledger .col:first-child { padding-left: 0; border-left: 0; }
+  .ledger .col:last-child { padding-right: 0; }
+  .ledger h3 { margin: 0; padding: 2px 0 6px; display: flex; gap: 8px; align-items: baseline; font-size: inherit; }
+  .ledger h3 .q { font-weight: 400; font-style: italic; font-size: 11.5px; color: var(--muted);
+                  text-transform: none; letter-spacing: 0; }
+  .fig { display: grid; grid-template-columns: 70px minmax(0,1fr) 56px 46px; column-gap: 6px;
+         align-items: center; min-height: 42px; border-top: 1px solid var(--ledger); }
+  .fig:first-of-type { border-top: 0; }
+  .fig .v { font-family: var(--mono); font-size: 18px; font-weight: 500; letter-spacing: -0.01em;
+            line-height: 1; white-space: nowrap; }
+  .fig .t { line-height: 1.3; min-width: 0; }
+  /* The unit WRAPS rather than clipping: it is the line that says what the figure is,
+     and nothing the reader must read is ever cut. The row stayed one line tall the
+     moment the gap sentence moved out of it. */
+  .fig .t .u { display: block; font-size: 12.5px; }
+  .fig .t .s { display: block; font-size: 11px; color: var(--muted); line-height: 1.3; }
+  .fig .t .s.gap { font-style: italic; }
+  .fig .d { font-family: var(--mono); font-size: 12px; text-align: right; line-height: 1.3;
+            color: var(--ink-2); white-space: nowrap; }
+  .fig .d .vs { display: block; font-size: 10.5px; color: var(--muted); }
+  .fig .d.bad { color: var(--serious-text); font-weight: 500; }
+  .fig .sp { justify-self: end; }
+  .fig .sp svg { width: 46px; height: 20px; display: block; }
+  .totals { display: grid; grid-template-columns: 1fr 1fr 1fr; border-top: 3px double var(--ledger);
+            margin-top: 8px; padding-top: 6px; }
+  .totals > div { padding: 0 16px; border-left: 1px solid var(--ledger); display: flex; gap: 8px;
+                  align-items: baseline; font-size: 11.5px; color: var(--ink-2); min-width: 0; }
+  .totals > div:first-child { padding-left: 0; border-left: 0; }
+  .totals > div:last-child { padding-right: 0; }
+  .totals b { font-family: var(--mono); font-size: 16px; font-weight: 500; color: var(--ink); }
+  .totals .sub { color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis;
+                 white-space: nowrap; min-width: 0; }
+  .totals .expand { margin-left: auto; flex: none; }
+  .page .expand { font: inherit; font-size: 11.5px; color: var(--machine); background: none;
+                  border: 0; padding: 0; cursor: pointer; }
+  .page .expand:hover { text-decoration: underline; }
+  .page .detail { margin-top: 8px; font-size: 12px; border-top: 1px solid var(--ledger); overflow-x: auto; }
+  .page .detail table { border-collapse: collapse; width: 100%; }
+  .page .detail th { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--ledger); }
+  .page .detail td { padding: 4px 8px; border-bottom: 1px solid var(--ledger); }
+  .page .detail tr:last-child td { border-bottom: 0; }
+  .page .detail td.num, .page .detail th.num { text-align: right; font-family: var(--mono); }
+
+  .counted-link { padding-top: 6px; }
+  .page .detail.counted ul { margin: 6px 0; padding-left: 18px; }
+  .page .detail.counted li { margin: 3px 0; color: var(--ink-2); line-height: 1.45; }
+
+  /* --- the Work board --------------------------------------------------------------
+     One SVG that scales to its container; the marks and their colours are the sheet's
+     own tokens, so the board and the ledger above it are one surface. */
+  .board-sheet { padding: 8px 14px 12px; }
+  svg.board { width: 100%; height: auto; display: block; }
+  svg.board text { font-family: var(--sans); font-size: 11px; fill: var(--ink); }
+  svg.board .gutter { font-family: var(--mono); font-size: 10.5px; fill: var(--ink-2); }
+  svg.board .group { font-family: var(--sans); font-stretch: 78%; font-weight: 700; font-size: 10px;
+                     letter-spacing: 0.09em; fill: var(--ink-2); }
+  svg.board .group-note { font-size: 11px; fill: var(--ink-2); }
+  svg.board .axis-day { font-family: var(--mono); font-size: 8.5px; fill: var(--muted); }
+  svg.board .axis-now { font-family: var(--mono); font-size: 9px; fill: var(--ink); }
+  svg.board .finding { font-size: 10.5px; fill: var(--serious-text); }
+  svg.board .more, svg.board .edge { font-size: 10.5px; fill: var(--muted); }
+  svg.board .break { font-size: 13px; fill: var(--critical); }
+  svg.board .glyph { font-family: var(--mono); font-size: 10px; }
+  svg.board .cell-count { font-family: var(--mono); font-size: 9.5px; }
+  svg.board .mark { cursor: pointer; }
+  svg.board .mark:hover { opacity: 0.82; }
+  /* A number on the board opens it. The link keeps its row's own ink at rest — the
+     board's colours all mean something — and declares itself under the cursor. */
+  svg.board a { cursor: pointer; }
+  svg.board a:hover tspan { fill: var(--machine); text-decoration: underline; }
+
+  .quiet { border-top: 1px solid var(--ledger); margin-top: 8px; padding-top: 6px; }
+  .quiet-head { display: flex; gap: 14px; align-items: baseline; font-size: 11.5px; color: var(--ink-2); flex-wrap: wrap; }
+  .quiet-head .n { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .page .quiet-list ul { margin: 6px 0; padding-left: 18px; }
+  .page .quiet-list li { margin: 2px 0; font-size: 11.5px; color: var(--ink-2); }
+
+  /* The board's hover card. It follows the pointer, so it is fixed to the viewport
+     rather than placed in the board's flow, and it never takes the pointer: a card the
+     pointer can enter flickers as the mark under it loses the hover. */
+  /* A mark that opens something says so under the pointer, and shows where the keyboard
+     has reached — the marks are the board's only tab stops. */
+  svg.board a.mark-link { cursor: pointer; }
+  svg.board a.mark-link:focus-visible { outline: 2px solid var(--machine); outline-offset: 2px; }
+  .board-tip { position: fixed; z-index: 40; pointer-events: none; max-width: 380px;
+               background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+               box-shadow: 0 6px 24px rgba(0,0,0,0.18); padding: 8px 12px 10px; }
+  .panel-x { min-width: 0; }
+  .panel-x h4 { margin: 0 0 6px; font-size: 12.5px; font-weight: 700; display: flex; gap: 8px; align-items: baseline; }
+  .panel-x dl { margin: 0; display: grid; grid-template-columns: 108px minmax(0, 1fr); row-gap: 3px; column-gap: 10px; }
+  .panel-x dt { font-family: var(--sans); font-stretch: 78%; font-weight: 700; font-size: 10px;
+                letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink-2); padding-top: 2px; }
+  .panel-x dd { margin: 0; font-size: 11.5px; color: var(--ink); white-space: pre-wrap; min-width: 0; overflow-wrap: anywhere; }
+  .panel-x dd.gap { color: var(--muted); font-style: italic; }
+  .panel-x .do { margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--ledger); font-size: 11.5px; }
+  .panel-x .do b { font-family: var(--sans); font-stretch: 78%; font-size: 10px; letter-spacing: 0.09em;
+                   text-transform: uppercase; color: var(--ink-2); margin-right: 8px; }
+
+  /* the repo machine's 24 hour squares */
+  .beat.hours i { width: 6px; }
+  .beat i.idle { background: none; border: 1px solid var(--rule); }
+  .beat i.unread { background: none; border: 1px dashed var(--muted); }
+
+  /* pulse */
+  .pulse { display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: center; }
+  .pulse svg { width: 100%; height: 28px; display: block; }
+  .pulse .n { font-family: var(--mono); font-size: 11px; color: var(--muted); white-space: nowrap; }
+
+  section.band.next .body { color: var(--muted); font-size: 12px; padding-top: 10px; padding-bottom: 10px; }
+
+  /* The repo sheet is budgeted at 450 px so the Work board — the page's core — begins
+     above the fold. It buys that with tighter tracks rather than fewer facts: the
+     figure and delta columns give their slack to the text column, which is what stops
+     a two-word unit wrapping onto a second line and doubling a row. */
+  .page.compact section.band .stub { padding-top: 7px; padding-bottom: 7px; }
+  .page.compact section.band .body { padding-top: 5px; padding-bottom: 6px; }
+  .page.compact .fig { grid-template-columns: 58px minmax(0,1fr) 50px 40px; min-height: 30px; }
+  .page.compact .fig .v { font-size: 16px; }
+  .page.compact .fig .sp svg { width: 40px; height: 17px; }
+  .page.compact .ledger .col { padding: 0 12px; }
+  .page.compact .totals { margin-top: 5px; padding-top: 4px; }
+  .page.compact .tailrow { padding-top: 3px; }
+  .page.compact .pulse svg { height: 20px; }
+  .page.compact .machine .cell .v { margin-top: 2px; }
+  @media (max-width: 900px) {
+    section.band { grid-template-columns: 1fr; }
+    section.band .stub { border-right: 0; padding-bottom: 0; }
+    .ledger, .totals, .machine { grid-template-columns: 1fr; }
+    .ledger .col, .totals > div, .machine .cell { border-left: 0; padding-left: 0; }
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--plane);
+    color: var(--ink);
+    font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  a { color: var(--s-blue); }
+  h1 { font-size: 17px; margin: 0; letter-spacing: -0.01em; }
+  h2 { font-size: 13px; margin: 0 0 10px; color: var(--ink-2); font-weight: 600;
+       text-transform: uppercase; letter-spacing: 0.06em; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 18px 20px 64px; }
+
+  /* --- controls --- */
+  /* `topbar`, not `bar`: `.bar` is the outcome mini-chart below, and a header
+     sharing that name inherits its 7px×108px geometry. */
+  header.topbar {
+    position: sticky; top: 0; z-index: 5;
+    background: var(--surface);
+    border-bottom: 1px solid var(--rule);
+  }
+  .topbar-in { max-width: 1180px; margin: 0 auto; padding: 12px 20px;
+               display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .grow { flex: 1 1 auto; }
+  input, button, select {
+    font: inherit; color: var(--ink); background: var(--surface);
+    border: 1px solid var(--border); border-radius: 7px; padding: 6px 9px;
+  }
+  input { min-width: 190px; }
+  select { max-width: 260px; }
+  button { cursor: pointer; }
+  button:hover { border-color: var(--muted); }
+  button[disabled] { opacity: .5; cursor: default; }
+  button.primary { background: var(--s-blue); border-color: var(--s-blue); color: #fff; font-weight: 600; }
+  .hint { color: var(--muted); font-size: 12px; }
+  .authbox { display: inline-flex; align-items: center; gap: 8px; }
+  .avatar { border-radius: 50%; display: block; }
+
+  /* --- stat tiles: the headline numbers, no chart needed --- */
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+           gap: 10px; margin-bottom: 22px; }
+  .tile { background: var(--surface); border: 1px solid var(--border);
+          border-radius: 10px; padding: 12px 14px; }
+  .tile .v { font-size: 25px; line-height: 1.15; }
+  .tile .k { font-size: 12px; color: var(--ink-2); margin-top: 2px; }
+
+  /* --- panels & tables --- */
+  section { margin-bottom: 26px; }
+  .panel { background: var(--surface); border: 1px solid var(--border);
+           border-radius: 10px; overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 11px; text-transform: uppercase;
+       letter-spacing: 0.05em; color: var(--muted); font-weight: 600;
+       padding: 9px 12px; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+  td { padding: 9px 12px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  tbody tr:hover { background: color-mix(in srgb, var(--ink) 4%, transparent); }
+  .num { font-variant-numeric: tabular-nums; }
+  /* Hyphenated declaration values (`comment-only-changes`, `daily-2h`) are single tokens to a
+     reader and must not break at their hyphen. */
+  .nw { white-space: nowrap; }
+  .scroll { overflow-x: auto; }
+  .name { font-weight: 600; }
+  .sub { color: var(--muted); font-size: 12px; }
+
+  /* --- chips: state is identity, so it always carries its own label text --- */
+  .chip { display: inline-flex; align-items: center; gap: 5px;
+          border-radius: 999px; padding: 2px 9px; font-size: 12px;
+          border: 1px solid var(--border); white-space: nowrap; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+  .chip.blocked   .dot { background: var(--s-blue); }
+  .chip.ready     .dot { background: var(--s-aqua); }
+  .chip.executing .dot { background: var(--s-yellow); }
+  .chip.agent     .dot { background: var(--s-violet); }
+  .chip.human     .dot { background: var(--critical); }
+  .chip.torn      .dot { background: var(--serious); }
+  .chip.idle      .dot { background: var(--muted); }
+  .chip.urgent { border-color: var(--critical); color: var(--critical); }
+
+  .chip.filter { background: none; cursor: pointer; color: inherit; font: inherit; font-size: 12px; }
+  .chip.filter.on { border-color: var(--ink); font-weight: 600; }
+
+  /* --- the grid's three bands, and the greyed rows in two of them ---
+     GREY IS THE POINT, not a disabled state: these members are readable and their
+     links work — the colour says the fleet is not acting on them, which is why the
+     rule is on the row's own text rather than on `pointer-events` or `opacity` over
+     the whole thing (a greyed-out control reads as broken). A dormant row keeps its
+     Claudinite columns and only loses the emphasis; an out-of-fleet row keeps its
+     GitHub facts. */
+  tr.out-of-fleet td, tr.dormant-row td { color: var(--muted); }
+  tr.out-of-fleet .name, tr.dormant-row .name { color: var(--muted); font-weight: 500; }
+  tr.out-of-fleet td a:not(.cta), tr.dormant-row td a:not(.cta) { color: var(--muted); }
+  tr.out-of-fleet .est, tr.dormant-row .est { color: var(--muted); }
+
+  .band-head td { padding: 6px 0 4px; border-bottom: 1px solid var(--rule); }
+  .band-toggle { background: none; border: 0; padding: 2px 0; cursor: pointer; font: inherit;
+                 font-size: 11.5px; letter-spacing: 0.04em; text-transform: uppercase;
+                 color: var(--muted); }
+  .band-toggle.on { color: var(--ink); }
+  .band-toggle:disabled { cursor: default; opacity: 0.6; }
+
+  /* --- the call to action: one way out of every row --- */
+  .cta-cell { text-align: right; }
+  .cta-wrap { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+  a.cta, button.cta { display: inline-block; font-size: 12px; border: 1px solid var(--border);
+                      border-radius: 4px; padding: 2px 7px; background: none; cursor: pointer;
+                      color: var(--ink); font-family: inherit; text-decoration: none; white-space: nowrap; }
+  a.cta:hover, button.cta:hover { border-color: var(--ink); }
+  .cta-text { width: 220px; height: 54px; font-size: 11px; font-family: var(--mono); }
+  .cta-clear { font-size: 18px; line-height: 1; }
+
+  /* --- member state tags: what KIND of member a row is, beside its name ---
+     Three marks that must never read as one another: `private` is GitHub's own
+     flag, `dormant` is the member's declaration (its scheduler is stopped, so the
+     fleet measures neither its freshness nor its scheduler), and `sleepy` is a reading
+     of the last fortnight's commits on a member that is otherwise fully in the
+     fleet. Dormant is solid and quiet, sleepy is dashed — a state nothing declared
+     and that can change back tomorrow. */
+  .tags { display: flex; flex-wrap: wrap; gap: 4px; margin: 2px 0 1px; }
+  .tag { font-size: 10.5px; letter-spacing: 0.04em; text-transform: uppercase;
+         border-radius: 3px; padding: 0 4px; border: 1px solid var(--border);
+         color: var(--muted); white-space: nowrap; }
+  .tag.dormant { border-color: var(--muted); color: var(--ink); }
+  .tag.sleepy { border-style: dashed; border-color: var(--s-blue); color: var(--s-blue); }
+
+  /* Warnings pair an icon with words — the color never carries it alone. */
+  .warn { display: block; font-size: 12px; margin-top: 3px; }
+  .warn.critical { color: var(--critical); }
+  .warn.serious  { color: var(--serious); }
+  .warn.warning  { color: var(--ink-2); }
+  .warn.info     { color: var(--muted); }
+  .warn.ok       { color: var(--good); }
+
+  /* The fleet table leans on a left edge rather than a row wash: a tinted row fights
+     the status text inside it, and severity is already spelled out in words. */
+  tr.lvl-critical td:first-child { box-shadow: inset 3px 0 0 var(--critical); }
+  tr.lvl-serious  td:first-child { box-shadow: inset 3px 0 0 var(--serious); }
+  tr.lvl-warning  td:first-child { box-shadow: inset 3px 0 0 var(--warning); }
+  tr.muted-row td { color: var(--muted); }
+
+  /* The crumb is the widest thing that can appear in the bar, and its select grows
+     with the longest repo name. It is allowed to shrink and truncate so the controls
+     to its right stay on one row. */
+  .crumb { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+  .crumb .sep { color: var(--muted); }
+  .crumb select { max-width: 190px; min-width: 0; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chips .chip .count { margin-left: 5px; color: var(--muted); font-weight: 600; }
+
+  /* --- the one plotted mark: a thin outcome bar per task --- */
+  .bar { display: flex; gap: 2px; height: 7px; width: 108px; }
+  .bar i { display: block; height: 100%; }
+  .bar i:first-child { border-radius: 4px 0 0 4px; }
+  .bar i:last-child  { border-radius: 0 4px 4px 0; }
+  .bar i:only-child  { border-radius: 4px; }
+  /* A bar with nothing in it still occupies its column, so the row's other bars stay
+     aligned and "empty" reads as empty rather than as a missing cell. */
+  .bar i.bar-empty { background: var(--rule); border-radius: 4px; }
+  .sw { display: inline-block; width: 9px; height: 9px; border-radius: 3px;
+        vertical-align: -1px; margin-right: 5px; }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px;
+            color: var(--ink-2); margin-bottom: 10px; }
+
+  /* --- "why does this number matter" --- */
+  /* Every heading can explain itself in place. A dashboard's numbers are only worth
+     showing if a reader knows what would make them bad, and a legend nobody can find
+     is the same as no legend. */
+  button.info { border: 0; background: none; padding: 0 0 0 6px; color: var(--muted);
+                font-size: 12px; line-height: 1; cursor: pointer; }
+  button.info:hover { color: var(--s-blue); }
+  button.info[aria-expanded="true"] { color: var(--s-blue); }
+  .info-body { margin: -4px 0 12px; padding: 10px 12px; border-left: 3px solid var(--rule);
+               background: var(--surface); border-radius: 0 8px 8px 0; color: var(--ink-2);
+               font-size: 12.5px; max-width: 78ch; text-transform: none; letter-spacing: 0; font-weight: 400; }
+  .info-body strong { color: var(--ink); }
+
+  /* --- grouped header bands --- */
+  /* A wide row is three questions, not twelve columns. The band names them and a
+     single rule carries each group down the table — a heavier treatment (a wash, a
+     border box) would fight the severity edge the rows already use. */
+  /* The titles wrap. They inherit the `th` rule's `nowrap`, which is right for a column
+     name — a one-word label the layout can widen the column to fit — and wrong for a
+     group title, a phrase sitting over however many columns its group happens to have:
+     widening a column to fit its group's title is the band deciding the grid's shape. */
+  tr.group-band th { padding-bottom: 2px; border-bottom: 0; font-size: 10px;
+                     color: var(--ink-2); letter-spacing: 0.08em; white-space: normal; }
+  tr.group-band th.group { border-left: 1px solid var(--rule); padding-left: 12px; }
+  tr.group-band th.group.blank { border-left: 0; }
+  th.group-start, td.group-start { border-left: 1px solid var(--rule); }
+  /* A grouped grid is wide by construction. Given the choice between squeezing every
+     column until its text wraps to five lines and scrolling the panel, scroll: the
+     groups exist so a reader can go to the one question they came for. */
+  /* The grid's floor, and it is a floor rather than a fit: a table this wide would
+     otherwise collapse its columns into unreadable slivers before the panel decides
+     to scroll. Folding Stars into the member cell, CI into a dot, the last-commit
+     date into a 90-day graph and the parks into a bar is what let this come down from
+     1500 — and the last of those is why no column here is prose any more, which is the
+     floor's real job: a floor only stops the slivers, it cannot stop one column that
+     wants four hundred pixels from taking them from the other nine. */
+  #fleet { min-width: 1040px; }
+  #roster { min-width: 1080px; }
+  /* Health is prose and needs room to be one line per reason; every other column is a
+     number or a chip and can stay narrow. */
+  /* The identity cell holds whole sentences on the rare row that has a reason left to
+     spell out, so it needs room to wrap rather than to stretch the grid. */
+  #fleet td.member-cell { min-width: 210px; max-width: 280px; }
+
+  /* The benefits block leads the page, so it is allowed one step more presence than
+     the status tiles that follow it — and the delta line is the point of each tile. */
+  .tiles.benefits .tile { border-color: var(--rule); }
+  .tiles.benefits .v { font-size: 28px; }
+  .sub.delta.good { color: var(--good); }
+  .sub.delta.bad { color: var(--serious); }
+
+  /* --- activity charts --- */
+  .charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 10px; }
+  .chart-card { background: var(--surface); border: 1px solid var(--border);
+                border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+  .chart-card .k { font-size: 12px; color: var(--ink-2); }
+  /* A detail table wider than a phone scrolls inside its card instead of widening the page. */
+  .chart-card > table { display: block; overflow-x: auto; }
+  .chart-wrap { display: flex; flex-direction: column; gap: 5px; }
+  svg.chart { width: 100%; height: 84px; display: block; }
+  svg.chart rect.col { opacity: .92; }
+  svg.chart rect.col:hover { opacity: 1; }
+  .chart-axis { display: flex; justify-content: space-between; gap: 8px; }
+  .movement .v { font-size: 25px; line-height: 1.15; }
+
+  .movement .k { font-size: 12px; color: var(--ink-2); margin: 2px 0 6px; }
+
+  /* --- the lead: the two blocks a reader who came with no question is served by ---
+     Everything below them reports; these two ask for something. They sit side by side
+     because they are one thought — what to do, and what happened — and stack on a
+     narrow screen rather than shrinking, since both are prose. */
+  .lead { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 22px; }
+  @media (max-width: 900px) { .lead { grid-template-columns: 1fr; } }
+  /* One block has nothing to sit beside, so it takes the row rather than half of it. */
+  .lead.one { grid-template-columns: 1fr; }
+  .lead > section { margin: 0; }
+  /* The accent is the severity, on the edge rather than in the text: the card is read
+     before it is read, and an uncoloured one means nothing is red. */
+  .lead-card { border-left-width: 3px; border-left-style: solid; border-left-color: var(--border); }
+  .lead-card.lvl-critical { border-left-color: var(--critical); }
+  .lead-card.lvl-serious  { border-left-color: var(--serious); }
+  .lead-card.lvl-warning  { border-left-color: var(--warning); }
+  .lead-card.lvl-ok       { border-left-color: var(--good); }
+  /* The why and its price, on one line: the figure is the reason to act NOW and reads
+     against the sentence it prices, not as a footnote under it. */
+  .lead-top { display: flex; gap: 14px; align-items: flex-start; justify-content: space-between; }
+  .lead-why { font-size: 17px; line-height: 1.3; }
+  /* The one figure on this card that is a quantity of YOUR time rather than a count of
+     the machine's things — the same weight the fleet grid gives its own estimate. */
+  .lead-est { text-align: center; white-space: nowrap; padding: 5px 12px; border-radius: 10px;
+              background: color-mix(in srgb, var(--ink) 6%, transparent); }
+  .lead-est .v { display: block; font-size: 25px; line-height: 1.15; font-variant-numeric: tabular-nums; }
+  .lead-est .k { display: block; font-size: 11.5px; color: var(--muted); }
+  /* Nothing measures a broken scheduler's cost, so the slot says so rather than
+     drawing a zero — an absent estimate is information, a zero is a claim. */
+  .lead-est.none .v { color: var(--muted); }
+  .lead-where { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+  .lead-more { margin: 0; }
+  .lead-act { align-self: flex-start; text-decoration: none; padding: 5px 12px;
+              border-radius: 999px; border: 1px solid var(--border); color: var(--ink); }
+  .lead-act:hover { border-color: var(--muted); }
+  .lead-head { display: flex; align-items: center; gap: 8px; }
+  .lead-head h2 { margin: 0; }
+
+  /* The work table's view switcher. A segmented control rather than a dropdown: there
+     are three, they are always all available, and each carries its own count so the
+     reader knows what a click is offering before making it. */
+  .views { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+  button.view-tab { font-size: 12px; padding: 4px 11px; border-radius: 999px;
+                    color: var(--ink-2); text-transform: capitalize; }
+  button.view-tab.on { border-color: var(--ink-2); color: var(--ink); font-weight: 600; }
+  /* The rows animate from where they were to where they are now, which needs each row
+     to be its own containing block for the transform. */
+  #work tbody tr { will-change: transform; }
+  #work { min-width: 900px; }
+
+  /* Two series, two scales. The right-hand axis label sits at the right so it reads
+     against the axis it belongs to. */
+  .chart-axis .axis.right { text-align: right; }
+  .series-line { fill: none; stroke-width: 1.5; vector-effect: non-scaling-stroke;
+                 stroke-linejoin: round; stroke-linecap: round; }
+  svg.chart.dual { height: 96px; }
+  /* The growth chart earns the full width: a month at daily resolution squeezed into a
+     third of the row is a smear. */
+  .chart-card.wide { grid-column: 1 / -1; }
+
+
+  /* --- the corpus section: two scopes, the rules that fire, the skills that load --- */
+  .chart-card.scope dl { display: grid; grid-template-columns: 1fr auto; gap: 0; margin: 0; }
+  .chart-card.scope dt { padding: 4px 0; color: var(--ink-2); font-size: 12.5px; border-bottom: 1px solid var(--rule); margin: 0; }
+  .chart-card.scope dd { padding: 4px 0; text-align: right; border-bottom: 1px solid var(--rule); margin: 0; }
+  .chart-card.scope dl > :nth-last-child(-n+2) { border-bottom: 0; }
+  .rate { display: flex; align-items: baseline; gap: 8px; }
+  .rate .big { font-size: 20px; color: var(--critical); }
+  .meter { height: 6px; background: var(--rule); border-radius: 999px; overflow: hidden; }
+  .meter > i { display: block; height: 100%; background: var(--critical); border-radius: 999px; }
+  /* A relative-volume bar is a length, not a segment mix: `.vol`, not `.bar`. */
+  .vol { display: block; height: 8px; min-width: 40px; }
+  .vol > i { display: block; height: 100%; border-radius: 2px; min-width: 2px; }
+  .vol > i.block { background: var(--critical); }
+  .vol > i.advise { background: var(--serious); }
+  .vol > i.skill { background: var(--good); }
+  td.volcell { width: 38%; min-width: 120px; }
+  table.plain td { padding: 4px 6px; font-size: 12.5px; }
+  table.plain tbody tr:hover { background: none; }
+  ul.zero { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+  ul.zero li { display: flex; justify-content: space-between; gap: 12px; font-size: 12.5px; padding: 3px 0; border-bottom: 1px dotted var(--rule); }
+  ul.zero li:last-child { border-bottom: 0; }
+  .chip.block, .chip.advise { padding: 1px 6px; font-size: 11px; font-weight: 600; border-radius: 3px; }
+  .chip.block { border-color: var(--critical); color: var(--critical); }
+  .chip.advise { border-color: var(--serious); color: var(--serious); }
+  .dim { color: var(--muted); }
+  #fleet-corpus h3 { font-size: 14px; margin: 18px 0 8px; }
+  /* Collapsed by default: the section is depth, and the members grid is what the page
+     is opened for — it has to land above the fold. The summary still carries the range
+     line, so a closed section says what it holds and who is counted. */
+  details.fold > summary { cursor: pointer; list-style: none; }
+  details.fold > summary::-webkit-details-marker { display: none; }
+  details.fold > summary h2::before { content: "▸ "; color: var(--muted); font-size: 12px; }
+  details.fold[open] > summary h2::before { content: "▾ "; }
+  #fleet-corpus-range { font-size: 12px; color: var(--muted); margin: 0 0 10px; }
+  #fleet-corpus-members { min-width: 860px; }
+
+  tr.pending-row td { color: var(--muted); }
+  #fleet-progress { font-size: 12px; color: var(--muted); margin: 0 0 10px; }
+  .pill { font-size: 12px; border: 1px solid var(--border); border-radius: 999px;
+          padding: 2px 9px; color: var(--ink-2); background: var(--surface); }
+  .pill.warn-pill { border-color: var(--serious); color: var(--serious); }
+  .pill.stop-pill { border-color: var(--critical); color: var(--critical); }
+  .notice { border-left: 3px solid var(--serious); background: var(--surface);
+            padding: 10px 14px; border-radius: 0 8px 8px 0; margin-bottom: 14px; color: var(--ink-2); }
+  .notice b { color: var(--ink); }
+
+  .empty { padding: 22px; text-align: center; color: var(--muted); }
+  .err { border-left: 3px solid var(--critical); background: var(--surface);
+         padding: 10px 14px; border-radius: 0 8px 8px 0; margin-bottom: 14px; }
+  /* The explainer rides in the topbar and opens OVER the page. It answers a question
+     you have once — "what is this thing doing with my credential" — and as a block in
+     the flow it pushed the content it explains down the screen on every load after
+     that one. `position: fixed` rather than absolute: the topbar is sticky, and an
+     absolutely-positioned panel inside it is clipped by the bar's own height. */
+  details.setup { position: relative; }
+  details.setup > summary { cursor: pointer; list-style: none; font-size: 12px;
+                  border: 1px solid var(--border); border-radius: 999px;
+                  padding: 2px 9px; color: var(--ink-2); background: var(--surface); }
+  details.setup > summary::-webkit-details-marker { display: none; }
+  details.setup > summary:hover { border-color: var(--ink-2); color: var(--ink); }
+  details.setup[open] > summary { border-color: var(--ink-2); color: var(--ink); }
+  .setup-body { position: fixed; top: 52px; right: 20px; z-index: 20; width: min(480px, calc(100vw - 40px));
+                max-height: calc(100vh - 72px); overflow: auto;
+                background: var(--surface); border: 1px solid var(--border);
+                border-radius: 10px; padding: 4px 16px 12px;
+                box-shadow: 0 12px 32px color-mix(in srgb, var(--ink) 18%, transparent); }
+  .setup-body p, .setup-body li { color: var(--ink-2); }
+  .setup-body p:last-child { margin-bottom: 4px; }
+
+  /* The member cell. Stars used to ride here beside CI; it is `git-github`'s
+     contribution now and lands in the subrow with everything else a pack reports. */
+  .member { display: flex; gap: 9px; align-items: baseline; }
+
+
+  /* --- pack-contributed metrics ---------------------------------------------------
+     Two surfaces for one contract: a card per pack on the repo page, and one line per
+     pack in a member's subrow on the fleet page. */
+
+  .pack-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                gap: 10px; }
+  .pack-card { background: var(--surface); border: 1px solid var(--border);
+               border-radius: 10px; padding: 12px 14px 14px;
+               display: flex; flex-direction: column; gap: 10px; }
+  .pack-head { display: flex; align-items: center; gap: 8px; }
+  .pack-head .id { font-weight: 600; font-size: 13px; }
+  .pack-head .from { margin-left: 2px; }
+  /* Where the value came from and how old it is — the question a reader asks second,
+     so it sits at the far end of the head rather than in the body. */
+  .pack-head .src { margin-left: auto; font-size: 11px; color: var(--muted);
+                    border: 1px solid var(--border); border-radius: 999px; padding: 1px 8px; }
+  .pack-badge { width: 16px; height: 16px; border-radius: 5px; flex: none; color: #fff;
+                display: grid; place-items: center; font-size: 9px; font-weight: 700; }
+
+  .pack-card .widgets { display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+                        gap: 12px 14px; }
+  .pack-card .w { min-width: 0; }
+  .pack-card .w .v { font-size: 22px; line-height: 1.15; font-variant-numeric: tabular-nums; }
+  .pack-card .w .v.text { font-size: 15px; font-weight: 600; }
+  .pack-card .w .k { font-size: 12px; color: var(--ink-2); margin-top: 2px; }
+  .pack-card .w .k .unit { color: var(--muted); }
+  /* A figure nothing has written reads as its own state, never at the floor: the
+     value slot says what is missing, in words, at the weight of an answer and not of
+     a number. */
+  .pack-card .w.absent .v { color: var(--muted); font-size: 15px; font-weight: 400; }
+  .pack-card .w .w-glyph { margin-right: 4px; color: var(--s-yellow); }
+  .pack-card .w.list { grid-column: 1 / -1; }
+  .pack-card .w.list ul { list-style: none; margin: 6px 0 0; padding: 0;
+                          display: flex; flex-direction: column; gap: 4px; }
+  .pack-card .w.list li { display: flex; gap: 10px; align-items: baseline; font-size: 13px; }
+  .pack-card .w.list li .t { flex: 1 1 auto; min-width: 0; overflow: hidden;
+                             text-overflow: ellipsis; white-space: nowrap; }
+  .pack-card .w.list li .at { flex: none; color: var(--muted); font-size: 12px;
+                              font-variant-numeric: tabular-nums; }
+  .pack-card .w.list .more { font-size: 12px; color: var(--muted); margin-top: 5px; }
+  .pack-card p { margin: 0; }
+
+  /* THE MINI-CARD. A fixed box, because a column of them has to scan as a column: the
+     phrase truncates rather than the box growing. */
+  .minis { display: flex; flex-wrap: wrap; gap: 6px; }
+  .mini { border: 1px solid var(--border); border-radius: 7px;
+          background: color-mix(in srgb, var(--ink) 2.5%, transparent);
+          padding: 4px 9px; width: 168px; font-size: 12.5px; line-height: 1.35;
+          overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+          font-variant-numeric: tabular-nums; color: var(--ink); }
+  .mini.none { border-style: dashed; color: var(--muted); background: none; }
+  /* THREE REGISTERS, and the reason a pack supplies parts rather than a string: the
+     quantity reads first and is what differs between members, the noun says what of,
+     the connective is present for grammar and gets out of the way. */
+  .mini .q { font-weight: 600; color: var(--ink); }
+  .mini .n { color: var(--ink-2); }
+  .mini .c { color: var(--muted); }
+  .mini .mini-glyph { color: var(--s-yellow); margin-right: 2px; }
+
+  /* --- the member group: a standard row, then what its packs report ----------------
+     One <tbody> per member, so both rows highlight together and the severity edge
+     runs the height of the member rather than stopping halfway down it. */
+  tbody.m tr.std td { border-bottom: 0; padding-bottom: 6px; }
+  tbody.m:hover tr td { background: color-mix(in srgb, var(--ink) 4%, transparent); }
+  tr.contrib td { padding-top: 0; padding-bottom: 11px; }
+  /* Indented under the member's name rather than the table's edge: the cards belong
+     to the row above, and the indent is what says so. */
+  td.contrib-cell { padding-left: 51px; }
+
+  /* CI as a dot with its age under it, beside the name rather than in a column. */
+  .ci-mark { text-align: center; flex: none; min-width: 30px; }
+  .ci-mark .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%;
+                  background: var(--muted); }
+  .ci-mark .dot.ok { background: var(--good); }
+  .ci-mark .dot.critical { background: var(--critical); }
+  .ci-mark .dot.info { background: var(--muted); }
+  .ci-mark .sub { margin-top: 3px; }
+
+  /* The 90-day commit curve. `vector-effect` keeps the stroke a hairline through the
+     non-uniform viewBox scale — without it a 108-unit box stretched to 108px of a
+     26px-tall row draws a line thick horizontally and invisible vertically. */
+  .commit-graph svg.commits { display: block; width: 100%; height: 26px; }
+  .commit-area { fill: color-mix(in srgb, var(--good) 22%, transparent); }
+  .commit-line { fill: none; stroke: var(--good); stroke-width: 1;
+                 vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+  /* The second series — the commits that were genuine project work. A different hue
+     and a thinner stroke, because it is read AGAINST the total rather than beside it:
+     the gap between the two lines is the machinery's own share. */
+  .commit-line.meaningful { stroke: var(--s-blue); stroke-width: 1.4; }
+  .commit-graph .sub { margin-top: 2px; }
+
+  /* The pack count wearing the member's freshness. */
+  .pack-mark { position: relative; display: inline-block; padding-right: 13px; }
+  .pack-mark .n { font-size: 19px; line-height: 1.1; }
+  .pack-mark .badge { position: absolute; top: -1px; right: 0; font-size: 12px; line-height: 1; }
+  .pack-mark .badge.ok { color: var(--good); }
+  .pack-mark .badge.info { color: var(--s-blue); }
+  .pack-mark .badge.serious { color: var(--serious); }
+  .pack-mark .badge.warning { color: var(--serious); }
+  .pack-mark .badge.idle { color: var(--muted); }
+
+  /* The estimate. Big, because it is the one figure on the row that is a quantity of
+     YOUR time rather than a count of the machine's things. */
+  .est { font-size: 19px; line-height: 1.1; }
+
+  /* The grid is the widest thing on the page and every column is earning its place,
+     so its cells are tighter than the repo view's roomier tables. */
+  #fleet td, #fleet th { padding-left: 9px; padding-right: 9px; }
+
+  /* The attention tile's itemisation — what kind of human attention, not how much. */
+  .needs { display: flex; flex-direction: column; gap: 2px; margin-top: 3px; }
+  .needs .warn { font-size: 11.5px; }
+  /* The Waiting cell's mark. The line under the bar names every kind, so it is allowed
+     to wrap rather than ellipsise — losing "9 actions" off the end would leave the bar
+     showing a weight with nothing saying what it is made of. */
+  .attn .sub { white-space: normal; line-height: 1.35; }
+  code { background: color-mix(in srgb, var(--ink) 7%, transparent);
+         padding: 1px 5px; border-radius: 4px; font-size: 12.5px; }
+
+  /* --- the sign-in gate --------------------------------------------------------
+     A column narrow enough to read as a form rather than a page: this screen is one
+     decision wide, and the prose beside it is what makes that decision informed. */
+  .gate { max-width: 560px; margin: 48px auto; background: var(--surface);
+          border: 1px solid var(--border); border-radius: 12px; padding: 4px 24px 22px; }
+  .gate h2 { margin-top: 20px; }
+  .gate p { color: var(--ink-2); }
+  .gate-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 18px 0 6px; }
+
+  /* --- the account menu --------------------------------------------------------
+     Reuses the explainer popover's geometry (`.setup-body`); only the summary differs,
+     being a face rather than a word.
+     SHAPED AFTER GITHUB'S OWN avatar menu, which is the menu a viewer's hand already
+     knows: a header naming the account, then full-width rows of one icon and one
+     label, grouped into sections by hairline rules, sign-out last. Every row is a
+     destination or an action — which is the rule the caching note now obeys too, as a
+     disclosure in the last section rather than six lines of prose standing open on
+     every visit by someone who came for Reload. */
+  details.setup > summary.face { padding: 0; border-radius: 50%; border-color: transparent; }
+  /* Narrower than the explainer popover it borrows its geometry from: that width was
+     chosen for a column of prose, and a list of one-word rows in it reads as a panel
+     with the labels adrift from their chevron. A menu is as wide as its longest row. */
+  #account .setup-body { padding: 0; width: min(330px, calc(100vw - 40px)); }
+  .menu-head { padding: 12px 16px 10px; font-size: 13px; color: var(--ink-2); }
+  .menu-head b { color: var(--ink); }
+  .menu-sec { border-top: 1px solid var(--rule); padding: 4px 0; }
+  /* A row, whether it is a button, a disclosure's summary or a line that only reports.
+     One shape, so the eye reads the menu as a list rather than as a form. */
+  .menu-row { display: flex; align-items: center; gap: 10px; width: 100%; box-sizing: border-box;
+              padding: 6px 16px; font-size: 13px; text-align: left; cursor: pointer;
+              background: none; border: 0; border-radius: 0; color: var(--ink);
+              list-style: none; white-space: nowrap; }
+  .menu-row::-webkit-details-marker { display: none; }
+  .menu-row:hover, .menu-row:focus-visible { background: color-mix(in srgb, var(--ink) 6%, transparent); }
+  .menu-row:disabled { color: var(--muted); cursor: default; background: none; }
+  .menu-row.static { cursor: default; }
+  .menu-row.static:hover { background: none; }
+  /* The glyph column, fixed-width so every label starts at one left edge. */
+  .menu-row .ico { width: 16px; flex: none; text-align: center; color: var(--ink-2); font-size: 12px; }
+  .menu-row .grow { flex: 1; }
+  /* The label holds one line; the budget figure is the one thing in a row long enough
+     to need two, so it alone is allowed to wrap rather than push past the menu's edge. */
+  .menu-row .pill { white-space: normal; min-width: 0; text-align: right; }
+  .menu-disclosure > summary::after { content: "▸"; color: var(--muted); font-size: 11px; }
+  .menu-disclosure[open] > summary::after { content: "▾"; }
+  .menu-note { padding: 2px 16px 10px; margin: 0; font-size: 12px; }
+  .remember { display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+              color: var(--ink-2); font-size: 13px; }
+  /* The sheet's `input` rule sets a 190px floor. A checkbox inherits it otherwise, and
+     its label sits a hand's width from the box it labels. */
+  .remember input { min-width: 0; width: auto; }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <h1 id="title">Claudinite Fleet Status</h1>
+    <span id="crumb" class="crumb" hidden></span>
+    <span class="grow"></span>
+    <button id="theme" title="Toggle light / dark">◐</button>
+    <!-- Everything about the viewer's own session — who they are, what this load cost,
+         how the page reads a repo, and the two levers that re-read it — behind the face
+         of whoever is signed in. The topbar's job is to say what you are looking at; a
+         row of account controls beside that competes with it on every screen. -->
+    <details class="setup" id="account" hidden>
+      <summary class="face" title="Account, cache and how this page reads GitHub">
+        <img id="account-avatar" class="avatar" src="" alt="Account" width="24" height="24">
+      </summary>
+      <div class="setup-body">
+      <div class="menu-head">Signed in as <b id="account-login"></b></div>
+      <div class="menu-sec">
+        <button class="menu-row" id="reload" title="Re-read (cached data is revalidated, not refetched)"><span class="ico">&#8635;</span>Reload</button>
+        <button class="menu-row" id="purge" title="Drop every cached response and re-read from GitHub"><span class="ico">&#9003;</span>Clear cache</button>
+      </div>
+      <!-- The budget lives here rather than in the topbar, so `renderRatePill` draws into
+           a panel that may be shut. It is written on every change regardless: a viewer
+           who opens the menu mid-sweep sees the current number, not the one from when
+           the panel was last open. A row of its own, labelled: a chip floating in a
+           menu says a number without saying what it counts. -->
+      <div class="menu-sec">
+        <div class="menu-row static"><span class="ico">&#9201;</span>Rate budget<span class="grow"></span><span id="rate" class="pill" hidden></span></div>
+      </div>
+      <!-- Reference, not an action, so it is the one row that opens rather than doing
+           something — and it is shut until someone asks. It sits with the controls it
+           explains: Reload and Clear cache are the two levers whose effect this note is
+           the answer to, and the gate already carries the credential's own explanation. -->
+      <div class="menu-sec">
+        <details class="menu-disclosure">
+          <summary class="menu-row"><span class="ico">&#9432;</span>How this page reads GitHub<span class="grow"></span></summary>
+          <p class="hint menu-note">
+          Responses are cached in this browser: repo content is keyed by commit SHA, live data is
+          revalidated with ETags (a <code>304</code> costs no rate limit), settled history ages
+          out after 24 hours, and a member's commit graph — the one read here that is decoration
+          rather than a fault signal — after six, and not at all when the budget is tight.
+          <em>Clear cache</em> forces a cold read, and leaves you signed in. Pass
+          <code>?repo=owner/name</code> to jump straight to a repo.
+          </p>
+        </details>
+      </div>
+      <div class="menu-sec">
+        <button class="menu-row" id="signout"><span class="ico">&#8677;</span>Sign out</button>
+      </div>
+      </div>
+    </details>
+  </div>
+</header>
+
+<div class="wrap">
+  <div id="errors"></div>
+
+  <!-- THE GATE. Nothing is read from GitHub until there is a credential, so this screen
+       is the whole of the page's sign-in surface and the views behind it carry none of
+       it: no anonymous rendering, no half-signed-in chrome, no credential box anywhere.
+       It also answers the question a viewer has exactly once — what this page does with
+       their credential — which is why that explanation lives here rather than in the
+       account menu, where it would be re-read by everyone who went looking for Reload.
+       Its heading and the two paragraphs `app.mjs` fills are written by `renderGate`,
+       which has a second screen to draw here: a deployment whose owner has not
+       configured sign-in has no credential to explain, and is told what is missing. -->
+  <div id="signin-view" hidden>
+    <div class="gate">
+      <h2 id="signin-heading">Sign in to read this fleet</h2>
+      <p id="signin-why">
+      Everything happens in this browser tab. The page calls <code>api.github.com</code>
+      directly as <strong>you</strong>, so <strong>your own GitHub permissions are the only
+      access control</strong> — there is no backend, no shared credential, and this page can
+      show you nothing your account cannot already read. Your credential is sent to GitHub
+      and nowhere else.
+      </p>
+      <p id="signin-how"></p>
+      <div id="signin-controls" class="gate-controls"></div>
+      <p class="hint" id="signin-hint">
+      Being signed in to github.com in this browser is not enough on its own: the API never
+      receives that session, so the page has to hold a credential of its own.
+      </p>
+    </div>
+  </div>
+
+  <div id="fleet-view" hidden>
+    <!-- The ledger sheet (docs/fleet-page.md): Start here, The machine, the
+         Got/Cost/Speed ledger with its totals, and the pulse — one ruled surface with
+         a stub column, rendered whole by view-fleet.mjs. It replaced the benefits
+         tiles, the glance tiles and two of the four activity charts; what each of
+         those facts became is the spec's "deliberately absent" list. -->
+    <div class="page" id="fleet-sheet"></div>
+    <p id="fleet-progress"></p>
+
+    <section id="fleet-contrib" hidden>
+      <h2>What this deployment's packs report</h2>
+      <div class="pack-cards" id="fleet-contrib-cards"></div>
+    </section>
+
+    <section>
+      <h2>Fleet activity <button class="info" type="button" data-info="activity" aria-expanded="false" title="Why this panel exists">&#9432;</button></h2>
+      <p class="info-body" id="info-activity" hidden>
+        Every other panel here answers <em>where do I need to look</em>, and after a good week they
+        are all zero — which is exactly what a dead fleet looks like too. This is the other reading:
+        <strong>what happened</strong>, per day. Every figure comes from reads the page already makes,
+        so the panel costs no extra request; what that costs instead is depth, and where a series
+        runs past what one page of issues or thirty runs can see it says so rather than drawing a
+        confident zero.
+      </p>
+      <div class="charts" id="fleet-activity"></div>
+    </section>
+
+
+    <section id="fleet-corpus" hidden>
+      <details class="fold">
+      <summary>
+        <h2>What the corpus is doing across the fleet <button class="info" type="button" data-info="corpus" aria-expanded="false" title="What these figures are">&#9432;</button></h2>
+        <p id="fleet-corpus-range"></p>
+      </summary>
+      <p class="info-body" id="info-corpus" hidden>
+        The detail behind the block at the top, from each member's own
+        <strong>usage fold</strong> — the file the sweep already read, so none of this costs a
+        request. A <strong>check failure is a win</strong>: the finding went back into the session
+        and the agent fixed it before the work left the branch, which is the closest thing this
+        pipeline has to a measure of what the corpus is worth. <em>Runner errors</em> is the one
+        number whose right value is zero. Every count is a floor: only captured sessions are
+        read, and a session whose container was reclaimed is invisible.
+      </p>
+      <p class="info-body" id="info-corpus-2" hidden>
+        Two ranges, on purpose. The <strong>workload tiles</strong> are this week against last,
+        like the block at the top. The <strong>scopes, rules, skills and member rows</strong> cover the
+        whole folded range the files hold, with no comparison: a rule that fired twice this week and
+        once last is not a trend, and "mounted, never loaded" is only a claim worth making over
+        as long a range as there is. A skill that never loads in one repo may just not be that
+        repo's subject; one that never loads anywhere is mis-described or should not be gated at
+        all. A member with no usage file is <strong>named</strong> and counted in nothing.
+      </p>
+      <div class="tiles" id="fleet-workload"></div>
+      <div class="charts" id="fleet-scopes"></div>
+      <h3>Which rules actually fire</h3>
+      <p class="legend" id="fleet-rules-note"></p>
+      <div class="panel scroll"><table id="fleet-rules"></table></div>
+      <h3>Skills: what loads, what never does</h3>
+      <div class="charts" id="fleet-skills"></div>
+      <h3>Per member</h3>
+      <div class="panel scroll"><table id="fleet-corpus-members"></table></div>
+      </details>
+    </section>
+
+    <section>
+      <h2>Members — worst first <button class="info" type="button" data-info="members" aria-expanded="false" title="Why this ordering">&#9432;</button></h2>
+      <p class="info-body" id="info-members" hidden>
+        Ordered by the <strong>worst thing that is true</strong> of each member, not by how much it
+        has. One item parked for a human outranks forty healthy ones, because the first needs you today
+        and the second is the system working. A member that cannot be read, one that does not run
+        Claudinite, and one that is fine are three different rows and never collapse into a zero.
+      </p>
+      <p class="info-body" id="info-members-2" hidden>
+        The columns are grouped as three questions, in the order you ask them:
+        <strong>Activity</strong> — is anyone working on this repo; <strong>Waiting on a person</strong>
+        — what is on your plate here and roughly how long it is; <strong>Claudinite</strong> — what the
+        machinery is doing. Stars and CI sit beside the name rather than in columns, because they are
+        how you recognise the row rather than findings about it. Every column but the commit curve comes
+        from a read this page already makes. Sessions and check counts are not
+        columns here: they live in <strong>What the corpus is doing across the fleet</strong>
+        below, read off each member's own usage fold. Issues and pull requests are counted <em>within the issue window</em>
+        — the most recent hundred — so an older one is not counted rather than counted wrongly.
+      </p>
+      <p class="info-body" id="info-members-3" hidden>
+        <strong>Commits</strong> is the last 90 days as a curve, drawn <em>by week</em> — a quarter at
+        daily resolution is a sawtooth of weekends and Tuesdays with no shape to read — and scaled to
+        <em>that row's own busiest week</em>, so height compares two weeks in one repo and never two
+        repos. The number beneath is the real total, and the hover carries both peaks. A break in the
+        curve is a stretch outside the year GitHub reports statistics for, which is not the same as a
+        quiet one; a cell reading <em>not read</em> is this page declining to spend the request, since
+        this is the one figure here that is decoration rather than a fault signal and so the first
+        thing a tight budget goes without.
+      </p>
+      <p class="info-body" id="info-members-4" hidden>
+        <strong>Est.</strong> is a deliberately crude figure: every item parked for a person, at a flat
+        <strong>7 minutes</strong> each. Nothing here measures how long a park actually takes, and the
+        honest way to publish a number nothing measures is to publish the assumption where you can argue
+        with it. A broken <em>scheduler</em> is not counted into it — that is not a queue of work to get
+        through — though it is still reported. <strong>Packs</strong> wears the member's freshness as a
+        badge, from the roster this deployment's fleet-roster task publishes: a tick when what is declared
+        here is at the published versions, a timer when it is behind, and the roster's own sentence on
+        hover; a deployment that publishes no roster reads unknown. Two facts read together, and the second says the same thing on nearly every row, so it
+        earns a corner rather than a column.
+      </p>
+      <p class="legend">Click a member to open its scheduler in full.</p>
+      <div class="chips" id="fleet-filters"></div>
+      <div class="panel scroll"><table id="fleet"></table></div>
+    </section>
+
+    <section>
+      <h2>Tasks across the fleet <button class="info" type="button" data-info="fleet-tasks" aria-expanded="false" title="Why this panel exists">&#9432;</button></h2>
+      <p class="info-body" id="info-fleet-tasks" hidden>
+        The one question no single repo's page can answer. A task ships from a shared pack, so it runs
+        in every member that declares it — and the same task parked in four members at once is a
+        <strong>canon problem</strong>, while in any one repo it looks like that repo's bad luck.
+      </p>
+      <p class="legend">
+        A shared pack's task, everywhere it runs. One parked in several members at once is
+        the pack's problem, not any one member's.
+      </p>
+      <div class="panel scroll"><table id="fleet-tasks"></table></div>
+    </section>
+
+    <section id="fleet-machine" hidden>
+      <h2>The machinery, fleet-wide <button class="info" type="button" data-info="fleet-machine" aria-expanded="false" title="Where these come from">&#9432;</button></h2>
+      <p class="info-body" id="info-fleet-machine" hidden>
+        The repo page's reliability and cost panel, summed across the fleet: what every member's
+        scheduler and executor closed, parked, and were billed, <strong>this week against last
+        week</strong>. It answers what one repo's page structurally cannot — whether a week of parks
+        is one member's bad luck or the machinery's.
+      </p>
+      <p class="info-body" id="info-fleet-machine-2" hidden>
+        Every figure comes from each member's own
+        <code>.claudinite/usage/task-runs-and-costs.json</code>, read at its head sha alongside the
+        usage file above. A member that does <strong>not</strong> fold it is named in the table and
+        counted in <strong>no</strong> figure — that census is the denominator each number is read
+        against, and it is why nothing here is shown as a rate. Latency quantiles are taken over
+        every member's samples <em>pooled</em>, never over their medians: an average of medians is
+        not a median.
+      </p>
+      <div class="charts" id="fleet-machine-body"></div>
+    </section>
+
+    <section>
+      <h2>Pack adoption <button class="info" type="button" data-info="packs" aria-expanded="false" title="Why this panel exists">&#9432;</button></h2>
+      <p class="info-body" id="info-packs" hidden>
+        Who a change to a pack would reach. Before editing a pack's rules or its checks, this is the
+        blast radius; after, it is how many members have to converge before the change is real.
+      </p>
+      <div class="chips" id="fleet-packs"></div>
+    </section>
+  </div>
+
+  <div id="repo-view" hidden>
+  <!-- The ledger sheet, scoped to one member (docs/repo-page.md): Start here, The
+       machine's six cells, the Got/Cost/Speed ledger with its per-task expand, and the
+       pulse. It replaced the lead card and the glance tiles; each tile's fact moved
+       into a cell that acts on it, and the height that bought is what lands the Work
+       board above the fold. -->
+  <div class="page compact" id="repo-sheet"></div>
+
+  <section>
+    <h2>Work <button class="info" type="button" data-info="work" aria-expanded="false" title="What the board and the three views are">&#9432;</button></h2>
+    <p class="info-body" id="info-work" hidden>
+      The <strong>board</strong> is the same rows drawn on a time axis, one lane per flow — a
+      connected component of the <code>Blocked-by</code> / <code>Ends-when</code> / <code>Closes</code>
+      graph, never one task and never one kind, because the edge is the finding. Every mark is read
+      off a label, a body line, a timestamp or a task declaration; a field the listing does not carry
+      is drawn as <em>not read</em>, never as 0.
+    </p>
+    <p class="info-body" id="info-work-2" hidden>
+      The three tables remain behind it. <strong>stuck</strong> is what has stopped and how long it
+      has been, <strong>pending</strong> is what is moving, <strong>all</strong> is what each task is
+      and what it has done. The page opens on the board whenever anything is stuck or waiting on a
+      person; a repo with nothing live opens on <em>all</em>, since an empty board teaches its reader
+      the page is broken.
+    </p>
+    <p class="panel gap" id="work-dormant" hidden>
+      This repo declares its <strong>scheduler dormant</strong>, so nothing is instantiated, readied or
+      picked up. Its declared tasks and any open work items are not drawn here, because none of them
+      can move — the rest of the page is still live. Clear <code>dormant</code> on the <code>claudinite-tasks</code> pack entry to
+      wake it; a dormant spell is not replayed, so it simply starts scheduling again from now.
+    </p>
+    <div class="views" id="work-views"></div>
+    <div class="page board-sheet" id="work-board" hidden></div>
+    <div class="panel scroll" id="work-table-wrap"><table id="work"></table></div>
+  </section>
+
+  <section>
+    <h2>What the queue closed <button class="info" type="button" data-info="outcomes" aria-expanded="false" title="Where this comes from">&#9432;</button></h2>
+    <p class="info-body" id="info-outcomes" hidden>
+      Every occurrence is a work item, and a converged one closes wearing its outcome. Today is
+      counted from the live issue page; the days before it come from this repo's own
+      <code>sessions-and-elements.json</code>, folded hourly. A day neither source reached is left
+      <strong>blank</strong> rather than drawn at the floor — "not read" and "nothing happened" are
+      different facts and this chart keeps them apart.
+    </p>
+    <div class="charts" id="work-chart"></div>
+  </section>
+
+  <section>
+    <h2>What ran — the last 48 hours <button class="info" type="button" data-info="runs" aria-expanded="false" title="Which runs these are">&#9432;</button></h2>
+    <p class="info-body" id="info-runs" hidden>
+      Three different things per hour: <strong>scheduler</strong> runs (the hourly tick that decides
+      what is due), <strong>executor</strong> runs (a dispatch actually being run), and
+      <strong>agent sessions</strong> (a session that opened and captured). A scheduler run that fails
+      is not a task that fails — it means nothing got to be decided at all.
+    </p>
+    <p class="info-body" id="info-runs-2" hidden>
+      The freshest hours come from the live run listing this page already fetched; the rest from the
+      usage fold. <strong>Hover an hour</strong> for the tasks that executed in it — the run listing
+      cannot say, since nothing in it names a task, so that detail is the fold's or it is absent.
+    </p>
+    <div class="charts" id="runs-chart"></div>
+  </section>
+
+  <section>
+    <h2>What Claudinite is doing here <button class="info" type="button" data-info="growth" aria-expanded="false" title="What these figures are">&#9432;</button></h2>
+    <p class="info-body" id="info-growth" hidden>
+      What the corpus buys: <strong>checks executed</strong> is how often the conformance rules ran,
+      and <strong>catching something</strong> is how often one failed. A check that <em>fails</em> is a
+      win — the finding goes back into the session and the agent corrects before the work leaves the
+      branch.
+    </p>
+    <p class="info-body" id="info-growth-2" hidden>
+      The two lines are on <strong>separate scales</strong>, stated on each axis: check runs are two
+      figures a day and the runs that caught something are single ones, so on a shared axis the second
+      would be drawn as the x-axis. Two heights here never compare. A break in a line is a day nothing answered for —
+      never a day drawn as quiet. Everything in this panel comes from the repo's own usage fold; a
+      repo that does not run it says so instead of showing an empty chart.
+    </p>
+    <div class="charts" id="growth"></div>
+  </section>
+
+  <section>
+    <h2>How the machinery ran, and what it cost <button class="info" type="button" data-info="machine" aria-expanded="false" title="Where these come from">&#9432;</button></h2>
+    <p class="info-body" id="info-machine" hidden>
+      This repo's own scheduler and executor, measured: how many <strong>work items closed</strong> and
+      how they ended, how many were <strong>parked</strong> for a person, how long each leg of an
+      item's life took, and what Actions billed for the runs behind it. Every figure is
+      <strong>this week against last week</strong> — a total that only grows says nothing about this
+      week, so none is drawn.
+    </p>
+    <p class="info-body" id="info-machine-2" hidden>
+      It all comes from <code>.claudinite/usage/task-runs-and-costs.json</code>, a
+      <em>second</em> past-data file written by the claudinite-tasks pack's own fold on its own
+      watermark — not the <code>sessions-and-elements.json</code> the panels above read. A repo that folds
+      one and not the other is ordinary, and this panel says so rather than borrowing the other
+      file's numbers. A counter no day recorded reads <strong>not recorded</strong>, never zero, and
+      a day the fold has not reached is left <strong>blank</strong> rather than drawn at the floor.
+      Latency is stated as quantiles taken here over the window's own samples: the file carries
+      samples, because a week's p50 is not derivable from its days'.
+    </p>
+    <div class="charts" id="machine"></div>
+  </section>
+
+  <section id="pack-metrics" hidden>
+    <h2>What the packs report <button class="info" type="button" data-info="packs" aria-expanded="false" title="Where these come from">&#9432;</button></h2>
+    <p class="info-body" id="info-packs" hidden>
+      Every other panel on this page is the <strong>scheduler</strong>, which every member has. These
+      are what this repo's own declared packs have to say about it — a release pack the last release,
+      a spec pack the requirements that moved — and they differ from repo to repo, which is why they
+      come last. A pack contributes <strong>data, never code</strong>: it ships a descriptor naming
+      what it has, and its own task writes the values into the repo's tree. Nothing here is executed,
+      and a figure that has not been written says so rather than reading as a zero.
+    </p>
+    <div class="pack-cards" id="pack-cards"></div>
+  </section>
+  </div>
+
+  <p class="hint" id="footnote"></p>
+</div>
+
+<script type="module" src="./src/app.mjs"></script>
+</body>
+</html>
