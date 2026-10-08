@@ -146,6 +146,12 @@ func (g World) RunsForSHA(sha string) ([]land.Run, error) {
 	return w.Runs, nil
 }
 
+// ApproveRun approves a run GitHub holds at action_required, which then
+// executes; the job token needs actions: write.
+func (g World) ApproveRun(id int64) error {
+	return statusErr(g.c.Call("POST", g.path("/actions/runs/%d/approve", id), nil, nil))
+}
+
 // EnableAutoMerge arms native auto-merge, which waits for the checks;
 // the REST merge would merge now, past them.
 func (g World) EnableAutoMerge(nodeID string) error {

@@ -60,7 +60,7 @@ func TestAWorkflowChangeIsStagedOnTheUpdatePR(t *testing.T) {
 }
 
 // Workflows already as the new engine expects stage nothing: the PR is the
-// pin alone and its CI is dispatched as before.
+// pin alone and its held CI run is approved.
 func TestEqualWorkflowsStageNothing(t *testing.T) {
 	t.Parallel()
 	w := newWorld(t, settings.YAML)
@@ -72,8 +72,8 @@ func TestEqualWorkflowsStageNothing(t *testing.T) {
 	if files := gitRun(t, w.bare, "diff", "--name-only", "main", "claudinite/engine-"+v2); files != settings.RelPath(settings.YAML) {
 		t.Errorf("branch changes %q", files)
 	}
-	if d := w.hub.called("dispatch"); len(d) != 1 {
-		t.Errorf("dispatches %v", d)
+	if a := w.hub.called("approve"); len(a) != 1 || len(w.hub.called("dispatch")) != 0 {
+		t.Errorf("calls %v", w.hub.calls)
 	}
 }
 

@@ -184,7 +184,9 @@ func DeliveryAction(delivery string, hasPRCI bool, gate Gate) Action {
 
 // Run is a workflow run on a head sha.
 type Run struct {
+	ID         int64  `json:"id"`
 	Name       string `json:"name"`
+	Event      string `json:"event"`
 	Status     string `json:"status"`
 	Conclusion string `json:"conclusion"`
 }
@@ -247,7 +249,7 @@ const (
 )
 
 // LandAttempt judges one poll of this run's PR: fewer visible runs than
-// it dispatched (a held action_required one not counted) polls to the
+// it started (a held action_required one not counted) polls to the
 // short bound; a run still executing polls to the long one.
 func LandAttempt(delivery string, runs []Run, expected int, elapsed time.Duration) Attempt {
 	visible := 0
@@ -279,11 +281,11 @@ func LandAttempt(delivery string, runs []Run, expected int, elapsed time.Duratio
 func MergeReason(runs []Run) string {
 	for _, r := range runs {
 		if r.Conclusion == "action_required" {
-			return "its pull_request run is parked at action_required (never ran) while the dispatched run passed" +
-				" — check Settings → Actions → General → workflow-approval requirements"
+			return "a pull_request run is still held at action_required (never ran) while the others passed" +
+				" — check that the workflow may approve it (`actions: write`) and Settings → Actions → General → workflow-approval requirements"
 		}
 	}
-	return "its dispatched checks concluded green and nothing on the base branch queues an auto-merge"
+	return "its checks concluded green and nothing on the base branch queues an auto-merge"
 }
 
 // FailureSummary says why a PR was left: the failing runs, else what was
@@ -412,6 +414,7 @@ type API interface {
 	BranchProtected(base string) (*bool, error)
 	BranchRules(base string) ([]string, error)
 	RunsForSHA(sha string) ([]Run, error)
+	ApproveRun(id int64) error
 	EnableAutoMerge(nodeID string) error
 }
 
@@ -434,10 +437,10 @@ type Delivered struct {
 }
 
 // Deliver lands a delivered PR under the member's delivery: it starts the
-// PR's checks first (a push over the Actions token emits no pull_request
-// run), reads the base's gate, then merges, lands on the dispatched
-// evidence, or arms with the landing poll as fallback; each merge it makes
-// dispatches CI on base (DispatchBaseCI). task names the
+// PR's checks first (startCI: GitHub holds a job-token PR's pull_request
+// runs for approval), reads the base's gate, then merges, lands on those
+// runs' evidence, or arms with the landing poll as fallback; each merge it
+// makes dispatches CI on base (DispatchBaseCI). task names the
 // task whose trailer the merge commit carries ("" for none). j judges the
 // diff before any of it: a refusal is Delivered.Refused.
 func (l Lane) Deliver(pr PR, base, delivery, task string, j *Judgement) Delivered {
@@ -450,8 +453,7 @@ func (l Lane) Deliver(pr PR, base, delivery, task string, j *Judgement) Delivere
 		l.Log(err.Error() + " — leaving it for the next run")
 		return Delivered{Action: ActNone}
 	}
-	plan, started, ok := l.dispatchCI(pr.HeadRef)
-	hasCI := !ok || len(plan.Dispatch)+len(plan.Missing) > 0
+	hasCI, started := l.startCI(pr)
 	gate := GateUnknown
 	if p, err := l.API.BranchProtected(base); err == nil {
 		rules, rerr := l.API.BranchRules(base)
@@ -469,14 +471,14 @@ func (l Lane) Deliver(pr PR, base, delivery, task string, j *Judgement) Delivere
 			l.Log(fmt.Sprintf("merged PR #%d directly — this repo has no pull_request CI to gate on", pr.Number))
 		}
 	case ActLand:
-		l.Log(fmt.Sprintf("%s requires nothing to merge — skipping the doomed auto-merge arm; waiting for this run's %d dispatched run(s) and landing PR #%d here", base, started, pr.Number))
+		l.Log(fmt.Sprintf("%s requires nothing to merge — skipping the doomed auto-merge arm; waiting for its %d started run(s) and landing PR #%d here", base, started, pr.Number))
 		out.Merged = l.landNow(pr, delivery, started, task)
 	case ActArm:
 		if pr.NodeID == "" {
 			break
 		}
 		if err := l.API.EnableAutoMerge(pr.NodeID); err != nil {
-			l.Log(fmt.Sprintf("could not arm auto-merge on PR #%d: %v — check Settings → General → \"Allow auto-merge\", and Settings → Actions → General for a workflow-approval requirement parking this PR's pull_request run at action_required. Waiting for this run's dispatched checks and landing it here.", pr.Number, err))
+			l.Log(fmt.Sprintf("could not arm auto-merge on PR #%d: %v — check Settings → General → \"Allow auto-merge\", and Settings → Actions → General for a workflow-approval requirement parking this PR's pull_request run at action_required. Waiting for its checks and landing it here.", pr.Number, err))
 			out.Merged = l.landNow(pr, delivery, started, task)
 		}
 	}
@@ -523,22 +525,41 @@ func DispatchBaseCI(d Dispatcher, base string, log func(string)) {
 	log(fmt.Sprintf("dispatched %s on %s — a merge with the job's token starts no workflow there", CIWorkflow, base))
 }
 
-// dispatchCI starts every pull_request workflow the branch's tree can
-// dispatch and names the ones it cannot; ok is false when the tree could
-// not be read (then CI is assumed, never merged past blind). started
-// counts the dispatches GitHub accepted, which the landing poll waits on.
-func (l Lane) dispatchCI(ref string) (plan DispatchPlan, started int, ok bool) {
-	files, err := l.API.WorkflowFiles(ref)
+// startCI starts the PR's checks: with no pull_request workflow on its
+// branch there are none; otherwise the pull_request runs GitHub holds on
+// its head are approved (StartHeldCI), and only when none appears in the
+// bound does it dispatch what the branch can dispatch. hasCI is true when
+// the tree could not be read (CI is assumed, never merged past blind);
+// started counts the runs the landing poll waits on.
+func (l Lane) startCI(pr PR) (hasCI bool, started int) {
+	files, err := l.API.WorkflowFiles(pr.HeadRef)
 	if err != nil {
-		l.Log(fmt.Sprintf("CI dispatch on %s failed: %v", ref, err))
-		return DispatchPlan{}, 0, false
+		l.Log(fmt.Sprintf("could not read the workflows on %s (%v) — assuming it has pull_request CI", pr.HeadRef, err))
 	}
-	plan = CIDispatchPlan(files)
+	plan := CIDispatchPlan(files)
+	if err == nil && len(plan.Dispatch)+len(plan.Missing) == 0 {
+		l.Log("no pull_request-triggered workflow — the delivered PR has no checks to wait for")
+		return false, 0
+	}
+	h, herr := StartHeldCI(l.API, pr.HeadSHA, HeldWait, l.Sleep, l.Log)
+	switch {
+	case herr != nil:
+		l.Log(fmt.Sprintf("could not read the runs on PR #%d's head (%v) — starting nothing", pr.Number, herr))
+		return true, 0
+	case h.Seen > 0:
+		return true, h.Started
+	case err != nil:
+		return true, 0
+	}
+	l.Log(fmt.Sprintf("no pull_request run appeared on PR #%d's head within %s — dispatching its pull_request workflows instead", pr.Number, HeldWait))
+	return true, l.dispatchCI(plan, pr.HeadRef)
+}
+
+// dispatchCI starts every workflow plan can dispatch on ref and names the
+// ones it cannot, counting the dispatches GitHub accepted.
+func (l Lane) dispatchCI(plan DispatchPlan, ref string) (started int) {
 	for _, name := range plan.Missing {
 		l.Log(name + " runs on pull_request but has no workflow_dispatch trigger — cannot start it on the delivered PR; add `workflow_dispatch:` under its `on:` to let the delivery run it")
-	}
-	if len(plan.Dispatch)+len(plan.Missing) == 0 {
-		l.Log("no pull_request-triggered workflow — the delivered PR has no checks to wait for")
 	}
 	for _, name := range plan.Dispatch {
 		if err := l.API.DispatchWorkflow(name, ref); err != nil {
@@ -553,7 +574,7 @@ func (l Lane) dispatchCI(ref string) (plan DispatchPlan, started int, ok bool) {
 		started++
 		l.Log(fmt.Sprintf("dispatched %s on %s — the delivered PR gets its checks", name, ref))
 	}
-	return plan, started, true
+	return started
 }
 
 // landNow polls this PR's head until its runs conclude and merges on the

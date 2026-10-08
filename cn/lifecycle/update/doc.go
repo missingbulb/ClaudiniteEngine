@@ -9,7 +9,8 @@
 // revoked nor deprecated, downloads and verifies it exactly as the
 // launcher would, placing it in the launcher's cache, runs its selftest
 // and its verify against this repo, and opens a PR moving the pin on
-// claudinite/engine-<version>, superseding an older open update PR. The
+// claudinite/engine-<version>, superseding an older open update PR, and
+// lands it in the same run once its approved CI run passes. The
 // workflows the new binary expects of this repo (`cn workflows stage`) ride
 // that PR staged under .claudinite/cache/pending-workflows/, since the job
 // token may not push .github/workflows/; the engine/update task's agent
@@ -20,7 +21,7 @@
 // the PR's base and head with no GitHub call and no write, passes.
 //
 // The GitHub calls, all with the workflow job's GITHUB_TOKEN: list
-// workflow runs for a head sha, list open PRs, get one PR, create, close
+// workflow runs for a head sha, approve a held run, list open PRs, get one PR, create, close
 // and squash-merge a PR (the merge pinned to the head sha CI ran on), add
 // a label, comment, dispatch a workflow, and list, create, update and
 // close issues. Branches are pushed and deleted with git, on the credentials
@@ -30,7 +31,9 @@
 // workflow_dispatch; a pull_request it opens gets runs that wait for
 // approval
 // (https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow).
-// So the updater dispatches claudinite-ci.yml on the update branch and
-// lands only on a workflow_dispatch run's verdict, dispatches it on main
-// after a merge, and ignores action_required runs when judging main.
+// (https://github.blog/changelog/2026-06-11-bot-created-pull-requests-can-run-workflows-if-approved/).
+// So the updater approves its PR's held claudinite-ci.yml run and lands on
+// that run's verdict, or a dispatched run's where none was held (ciEvents),
+// dispatches claudinite-ci.yml on main after a merge, and ignores
+// action_required runs as a verdict.
 package update
