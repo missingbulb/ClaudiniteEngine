@@ -152,7 +152,7 @@ func TestCIRunsActionlintPinnedBySHA(t *testing.T) {
 	}
 	// The member workflow templates ship inside the binary; CI lints them
 	// beside the engine's own.
-	if !regexp.MustCompile(`actionlint@[0-9a-f]{40} \.github/workflows/\*\.yml cn/lifecycle/workflows/templates/\*\.yml`).Match(raw) {
+	if !regexp.MustCompile(`actionlint@[0-9a-f]{40} \.github/workflows/\*\.yml cn/lifecycle/workflows/templates/\*\.yml cn/tasks/workflows/templates/\*\.yml`).Match(raw) {
 		t.Error("check.sh's actionlint does not lint both .github/workflows and the member templates")
 	}
 	conf, err := os.ReadFile("../../.github/actionlint.yaml")

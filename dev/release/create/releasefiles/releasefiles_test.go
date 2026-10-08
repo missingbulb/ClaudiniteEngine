@@ -54,6 +54,7 @@ func TestUpdaterDigestFollowsTheUpdaterSource(t *testing.T) {
 	write("cn/lifecycle/update/a.go", "package update\n")
 	write("cn/lifecycle/update/sub/b.go", "package sub\n")
 	write("cn/lifecycle/workflows/templates/w.yml", "on: push\n")
+	write("cn/tasks/workflows/templates/q.yml", "on: schedule\n")
 	write("cn/lifecycle/verify/v.go", "package verify\n")
 	write("cn/shared/npmreg/n.go", "package npmreg\n")
 	write("cn/shared/githubapi/g.go", "package githubapi\n")
@@ -83,6 +84,7 @@ func TestUpdaterDigestFollowsTheUpdaterSource(t *testing.T) {
 			_ = os.Rename(filepath.Join(root, "cn/lifecycle/update/c.go"), filepath.Join(root, "cn/lifecycle/update/d.go"))
 		},
 		func() { write("cn/lifecycle/workflows/templates/w.yml", "on: pull_request\n") },
+		func() { write("cn/tasks/workflows/templates/q.yml", "on: workflow_dispatch\n") },
 		func() { write("cn/shared/npmreg/n.go", "package npmreg // changed\n") },
 		func() { write("cn/shared/githubapi/g.go", "package githubapi // changed\n") },
 		func() { write("cn/shared/gitcmd/c.go", "package gitcmd // changed\n") },
