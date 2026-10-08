@@ -59,6 +59,9 @@ type GitHub interface {
 type Deps struct {
 	GitHub   GitHub
 	Registry npmreg.Client
+	// ReleasesHost is where a pin's engine.releases repository is read
+	// from; empty is github.com.
+	ReleasesHost string
 	// Git is the member checkout, on main.
 	Git   gitcmd.Repo
 	Roots []ed25519.PublicKey
@@ -332,12 +335,15 @@ func engine(d Deps, o Options, res *EngineResult) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	p, err := d.Registry.Packument(pin.Package)
-	if err != nil {
-		return "", err
+	var p *npmreg.Packument
+	states := StatesFromPackument(nil)
+	if pin.Releases == "" {
+		if p, err = d.Registry.Packument(pin.Package); err != nil {
+			return "", err
+		}
+		states = StatesFromPackument(p)
 	}
-	states := StatesFromPackument(p)
-	if prev != nil {
+	if prev != nil && p != nil {
 		ver := strings.TrimPrefix(prev.HeadRef, BranchPrefix)
 		if why := pinRefusal(p, states, ver); why != "" {
 			if err := closeUpdatePR(d, *prev, fmt.Sprintf("Closed: %s is now %s, so this pin is never merged.", ver, why)); err != nil {
@@ -363,10 +369,9 @@ func engine(d Deps, o Options, res *EngineResult) (string, error) {
 // the 404 is an error.
 const servedEvery = 20 * time.Second
 
-func fetchServed(d Deps, pkg, ver string, p *npmreg.Packument) (Fetched, error) {
+func fetchServed(d Deps, pin settings.Engine, ver string, p *npmreg.Packument) (Fetched, error) {
 	for waited := time.Duration(0); ; waited += servedEvery {
-		got, err := Fetch(FetchInput{Registry: d.Registry, Package: pkg, Version: ver, Packument: p,
-			Roots: d.Roots, CacheRoot: d.CacheRoot, Platform: d.Platform, Now: d.Now()})
+		got, err := Fetch(fetchInput(d, pin, ver, p))
 		var ns *npmreg.NotServedError
 		if !errors.As(err, &ns) || waited >= npmreg.ServeWait {
 			return got, err
@@ -380,7 +385,10 @@ func fetchServed(d Deps, pkg, ver string, p *npmreg.Packument) (Fetched, error) 
 // or its verify breaks this repo, opens its update PR. It returns the
 // candidate, empty for none, and the verdict.
 func propose(d Deps, o Options, f settings.Format, raw []byte, pin settings.Engine, p *npmreg.Packument, states States, prev *githubapi.PR, prevState string, res *EngineResult) (string, string, error) {
-	c := Candidate(pin.Version, pin.Channel, p, states)
+	c, err := candidateOf(d, pin, p, states)
+	if err != nil {
+		return "", "", err
+	}
 	if c.Skipped != nil {
 		fmt.Fprintf(d.Out, "%s skipped: %s\n", c.Skipped.Version, c.Skipped.Reason)
 	}
@@ -413,7 +421,7 @@ func propose(d Deps, o Options, f settings.Format, raw []byte, pin settings.Engi
 		return c.Version, fmt.Sprintf("skipped: #%d for %s is open and %s", prev.Number, c.Version, why), nil
 	}
 
-	got, err := fetchServed(d, pin.Package, c.Version, p)
+	got, err := fetchServed(d, pin, c.Version, p)
 	if err != nil {
 		return "", "", err
 	}

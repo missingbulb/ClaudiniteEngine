@@ -20,9 +20,14 @@ func TestTarballURLsAreTheLaunchers(t *testing.T) {
 	}
 	vars := map[string]string{"registry": "https://r.example", "package": "@claudinite/cli-rc", "name": "cli-rc", "version": "1.60930.1", "platform": "linux-arm64"}
 	eval := func(name string) string {
-		m := regexp.MustCompile(`(?m)^\s*` + name + `=(\S+)$`).FindStringSubmatch(string(raw))
+		var m []string
+		for _, a := range regexp.MustCompile(`(?m)^\s*`+name+`=(\S+)$`).FindAllStringSubmatch(string(raw), -1) {
+			if strings.HasPrefix(a[1], "$registry/") {
+				m = a
+			}
+		}
 		if m == nil {
-			t.Fatalf("launcher assigns no %s", name)
+			t.Fatalf("launcher assigns no %s from $registry", name)
 		}
 		return regexp.MustCompile(`\$\{?([a-z_]+)\}?`).ReplaceAllStringFunc(m[1], func(v string) string {
 			return vars[strings.Trim(v, "${}")]

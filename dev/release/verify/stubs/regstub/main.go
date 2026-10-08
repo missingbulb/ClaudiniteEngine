@@ -5,6 +5,8 @@
 //	/@claudinite/<name>/-/<name>-<version>.tgz  ->  <dist>/tarballs/<name>-<version>.tgz
 //	/@claudinite%2f<name> (or /@claudinite/<name>)  ->  a packument of every
 //	                                                  <name>-<version>.tgz served
+//	/<owner>/<repo>/releases/download/v<version>/<file>.tgz  ->  <dist>/tarballs/<file>.tgz
+//	/<owner>/<repo>/releases/latest/download/release.json    ->  <dist>/release.json
 //
 // --dist may repeat; the first folder holding the tarball serves it.
 // --deprecations names a JSON file {"<version>": "<message>"}, read on every
@@ -45,6 +47,8 @@ var (
 	tarballPath   = regexp.MustCompile(`^/@claudinite(?:/|%2[fF])([a-z0-9-]+)/-/([a-z0-9.-]+\.tgz)$`)
 	packumentPath = regexp.MustCompile(`^/@claudinite(?:/|%2[fF])([a-z0-9-]+)$`)
 	versionRe     = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+$`)
+	releasePath   = regexp.MustCompile(`^/[A-Za-z0-9-]+/[A-Za-z0-9._-]+/releases/download/v([0-9]+\.[0-9]+\.[0-9]+)/([a-z0-9.-]+\.tgz)$`)
+	latestPath    = regexp.MustCompile(`^/[A-Za-z0-9-]+/[A-Za-z0-9._-]+/releases/latest/download/release\.json$`)
 )
 
 func main() {
@@ -99,6 +103,18 @@ func main() {
 			servePackument(w, r, dists, pm[1], *deprecations, tags)
 			return
 		}
+		if latestPath.MatchString(r.URL.EscapedPath()) {
+			serveFirst(w, r, dists, "release.json")
+			return
+		}
+		if rm := releasePath.FindStringSubmatch(r.URL.EscapedPath()); rm != nil {
+			if !strings.HasSuffix(rm[2], "-"+rm[1]+".tgz") {
+				http.NotFound(w, r)
+				return
+			}
+			serveFirst(w, r, dists, filepath.Join("tarballs", rm[2]))
+			return
+		}
 		m := tarballPath.FindStringSubmatch(r.URL.EscapedPath())
 		if m == nil || !strings.HasPrefix(m[2], m[1]+"-") {
 			http.NotFound(w, r)
@@ -129,6 +145,18 @@ func main() {
 	if err := srv.ServeTLS(ln, "", ""); err != nil && err != http.ErrServerClosed {
 		fail(err)
 	}
+}
+
+// serveFirst serves rel from the first dist folder holding it.
+func serveFirst(w http.ResponseWriter, r *http.Request, dists distList, rel string) {
+	for _, d := range dists {
+		p := filepath.Join(d, rel)
+		if _, err := os.Stat(p); err == nil {
+			http.ServeFile(w, r, p)
+			return
+		}
+	}
+	http.NotFound(w, r)
 }
 
 // servePackument answers npm's packument for @claudinite/<name>: every

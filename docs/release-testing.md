@@ -57,9 +57,13 @@ An engine version is built once and published to `@claudinite/cli` under the `rc
 `release.yml` takes a required `kind`:
 
 - **full** builds the five binaries, checks the linux-x64 build reproduces, runs every job below and publishes under the `rc` dist-tag. It is the only kind that can be promoted.
-- **staging** builds linux-x64 alone, runs only the secret scan and the platform smoke, and publishes under the `staging` dist-tag, which only repos whose settings set `engine.channel: "staging"` read; the owner opts his own repos in to try a change on real work within minutes. Its manifest lists one platform, so promotion refuses it.
+- **staging** builds linux-x64 alone, runs only the secret scan and the platform smoke, and publishes under the `staging` dist-tag, which only repos whose settings set `engine.channel: "staging"` read; the owner opts his own repos in to try a change on real work within minutes. Its manifest lists one platform, so promotion refuses it. Right after the tag and before npm, `dev/release/publish/distro.sh` uploads the build's two linux-x64 tarballs as release `v<version>` of the repository `dev/release/publish/staging-distro` names (ClaudiniteStagingDistro), marked latest, with a `release.json` naming the version, its pin and the engine commit. A repo whose settings set `engine.releases` to that repository fetches the build from there as soon as the upload ends, and its nightly update reads its candidate from that `release.json` (Record decision 154).
 
 Both kinds tag the commit just before publishing, so a run that fails after npm took its version never hands that version to the next run. Right after publishing they check that npm's version documents name the tarballs they built, then start `from-npm.yml`, which installs the release from npm once npm serves its tarballs, minutes later, and opens a release-blocker issue if that fails. The release does not wait for it (Record decision 24).
+
+### Working on a staging build from a session
+
+A session in a repo whose `engine.releases` names the staging distro, waiting on a staging build of engine commit `S`, waits on the build rather than on the release run: an until-loop whose condition is that `https://github.com/missingbulb/ClaudiniteStagingDistro/releases/latest/download/release.json` names `"commit": "S"`. That URL answers anonymously from Actions and from web sessions. Once it does, the session writes the `version` and `manifest` it names into its working tree's `engine.version` and `engine.manifest`, runs `sh .claudinite/launch env install`, and the relinked `.claudinite/bin/cn` is the new build for the rest of the session. It does not commit that pin, since the pin guard refuses a person's pin move: `main` takes the build through its update PR, at once by dispatching the repo's update workflow, or at the next nightly run.
 
 ### Per release candidate
 

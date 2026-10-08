@@ -249,6 +249,80 @@ func TestProposeOpensAPinOnlyPR(t *testing.T) {
 	}
 }
 
+// onReleasesRepo is body, a settingsFor, with engine.releases naming
+// acme/acme-distro.
+func onReleasesRepo(f settings.Format, body string) string {
+	switch f {
+	case settings.TOML:
+		return strings.Replace(body, "version =", "releases = \"acme/acme-distro\"\nversion =", 1)
+	case settings.JSON:
+		return strings.Replace(body, `"version":`, `"releases": "acme/acme-distro", "version":`, 1)
+	}
+	return strings.Replace(body, "  version:", "  releases: \"acme/acme-distro\"\n  version:", 1)
+}
+
+// A pin on engine.releases takes the version that repository's latest
+// release.json names, fetched from its release and never from npm.
+func TestAReleasesPinProposesTheLatestRelease(t *testing.T) {
+	t.Parallel()
+	for _, f := range settings.Formats {
+		w := newWorld(t, f)
+		onReleases := onReleasesRepo(f, settingsFor(f, v1, pin1))
+		if err := os.WriteFile(filepath.Join(w.repo, settings.RelPath(f)), []byte(onReleases), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		gitRun(t, w.repo, "commit", "-q", "-am", "releases")
+		gitRun(t, w.repo, "push", "-q", "origin", "main")
+		w.mainRun(t, "success")
+		w.publish(t, v2, relOpts{})
+		w.reg.toReleases(t, "acme/acme-distro", pkg, v2)
+		w.publish(t, v3, relOpts{})
+		d := w.deps(t)
+		d.ReleasesHost = w.reg.srv.URL
+		v, err := Engine(d, Options{})
+		if err != nil || v != "opened #1 for "+v2 {
+			t.Fatalf("%s: %q %v\n%s", f, v, err, w.out)
+		}
+		for _, r := range w.reg.requests() {
+			if !strings.HasPrefix(r, "/acme/acme-distro/") {
+				t.Errorf("%s: read %s, not the releases repository", f, r)
+			}
+		}
+		committed := gitRun(t, w.bare, "show", "claudinite/engine-"+v2+":"+settings.RelPath(f)) + "\n"
+		e, err := settings.ReadEngine([]byte(committed), f)
+		if err != nil || e.Version != v2 || e.Releases != "acme/acme-distro" {
+			t.Errorf("%s: committed settings %+v %v", f, e, err)
+		}
+		if err := CheckPin(d, e); err != nil {
+			t.Errorf("%s: the proposed pin does not check: %v", f, err)
+		}
+		e.Manifest = pin1
+		if err := CheckPin(d, e); err == nil {
+			t.Errorf("%s: a pin whose manifest is not the release's checked", f)
+		}
+	}
+}
+
+// A release.json naming the pin, or an older version, proposes nothing.
+func TestAReleasesPinAtTheLatestReleaseIsUpToDate(t *testing.T) {
+	t.Parallel()
+	w := newWorld(t, settings.YAML)
+	w.publish(t, v1, relOpts{})
+	w.reg.toReleases(t, "acme/acme-distro", pkg, v1)
+	onReleases := onReleasesRepo(settings.YAML, settingsFor(settings.YAML, v1, pin1))
+	if err := os.WriteFile(filepath.Join(w.repo, settings.RelPath(settings.YAML)), []byte(onReleases), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	gitRun(t, w.repo, "commit", "-q", "-am", "releases")
+	gitRun(t, w.repo, "push", "-q", "origin", "main")
+	w.mainRun(t, "success")
+	d := w.deps(t)
+	d.ReleasesHost = w.reg.srv.URL
+	if v, err := Engine(d, Options{}); err != nil || v != "up to date" {
+		t.Fatalf("%q %v\n%s", v, err, w.out)
+	}
+}
+
 func TestVerifyBreakOpensNoPR(t *testing.T) {
 	t.Parallel()
 	w := newWorld(t, settings.YAML)
