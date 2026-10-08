@@ -94,7 +94,7 @@ func UnsignedDist(t *testing.T) (string, string) {
 // development release key under.
 func DevKeyEnv(t *testing.T) []string {
 	t.Helper()
-	return []string{"RELEASE_KEY=" + Path(t, "dev/keys/testkeys/release.key"), "RELEASE_CERT=" + Path(t, "dev/keys/testkeys/release.cert.json"), "ROOTS=" + Path(t, "cn/shared/trust/devroots")}
+	return []string{"RELEASE_KEY=" + Path(t, "dev/release/keys/testkeys/release.key"), "RELEASE_CERT=" + Path(t, "dev/release/keys/testkeys/release.cert.json"), "ROOTS=" + Path(t, "cn/shared/trust/devroots")}
 }
 
 var update = flag.Bool("update", false, "rewrite golden files")

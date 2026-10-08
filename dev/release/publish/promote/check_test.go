@@ -43,12 +43,12 @@ func cliTarballs(t *testing.T, how tamper) string {
 		data[p] = d
 	}
 	manifest := releasefiles.Format(releasefiles.Manifest{V: 1, Version: ver, BuiltAt: "2026-09-30T00:00:00Z", Commit: "abc1234", GoVersion: runtime.Version(), UpdaterDigest: strings.Repeat("1", 64), Binaries: bins})
-	keyRaw, _ := os.ReadFile("../../../keys/testkeys/release.key")
+	keyRaw, _ := os.ReadFile("../../keys/testkeys/release.key")
 	key, err := sign.ParsePrivateKey(string(keyRaw))
 	if err != nil {
 		t.Fatal(err)
 	}
-	certRaw, _ := os.ReadFile("../../../keys/testkeys/release.cert.json")
+	certRaw, _ := os.ReadFile("../../keys/testkeys/release.cert.json")
 	var cert sign.Certificate
 	if err := json.Unmarshal(certRaw, &cert); err != nil {
 		t.Fatal(err)

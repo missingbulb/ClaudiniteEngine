@@ -19,7 +19,7 @@
 #            rehearsal_break tag), holds back on a red main, skips held and
 #            revoked versions, files the revoked pin's issue, and runs as the
 #            engine/update task the scheduler files and the executor drains. Every dist is signed with the development
-#            keys (dev/keys/testkeys/), as the updater checks signatures.
+#            keys (dev/release/keys/testkeys/), as the updater checks signatures.
 #   packs    a fresh repo adopts the hello pack through the npx bootstrap
 #            from a local pack source (dev/release/verify/fixtures/packs-fixture.sh, served by
 #            dev/release/verify/stubs/cdnstub and read as the vendored branch), its session
@@ -84,7 +84,7 @@
 #
 # Needs go, node, curl, git and a release from dev/release/create/build.sh, ideally
 # built with REHEARSAL=1 BUILD_TAGS=devroots: every key, certificate and
-# signature here chains to the development root (dev/keys/testkeys/), which only such
+# signature here chains to the development root (dev/release/keys/testkeys/), which only such
 # a build trusts, beside the ceremony's roots the real pack shelf is signed
 # under. Any other release is rebuilt so first.
 set -eu
@@ -121,7 +121,7 @@ case $update_steps in 4|11) ;; *) fail "UPDATE_STEPS must be 4 or 11, not $updat
 [ -f "$DIST/manifest.integrity" ] || fail "no release in $DIST; run dev/release/create/build.sh first"
 # rehearsal_sign DIST: signs DIST with the development release key.
 rehearsal_sign() {
-  DIST=$1 RELEASE_KEY=$root/dev/keys/testkeys/release.key RELEASE_CERT=$root/dev/keys/testkeys/release.cert.json ROOTS=$root/cn/shared/trust/devroots \
+  DIST=$1 RELEASE_KEY=$root/dev/release/keys/testkeys/release.key RELEASE_CERT=$root/dev/release/keys/testkeys/release.cert.json ROOTS=$root/cn/shared/trust/devroots \
     sh dev/release/create/sign.sh > "$work/sign.out" 2>&1 || fail "signing $1: $(cat "$work/sign.out")"
 }
 DIST=$DIST sh dev/release/verify/smoke.sh
