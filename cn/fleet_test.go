@@ -175,7 +175,7 @@ func TestFleetJudgeRefusesARepositoryOutsideTheOwner(t *testing.T) {
 	t.Setenv("FLEET_GITHUB_TOKEN", "t")
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "")
 	entitleAcme(t)
-	writeFile(t, repo, ".claudinite/settings.yaml", "packs:\n  declared:\n    - id: claudinite-fleet-sheepdog\n      config:\n        owner: acme\n")
+	writeFile(t, repo, ".claudinite/settings.yaml", "fleet:\n  owner: acme\n")
 	_, errOut, code := runInProc([]string{"fleet", "judge", "Other/x", "--repo", repo}, "")
 	if code != 1 || !strings.Contains(errOut, "other/x is not under the fleet's owner acme") || !strings.Contains(errOut, "[cn] fleet judge refused 0/1 ") {
 		t.Fatalf("exit %d, err %q", code, errOut)

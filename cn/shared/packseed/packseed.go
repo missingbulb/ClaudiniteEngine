@@ -1,5 +1,5 @@
 // Package packseed reads a fleet manager's pack seeds, the declarations
-// its claudinite-fleet-sheepdog entry asks every member to carry, and
+// its fleet block asks every member to carry, and
 // says when two configs are the same value. The pack-seed sweep writes
 // what Parse returns, and the fleet-pack-seed-agrees check compares the
 // same list against the manager's own entries, so the two never read a

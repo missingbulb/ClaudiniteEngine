@@ -69,14 +69,25 @@ type Checks struct {
 	Accept []Acceptance
 }
 
-// Parsed is the settings file's packs and checks blocks.
+// Parsed is the settings file's packs, checks and fleet blocks.
 type Parsed struct {
 	Packs  Packs
 	Checks Checks
+	// Fleet is the fleet block, nil when the file has none: its presence
+	// makes the repo a fleet manager.
+	Fleet map[string]any
 }
 
 var topSchema = descriptor.Schema{Name: "settings", Keys: map[string]descriptor.Kind{
-	"engine": descriptor.Object, "packs": descriptor.Object, "checks": descriptor.Object,
+	"engine": descriptor.Object, "packs": descriptor.Object, "checks": descriptor.Object, "fleet": descriptor.Object,
+}}
+
+// fleetSchema is the fleet block: whose repositories the manager covers,
+// which it leaves out, what it seeds into each member, and when a member
+// reads as stale.
+var fleetSchema = descriptor.Schema{Name: "fleet", Keys: map[string]descriptor.Kind{
+	"owner": descriptor.String, "kind": descriptor.String, "exclude": descriptor.List, "packSeeds": descriptor.List,
+	"staleDays": descriptor.Any,
 }}
 
 var packsSchema = descriptor.Schema{Name: "packs", Keys: map[string]descriptor.Kind{
@@ -118,6 +129,13 @@ func ParseFile(raw []byte, f Format) (Parsed, error) {
 	}
 	if p.Checks, err = parseChecks(obj["checks"], "checks"); err != nil {
 		return Parsed{}, err
+	}
+	if raw, ok := obj["fleet"]; ok {
+		block := raw.(map[string]any)
+		if errs := fleetSchema.Validate(block); len(errs) > 0 {
+			return Parsed{}, fmt.Errorf("fleet: %w", joinErrs(errs))
+		}
+		p.Fleet = block
 	}
 	return p, nil
 }

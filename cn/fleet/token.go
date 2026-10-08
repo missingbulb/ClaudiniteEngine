@@ -130,8 +130,8 @@ func HandoverStep() Step {
 		Step: "Create a fine-grained PAT on this account covering ALL repositories, granted " + Grant() + ", " +
 			"and add it to this repo as the Actions secret " + TokenEnv + ". Grant every permission listed, not the " +
 			"subset the first sweep you run needs.",
-		Breaks: "every claudinite-fleet-sheepdog sweep fails — and a token short one permission fails only on the sweep that needs it, " +
+		Breaks: "every cn fleet sweep fails — and a token short one permission fails only on the sweep that needs it, " +
 			"which can be a week later, on the one sweep that writes or dispatches",
-		Done: "the secret exists and each claudinite-fleet-sheepdog task's next run is green",
+		Done: "the secret exists and each fleet task's next run is green",
 	}
 }

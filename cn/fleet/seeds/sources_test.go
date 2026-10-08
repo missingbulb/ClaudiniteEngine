@@ -67,7 +67,7 @@ func repo(full string) fleet.Repo {
 }
 
 func cfg() fleet.Config {
-	c, err := fleet.ParseConfig(map[string]any{"owner": "acme"}, true, "acme/fleet")
+	c, err := fleet.ParseConfig(map[string]any{"owner": "acme"}, "acme/fleet")
 	if err != nil {
 		panic(err)
 	}

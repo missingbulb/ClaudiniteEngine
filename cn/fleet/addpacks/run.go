@@ -34,7 +34,7 @@ func Validate(p Params, owner string, cfg fleet.Config, packs []packindex.Catalo
 		}
 	}
 	if len(ignored) > 0 {
-		return &Refusal{fmt.Sprintf("%s — ignored by this fleet (the %s pack entry's config.exclude), and nothing was written. Take the repo off that list to bring it back into the fleet.", strings.Join(ignored, ", "), fleet.PackID)}
+		return &Refusal{fmt.Sprintf("%s — ignored by this fleet (the fleet block's exclude), and nothing was written. Take the repo off that list to bring it back into the fleet.", strings.Join(ignored, ", "))}
 	}
 	if unknown := UnknownPacks(p.AddPacks, packs); len(unknown) > 0 {
 		return &Refusal{fmt.Sprintf("unknown pack id(s): %s — not in the shelf's %d-pack catalog. An unknown id in a member's declaration is a BLOCKING settings error there, so nothing was written.", strings.Join(unknown, ", "), len(packs))}

@@ -34,8 +34,8 @@ func Body(repo string) string {
 		"  the `adopt-claudinite` skill runs `cn init`). This is a human-initiated step by",
 		"  design: adoption is the one thing a repo cannot do for itself, because the scheduler",
 		"  that would run it is what adoption installs. Nothing will do it on your behalf.",
-		"- **Keep it out** — add `" + repo + "` to the claudinite-fleet-sheepdog pack entry's `config.exclude` in this",
-		"  (claudinite-fleet-sheepdog) repo's `.claudinite/settings.*`, with a reason.",
+		"- **Keep it out** — add `" + repo + "` to the fleet block's `exclude` in this repo's",
+		"  `.claudinite/settings.*`, with a reason.",
 		"",
 		"This issue is converged by the daily fleet-roster task: it closes itself once the",
 		"repo is covered (`completed`) or opted out (`not planned`), and a close without either",
@@ -122,7 +122,7 @@ func ConvergeAdoption(gh fleet.GH, home string, uncovered, covered, ignored []st
 		case has(covered, repo):
 			why, note = "completed", "now mounts Claudinite — covered"
 		case has(ignored, repo):
-			why, note = "not_planned", "ignored (the claudinite-fleet-sheepdog pack entry's config.exclude)"
+			why, note = "not_planned", "ignored (the fleet block's exclude)"
 		case !has(uncovered, repo):
 			why, note = "not_planned", "no longer an adoption candidate (deleted, archived, transferred, or now a fork)"
 		default:

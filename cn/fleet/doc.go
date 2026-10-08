@@ -1,5 +1,5 @@
-// Package fleet is the sheepdog's sweeps as engine code: a fleet manager
-// (the repository declaring claudinite-fleet-sheepdog) reads every
+// Package fleet is fleet management: a fleet manager (the repository
+// whose settings hold a fleet block) reads every
 // repository its owner owns over FLEET_GITHUB_TOKEN and answers, of each,
 // whether it is a member and whether that membership still means
 // anything, and dispatches each member's own update.

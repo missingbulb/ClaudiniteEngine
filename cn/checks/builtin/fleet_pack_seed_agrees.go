@@ -13,8 +13,8 @@ import (
 )
 
 // A fleet manager states a seeded pack's config twice in one file: on its
-// own entry for the pack, what a session here runs, and in packSeeds on
-// its claudinite-fleet-sheepdog entry, what the pack-seed sweep writes
+// own entry for the pack, what a session here runs, and in its fleet
+// block's packSeeds, what the pack-seed sweep writes
 // into every member. The sweep seeds and never overrides, so a seed that
 // disagrees with what the manager runs reaches the whole fleet once and
 // sticks. It names no pack: for each seeded id the manager also declares,
@@ -23,18 +23,17 @@ import (
 // of scope.
 var fleetPackSeedAgrees = declared.Builtin{
 	ID:     "fleet-pack-seed-agrees",
-	Pack:   "claudinite-fleet-sheepdog",
+	Pack:   packset.FleetPack,
 	OnFail: "block",
-	Tags:   []string{"world", "builtin", "claudinite-fleet-sheepdog"},
-	Doc:    "packs/claudinite-fleet-sheepdog/README.md",
+	Tags:   []string{"world", "builtin", packset.FleetPack},
+	Doc:    "cn fleet",
 	Why:    "the pack-seed sweep writes a seed into every member and never overrides an existing entry, so a seed that disagrees with what the enforcer runs reaches the whole fleet once and sticks",
 }
 
 func init() { register(&fleetPackSeedAgrees, runFleetPackSeedAgrees) }
 
 func runFleetPackSeedAgrees(ctx *declared.Ctx, _ *transcript.Session) []findings.Finding {
-	sheepdog, ok := ctx.Config.PackConfig[fleetPackSeedAgrees.Pack]
-	if !ok {
+	if ctx.Config.Fleet == nil {
 		return nil
 	}
 	declared := map[string]bool{}
@@ -45,7 +44,7 @@ func runFleetPackSeedAgrees(ctx *declared.Ctx, _ *transcript.Session) []findings
 	}
 	text, _ := ctx.Read(ctx.Config.SettingsPath)
 	var out []findings.Finding
-	for _, seed := range packseed.Parse(sheepdog) {
+	for _, seed := range packseed.Parse(ctx.Config.Fleet) {
 		if !declared[seed.ID] {
 			continue
 		}

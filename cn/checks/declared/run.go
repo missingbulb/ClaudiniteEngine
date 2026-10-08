@@ -141,6 +141,7 @@ func LoadSet(repo, engine string, extra ...Builtin) (*Set, error) {
 			s.Config.PackConfig[e.ID] = e.Config
 		}
 	}
+	s.Config.Fleet = parsed.Fleet
 	set, err := packset.Load(repo, engine, true)
 	if err != nil {
 		return nil, err
@@ -167,6 +168,9 @@ func LoadSet(repo, engine string, extra ...Builtin) (*Set, error) {
 			continue
 		}
 		s.Checks = append(s.Checks, cs...)
+	}
+	if parsed.Fleet != nil {
+		active[packset.FleetPack] = true
 	}
 	for _, b := range append([]Builtin{builtinBarrier, builtinSpecKeys, builtinSkillLoaded, builtinRemoteDelete}, extra...) {
 		if b.active(active) {

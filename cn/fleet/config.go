@@ -8,27 +8,22 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/packseed"
 )
 
-// PackID is the pack whose entry carries the fleet's config.
-const PackID = "claudinite-fleet-sheepdog"
+// Block names the settings block that makes a repo a fleet manager and
+// carries its config, as a finding or a refusal names it to a person.
+const Block = "the fleet block of .claudinite/settings"
 
 // KindUser is the one fleet kind: the repositories a user owns.
 const KindUser = "user"
 
-// CanonRepoNote is the one line a config still naming canonRepo earns.
-const CanonRepoNote = "[cn] fleet: canonRepo is not read; current is judged against the published engine and pack versions"
-
 // Seed is one pack declaration the fleet wants in every member.
 type Seed = packseed.Seed
 
-// Config is the manager's own claudinite-fleet-sheepdog entry: who to
-// cover, who to leave out, and the seeds.
+// Config is the manager's fleet block: who to cover, who to leave out,
+// and the seeds.
 type Config struct {
 	Owner     string
 	Exclude   []string
 	PackSeeds []Seed
-	// CanonRepoNamed says the entry still carries canonRepo, which cn
-	// reads and ignores.
-	CanonRepoNamed bool
 }
 
 // Owns reports whether repo (lowercased owner/name) is under the fleet's
@@ -48,13 +43,12 @@ func (c Config) Excluded(repo string) bool {
 	return false
 }
 
-// ParseConfig reads the entry's config, present false when the entry
-// carries none; home is the manager's owner/name. An absent config is
-// refused: absence is not consent to cover everything.
-func ParseConfig(raw any, present bool, home string) (Config, error) {
-	sd, ok := raw.(map[string]any)
-	if !present || !ok {
-		return Config{}, fmt.Errorf("the fleet-enforcer repo %s declares no %s config { owner, exclude } on its pack entry - nothing to cover", home, PackID)
+// ParseConfig reads the fleet block, nil when the settings carry none;
+// home is the manager's owner/name. An absent block is refused: absence
+// is not consent to cover everything.
+func ParseConfig(sd map[string]any, home string) (Config, error) {
+	if sd == nil {
+		return Config{}, fmt.Errorf("%s declares no fleet block { owner, exclude } in .claudinite/settings - nothing to cover", home)
 	}
 	var c Config
 	if v, ok := sd["owner"]; ok && v != nil {
@@ -63,7 +57,7 @@ func ParseConfig(raw any, present bool, home string) (Config, error) {
 		c.Owner = strings.ToLower(strings.SplitN(home, "/", 2)[0])
 	}
 	if k, ok := sd["kind"]; ok && k != nil && k != KindUser {
-		return Config{}, fmt.Errorf("the %s config's kind is %s; a fleet is the repositories a user owns (kind %q), the only kind cn sweeps", PackID, jsString(k), KindUser)
+		return Config{}, fmt.Errorf("the fleet block's kind is %s; a fleet is the repositories a user owns (kind %q), the only kind cn sweeps", jsString(k), KindUser)
 	}
 	if ex, ok := sd["exclude"].([]any); ok {
 		seen := map[string]bool{}
@@ -75,7 +69,6 @@ func ParseConfig(raw any, present bool, home string) (Config, error) {
 			}
 		}
 	}
-	_, c.CanonRepoNamed = sd["canonRepo"]
 	c.PackSeeds = packseed.Parse(sd)
 	return c, nil
 }

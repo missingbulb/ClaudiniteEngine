@@ -199,9 +199,6 @@ func openSweep(name, event, sweepID, missingDetail, repo, api string, stderr io.
 		s.crumb(event, "error", 0, 0)
 		return nil, report.Said(report.IO)
 	}
-	if cfg.CanonRepoNamed {
-		fmt.Fprintln(stderr, fleet.CanonRepoNote)
-	}
 	s.cfg = cfg
 	if api == "" {
 		api = os.Getenv("CLAUDINITE_GITHUB_API")
@@ -259,8 +256,7 @@ func repoFullName(root string) string {
 	return ""
 }
 
-// fleetConfig reads the manager's own claudinite-fleet-sheepdog entry out
-// of its checkout.
+// fleetConfig reads the manager's fleet block out of its checkout.
 func fleetConfig(root, home string) (fleet.Config, error) {
 	path, f, err := settings.Find(root)
 	if err != nil {
@@ -270,19 +266,11 @@ func fleetConfig(root, home string) (fleet.Config, error) {
 	if err != nil {
 		return fleet.Config{}, err
 	}
-	p, err := settings.ReadPacks(raw, f)
+	p, err := settings.ParseFile(raw, f)
 	if err != nil {
 		return fleet.Config{}, err
 	}
-	for _, e := range p.Entries {
-		if !e.Local && e.ID == fleet.PackID {
-			if e.Config == nil {
-				break
-			}
-			return fleet.ParseConfig(e.Config, true, home)
-		}
-	}
-	return fleet.ParseConfig(nil, false, home)
+	return fleet.ParseConfig(p.Fleet, home)
 }
 
 // shelfReader is the shelf a member's own update reads: npm and the

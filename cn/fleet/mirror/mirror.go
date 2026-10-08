@@ -302,7 +302,7 @@ func commit(gh fleet.GH, home, parent, baseTree string, files []file) (string, s
 		return "", "", err
 	}
 	r, err = fleet.Expect(gh, "POST", base+"commits", map[string]any{
-		"message": "Mirror the shelf's packs for this fleet\n\nWritten by the claudinite-fleet-sheepdog pack's fleet-pack-seeds sweep.",
+		"message": "Mirror the shelf's packs for this fleet\n\nWritten by the fleet's fleet-pack-seeds sweep.",
 		"tree":    tree, "parents": parents,
 	}, 201)
 	if err != nil {

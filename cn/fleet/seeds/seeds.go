@@ -147,7 +147,7 @@ func CommitMessage(ids []string, manager string) string {
 			"packs: this repo's own update reads new versions there and verifies them as before.",
 			"")
 	}
-	lines = append(lines, "Written by the claudinite-fleet-sheepdog pack's fleet-pack-seeds sweep.")
+	lines = append(lines, "Written by the fleet's fleet-pack-seeds sweep.")
 	return strings.Join(lines, "\n")
 }
 
@@ -404,7 +404,7 @@ func (r Report) renderSources() string {
 
 // NoSeeds is the report of a fleet that seeds nothing.
 func NoSeeds(owner string) string {
-	return fmt.Sprintf("# Fleet pack seeds — %s\n\nNo `packSeeds` on this repo's %s entry: this fleet asks its members to declare nothing in particular.", owner, fleet.PackID)
+	return fmt.Sprintf("# Fleet pack seeds — %s\n\nNo `packSeeds` in this repo's fleet block: this fleet asks its members to declare nothing in particular.", owner)
 }
 
 // Err is the sweep's failure, nil when every repo was read and written.

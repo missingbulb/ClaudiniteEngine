@@ -27,6 +27,11 @@ const (
 	CurrentUser = "current_user"
 )
 
+// FleetPack is the engine's own fleet pack: its rules, skills, tasks and
+// checks are carried in the binary and active wherever the settings hold
+// a fleet block.
+const FleetPack = "fleet"
+
 // ProseFile is the prose a pack carries by convention.
 const ProseFile = "RULES.md"
 

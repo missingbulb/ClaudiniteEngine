@@ -74,7 +74,7 @@ func ClassifyScope(r fleet.Repo, cfg fleet.Config, filter Filter) *Row {
 	case r.Fork:
 		return &Row{FullName: full, State: "out-of-scope", Detail: "a fork"}
 	case cfg.Excluded(full):
-		return &Row{FullName: full, State: "excluded", Detail: "on the claudinite-fleet-sheepdog config's exclude list"}
+		return &Row{FullName: full, State: "excluded", Detail: "on the fleet block's exclude list"}
 	case filter != nil && !filter.Has(full):
 		return &Row{FullName: full, State: "filtered-out", Detail: "not in this run's REPOS filter"}
 	}
