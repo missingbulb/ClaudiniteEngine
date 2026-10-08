@@ -35,6 +35,14 @@ type Repo struct {
 	Workflows []land.WorkflowFile
 	// Dispatchable names the workflows a dispatch is accepted for.
 	Dispatchable map[string]bool
+	// HeldOnOpen names the workflows whose pull_request run CreatePull
+	// starts held at action_required, as GitHub holds a job-token PR's.
+	HeldOnOpen []string
+	// Approved is what a run approved out of action_required concludes;
+	// "" leaves it queued.
+	Approved string
+	// ApproveRefused refuses every approval with this status.
+	ApproveRefused int
 	// Protected is the default branch's protected flag; nil is unreadable.
 	Protected *bool
 	// Rules are the ruleset rule types on the default branch.
@@ -43,6 +51,8 @@ type Repo struct {
 	MergeRefused int
 	// Log records every write, in order.
 	Log []string
+
+	runID int64
 }
 
 var (
@@ -126,6 +136,10 @@ func (r *Repo) CreatePull(title, body, head, base string) (world.Pull, error) {
 	}
 	p := world.Pull{Number: n, Title: title, Body: body, State: "open", HeadRef: head, HeadSHA: "sha-" + head, BaseRef: base, NodeID: fmt.Sprintf("PR_%d", n)}
 	r.Pulls = append(r.Pulls, p)
+	for _, name := range r.HeldOnOpen {
+		r.runID++
+		r.Runs[p.HeadSHA] = append(r.Runs[p.HeadSHA], land.Run{ID: r.runID, Name: name, Event: "pull_request", Status: "completed", Conclusion: "action_required"})
+	}
 	r.logf("open #%d %s", n, head)
 	return p, nil
 }
@@ -159,6 +173,33 @@ func (r *Repo) RunsForSHA(sha string) ([]land.Run, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return append([]land.Run{}, r.Runs[sha]...), nil
+}
+
+// ApproveRun releases a run held at action_required.
+func (r *Repo) ApproveRun(id int64) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.ApproveRefused != 0 {
+		return &land.StatusError{Status: r.ApproveRefused, Message: "refused"}
+	}
+	for sha, runs := range r.Runs {
+		for i := range runs {
+			if runs[i].ID != id {
+				continue
+			}
+			if runs[i].Conclusion != "action_required" {
+				return &land.StatusError{Status: 403, Message: "This run is not waiting for approval"}
+			}
+			runs[i].Status, runs[i].Conclusion = "queued", ""
+			if r.Approved != "" {
+				runs[i].Status, runs[i].Conclusion = "completed", r.Approved
+			}
+			r.Runs[sha] = runs
+			r.logf("approve %d", id)
+			return nil
+		}
+	}
+	return &land.StatusError{Status: 404, Message: "Not Found"}
 }
 
 // MergePull merges a pull request at its pinned head.

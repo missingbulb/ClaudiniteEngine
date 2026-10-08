@@ -365,7 +365,7 @@ func TestCommandsReadSecretsFromTheEnvironmentOnly(t *testing.T) {
 // The workflow drives the tool, so its environments and secret names must
 // be the ones the tool reads and writes.
 func TestKeyCeremonyWorkflowShape(t *testing.T) {
-	raw, err := os.ReadFile("../../../.github/workflows/key-ceremony.yml")
+	raw, err := os.ReadFile("../../../../.github/workflows/key-ceremony.yml")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -385,9 +385,9 @@ func TestKeyCeremonyWorkflowShape(t *testing.T) {
 		"secrets." + passphraseVar,
 		"secrets." + rootSecret,
 		"secrets.CEREMONY_TOKEN",
-		"go run ./dev/keys/cn-keys ceremony --summary \"$GITHUB_STEP_SUMMARY\"",
-		"go run ./dev/keys/cn-keys rotate --summary \"$GITHUB_STEP_SUMMARY\"",
-		"go run ./dev/keys/cn-keys roots --summary \"$GITHUB_STEP_SUMMARY\"",
+		"go run ./dev/release/keys/cn-keys ceremony --summary \"$GITHUB_STEP_SUMMARY\"",
+		"go run ./dev/release/keys/cn-keys rotate --summary \"$GITHUB_STEP_SUMMARY\"",
+		"go run ./dev/release/keys/cn-keys roots --summary \"$GITHUB_STEP_SUMMARY\"",
 		"secrets." + standbySealedVar,
 	} {
 		if !strings.Contains(wf, want) {
@@ -409,7 +409,7 @@ func TestEveryWorkingKeyIsDocumented(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	wf, err := os.ReadFile("../../../.github/workflows/key-ceremony.yml")
+	wf, err := os.ReadFile("../../../../.github/workflows/key-ceremony.yml")
 	if err != nil {
 		t.Fatal(err)
 	}

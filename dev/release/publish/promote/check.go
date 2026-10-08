@@ -24,7 +24,7 @@ import (
 // roots in rootsDir, all five platforms listed and every binary against
 // its manifest entry, the candidate checkout's head against the commit the
 // manifest names, and stableTest, the candidate's `go test -tags stable
-// ./shared/trust`. rootsDir is the dispatching checkout's, never the
+// ./cn/shared/trust`. rootsDir is the dispatching checkout's, never the
 // candidate's, so the candidate cannot bring its own trust. It returns
 // pass or refuse, why, and the stable test's own verdict (pass, fail, or
 // not-run when the bytes were refused first).
@@ -33,7 +33,7 @@ func Check(dir, ver, rootsDir, head string, stableTest func() error) (string, st
 		return "refuse", reason, "not-run"
 	}
 	if err := stableTest(); err != nil {
-		return "refuse", "go test -tags stable ./shared/trust does not pass at this commit: latest never points at a build embedding the development roots", "fail"
+		return "refuse", "go test -tags stable ./cn/shared/trust does not pass at this commit: latest never points at a build embedding the development roots", "fail"
 	}
 	return "pass", fmt.Sprintf("%s: signature, five binaries and the stable build check verified", ver), "pass"
 }

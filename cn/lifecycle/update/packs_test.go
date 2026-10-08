@@ -185,8 +185,11 @@ func TestPacksProposesAPackPR(t *testing.T) {
 	if len(created) != 1 || !strings.Contains(created[0], "| hello | 1.0 | 1.1 | canary | 3 | cdn | `kid` | `"+w.packs.entries["hello"][1].SHA256+"` |") || !strings.Contains(created[0], "no findings") {
 		t.Errorf("PR %v", created)
 	}
-	if got := w.hub.called("dispatch"); len(got) != 1 || got[0] != "dispatch claudinite-ci.yml "+branch+" pr=1" {
+	if got := w.hub.called("dispatch"); len(got) != 0 {
 		t.Errorf("dispatch %v", got)
+	}
+	if got := w.hub.called("approve"); !reflect.DeepEqual(got, []string{"approve 1"}) {
+		t.Errorf("approvals %v", got)
 	}
 	if got := w.hub.called("label"); len(got) != 1 {
 		t.Errorf("label %v", got)
@@ -663,5 +666,25 @@ func TestLandRefusesAPackPRWritingARetiredFlatFile(t *testing.T) {
 	w.hub.pulls[len(w.hub.pulls)-1].HeadSHA = sha
 	if _, err := Land(w.deps(t), pr.Number, sha); err == nil || !strings.Contains(err.Error(), "which no engine renders any more") {
 		t.Errorf("a pack PR writing a retired flat file landed: %v", err)
+	}
+}
+
+// A pack PR lands in the run that opened it once its approved
+// pull_request run passes, as an engine PR does.
+func TestAPackPRLandsInTheRunOnItsApprovedCI(t *testing.T) {
+	t.Parallel()
+	w := newPackWorld(t)
+	w.hub.approved = "success"
+	r, err := PacksRun(w.deps(t), Options{})
+	if err != nil || r.Verdict != "landed packs hello 1.1" || !r.MainPending || r.PRPending {
+		t.Fatalf("%+v %v\n%s", r, err, w.out)
+	}
+	if got := w.hub.called("dispatch"); !reflect.DeepEqual(got, []string{"dispatch claudinite-ci.yml main pr="}) {
+		t.Errorf("dispatches %v", got)
+	}
+	w = newPackWorld(t)
+	r, err = PacksRun(w.deps(t), Options{})
+	if err != nil || r.Verdict != "opened #1 for packs hello 1.1" || !r.PRPending {
+		t.Fatalf("still running: %+v %v", r, err)
 	}
 }

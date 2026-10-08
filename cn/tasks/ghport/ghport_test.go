@@ -116,7 +116,9 @@ func TestThePortSpeaksThePullsAndLaneAPIs(t *testing.T) {
 		case r.path == "/repos/o/r/rules/branches/main":
 			return 200, `[{"type":"deletion"},{"type":"pull_request"}]`
 		case strings.HasPrefix(r.path, "/repos/o/r/actions/runs?head_sha=abc"):
-			return 200, `{"workflow_runs":[{"name":"CI","status":"completed","conclusion":"success"}]}`
+			return 200, `{"workflow_runs":[{"id":41,"name":"CI","event":"pull_request","status":"completed","conclusion":"success"}]}`
+		case r.path == "/repos/o/r/actions/runs/42/approve":
+			return 403, `{"message":"Resource not accessible by integration"}`
 		case r.path == "/graphql":
 			if strings.Contains(r.body, "PR_bad") {
 				return 200, `{"errors":[{"message":"Pull request is in clean status"}]}`
@@ -163,8 +165,14 @@ func TestThePortSpeaksThePullsAndLaneAPIs(t *testing.T) {
 	if rules, err := g.BranchRules("main"); err != nil || strings.Join(rules, ",") != "deletion,pull_request" {
 		t.Error(rules, err)
 	}
-	if runs, err := g.RunsForSHA("abc"); err != nil || len(runs) != 1 || runs[0].Conclusion != "success" {
+	if runs, err := g.RunsForSHA("abc"); err != nil || len(runs) != 1 || runs[0].Conclusion != "success" || runs[0].ID != 41 || runs[0].Event != "pull_request" {
 		t.Error(runs, err)
+	}
+	if err := g.ApproveRun(41); err != nil {
+		t.Error(err)
+	}
+	if err := g.ApproveRun(42); !errors.As(err, &se) || se.Status != 403 {
+		t.Error("the lane reads a refused approval's status:", err)
 	}
 	if err := g.EnableAutoMerge("PR_5"); err != nil {
 		t.Error(err)

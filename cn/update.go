@@ -195,19 +195,19 @@ func cmdLandCheck(repo, base, head string, pr int, sha string, stdout io.Writer)
 	return nil
 }
 
-// mainCIRetry is how long a requeued update waits for main's CI verdict;
-// the item is readied by the first scheduler run after it.
+// mainCIRetry is how long a requeued update waits for a CI verdict, main's
+// or its own PR's; the item is readied by the first scheduler run after it.
 const mainCIRetry = 15 * time.Minute
 
 // updateTaskResult is the engine/update task's result once its steps said
-// said and the engine step left eng at now: requeued while main's CI has no
-// verdict yet (a close would cover the day, so the next try would come a
-// day later), done, or, where the engine PR carries staged workflows, a
+// said and the engine step left eng at now: requeued while main's CI, or
+// the update PR's it left open, has no verdict yet (a close would cover
+// the day, so the next try would come a day later), done, or, where the engine PR carries staged workflows, a
 // hand-off to the task's agent stage on that PR, whose credential may
 // write .github/workflows/.
 func updateTaskResult(said []string, eng update.EngineResult, now time.Time) execute.CodeWorkResult {
 	r := execute.CodeWorkResult{OK: true, Said: said}
-	if eng.MainPending {
+	if eng.MainPending || eng.PRPending {
 		r.Requeue = &execute.Requeue{Until: calendar.ISO(now.Add(mainCIRetry)), Reason: eng.Verdict}
 		return r
 	}
@@ -226,8 +226,9 @@ func updateTaskResult(said []string, eng update.EngineResult, now time.Time) exe
 // executor's process: the engine update, then the packs update, from the
 // default branch, each verdict said on the item's close; while main's CI
 // has no verdict the packs step waits with the engine's. The update's pull
-// requests are its own, landed by cn update land; one carrying staged
-// workflows goes to the agent stage (updateTaskResult).
+// requests are its own, landed by the step that opened them or a later
+// run; one carrying staged workflows goes to the agent stage
+// (updateTaskResult).
 func runUpdateTask(repo, token, branch string, out io.Writer) execute.CodeWorkResult {
 	d, err := updateDepsWith(repo, token, out)
 	if err != nil {
@@ -253,7 +254,13 @@ func runUpdateTask(repo, token, branch string, out io.Writer) execute.CodeWorkRe
 		var err error
 		eng, err = update.EngineRun(d, o)
 		return eng.Verdict, err
-	}}, {"cn update packs", update.Packs}} {
+	}}, {"cn update packs", func(d update.Deps, o update.Options) (string, error) {
+		pk, err := update.PacksRun(d, o)
+		if (pk.MainPending || pk.PRPending) && !eng.MainPending && !eng.PRPending {
+			eng.PRPending, eng.Verdict = true, pk.Verdict
+		}
+		return pk.Verdict, err
+	}}} {
 		verdict, err := step.run(d, update.Options{})
 		if err != nil {
 			return execute.CodeWorkResult{Why: "engine/update: " + step.name + " failed", Detail: err.Error(), Said: said}

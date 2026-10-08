@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/missingbulb/ClaudiniteEngine/dev/internal/scripttest"
+	"github.com/missingbulb/ClaudiniteEngine/dev/test/scripttest"
 )
 
 func TestBlockerIssue(t *testing.T) {

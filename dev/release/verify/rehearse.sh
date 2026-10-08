@@ -19,13 +19,14 @@
 #            rehearsal_break tag), holds back on a red main, skips held and
 #            revoked versions, files the revoked pin's issue, and runs as the
 #            engine/update task the scheduler files and the executor drains. Every dist is signed with the development
-#            keys (dev/keys/testkeys/), as the updater checks signatures.
+#            keys (dev/release/keys/testkeys/), as the updater checks signatures.
 #   packs    a fresh repo adopts the hello pack through the npx bootstrap
 #            from a local pack source (dev/release/verify/fixtures/packs-fixture.sh, served by
 #            dev/release/verify/stubs/cdnstub and read as the vendored branch), its session
 #            loads the pack and its Go check blocks Stop, and cn update
 #            packs proposes, refuses, skips and lands pack versions as the
-#            fixture publishes and revokes them, then refuses an index whose
+#            fixture publishes and revokes them, approving each PR's held CI
+#            run and landing on it in the same run, then refuses an index whose
 #            serial regressed or whose signature broke; cn init asks for no
 #            license; hello's declared checks fail the
 #            world and block Stop, and the member's checks block turns them
@@ -83,7 +84,7 @@
 #
 # Needs go, node, curl, git and a release from dev/release/create/build.sh, ideally
 # built with REHEARSAL=1 BUILD_TAGS=devroots: every key, certificate and
-# signature here chains to the development root (dev/keys/testkeys/), which only such
+# signature here chains to the development root (dev/release/keys/testkeys/), which only such
 # a build trusts, beside the ceremony's roots the real pack shelf is signed
 # under. Any other release is rebuilt so first.
 set -eu
@@ -120,7 +121,7 @@ case $update_steps in 4|11) ;; *) fail "UPDATE_STEPS must be 4 or 11, not $updat
 [ -f "$DIST/manifest.integrity" ] || fail "no release in $DIST; run dev/release/create/build.sh first"
 # rehearsal_sign DIST: signs DIST with the development release key.
 rehearsal_sign() {
-  DIST=$1 RELEASE_KEY=$root/dev/keys/testkeys/release.key RELEASE_CERT=$root/dev/keys/testkeys/release.cert.json ROOTS=$root/cn/shared/trust/devroots \
+  DIST=$1 RELEASE_KEY=$root/dev/release/keys/testkeys/release.key RELEASE_CERT=$root/dev/release/keys/testkeys/release.cert.json ROOTS=$root/cn/shared/trust/devroots \
     sh dev/release/create/sign.sh > "$work/sign.out" 2>&1 || fail "signing $1: $(cat "$work/sign.out")"
 }
 DIST=$DIST sh dev/release/verify/smoke.sh
@@ -716,13 +717,8 @@ for mode in $modes; do
       pull() { (cd "$member" && git fetch -q origin && git reset -q --hard origin/main) || fail "packs: pull"; }
       day=$(cn_member version --day)
       branch=claudinite/packs-$day
-      # land N: CI green on PR N's head, then cn update land.
-      land() {
-        head=$(git --git-dir "$origin" rev-parse "$branch")
-        ctl /_stub/run "{\"sha\":\"$head\",\"event\":\"workflow_dispatch\",\"conclusion\":\"success\"}"
-        cn_member update land --pr "$1" --sha "$head" > "$work/land.out" 2>&1 || fail "packs: land #$1: $(cat "$work/land.out")"
-        verdict=$(sed -n '$p' "$work/land.out")
-      }
+      # A pack PR's held CI run, once approved, passes.
+      ctl /_stub/approve '{"conclusion":"success"}'
 
       # A member from before the rules channel: CLAUDE.md without the import.
       printf '# Member\n' > "$member/CLAUDE.md"
@@ -733,19 +729,19 @@ for mode in $modes; do
       fixture --publish v2
       main_run success
       update_packs
-      expect_verdict "opened #1 for packs hello 1.4"
-      if git --git-dir "$origin" diff --name-only main "$branch" | grep -v '^CLAUDE\.md$' | grep -Ev '^\.claudinite/cache/(claudinite-skills\.GENERATED\.md|(tasks|member)\.GENERATED\.json)$' | grep -qv '^\.claudinite/shared/packs/hello/'; then fail "packs 5: the branch changes more than the hello pack, the skills index, the flat files and CLAUDE.md"; fi
-      git --git-dir "$origin" show "$branch:.claudinite/cache/member.GENERATED.json" | grep -q '"hello": "1.4"' || fail "packs 5: the member file does not hold hello 1.4: $(git --git-dir "$origin" show "$branch:.claudinite/cache/member.GENERATED.json" 2>&1)"
-      git --git-dir "$origin" show "$branch:.claudinite/cache/claudinite-skills.GENERATED.md" | grep -q hello-guide || fail "packs 5: the branch's skills index does not name hello-guide"
-      [ "$(git --git-dir "$origin" show "$branch:CLAUDE.md")" = "$(printf '# Member\n@.claudinite/cache/claudinite-rules.GENERATED.md')" ] || fail "packs 5: the branch's CLAUDE.md: $(git --git-dir "$origin" show "$branch:CLAUDE.md")"
-      [ "$(gh_count 'st.dispatches.filter(d=>d.ref==="'"$branch"'"&&d.inputs.pr==="1").length')" = 1 ] || fail "packs 5: dispatches $(gh_state)"
-      head=$(git --git-dir "$origin" rev-parse "$branch")
-      (cd "$member" && git fetch -q origin && git checkout -q "$head") || fail "packs 5: checkout"
-      cn_member check world --pr-author 'github-actions[bot]' --base-ref origin/main > "$work/world.out" 2>&1 || fail "packs 5: check world on the branch: $(cat "$work/world.out")"
-      (cd "$member" && git checkout -q main) || fail "packs 5: back to main"
-      land 1
       expect_verdict "landed packs hello 1.4"
+      grep -q "^approved the held pull_request run " "$work/update.out" || fail "packs 5: no approval said: $(cat "$work/update.out")"
+      [ "$(gh_count 'st.calls.filter(c=>c.startsWith("approve ")).length')" = 1 ] || fail "packs 5: approvals $(gh_state)"
+      [ "$(gh_count 'st.dispatches.filter(d=>d.ref==="'"$branch"'").length')" = 0 ] || fail "packs 5: CI was dispatched on the PR branch: $(gh_state)"
+      [ "$(gh_count 'st.pulls.filter(p=>p.number===1&&p.merged).length')" = 1 ] || fail "packs 5: #1 did not merge: $(gh_state)"
+      [ -z "$(git --git-dir "$origin" branch --list "$branch")" ] || fail "packs 5: $branch was not deleted"
+      # The squash on main is the PR's change.
+      if git --git-dir "$origin" diff --name-only main~1 main | grep -v '^CLAUDE\.md$' | grep -Ev '^\.claudinite/cache/(claudinite-skills\.GENERATED\.md|(tasks|member)\.GENERATED\.json)$' | grep -qv '^\.claudinite/shared/packs/hello/'; then fail "packs 5: the branch changes more than the hello pack, the skills index, the flat files and CLAUDE.md"; fi
+      git --git-dir "$origin" show "main:.claudinite/cache/member.GENERATED.json" | grep -q '"hello": "1.4"' || fail "packs 5: the member file does not hold hello 1.4: $(git --git-dir "$origin" show "main:.claudinite/cache/member.GENERATED.json" 2>&1)"
+      git --git-dir "$origin" show "main:.claudinite/cache/claudinite-skills.GENERATED.md" | grep -q hello-guide || fail "packs 5: the skills index does not name hello-guide"
+      [ "$(git --git-dir "$origin" show "main:CLAUDE.md")" = "$(printf '# Member\n@.claudinite/cache/claudinite-rules.GENERATED.md')" ] || fail "packs 5: CLAUDE.md: $(git --git-dir "$origin" show "main:CLAUDE.md")"
       pull
+      cn_member check world --pr-author 'github-actions[bot]' --base-ref origin/main~1 > "$work/world.out" 2>&1 || fail "packs 5: check world over the PR's change: $(cat "$work/world.out")"
       grep -q '"version": "1.4"' "$member/.claudinite/shared/packs/hello/pack.json" || fail "packs 5: main does not hold hello 1.4"
       out=$(session_start) || fail "packs 5: SessionStart"
       case $out in *"[cn] packs 1/1 loaded (hello 1.4: rules 5 skills 2)"*) ;; *) fail "packs 5: SessionStart on 1.4: $out" ;; esac
@@ -755,7 +751,7 @@ for mode in $modes; do
       # The key covers the engine, the SDK and the check sources; 1.4 adds
       # Go checks, so its checks binary is a second one beside 1.0's.
       [ "$(find "$checks" -mindepth 1 -maxdepth 1 -type d ! -name sessions | wc -l | tr -d ' ')" = 2 ] || fail "packs 5: hello 1.4's checks did not build a second checks binary"
-      step "packs 5: opened, checked and landed hello 1.4 with the CLAUDE.md import restored; its Go checks build a second checks binary"
+      step "packs 5: opened hello 1.4, approved its held CI run and landed it in the same run with the CLAUDE.md import restored; its Go checks build a second checks binary"
 
       fixture --publish v3
       main_run success
@@ -768,10 +764,8 @@ for mode in $modes; do
 
       fixture --revoke v3 --publish v4
       update_packs
-      expect_verdict "opened #2 for packs hello 1.6"
-      grep -q '^hello 1.5 skipped: revoked$' "$work/update.out" || fail "packs 7: no revoked skip: $(cat "$work/update.out")"
-      land 2
       expect_verdict "landed packs hello 1.6"
+      grep -q '^hello 1.5 skipped: revoked$' "$work/update.out" || fail "packs 7: no revoked skip: $(cat "$work/update.out")"
       pull
       main_run success
       step "packs 7: revoked 1.5 skipped; hello 1.6 landed"
@@ -1193,6 +1187,9 @@ GO
       head_ref=$(gh_count 'st.pulls.find(p=>p.number==='"$pr"').head')
       case $head_ref in claudinite/hello/hello-fold/*-*) ;; *) fail "tasks 3: PR #$pr is from $head_ref" ;; esac
       [ "$(gh_count 'st.pulls.find(p=>p.number==='"$pr"').state')" = closed ] || fail "tasks 3: PR #$pr did not land: $(cat "$work/exec.out")"
+      # Its checks were its own pull_request run, held for the job token's PR and approved.
+      [ "$(gh_count 'st.dispatches.filter(d=>d.ref==="'"$head_ref"'").length')" = 0 ] || fail "tasks 3: CI was dispatched on the PR branch: $(gh_state)"
+      [ "$(gh_count 'st.calls.filter(c=>c.startsWith("approve ")).length')" = 1 ] || fail "tasks 3: the held run was not approved: $(gh_state)"
       git --git-dir "$origin" show main:HELLO_FOLD.json > /dev/null 2>&1 || fail "tasks 3: main holds no HELLO_FOLD.json"
       # The merge was the job token's, whose push starts no workflow.
       [ "$(gh_count "$ci_on_main")" = $((main_ci_before + 1)) ] || fail "tasks 3: the lane did not dispatch claudinite-ci.yml on main after the merge: $(gh_state)"
@@ -1213,7 +1210,7 @@ GO
       grep -q "automerge-policy-scope" "$work/work.out" || fail "tasks 3: automerge-policy-scope did not fail it: $(cat "$work/work.out")"
       (cd "$member" && git checkout -q main && git branch -q -D fold-probe) || fail "tasks 3: back to main"
       pull_after
-      step "tasks 3: #$n ran the worker, landed PR #$pr from $head_ref with both trailers, dispatched CI on main and converged done; automerge-policy-scope holds the branch to the policy"
+      step "tasks 3: #$n ran the worker, landed PR #$pr from $head_ref on its approved held run with both trailers, dispatched CI on main and converged done; automerge-policy-scope holds the branch to the policy"
 
       unset HELLO_FOLD_SECRET
       cn_member work create hello/hello-fold --qualifier secret > "$work/create.out" 2>&1 || fail "tasks 4: work create: $(cat "$work/create.out")"

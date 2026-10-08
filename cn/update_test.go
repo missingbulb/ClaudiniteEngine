@@ -106,6 +106,10 @@ func TestTheUpdateTaskRequeuesWhileMainsCIHasNoVerdict(t *testing.T) {
 	if !r.OK || r.AgentRequested || r.Requeue == nil || r.Requeue.Until != "2026-10-07T14:15:00.000Z" || r.Requeue.Reason == "" {
 		t.Errorf("%+v %+v", r, r.Requeue)
 	}
+	pr := updateTaskResult([]string{"cn update engine: opened #5 for 1.61006.1"}, update.EngineResult{Verdict: "opened #5 for 1.61006.1", PRPending: true}, now)
+	if pr.Requeue == nil || pr.Requeue.Until != "2026-10-07T14:15:00.000Z" {
+		t.Errorf("an update PR whose approved CI was still running was not requeued: %+v", pr)
+	}
 	red := updateTaskResult([]string{"cn update engine: skipped: main is not green (failure)"}, update.EngineResult{Verdict: "skipped: main is not green (failure)"}, now)
 	if red.Requeue != nil {
 		t.Errorf("a red main requeued: %+v", red.Requeue)

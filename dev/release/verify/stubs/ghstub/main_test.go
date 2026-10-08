@@ -82,12 +82,22 @@ func TestTheUpdatersCallsAgainstTheStub(t *testing.T) {
 		t.Fatalf("%+v %v", open, err)
 	}
 
+	held, err := c.HeadRuns(sha)
+	if err != nil || len(held) != 1 || held[0].Event != "pull_request" || held[0].Conclusion != "action_required" {
+		t.Fatalf("the job token's PR got no held run: %+v %v", held, err)
+	}
+	if err := c.ApproveRun(held[0].ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.ApproveRun(held[0].ID); githubapi.StatusOf(err) != 403 {
+		t.Errorf("a run no longer held was approved again: %v", err)
+	}
 	control(t, srv, "/_stub/dispatch", map[string]string{"conclusion": "success"})
 	if err := c.Dispatch("claudinite-ci.yml", "claudinite/engine-2.0.0", map[string]string{"pr": "1"}); err != nil {
 		t.Fatal(err)
 	}
 	runs, err := c.WorkflowRuns("claudinite-ci.yml", sha)
-	if err != nil || len(runs) != 1 || runs[0].Event != "workflow_dispatch" || runs[0].Conclusion != "success" {
+	if err != nil || len(runs) != 2 || runs[0].Event != "workflow_dispatch" || runs[0].Conclusion != "success" || runs[1].Event != "pull_request" || runs[1].Conclusion != "success" {
 		t.Fatalf("%+v %v", runs, err)
 	}
 
@@ -119,7 +129,7 @@ func TestTheUpdatersCallsAgainstTheStub(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := state(t, srv)
-	want := []string{"create-pull 1 claudinite/engine-2.0.0", "label 1 claudinite-update", "dispatch claudinite-ci.yml claudinite/engine-2.0.0 pr=1", "merge 1 " + sha, "create-issue 2 Claudinite engine 1.0.0 is revoked", "update-issue 2", "comment 1"}
+	want := []string{"create-pull 1 claudinite/engine-2.0.0", "label 1 claudinite-update", "approve " + strconv.FormatInt(held[0].ID, 10), "dispatch claudinite-ci.yml claudinite/engine-2.0.0 pr=1", "merge 1 " + sha, "create-issue 2 Claudinite engine 1.0.0 is revoked", "update-issue 2", "comment 1"}
 	if strings.Join(s.Calls, "\n") != strings.Join(want, "\n") {
 		t.Errorf("calls:\n%s", strings.Join(s.Calls, "\n"))
 	}

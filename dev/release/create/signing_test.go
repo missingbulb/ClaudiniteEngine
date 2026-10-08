@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/missingbulb/ClaudiniteEngine/dev/internal/scripttest"
+	"github.com/missingbulb/ClaudiniteEngine/dev/test/scripttest"
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/sign"
 )
@@ -129,9 +129,11 @@ func TestSignKeySources(t *testing.T) {
 	}
 	// The development release key is certified by the development root,
 	// which a released cn does not trust: by default its signature fails.
-	dev := []string{"RELEASE_KEY=" + scripttest.Path(t, "dev/keys/testkeys/release.key"), "RELEASE_CERT=" + scripttest.Path(t, "dev/keys/testkeys/release.cert.json"), "ROOTS=", "DIST=" + dist}
+	dev := []string{"RELEASE_KEY=" + scripttest.Path(t, "dev/release/keys/testkeys/release.key"), "RELEASE_CERT=" + scripttest.Path(t, "dev/release/keys/testkeys/release.cert.json"), "ROOTS=", "DIST=" + dist}
 	if out, err := scripttest.Run(t, dev, "dev/release/create/sign.sh"); err == nil {
 		t.Fatalf("sign.sh accepted the development key against cn/shared/trust/roots\n%s", out)
+	} else if !strings.Contains(out, "not signed by a trusted root") || strings.Contains(out, "no trusted roots in") {
+		t.Errorf("sign.sh did not refuse the development key on cn/shared/trust/roots' own roots:\n%s", out)
 	}
 	dist, _ = scripttest.UnsignedDist(t)
 	if out, err := scripttest.Run(t, append(scripttest.DevKeyEnv(t), "DIST="+dist), "dev/release/create/sign.sh"); err != nil {
@@ -142,12 +144,12 @@ func TestSignKeySources(t *testing.T) {
 func TestSignRefusesAnExpiringCertificate(t *testing.T) {
 	t.Parallel()
 	dist, _ := scripttest.UnsignedDist(t)
-	rootRaw, _ := os.ReadFile(scripttest.Path(t, "dev/keys/testkeys/root.key"))
+	rootRaw, _ := os.ReadFile(scripttest.Path(t, "dev/release/keys/testkeys/root.key"))
 	root, err := sign.ParsePrivateKey(string(rootRaw))
 	if err != nil {
 		t.Fatal(err)
 	}
-	pubRaw, _ := os.ReadFile(scripttest.Path(t, "dev/keys/testkeys/release.pub"))
+	pubRaw, _ := os.ReadFile(scripttest.Path(t, "dev/release/keys/testkeys/release.pub"))
 	pub, err := sign.ParsePublicKey(string(pubRaw))
 	if err != nil {
 		t.Fatal(err)
@@ -160,7 +162,7 @@ func TestSignRefusesAnExpiringCertificate(t *testing.T) {
 	certPath := filepath.Join(t.TempDir(), "release.cert.json")
 	raw, _ := json.Marshal(cert)
 	_ = os.WriteFile(certPath, raw, 0o644)
-	out, err := scripttest.Run(t, []string{"RELEASE_KEY=" + scripttest.Path(t, "dev/keys/testkeys/release.key"), "RELEASE_CERT=" + certPath, "ROOTS=" + scripttest.Path(t, "cn/shared/trust/devroots"), "DIST=" + dist}, "dev/release/create/sign.sh")
+	out, err := scripttest.Run(t, []string{"RELEASE_KEY=" + scripttest.Path(t, "dev/release/keys/testkeys/release.key"), "RELEASE_CERT=" + certPath, "ROOTS=" + scripttest.Path(t, "cn/shared/trust/devroots"), "DIST=" + dist}, "dev/release/create/sign.sh")
 	if err == nil {
 		t.Fatalf("sign.sh signed with a certificate expiring in 10 days\n%s", out)
 	}

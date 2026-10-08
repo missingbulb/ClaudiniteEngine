@@ -45,12 +45,12 @@ func npxLayout(t *testing.T, pkg string, files map[string][]byte) string {
 // releaseSig is the development release key's signature over manifest.
 func releaseSig(t *testing.T, manifest []byte) []byte {
 	t.Helper()
-	key, err := sign.ParsePrivateKey(readFile(t, filepath.Join(repoRoot, "dev/keys/testkeys", "release.key")))
+	key, err := sign.ParsePrivateKey(readFile(t, filepath.Join(repoRoot, "dev/release/keys/testkeys", "release.key")))
 	if err != nil {
 		t.Fatal(err)
 	}
 	var cert sign.Certificate
-	if err := json.Unmarshal([]byte(readFile(t, filepath.Join(repoRoot, "dev/keys/testkeys", "release.cert.json"))), &cert); err != nil {
+	if err := json.Unmarshal([]byte(readFile(t, filepath.Join(repoRoot, "dev/release/keys/testkeys", "release.cert.json"))), &cert); err != nil {
 		t.Fatal(err)
 	}
 	sig, _ := json.Marshal(sign.SignManifest(key, cert, manifest))
