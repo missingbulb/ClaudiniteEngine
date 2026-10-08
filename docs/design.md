@@ -145,7 +145,7 @@ Task workers and precondition scripts stay `.mjs` and run in Node as described a
 
 **GitHub actions a pack may take.** SDK GitHub calls are named actions (`openPr`, `createComment`, `readFile` and so on), never raw URLs. Each pack declares the actions it needs in `pack.json`, the member's settings grant them, and the binary logs every call with the pack's id.
 
-**minEngineVersion.** Every pack version declares the lowest engine version it runs on. The pack index carries it per version, the update never installs a pack version whose minimum the pinned engine does not meet, and the engine refuses loudly to load one that slipped through. It is a minimum only; a pack never names a maximum.
+**minEngineVersion.** Every pack version declares the lowest engine version it runs on. The pack index carries it per version, the update never installs a pack version whose minimum the pinned engine does not meet, and the engine refuses loudly to load one that slipped through. A minimum that is no `<major>.<day>.<n>` version, such as a Node engine's two-part one, is met by no engine: an index entry carrying it is passed over as not for this engine, and the index still reads (record row 149). It is a minimum only; a pack never names a maximum.
 
 ## Distribution and pinning
 
@@ -219,7 +219,7 @@ A single repository, public or private, is free, and the engine asks it for noth
 
 The engine meets it nowhere: `cn` checks no license, and a fleet run's owner check left with `cn fleet` (record row 145). A fleet manager that sells or checks a plan does so in its own code.
 
-A retired `license` block in a member's settings still parses: verify names it as a retired shape (`license-plan`, a deprecation), and the next engine update PR drops it.
+A `license` block in a member's settings is an unknown key, as any other: the settings do not parse until it is deleted (record row 149).
 
 ## Pack serving and publishing
 
