@@ -384,6 +384,7 @@ func compareGrowth(t *testing.T, dir string, e Engine, got GrowthExpect, want *G
 	t.Helper()
 	if want == nil {
 		t.Fatalf("%s has no expect.json; record it against the Node engine first (%s=1)", dir, recordEnv)
+		return
 	}
 	w := *want
 	if e.Name() == "cn" && want.Divergence != "" {
