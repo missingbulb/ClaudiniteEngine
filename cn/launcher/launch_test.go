@@ -231,6 +231,7 @@ func (m *member) run(t *testing.T, stdin string, args ...string) (string, string
 		"HOME=" + m.home,
 		"XDG_CACHE_HOME=" + m.cache,
 		"CLAUDINITE_REGISTRY=" + m.registry,
+		"CLAUDINITE_GITHUB=" + m.registry,
 		"CURL_CA_BUNDLE=" + m.ca,
 		"NO_PROXY=127.0.0.1,localhost",
 	}, m.env...)
@@ -659,6 +660,38 @@ func TestLauncher(t *testing.T) {
 		}
 		if got := s.requests(t); strings.Join(got, " ") != strings.Join(want, " ") {
 			t.Errorf("requests %v, want %v", got, want)
+		}
+	})
+
+	t.Run("15 engine.releases fetches from that repository's GitHub releases, not npm", func(t *testing.T) {
+		t.Parallel()
+		s := startStub(t, rel.dist)
+		m := newMember(t, s)
+		m.settings(t, "settings.yaml", strings.Replace(yaml(testVersion, rel.pin), "packs:", "  releases: \"acme/acme-distro\"\npacks:", 1))
+		out, errOut, code := m.run(t, sessionStartStdin, "hook", "session-start")
+		if code != 0 || !strings.Contains(out, "Hello from cn") {
+			t.Fatalf("exit %d\nstdout %s\nstderr %s", code, out, errOut)
+		}
+		want := []string{
+			"/acme/acme-distro/releases/download/v" + testVersion + "/cli-" + testVersion + ".tgz",
+			"/acme/acme-distro/releases/download/v" + testVersion + "/cli-" + host + "-" + testVersion + ".tgz",
+		}
+		if got := s.requests(t); strings.Join(got, " ") != strings.Join(want, " ") {
+			t.Errorf("requests %v, want %v", got, want)
+		}
+	})
+
+	t.Run("16 an engine.releases that is no owner/name is refused before any download", func(t *testing.T) {
+		t.Parallel()
+		s := startStub(t, rel.dist)
+		m := newMember(t, s)
+		m.settings(t, "settings.yaml", strings.Replace(yaml(testVersion, rel.pin), "packs:", "  releases: \"../evil\"\npacks:", 1))
+		_, errOut, code := m.run(t, "", "env", "install")
+		if code != 1 || !strings.Contains(errOut, "engine.releases") {
+			t.Errorf("exit %d, stderr %s; want a refusal naming engine.releases", code, errOut)
+		}
+		if got := s.requests(t); len(got) != 0 {
+			t.Errorf("requests %v, want none", got)
 		}
 	})
 }

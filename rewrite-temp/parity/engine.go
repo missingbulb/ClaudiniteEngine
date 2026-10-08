@@ -279,11 +279,13 @@ func (n Node) Hook(dir, event, payload string) (Verdict, error) {
 	return Verdict{Exit: code, Stderr: stderr, Context: ctx}, err
 }
 
-// Cn is a built cn binary, and the cndecide binary answering the
-// decision faces only this harness asks.
+// Cn is a built cn binary, the cndecide binary answering the decision
+// faces only this harness asks, and the fromnode binary that reads a Node
+// declaration.
 type Cn struct {
-	Binary string
-	Decide string
+	Binary   string
+	Decide   string
+	FromNode string
 	// Cache isolates the engine's caches from the machine's.
 	Cache string
 }
@@ -295,8 +297,8 @@ func (c Cn) env(dir string) []string {
 }
 
 // Settings writes the development pin into .claudinite/settings.yaml and
-// has cn import the Node declaration into it, `cn settings import`, the
-// one reader of .claudinite-settings.json. The declaration is written
+// has fromnode import the Node declaration into it, `fromnode import`,
+// the one reader of .claudinite-settings.json. The declaration is written
 // beside dir, never into it, so the member holds no Node file.
 func (c Cn) Settings(dir string, node map[string]any) (string, error) {
 	raw, err := jsonIndent(node)
@@ -314,9 +316,9 @@ func (c Cn) Settings(dir string, node map[string]any) (string, error) {
 	if err := os.WriteFile(filepath.Join(dir, ".claudinite/settings.yaml"), []byte(pin), 0o644); err != nil {
 		return "", err
 	}
-	out, stderr, code, err := run(dir, c.env(dir), "", c.Binary, "settings", "import", "--from", from, "--repo", dir)
+	out, stderr, code, err := run(dir, c.env(dir), "", c.FromNode, "import", "--from", from, "--repo", dir)
 	if err != nil || code != 0 {
-		return "", fmt.Errorf("cn settings import: exit %d %v: %s%s", code, err, out, stderr)
+		return "", fmt.Errorf("fromnode import: exit %d %v: %s%s", code, err, out, stderr)
 	}
 	return ".claudinite/settings.yaml", nil
 }

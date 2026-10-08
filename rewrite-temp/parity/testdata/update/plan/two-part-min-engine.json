@@ -27,13 +27,13 @@
       "to": "61003.1"
     }
   ],
-  "divergence": "record-120",
+  "divergence": "record-152",
   "cn": [
     {
       "id": "acme-pack",
       "from": "61002.1",
       "to": "61003.1",
-      "blocked": "pack \"acme-pack\" version 61003.1 names the Node engine version 61003.1 as its floor, which no cn release meets",
+      "blocked": "pack \"acme-pack\" version 61003.1: minEngineVersion \"61003.1\": version \"61003.1\": want \u003cmajor\u003e.\u003cday\u003e.\u003cn\u003e, three dot-separated numbers, so no engine loads it",
       "records": []
     }
   ]

@@ -43,6 +43,8 @@ var (
 	VersionPattern  = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+$`)
 	ManifestPattern = regexp.MustCompile(`^sha512-[A-Za-z0-9+/]{86}==$`)
 	PackagePattern  = regexp.MustCompile(`^@claudinite/cli(-rc)?$`)
+	// ReleasesPattern is a GitHub owner/name.
+	ReleasesPattern = regexp.MustCompile(`^[A-Za-z0-9-]+/[A-Za-z0-9_-][A-Za-z0-9._-]*$`)
 )
 
 // RelPath is a settings file's path relative to the repo root.
@@ -72,6 +74,9 @@ type Engine struct {
 	// absent, it is stable.
 	Channel    string
 	HasChannel bool
+	// Releases is the GitHub repository, owner/name, whose releases serve
+	// the engine in place of npm; empty when engine.releases is absent.
+	Releases string
 }
 
 // span is a byte range of the file holding one "line" of the engine block:
@@ -102,10 +107,7 @@ func patternsFor(name string) blockPatterns {
 	}
 }
 
-var (
-	enginePatterns  = patternsFor("engine")
-	licensePatterns = patternsFor("license")
-)
+var enginePatterns = patternsFor("engine")
 
 func lineSpans(raw []byte) []span {
 	var out []span
@@ -264,6 +266,9 @@ func ReadEngine(raw []byte, f Format) (Engine, error) {
 		return Engine{}, err
 	}
 	e.HasChannel = e.Channel != ""
+	if err := get("releases", ReleasesPattern, `GitHub repository like "owner/name"`, &e.Releases, false); err != nil {
+		return Engine{}, err
+	}
 	switch {
 	case e.HasChannel:
 	case e.Package == LegacyCanaryPackage:
@@ -305,8 +310,8 @@ func SetPin(raw []byte, f Format, version, manifest string) ([]byte, error) {
 }
 
 // PinOnlyChange refuses unless new is old with at most engine.version and
-// engine.manifest changed, both still valid, the retired license block
-// dropped and a legacy package moved to its channel.
+// engine.manifest changed, both still valid, and a legacy package moved to
+// its channel.
 func PinOnlyChange(old, new []byte, f Format) error {
 	err := pinOnlyChange(old, new, f)
 	if err == nil {
@@ -333,14 +338,14 @@ func pinOnlyChange(old, new []byte, f Format) error {
 	if oe.Channel != ne.Channel || oe.HasChannel != ne.HasChannel {
 		return errors.New("engine.channel changed")
 	}
+	if oe.Releases != ne.Releases {
+		return errors.New("engine.releases changed")
+	}
 	moved, err := SetPin(old, f, ne.Version, ne.Manifest)
 	if err != nil {
 		return err
 	}
 	if string(moved) == string(new) {
-		return nil
-	}
-	if dropped, err := DropLicense(moved, f); err == nil && string(dropped) == string(new) {
 		return nil
 	}
 	return errors.New("the settings change touches more than engine.version and engine.manifest")

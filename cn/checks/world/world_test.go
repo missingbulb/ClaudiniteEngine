@@ -166,41 +166,13 @@ func TestFindingsDecideTheExit(t *testing.T) {
 	}
 }
 
-// retired is main's settings file still carrying the license block.
-var retired = settingsBody("1.1.0", pin1) + "license:\n  plan: \"public\"\n"
-
-func TestPinGuardLetsTheUpdateDropTheRetiredLicenseBlock(t *testing.T) {
-	t.Parallel()
-	cases := []struct {
-		name   string
-		body   string
-		author string
-		code   int
-		want   string
-	}{
-		{"the bot moves the pin and drops the license block", settingsBody("1.2.0", pin2), bot, 0, ""},
-		{"the bot moves the pin and keeps the license block", settingsBody("1.2.0", pin2) + "license:\n  plan: \"public\"\n", bot, 0, ""},
-		{"the bot drops only the license block", settingsBody("1.1.0", pin1), bot, 0, ""},
-		{"the bot moves the pin and changes the plan", settingsBody("1.2.0", pin2) + "license:\n  plan: \"private-repo\"\n", bot, 1, "pin-guard"},
-		{"a person drops the license block, leaving the engine block alone", settingsBody("1.1.0", pin1), "someone", 0, ""},
-		{"a person drops the license block and moves the pin", settingsBody("1.2.0", pin2), "someone", 1, "pin-guard"},
-	}
-	for _, c := range cases {
-		dir := memberOn(t, retired, func(dir string) { write(t, dir, ".claudinite/settings.yaml", c.body) })
-		code, out := runWorld(t, dir, c.author, &pinCheck{}, nil)
-		if code != c.code || !strings.Contains(out, c.want) {
-			t.Errorf("%s: exit %d, want %d; output lacks %q:\n%s", c.name, code, c.code, c.want, out)
-		}
-	}
-}
-
 // unadopted is a repo whose main holds no settings file and no launcher,
 // checked out on a branch that the change function edits and commits.
 func unadopted(t *testing.T, change func(dir string)) string {
 	t.Helper()
 	dir := t.TempDir()
 	git(t, dir, "init", "-q", "-b", "main")
-	write(t, dir, ".claudinite-settings.json", "{}\n")
+	write(t, dir, "README.md", "unadopted\n")
 	git(t, dir, "add", "-A")
 	git(t, dir, "commit", "-q", "-m", "base")
 	git(t, dir, "checkout", "-q", "-b", "change")
@@ -247,6 +219,16 @@ func TestPinGuardLetsAPersonAdoptAndEditTheirSettings(t *testing.T) {
 		{"a person changes the channel and moves the pin", func(t *testing.T) string {
 			return member(t, func(dir string) {
 				write(t, dir, ".claudinite/settings.yaml", settingsBody("1.2.0", pin2)+"  channel: \"staging\"\n")
+			})
+		}, nil, 1, "pin-guard", false},
+		{"a person points the engine at a releases repository", func(t *testing.T) string {
+			return member(t, func(dir string) {
+				write(t, dir, ".claudinite/settings.yaml", settingsBody("1.1.0", pin1)+"  releases: \"acme/acme-distro\"\n")
+			})
+		}, nil, 0, "", false},
+		{"a person points the engine at a releases repository and moves the pin", func(t *testing.T) string {
+			return member(t, func(dir string) {
+				write(t, dir, ".claudinite/settings.yaml", settingsBody("1.2.0", pin2)+"  releases: \"acme/acme-distro\"\n")
 			})
 		}, nil, 1, "pin-guard", false},
 		{"a person edits the launcher of an adopted repo", func(t *testing.T) string {

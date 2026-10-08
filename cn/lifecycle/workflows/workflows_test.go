@@ -64,7 +64,11 @@ func TestTemplates(t *testing.T) {
 	}
 	pinned := regexp.MustCompile(`^\s*(?:- )?uses:\s*[^@\s]+@[0-9a-f]{40}(?:\s+#.*)?$`)
 	for name, body := range tpl {
-		disk, err := os.ReadFile("templates/" + name)
+		dir := "templates/"
+		if name != "claudinite-ci.yml" {
+			dir = "../../tasks/workflows/templates/"
+		}
+		disk, err := os.ReadFile(dir + name)
 		if err != nil || string(disk) != string(body) {
 			t.Errorf("%s: embedded template differs from templates/%s", name, name)
 		}

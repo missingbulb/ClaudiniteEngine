@@ -16,6 +16,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/cn/lifecycle/packs"
 	"github.com/missingbulb/ClaudiniteEngine/cn/lifecycle/update"
 	"github.com/missingbulb/ClaudiniteEngine/cn/lifecycle/workflows"
+	"github.com/missingbulb/ClaudiniteEngine/cn/shared/ghrelease"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/gitcmd"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/githubapi"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/npmreg"
@@ -74,7 +75,7 @@ func localDeps(repo, token string, stdout io.Writer) (update.Deps, error) {
 	if err != nil {
 		return update.Deps{}, report.Wrap(report.Internal, "update", err)
 	}
-	return update.Deps{Registry: reg, Git: gitcmd.Repo{Dir: repo, Token: token}, Roots: roots,
+	return update.Deps{Registry: reg, ReleasesHost: ghrelease.Host(), Git: gitcmd.Repo{Dir: repo, Token: token}, Roots: roots,
 		CacheRoot: paths.CacheRoot(), Platform: version.Platform(), Now: time.Now, Sleep: time.Sleep,
 		Repo: repo, FullName: repoFullName(repo), Out: stdout, Timeout: childTimeout, Exe: exe}, nil
 }

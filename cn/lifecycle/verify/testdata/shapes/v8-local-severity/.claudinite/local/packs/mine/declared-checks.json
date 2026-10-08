@@ -1,9 +1,0 @@
-[
-  {
-    "id": "mine-no-todo",
-    "severity": "advisory",
-    "scanFiles": "notes.md",
-    "forbidLinesMatching": "/TODO/",
-    "failureMessage": "a TODO left in the notes"
-  }
-]

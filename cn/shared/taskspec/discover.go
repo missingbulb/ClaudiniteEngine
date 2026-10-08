@@ -121,15 +121,12 @@ func SecretNames(decls []Decl) []string {
 	return out
 }
 
-// The engine's own tasks: the request implementer a marked issue's work
-// item names, and the nightly update. They are not a pack and declare
-// nothing; wherever the queue runs they are active, which is also what
-// fences the one field only the implementer may declare
-// (model_from_request). The update stands aside while the repo still
-// holds the update workflow it supersedes, so it never runs twice.
+// The engine's own task: the nightly update. It is not a pack's and
+// declares nothing; wherever the queue runs it is active. It stands aside
+// while the repo still holds the update workflow it supersedes, so it
+// never runs twice.
 const (
 	BuiltinPack = "engine"
-	RequestTask = "implement-request"
 	UpdateTask  = "update"
 )
 
@@ -141,8 +138,6 @@ const UpdateWorkflow = ".github/workflows/claudinite-update.yml"
 const UpdateTaskPath = "engine/scheduler/queue/tasks/" + UpdateTask + "/task.json"
 
 var (
-	//go:embed builtin/implement-request/task.json
-	requestDeclaration []byte
 	//go:embed builtin/update/task.json
 	updateDeclaration []byte
 	//go:embed builtin/update/task.md
@@ -227,10 +222,10 @@ func Discover(repo string, packs []packset.Pack) ([]Task, []DiscoveryError) {
 			tasks = append(tasks, t)
 		}
 	}
-	builtins := []struct {
+	var builtins []struct {
 		id   string
 		decl []byte
-	}{{RequestTask, requestDeclaration}}
+	}
 	if _, err := os.Stat(filepath.Join(repo, filepath.FromSlash(UpdateWorkflow))); err != nil {
 		builtins = append(builtins, struct {
 			id   string
@@ -242,7 +237,7 @@ func Discover(repo string, packs []packset.Pack) ([]Task, []DiscoveryError) {
 		if err != nil {
 			panic("the engine's own task declaration does not parse: " + err.Error())
 		}
-		if t, e := admit(BuiltinPack, b.id, BuiltinPack+"/"+b.id, d, EngineTerms); e != nil {
+		if t, e := admit(BuiltinPack, b.id, BuiltinPack+"/"+b.id, d, nil); e != nil {
 			errs = append(errs, *e)
 		} else {
 			t.Engine = true
@@ -267,17 +262,26 @@ func admit(pack, name, where string, d Decl, terms Terms) (Task, *DiscoveryError
 	return Task{Pack: pack, ID: norm.ID(), Decl: norm, Terms: terms}, nil
 }
 
-// RequestTaskPath is the worker path the built-in request task's items
-// name: a path that never moves, since an item's body is never rewritten.
-const RequestTaskPath = ".claudinite/shared/packs/claudinite-tasks/public/" + RequestTask + ".md"
+// RequestHandler is the task a marked issue naming no task is adopted
+// into: the one active task gated on request-eligible. It is false when no
+// task, or more than one, is.
+func RequestHandler(tasks []Task) (Task, bool) {
+	var found []Task
+	for _, t := range tasks {
+		if GatesOnRequest(t.Decl.Preconditions()) {
+			found = append(found, t)
+		}
+	}
+	if len(found) != 1 {
+		return Task{}, false
+	}
+	return found[0], true
+}
 
 // TaskPath is the worker path a work item's first body line names.
 func (t Task) TaskPath() string {
 	if t.Pack == BuiltinPack && t.Rel == "" {
-		if t.ID == UpdateTask {
-			return UpdateTaskPath
-		}
-		return RequestTaskPath
+		return UpdateTaskPath
 	}
 	return t.Rel + "/task.md"
 }

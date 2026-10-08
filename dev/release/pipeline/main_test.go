@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/missingbulb/ClaudiniteEngine/cn/shared/ghrelease"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/npmreg"
 )
 
@@ -90,5 +91,22 @@ func TestNPMHoldsWaitsTheServeWait(t *testing.T) {
 	}
 	if _, e, code := pipeline(t, "npm-holds", "--dist", "dist", "--version", "1.61005.9", "--repo", "o/r"); code != 2 || !strings.Contains(e, "usage") {
 		t.Errorf("no --channel: exit %d %s", code, e)
+	}
+}
+
+// release.json is what a waiting session and cn update read back.
+func TestReleaseJSONReadsBack(t *testing.T) {
+	pin := "sha512-" + strings.Repeat("A", 86) + "=="
+	commit := strings.Repeat("c", 40)
+	out, e, code := pipeline(t, "release-json", "--version", "1.61008.1", "--manifest", pin, "--commit", commit)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, e)
+	}
+	l, err := ghrelease.ParseLatest([]byte(out))
+	if err != nil || l != (ghrelease.Latest{Version: "1.61008.1", Manifest: pin, Commit: commit}) {
+		t.Errorf("%q reads back as %+v, %v", out, l, err)
+	}
+	if out, _, code := pipeline(t, "release-json", "--version", "1.61008.1", "--manifest", "sha512-x", "--commit", commit); code == 0 || out != "" {
+		t.Errorf("a malformed pin: exit %d %q", code, out)
 	}
 }

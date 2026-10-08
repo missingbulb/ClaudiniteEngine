@@ -20,9 +20,8 @@ func modified(file, before, after string) Entry {
 func added(file, after string) Entry    { return Entry{File: file, After: &after} }
 func deleted(file, before string) Entry { return Entry{File: file, Before: &before} }
 
-// A real engine update PR: the pin moved (the retired license block
-// dropped with it), the member file restated, a managed workflow moved in
-// or added.
+// A real engine update PR: the pin moved, the member file restated, a
+// managed workflow moved in or added.
 func TestTheEngineUpdatePolicyPassesARealUpdatePR(t *testing.T) {
 	shapes := map[string][]Entry{
 		"the pin alone": {modified(".claudinite/settings.yaml", pinBefore, pinAfter)},
@@ -36,9 +35,6 @@ func TestTheEngineUpdatePolicyPassesARealUpdatePR(t *testing.T) {
 		"a member file still in the legacy directory": {
 			modified(".claudinite/settings.yaml", pinBefore, pinAfter),
 			modified(".claudinite/flat/member.GENERATED.json", "{}\n", "{\"v\": 2}\n"),
-		},
-		"the retired license block dropped with the pin": {
-			modified(".claudinite/settings.yaml", pinBefore+"license:\n  plan: \"public\"\n", pinAfter),
 		},
 	}
 	for name, entries := range shapes {

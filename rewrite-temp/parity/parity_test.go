@@ -72,6 +72,11 @@ func decideBinary(t *testing.T) string {
 	return build(t, "cndecide", "../cndecide")
 }
 
+func fromNodeBinary(t *testing.T) string {
+	t.Helper()
+	return build(t, "fromnode", "../fromnode")
+}
+
 func build(t *testing.T, name, pkg string) string {
 	t.Helper()
 	bin := filepath.Join(t.TempDir(), name)
@@ -99,7 +104,7 @@ func engines(t *testing.T) []Engine {
 		es = append(es, Node{Root: nodeRoot(t)})
 	}
 	if sel == "cn" || sel == "both" {
-		es = append(es, Cn{Binary: cnBinary(t), Decide: decideBinary(t), Cache: t.TempDir()})
+		es = append(es, Cn{Binary: cnBinary(t), Decide: decideBinary(t), FromNode: fromNodeBinary(t), Cache: t.TempDir()})
 	}
 	if es == nil {
 		t.Fatalf("%s=%q: want node, cn or unset", engineEnv, sel)

@@ -175,8 +175,7 @@ func ConvergeOps(item workitem.Issue, p Plan) []Op {
 		r := *fields.Request
 		ops = append(ops,
 			Op{Kind: "comment", Issue: r, Body: fmt.Sprintf("A pull request for this is open and waiting on you: #%d. Merge or close it.", p.PR)},
-			Op{Kind: "removeLabel", Issue: r, Name: workitem.QueuedLabel},
-			Op{Kind: "addLabel", Issue: r, Name: workitem.InReviewLabel})
+			Op{Kind: "removeLabel", Issue: r, Name: workitem.QueuedLabel})
 	}
 	return ops
 }

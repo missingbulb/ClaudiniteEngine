@@ -199,3 +199,38 @@ func (r *registry) publish(t *testing.T, pkg, ver string, o relOpts) {
 		p.DistTags[o.tag] = ver
 	}
 }
+
+// toReleases moves pkg@ver off npm onto repo's GitHub release v<ver>, its
+// tarballs under the same names, and points the latest release.json at it.
+func (r *registry) toReleases(t *testing.T, repo, pkg, ver string) {
+	t.Helper()
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	name := strings.TrimPrefix(pkg, "@claudinite/")
+	move := func(from, file string) {
+		b, ok := r.files[from]
+		if !ok {
+			t.Fatalf("nothing published at %s", from)
+		}
+		delete(r.files, from)
+		r.files[fmt.Sprintf("/%s/releases/download/v%s/%s", repo, ver, file)] = b
+	}
+	channel := r.files[fmt.Sprintf("/%s/-/%s-%s.tgz", pkg, name, ver)]
+	manifest, err := tarFile(channel, "package/manifest.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	move(fmt.Sprintf("/%s/-/%s-%s.tgz", pkg, name, ver), fmt.Sprintf("%s-%s.tgz", name, ver))
+	for _, p := range version.Platforms {
+		move(fmt.Sprintf("/%s-%s/-/%s-%s-%s.tgz", pkg, p, name, p, ver), fmt.Sprintf("%s-%s-%s.tgz", name, p, ver))
+	}
+	if p := r.pkgs[pkg]; p != nil {
+		delete(p.Versions, ver)
+		for tag, v := range p.DistTags {
+			if v == ver {
+				delete(p.DistTags, tag)
+			}
+		}
+	}
+	r.files["/"+repo+"/releases/latest/download/release.json"] = []byte(fmt.Sprintf(`{"version": %q, "manifest": %q, "commit": %q}`, ver, integrity(manifest), strings.Repeat("c", 40)))
+}

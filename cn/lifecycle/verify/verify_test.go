@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"os"
 	"path/filepath"
-	"reflect"
 	"sort"
 	"strings"
 	"testing"
@@ -191,9 +190,9 @@ func TestRules(t *testing.T) {
 		{"pack needs a newer engine", func(t *testing.T, d string) {
 			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "1.60930.2"}`)
 		}, []string{"pack-min-engine"}, nil},
-		{"pack with two-part minimum", func(t *testing.T, d string) {
+		{"pack with a Node engine's two-part minimum", func(t *testing.T, d string) {
 			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "60928.1"}`)
-		}, nil, []string{"pack-min-engine"}},
+		}, []string{"pack-min-engine"}, nil},
 		{"pack with malformed minimum", func(t *testing.T, d string) {
 			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "soon"}`)
 		}, []string{"pack-min-engine"}, nil},
@@ -232,7 +231,7 @@ func TestRules(t *testing.T) {
 		}, nil, nil},
 		{"a top-level sharedConstants", func(t *testing.T, d string) {
 			appendSettings(t, d, "sharedConstants:\n  - name: port\n    files: [a.js, b.js]\n")
-		}, nil, []string{"settings-checks"}},
+		}, []string{"pack-declared"}, nil},
 		{"sharedConstants on the basics entry", func(t *testing.T, d string) {
 			appendSettings(t, d, "packs:\n  declared:\n    - id: basics\n      config:\n        sharedConstants:\n          - name: port\n")
 			write(t, d, ".claudinite/shared/packs/basics/pack.json", `{"version": "1.0", "minEngineVersion": "1.60930.1"}`)
@@ -271,37 +270,13 @@ func TestRules(t *testing.T) {
 			write(t, d, ".claudinite/cache/claudinite-rules.GENERATED.md", "@../shared/packs/acme-pack/RULES.md\n")
 			write(t, d, "CLAUDE.md", "@.claudinite/flat/claudinite-rules.GENERATED.md\n")
 		}, nil, []string{"rules-index-current"}},
-		{"retired license block", func(t *testing.T, d string) {
-			raw, _ := os.ReadFile(filepath.Join(d, ".claudinite/settings.yaml"))
-			write(t, d, ".claudinite/settings.yaml", string(raw)+"license:\n  plan: \"public\"\n")
-		}, nil, []string{"license-plan"}},
-		{"retired license block with a plan no server knows", func(t *testing.T, d string) {
-			raw, _ := os.ReadFile(filepath.Join(d, ".claudinite/settings.yaml"))
-			write(t, d, ".claudinite/settings.yaml", string(raw)+"license:\n  plan: \"free\"\n")
-		}, nil, []string{"license-plan"}},
-		{"retired license block unquoted", func(t *testing.T, d string) {
-			raw, _ := os.ReadFile(filepath.Join(d, ".claudinite/settings.yaml"))
-			write(t, d, ".claudinite/settings.yaml", string(raw)+"license:\n  plan: public\n")
-		}, nil, []string{"license-plan"}},
-		{"local pack with retired manifest keys", func(t *testing.T, d string) {
+		{"a license block", func(t *testing.T, d string) {
+			appendSettings(t, d, "license:\n  plan: \"public\"\n")
+		}, []string{"pack-declared"}, nil},
+		{"local pack with a Node manifest key", func(t *testing.T, d string) {
 			declare(t, d, "local/mine", "")
-			write(t, d, ".claudinite/local/packs/mine/pack.json", "{\n  \"marker\": null,\n  \"detect\": null,\n  \"contributes\": {}\n}\n")
-		}, nil, []string{"local-pack-shape", "local-pack-shape", "local-pack-shape"}},
-		{"local pack declaration with severity", func(t *testing.T, d string) {
-			declare(t, d, "local/mine", "")
-			write(t, d, ".claudinite/local/packs/mine/pack.json", "{}")
-			write(t, d, ".claudinite/local/packs/mine/declared-checks.json", `[{"id": "mine-x", "severity": "advisory", "scanFiles": "a", "forbidLinesMatching": "/x/", "failureMessage": "m"}]`)
-		}, nil, []string{"local-pack-shape"}},
-		{"local pack with JavaScript rules", func(t *testing.T, d string) {
-			declare(t, d, "local/mine", "")
-			write(t, d, ".claudinite/local/packs/mine/pack.json", "{}")
-			write(t, d, ".claudinite/local/packs/mine/worldRules/a.mjs", "export default {};\n")
-			write(t, d, ".claudinite/local/packs/mine/workRules/b.mjs", "export default {};\n")
-			write(t, d, ".claudinite/local/packs/mine/skills/s/checks.mjs", "export default [];\n")
-		}, []string{"local-pack-shape", "local-pack-shape", "local-pack-shape"}, nil},
-		{"temp pack with retired manifest keys", func(t *testing.T, d string) {
-			write(t, d, ".claudinite/temp/packs/current_user/pack.json", `{"marker": "x"}`)
-		}, nil, []string{"local-pack-shape"}},
+			write(t, d, ".claudinite/local/packs/mine/pack.json", "{\n  \"marker\": null\n}\n")
+		}, []string{"descriptor-format"}, nil},
 		{"canon manifest with a retired key", func(t *testing.T, d string) {
 			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "1.60930.1", "marker": null}`)
 		}, []string{"descriptor-format"}, nil},
@@ -311,36 +286,18 @@ func TestRules(t *testing.T) {
 		}, []string{"descriptor-format"}, nil},
 		{"override in the retired spelling", func(t *testing.T, d string) {
 			appendSettings(t, d, "checks:\n  rules:\n    acme-check: blocking\n")
-		}, nil, []string{"settings-checks"}},
-		{"via and answers on an entry", func(t *testing.T, d string) {
-			appendSettings(t, d, "packs:\n  declared:\n    - id: acme-pack\n      via: [basics]\n      answers: {store: \"o/r\"}\n")
+		}, []string{"settings-checks"}, nil},
+		{"answers on an entry", func(t *testing.T, d string) {
+			appendSettings(t, d, "packs:\n  declared:\n    - id: acme-pack\n      answers: {store: \"o/r\"}\n")
 			write(t, d, ".claudinite/shared/packs/acme-pack/pack.json", `{"version": "1.0", "minEngineVersion": "1.60930.1"}`)
 		}, nil, nil},
+		{"via on an entry", func(t *testing.T, d string) {
+			appendSettings(t, d, "packs:\n  declared:\n    - id: acme-pack\n      via: [basics]\n")
+			write(t, d, ".claudinite/shared/packs/acme-pack/pack.json", `{"version": "1.0", "minEngineVersion": "1.60930.1"}`)
+		}, []string{"pack-declared"}, nil},
 		{"a renamed pack declared", func(t *testing.T, d string) {
 			declare(t, d, "tidy-repo", "")
 		}, []string{"pack-declared"}, nil},
-		{"the Node declaration beside", func(t *testing.T, d string) {
-			write(t, d, ".claudinite-settings.json", `{"packs": []}`)
-		}, nil, []string{"node-leftovers"}},
-		{"the Node mount left", func(t *testing.T, d string) {
-			write(t, d, ".claudinite/shared/engine/hooks/x.mjs", "\n")
-		}, nil, []string{"node-leftovers"}},
-		{"an index at the old path", func(t *testing.T, d string) {
-			write(t, d, ".claudinite/claudinite-rules.GENERATED.md", "\n")
-			write(t, d, ".claudinite/claudinite-skills.GENERATED.md", "\n")
-		}, nil, []string{"node-leftovers", "node-leftovers"}},
-		{"a workflow step running the Node checks", func(t *testing.T, d string) {
-			write(t, d, ".github/workflows/ci.yml", "jobs:\n  c:\n    steps:\n      - run: node .claudinite/shared/engine/checks/check_the_world.mjs\n")
-		}, nil, []string{"node-leftovers"}},
-		{"the Node hook log ignored", func(t *testing.T, d string) {
-			write(t, d, ".gitignore", "node_modules/\n/.claudinite-hooks.log*\n")
-		}, nil, []string{"node-leftovers"}},
-		{"the session pack root ignored from the repo root", func(t *testing.T, d string) {
-			write(t, d, ".gitignore", "node_modules/\n/.claudinite/temp/\n")
-		}, nil, []string{"node-leftovers"}},
-		{"both Node lines ignored from the repo root", func(t *testing.T, d string) {
-			write(t, d, ".gitignore", "/.claudinite-hooks.log*\n.claudinite/temp\n")
-		}, nil, []string{"node-leftovers", "node-leftovers"}},
 		{"a declared pack's skill with no skills index", func(t *testing.T, d string) {
 			declare(t, d, "acme-pack", `{"version": "1.0", "minEngineVersion": "1.60930.1"}`)
 			write(t, d, ".claudinite/shared/packs/acme-pack/skills/demo/SKILL.md", "---\nname: demo\ndescription: d\n---\n")
@@ -356,12 +313,6 @@ func TestRules(t *testing.T) {
 			write(t, d, ".claudinite/shared/packs/acme-pack/skills/draft/SKILL.md", "---\nname: draft\ndescription: d\n---\n")
 			write(t, d, ".claudinite/cache/claudinite-skills.GENERATED.md", "| `demo` | acme-pack | d |\n")
 		}, nil, nil},
-		{"hooks naming the Node engine", func(t *testing.T, d string) {
-			write(t, d, ".claude/settings.json", `{"hooks": {"SessionStart": [{"hooks": [{"type": "command", "command": "node .claudinite/shared/engine/hooks/run-session-start.mjs"}]}]}}`)
-		}, []string{"hooks"}, nil},
-		{"hooks naming the canon's own engine", func(t *testing.T, d string) {
-			write(t, d, ".claude/settings.json", `{"hooks": {"Stop": [{"hooks": [{"type": "command", "command": "node $CLAUDE_PROJECT_DIR/engine/hooks/stop-command.mjs"}]}]}}`)
-		}, []string{"hooks"}, nil},
 		{"malformed packs block", func(t *testing.T, d string) {
 			raw, _ := os.ReadFile(filepath.Join(d, ".claudinite/settings.yaml"))
 			write(t, d, ".claudinite/settings.yaml", string(raw)+"packs:\n  channel: \"nightly\"\n")
@@ -382,35 +333,6 @@ func TestRules(t *testing.T) {
 				t.Errorf("%s: finding without a path or sentence: %+v", c.name, f)
 			}
 		}
-	}
-}
-
-// A repo on the Node engine, with no cn settings at all, gets the one
-// settings-file break, and it names the import.
-func TestANodeMemberBreaksNamingTheImport(t *testing.T) {
-	dir := t.TempDir()
-	write(t, dir, ".claudinite-settings.json", `{"packs": ["basics"]}`)
-	fs := run(t, dir)
-	if len(fs) != 1 || fs[0].ID != "settings-file" || fs[0].Class != findings.Break || !strings.Contains(fs[0].Sentence, "cn settings import") {
-		t.Fatalf("%v", fs)
-	}
-}
-
-// The deprecations name the line: the manifest key's, and the severity's.
-func TestLocalPackShapeNamesTheLine(t *testing.T) {
-	dir := newShape(t)
-	declare(t, dir, "local/mine", "")
-	write(t, dir, ".claudinite/local/packs/mine/pack.json", "{\n  \"ruleRoutingGuidance\": {\n    \"belongs\": \"x\",\n    \"marker\": \"x\",\n    \"excludes\": \"x\"\n  },\n  \"marker\": null\n}\n")
-	write(t, dir, ".claudinite/local/packs/mine/declared-checks.json", "[\n  {\n    \"id\": \"mine-x-old\",\n    \"failureMessage\": \"severity\",\n    \"scanFiles\": \"a\"\n  },\n  {\n    \"id\": \"mine-x\",\n    \"severity\": \"blocking\",\n    \"scanFiles\": \"a\"\n  }\n]\n")
-	got := map[string]bool{}
-	for _, f := range run(t, dir) {
-		if f.ID == "local-pack-shape" {
-			got[f.Location()] = true
-		}
-	}
-	want := map[string]bool{".claudinite/local/packs/mine/pack.json:7": true, ".claudinite/local/packs/mine/declared-checks.json:9": true}
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("%v", got)
 	}
 }
 
@@ -469,24 +391,6 @@ func declare(t *testing.T, dir, id, manifest string) {
 	}
 }
 
-// A pack vendored while the shelf still named the Node engine's two-part
-// version is a deprecation the update clears, never a break.
-func TestTwoPartMinEngineShapeRaisesOnlyItsDeprecation(t *testing.T) {
-	fs := Verify(Input{Repo: filepath.Join(shapes, "v3-two-part-min-engine"), Launcher: launcherBytes(t), Shipped: shippedHashes(t)})
-	if findings.AnyBreak(fs) {
-		t.Fatalf("%v", fs)
-	}
-	var legacy int
-	for _, f := range fs {
-		if f.ID == "pack-min-engine" && f.Class == findings.Deprecation && f.Path == ".claudinite/shared/packs/acme-pack/pack.json" {
-			legacy++
-		}
-	}
-	if legacy != 1 {
-		t.Errorf("want one pack-min-engine deprecation: %v", fs)
-	}
-}
-
 func TestOldIgnoreShapeNamesBothFiles(t *testing.T) {
 	dir := newShape(t)
 	_ = os.Remove(filepath.Join(dir, ".claudinite/.gitignore"))
@@ -509,7 +413,7 @@ func TestAShippedLauncherIsAccepted(t *testing.T) {
 }
 
 func TestPackManifestMinEngineVersion(t *testing.T) {
-	if fs := PackManifest(".claudinite/shared/packs/basics/pack.json", "60928.1"); len(fs) != 1 || fs[0].Class != findings.Deprecation || fs[0].ID != "pack-min-engine" || !strings.Contains(fs[0].Sentence, "Node engine") {
+	if fs := PackManifest(".claudinite/shared/packs/basics/pack.json", "60928.1"); len(fs) != 1 || fs[0].Class != findings.Break || fs[0].ID != "pack-min-engine" {
 		t.Errorf("two-part: %v", fs)
 	}
 	if fs := PackManifest("p/pack.json", "1.60928.1"); len(fs) != 0 {
@@ -561,23 +465,5 @@ func TestCorpusGrowsWithTheRuleSet(t *testing.T) {
 	sort.Strings(last)
 	if strings.Join(got, " ") != strings.Join(last, " ") {
 		t.Errorf("verify registers [%s] but rules.txt's newest line says [%s]: add a line with a new prefix and its fixture", strings.Join(got, " "), strings.Join(last, " "))
-	}
-}
-
-// NodeHook matches the Node engine's hooks under either root, and nothing
-// that merely ends in engine/hooks/.
-func TestNodeHookMatchesBothRoots(t *testing.T) {
-	for cmd, want := range map[string]bool{
-		"node $CLAUDE_PROJECT_DIR/.claudinite/shared/engine/hooks/stop-command.mjs": true,
-		"node $CLAUDE_PROJECT_DIR/engine/hooks/stop-command.mjs":                    true,
-		"node engine/hooks/stop-command.mjs":                                        true,
-		"bash \"$CLAUDE_PROJECT_DIR\"/engine/hooks/session-start-command.sh":        true,
-		"sh tools/myengine/hooks/stop.sh":                                           false,
-		"sh tools/my.engine/hooks/stop.sh":                                          false,
-		".claudinite/bin/cn hook stop":                                              false,
-	} {
-		if got := NodeHook.MatchString(cmd); got != want {
-			t.Errorf("%q: %v, want %v", cmd, got, want)
-		}
 	}
 }

@@ -7,7 +7,6 @@
 package version
 
 import (
-	"errors"
 	"fmt"
 	"runtime"
 	"runtime/debug"
@@ -160,24 +159,14 @@ func Platform() string {
 // MinEngine is a pack's parsed minEngineVersion.
 type MinEngine struct{ v V }
 
-// ErrNodeEngine is a two-part minEngineVersion: the Node engine's own
-// version, which names no cn release.
-//
-// @legacy-tolerance advisory:pack-min-engine retire:#108
-var ErrNodeEngine = errors.New("names a Node engine version")
-
 // ParseMinEngineVersion reads a pack's minEngineVersion, <major>.<day>.<n>
-// as Parse reads it. A two-part value is ErrNodeEngine; anything else
-// unreadable is refused.
+// as Parse reads it; anything else is refused.
 func ParseMinEngineVersion(s string) (MinEngine, error) {
 	v, err := Parse(s)
-	if err == nil {
-		return MinEngine{v: v}, nil
+	if err != nil {
+		return MinEngine{}, fmt.Errorf("minEngineVersion %q: %w", s, err)
 	}
-	if p := strings.Split(s, "."); len(p) == 2 && plain(p[0]) && plain(p[1]) {
-		return MinEngine{}, fmt.Errorf("minEngineVersion %q %w; want <major>.<day>.<n>", s, ErrNodeEngine)
-	}
-	return MinEngine{}, fmt.Errorf("minEngineVersion %q: %w", s, err)
+	return MinEngine{v: v}, nil
 }
 
 // Satisfies reports whether an engine pinned at pin meets the minimum; an

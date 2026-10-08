@@ -52,7 +52,7 @@ func TestDiscoverMarksEngineTasks(t *testing.T) {
 	for _, task := range tasks {
 		got[task.Path()] = task.Engine
 	}
-	for path, want := range map[string]bool{"acme-pack/nightly": true, "acme-other/weekly": false, "local/acme-local/claimed": false, "engine/implement-request": true} {
+	for path, want := range map[string]bool{"acme-pack/nightly": true, "acme-other/weekly": false, "local/acme-local/claimed": false} {
 		if e, ok := got[path]; !ok || e != want {
 			t.Errorf("%s: engine %v (found %v), want %v", path, e, ok, want)
 		}
@@ -83,7 +83,7 @@ func TestDiscover(t *testing.T) {
 	for _, t := range tasks {
 		got = append(got, t.Path())
 	}
-	if want := []string{"acme-pack/gated", "acme-pack/nightly", "acme-pack/weekly", "engine/implement-request", "engine/update"}; !reflect.DeepEqual(got, want) {
+	if want := []string{"acme-pack/gated", "acme-pack/nightly", "acme-pack/weekly", "engine/update"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("tasks %v, want %v", got, want)
 	}
 	signals := Signals(tasks[0].Decl.Preconditions(), tasks[0].Terms)
@@ -129,11 +129,11 @@ func TestTheUpdateTaskStandsAsideForTheUpdateWorkflow(t *testing.T) {
 		}
 		return out
 	}
-	if got := paths(); !reflect.DeepEqual(got, []string{"engine/implement-request", "engine/update"}) {
+	if got := paths(); !reflect.DeepEqual(got, []string{"engine/update"}) {
 		t.Errorf("no update workflow: %v", got)
 	}
 	put(t, repo, map[string]string{UpdateWorkflow: "name: claudinite-update\n"})
-	if got := paths(); !reflect.DeepEqual(got, []string{"engine/implement-request"}) {
+	if got := paths(); len(got) != 0 {
 		t.Errorf("the update workflow present: %v", got)
 	}
 }

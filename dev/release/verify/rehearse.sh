@@ -36,8 +36,8 @@
 #   adopt    the adoption flow over hello and the hello-asks probe: cn init
 #            ends on QUESTIONS and HANDOVER with the seed written and the
 #            task secret stamped, adoption-answers-pending blocks Stop until
-#            cn settings answer, cn adopt does the same for a pack added
-#            later, and cn init --from-node moves a Node-shaped member.
+#            cn settings answer, and cn adopt does the same for a pack
+#            added later.
 #   tasks    a member on hello 1.4 with the three workflows runs the task
 #            queue against ghstub (its routine route and dev/release/stub-
 #            agent.sh): tasks list and the declaration check,
@@ -380,9 +380,6 @@ for mode in $modes; do
     update)
       step "update: a member on $version with a bare origin, and the GitHub stub"
       warm_member update
-      # The member still carries the retired license block; its update PR
-      # drops it.
-      printf 'license:\n  plan: "public"\n' >> "$member/.claudinite/settings.yaml"
       origin=$work/origin.git
       git init -q --bare -b main "$origin"
       # The member declares a pack, so its update PR restates the member file.
@@ -481,11 +478,10 @@ for mode in $modes; do
       (cd "$member" && git fetch -q origin && git reset -q --hard origin/main) || fail "update 3: pull"
       grep -q "version: \"$next\"" "$member/.claudinite/settings.yaml" || fail "update 3: main does not pin $next"
       grep -q "\"version\": \"$next\"" "$member/.claudinite/cache/member.GENERATED.json" || fail "update 3: main's member file does not state $next"
-      if grep -q '^license:' "$member/.claudinite/settings.yaml"; then fail "update 3: main kept the retired license block"; fi
-      grep -q '^  declared:$' "$member/.claudinite/settings.yaml" || fail "update 3: dropping the license block took the packs block: $(cat "$member/.claudinite/settings.yaml")"
+      grep -q '^  declared:$' "$member/.claudinite/settings.yaml" || fail "update 3: the update PR took the packs block: $(cat "$member/.claudinite/settings.yaml")"
       grep -q '^    - cron: "[0-9]* [0-9]*,[0-9]* \* \* \*"$' "$member/$sched" || fail "update 3: main's scheduler carries no hashed cron: $(cat "$member/$sched")"
       [ ! -e "$member/.claudinite/cache/pending-workflows" ] || fail "update 3: main holds the staging directory"
-      step "update 3: landed $next, merged by the agent stage once land skipped it and the gate passed; the member file and the moved scheduler beside the pin, the retired license block dropped"
+      step "update 3: landed $next, merged by the agent stage once land skipped it and the gate passed; the member file and the moved scheduler beside the pin"
 
       : > "$work/requests.log"
       out=$(session_start) || fail "update 4: SessionStart exited non-zero"
@@ -779,8 +775,8 @@ for mode in $modes; do
       fixture --publish v6
       update_packs
       expect_verdict "up to date"
-      grep -q '^hello 1.8 skipped: names a Node engine version$' "$work/update.out" || fail "packs 8b: no Node-floor skip: $(cat "$work/update.out")"
-      step "packs 8b: hello 1.8, whose floor names a Node engine version, skipped and never an error"
+      grep -q '^hello 1.8 skipped: not for this engine$' "$work/update.out" || fail "packs 8b: no unreadable-floor skip: $(cat "$work/update.out")"
+      step "packs 8b: hello 1.8, whose two-part floor is no version, skipped as not for this engine and never an error"
 
       # set_channel C: the member's packs channel, committed and pushed, main
       # green. The engine block's own channel stays.
@@ -1143,7 +1139,7 @@ GO
       pull_after() { (cd "$member" && git -c push.negotiate=false pull -q --ff-only origin main) || fail "tasks: pull"; }
 
       cn_member tasks list > "$work/list.out" 2>&1 || fail "tasks 1: tasks list: $(cat "$work/list.out")"
-      for t in hello/hello-fold hello/hello-agent engine/implement-request; do
+      for t in hello/hello-fold hello/hello-agent; do
         grep -q "^$t " "$work/list.out" || fail "tasks 1: tasks list does not name $t: $(cat "$work/list.out")"
       done
       cn_member check world > "$work/world.out" 2>&1 || fail "tasks 1: check world: $(cat "$work/world.out")"
@@ -1156,7 +1152,7 @@ GO
       grep -q "task-declaration-shape .claudinite/local/packs/probe/tasks/probe/task.json" "$work/world.out" \
         || fail "tasks 1: task-declaration-shape did not fail it: $(cat "$work/world.out")"
       rm -r "$member/.claudinite/local"
-      step "tasks 1: tasks list names the three tasks; check world passes, and task-declaration-shape fails a misspelt field"
+      step "tasks 1: tasks list names the two tasks; check world passes, and task-declaration-shape fails a misspelt field"
 
       sched run > "$work/sched.out" 2>&1 || fail "tasks 2: schedule run: $(cat "$work/sched.out")"
       [ "$(gh_count 'st.issues.length')" = 0 ] || fail "tasks 2: a quiet repo filed an item: $(gh_state)"
@@ -1440,23 +1436,6 @@ GO
       member=$dir
       selftest_member 4
       step "adopt 4: with no credential and no license server, cn init asks for no plan; cn login is gone"
-
-      member=$work/adopt-node
-      cp -R cn/lifecycle/adopt/testdata/node-member "$member"
-      printf '{\n  "packs": [\n    "hello",\n    "local/mine"\n  ]\n}\n' > "$member/.claudinite-settings.json"
-      printf '{}\n' > "$member/.claudinite/local/packs/mine/pack.json"
-      printf 'node_modules/\n' > "$member/.gitignore"
-      rm "$member/.github/workflows/ci.yml"
-      (cd "$member" && "$npx/.bin/cn" init --from-node --channel canary --repo "$member") > "$work/init.out" 2>&1 \
-        || fail "adopt 5: init --from-node: $(cat "$work/init.out")"
-      grep -q '^pack: hello 1.0$' "$work/init.out" || fail "adopt 5: hello not vendored: $(cat "$work/init.out")"
-      grep -q '^NEXT: git rm .claudinite-settings.json' "$work/init.out" || fail "adopt 5: NEXT does not start with the declaration's removal: $(cat "$work/init.out")"
-      [ ! -e "$member/.claudinite/shared/engine" ] || fail "adopt 5: the Node engine survived the move"
-      verify_out=$(launch verify) || fail "adopt 5: verify: $verify_out"
-      [ "$verify_out" = "deprecation node-leftovers .claudinite-settings.json: the Node engine's declaration, which cn no longer reads; the move pull request deletes it" ] \
-        || fail "adopt 5: verify reported: $verify_out"
-      selftest_member 5
-      step "adopt 5: cn init --from-node moves the Node-shaped fixture; verify names the declaration alone"
       ;;
     growth)
       step "growth: a member declaring claudinite-growth with a GitHub origin and ghstub"

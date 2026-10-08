@@ -191,9 +191,6 @@ func TestPacksProposesAPackPR(t *testing.T) {
 	if got := w.hub.called("approve"); !reflect.DeepEqual(got, []string{"approve 1"}) {
 		t.Errorf("approvals %v", got)
 	}
-	if got := w.hub.called("label"); len(got) != 1 {
-		t.Errorf("label %v", got)
-	}
 	if b := gitRun(t, w.repo, "branch", "--show-current"); b != "main" {
 		t.Errorf("left on %s", b)
 	}

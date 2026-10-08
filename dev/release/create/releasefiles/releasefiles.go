@@ -151,6 +151,7 @@ var UpdaterSource = []string{
 	"cn/shared/gitcmd",
 	"cn/shared/npmreg",
 	"cn/shared/settings",
+	"cn/tasks/workflows",
 }
 
 // UpdaterDigest is the SHA-256, in hex, over every regular file of
