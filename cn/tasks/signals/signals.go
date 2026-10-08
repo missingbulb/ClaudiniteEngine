@@ -170,6 +170,8 @@ type Collector struct {
 	// scheduler run); nil reads it.
 	Items []workitem.Issue
 	Local Local
+	// Fleet answers the fleet signal; nil where no fleet reader exists.
+	Fleet func(sinceISO string) (any, error)
 
 	files map[string][]string
 }
@@ -354,6 +356,13 @@ func (c *Collector) collect(out *precondition.Signals, names []string, task task
 		case "queue":
 			open, err := c.openQueue()
 			extra(name, map[string]any{"open": open}, err)
+		case "fleet":
+			if c.Fleet == nil {
+				extra(name, nil, nil)
+				continue
+			}
+			v, err := c.Fleet(w.SinceISO)
+			extra(name, v, err)
 		}
 	}
 }

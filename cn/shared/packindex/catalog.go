@@ -15,7 +15,7 @@ import (
 
 // The catalog is the shelf as one signed file, catalog.json beside the
 // pack indexes: for every pack, its newest stable and its newest canary
-// version that is not revoked, with the manifest fields a pack suggester reads
+// version that is not revoked, with the manifest fields the fleet reads
 // and the per-pack index does not carry (its fingerprint, what it is for,
 // its adoption questions). The pack release writes it from the vendored
 // branch on every publish, promote and revoke; catalog.sig.json is its

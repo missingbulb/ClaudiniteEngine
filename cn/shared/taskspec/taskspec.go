@@ -48,7 +48,7 @@ var ModelFamilies = []string{"opus", "sonnet", "haiku", "none"}
 var InterruptPolicies = []string{"requeue", "needs-human"}
 
 // SignalNames are the signal collectors.
-var SignalNames = []string{"commits", "prs", "issues", "branches", "release", "localPacks", "sharedMount", "conversationLogs", "stamp", "request"}
+var SignalNames = []string{"commits", "prs", "issues", "branches", "release", "localPacks", "sharedMount", "conversationLogs", "stamp", "fleet", "request"}
 
 // DescriptionMaxWords bounds a description to a summary.
 const DescriptionMaxWords = 50

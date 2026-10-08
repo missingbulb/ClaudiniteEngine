@@ -188,10 +188,11 @@ func cmdExecuteLoop(args []string, stdout io.Writer, env world.Env) (err error) 
 	for _, p := range r.set.Packs {
 		packs = append(packs, execute.PackInfo{ID: p.ID, Kind: string(p.Kind)})
 	}
+	readFleet := fleetSignal(env.Repo())
 	collector := func(items []workitem.Issue) *signals.Collector {
 		return &signals.Collector{Issues: gw, Repo: gw, DefaultBranch: branch,
 			Packs: r.set.Declared.Declared, PackConfig: r.packConfig, EngineVersion: version.Version(),
-			Items: items, Local: signals.ReadLocal(r.root, r.set.Declared.Declared, r.packConfig)}
+			Items: items, Local: signals.ReadLocal(r.root, r.set.Declared.Declared, r.packConfig), Fleet: readFleet}
 	}
 	worker := execute.CodeWorker{
 		Runner: run, Place: execute.CodeWorkPlace{Root: r.root, Repo: env.Repo(), DefaultBranch: branch, EngineDir: engineDir()},
