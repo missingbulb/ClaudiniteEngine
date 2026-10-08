@@ -298,3 +298,23 @@ func symlinkSettings(t *testing.T, engine string) func(string) {
 		}
 	}
 }
+
+// Only cn init writes the first launcher: the bot's update PR may replace
+// one, never add it, even the one this engine ships.
+func TestPinGuardRefusesTheBotAddingALauncher(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	git(t, dir, "init", "-q", "-b", "main")
+	write(t, dir, ".claudinite/settings.yaml", settingsBody("1.1.0", pin1))
+	git(t, dir, "add", "-A")
+	git(t, dir, "commit", "-q", "-m", "base")
+	git(t, dir, "checkout", "-q", "-b", "change")
+	movePin(t)(dir)
+	write(t, dir, ".claudinite/launch", shippedLauncher)
+	git(t, dir, "add", "-A")
+	git(t, dir, "commit", "-q", "-m", "change")
+	code, out := runWorld(t, dir, bot, &pinCheck{}, nil)
+	if code != 1 || !strings.Contains(out, "adds the launcher") {
+		t.Errorf("exit %d, want a refusal naming the added launcher:\n%s", code, out)
+	}
+}

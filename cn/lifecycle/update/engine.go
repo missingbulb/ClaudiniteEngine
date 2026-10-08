@@ -798,6 +798,13 @@ func engineGate(d Deps, who, base, sha string) (string, []string, error) {
 		if err != nil {
 			return "", nil, err
 		}
+		_, held, err := d.Git.Show(mb, LauncherPath)
+		if err != nil {
+			return "", nil, err
+		}
+		if !held {
+			return "", nil, fmt.Errorf("%s adds %s, which only cn init writes", who, LauncherPath)
+		}
 		if !present || !got.SignedLauncher || !bytes.Equal(have, got.Launcher) {
 			return "", nil, fmt.Errorf("%s: %s is not the launcher %s ships", who, LauncherPath, e.Version)
 		}

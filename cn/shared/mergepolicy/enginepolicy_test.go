@@ -67,6 +67,7 @@ func TestTheEngineUpdatePolicyRefusesAnythingElse(t *testing.T) {
 		"a staged workflow left behind":  {updatePolicy, []Entry{pin, added(".claudinite/cache/pending-workflows/claudinite-ci.yml", "a\n")}, "pending-workflows"},
 		"an extra file":                  {updatePolicy, []Entry{pin, modified("README.md", "a\n", "b\n")}, "README.md"},
 		"a deleted launcher":             {updatePolicy, []Entry{pin, deleted(".claudinite/launch", "#!/bin/sh\n")}, "launch"},
+		"an added launcher":              {updatePolicy, []Entry{pin, added(".claudinite/launch", "#!/bin/sh\n")}, "launch"},
 		"another task's declaration":     {updatePolicy, []Entry{pin, modified(".claudinite/local/packs/acme-pack/tasks/acme-task/task.json", "{}\n", "{\"x\": 1}\n")}, "task.json"},
 		"the pin through a conjunction":  {[]any{"engine-pin-move&&under:.claudinite"}, []Entry{pin}, "settings.yaml"},
 		"the pin under a folder scope":   {[]any{"under:.claudinite"}, []Entry{pin}, "settings.yaml"},

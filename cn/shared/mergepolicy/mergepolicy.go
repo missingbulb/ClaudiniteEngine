@@ -203,13 +203,16 @@ func isEnginePinMove(e Entry) bool {
 }
 
 // isEngineUpdateFile is the member file, at its path or the legacy one,
-// the launcher, or a managed workflow, added or modified.
+// or a managed workflow, added or modified, or the launcher, modified.
 func isEngineUpdateFile(e Entry) bool {
 	if e.ChangeKind() == "deleted" {
 		return false
 	}
-	if e.File == flatdecl.MemberFile || e.File == flatdecl.LegacyPath(flatdecl.MemberFile) || e.File == ".claudinite/launch" {
+	if e.File == flatdecl.MemberFile || e.File == flatdecl.LegacyPath(flatdecl.MemberFile) {
 		return true
+	}
+	if e.File == ".claudinite/launch" {
+		return e.ChangeKind() == "modified"
 	}
 	for _, n := range EngineWorkflows {
 		if e.File == ".github/workflows/"+n {

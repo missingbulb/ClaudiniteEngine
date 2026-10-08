@@ -1062,6 +1062,28 @@ func TestAnUpdatePRCarriesTheShippedLauncher(t *testing.T) {
 		t.Fatalf("%q %v\n%s", v, err, w.out)
 	}
 
+	// A repo holding no launcher gets none from the update, and the gate
+	// refuses a PR that adds one, even the one the release ships.
+	w = newWorld(t, settings.YAML)
+	w.publish(t, v2, relOpts{})
+	if v, err := Engine(w.deps(t), Options{}); err != nil || v != "opened #1 for "+v2 {
+		t.Fatalf("%q %v\n%s", v, err, w.out)
+	}
+	if got := gitRun(t, w.bare, "diff", "--name-only", "main", branch); got != settings.RelPath(settings.YAML) {
+		t.Errorf("a repo with no launcher: branch changes %q", got)
+	}
+	gitRun(t, w.repo, "fetch", "-q", "origin", branch)
+	gitRun(t, w.repo, "checkout", "-q", "FETCH_HEAD")
+	_ = os.WriteFile(filepath.Join(w.repo, filepath.FromSlash(LauncherPath)), []byte("#!/bin/sh\n# launcher of "+v2+"\n"), 0o755)
+	gitRun(t, w.repo, "add", "-A")
+	gitRun(t, w.repo, "commit", "-q", "-m", "add the launcher")
+	gitRun(t, w.repo, "push", "-q", "-f", "origin", "HEAD:refs/heads/"+branch)
+	w.hub.pulls[0].HeadSHA = w.head(t)
+	gitRun(t, w.repo, "checkout", "-q", "main")
+	if _, err := Land(w.deps(t), 1, w.hub.pulls[0].HeadSHA); err == nil || !strings.Contains(err.Error(), "only cn init writes") {
+		t.Errorf("an added launcher landed: %v", err)
+	}
+
 	// A release whose signed manifest hashes no launcher leaves the
 	// member's alone.
 	w, _ = propose(t, relOpts{unhashedLauncher: true})
