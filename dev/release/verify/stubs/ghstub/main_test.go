@@ -74,11 +74,8 @@ func TestTheUpdatersCallsAgainstTheStub(t *testing.T) {
 	if err != nil || pr.Number != 1 || pr.HeadSHA != sha || pr.Author != "github-actions[bot]" {
 		t.Fatalf("%+v %v", pr, err)
 	}
-	if err := c.AddLabel(1, "claudinite-update"); err != nil {
-		t.Fatal(err)
-	}
 	open, err := c.OpenPulls()
-	if err != nil || len(open) != 1 || !open[0].HasLabel("claudinite-update") {
+	if err != nil || len(open) != 1 || open[0].HeadRef != "claudinite/engine-2.0.0" {
 		t.Fatalf("%+v %v", open, err)
 	}
 
@@ -114,14 +111,14 @@ func TestTheUpdatersCallsAgainstTheStub(t *testing.T) {
 		t.Errorf("merged PR state %q", p.State)
 	}
 
-	n, err := c.CreateIssue("Claudinite engine 1.0.0 is revoked", "b", "claudinite-update")
+	n, err := c.CreateIssue("Claudinite engine 1.0.0 is revoked", "b")
 	if err != nil || n != 2 {
 		t.Fatalf("%d %v", n, err)
 	}
 	if err := c.UpdateIssueBody(n, "b2"); err != nil {
 		t.Fatal(err)
 	}
-	issues, err := c.OpenIssues("claudinite-update")
+	issues, err := c.OpenIssues()
 	if err != nil || len(issues) != 1 || issues[0].Body != "b2" {
 		t.Fatalf("%+v %v", issues, err)
 	}
@@ -129,7 +126,7 @@ func TestTheUpdatersCallsAgainstTheStub(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := state(t, srv)
-	want := []string{"create-pull 1 claudinite/engine-2.0.0", "label 1 claudinite-update", "approve " + strconv.FormatInt(held[0].ID, 10), "dispatch claudinite-ci.yml claudinite/engine-2.0.0 pr=1", "merge 1 " + sha, "create-issue 2 Claudinite engine 1.0.0 is revoked", "update-issue 2", "comment 1"}
+	want := []string{"create-pull 1 claudinite/engine-2.0.0", "approve " + strconv.FormatInt(held[0].ID, 10), "dispatch claudinite-ci.yml claudinite/engine-2.0.0 pr=1", "merge 1 " + sha, "create-issue 2 Claudinite engine 1.0.0 is revoked", "update-issue 2", "comment 1"}
 	if strings.Join(s.Calls, "\n") != strings.Join(want, "\n") {
 		t.Errorf("calls:\n%s", strings.Join(s.Calls, "\n"))
 	}
