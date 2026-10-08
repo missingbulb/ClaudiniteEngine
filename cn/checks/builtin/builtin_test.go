@@ -29,12 +29,13 @@ packs:
 
 // repo is a member declaring the two folded packs and local/mypack, with
 // base committed on main and, when change is not nil, change committed on
-// branch change under message.
+// branch change (or branch, when set) under message.
 type repo struct {
 	settings     string
 	base, change map[string]string
 	message      string
 	untracked    map[string]string
+	branch       string
 }
 
 func git(t *testing.T, dir string, args ...string) {
@@ -91,7 +92,11 @@ func (r repo) build(t *testing.T) string {
 	git(t, dir, "add", "-A")
 	git(t, dir, "commit", "-q", "-m", "base")
 	if r.change != nil {
-		git(t, dir, "checkout", "-q", "-b", "change")
+		branch := r.branch
+		if branch == "" {
+			branch = "change"
+		}
+		git(t, dir, "checkout", "-q", "-b", branch)
 		write(t, dir, r.change)
 		msg := r.message
 		if msg == "" {

@@ -45,6 +45,8 @@ var fleetVerbs = map[string]func(args []string, stdout, stderr io.Writer, start 
 	"pack-seeds": fleetPackSeeds,
 
 	"create-dashboard-artifact": fleetCreateDashboardArtifact,
+	"promote-scope":             fleetPromoteScope,
+	"pack-history":              fleetPackHistory,
 }
 
 func cmdFleet(args []string, stdout, stderr io.Writer, start time.Time) error {
