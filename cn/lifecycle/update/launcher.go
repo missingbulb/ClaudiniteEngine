@@ -10,13 +10,15 @@ import (
 // and cn init write.
 const LauncherPath = ".claudinite/launch"
 
-// writeLauncher replaces the member's launcher with shipped, the launcher
-// of the engine the update moves to, and reports whether it changed. A
-// release that ships none, or a repo holding none, is left alone.
-func writeLauncher(repo string, shipped []byte) (bool, error) {
-	if len(shipped) == 0 {
+// writeLauncher replaces the member's launcher with the launcher of got,
+// the engine the update moves to, and reports whether it changed. A
+// release whose signed manifest hashes no launcher, or a repo holding
+// none, is left alone.
+func writeLauncher(repo string, got Fetched) (bool, error) {
+	if !got.SignedLauncher {
 		return false, nil
 	}
+	shipped := got.Launcher
 	p := filepath.Join(repo, filepath.FromSlash(LauncherPath))
 	have, err := os.ReadFile(p)
 	if os.IsNotExist(err) {

@@ -532,7 +532,7 @@ func openPR(d Deps, f settings.Format, raw []byte, got Fetched, self, verifyOut 
 			return err
 		}
 		rels := []string{rel}
-		if launcher, err := writeLauncher(d.Repo, got.Launcher); err != nil {
+		if launcher, err := writeLauncher(d.Repo, got); err != nil {
 			return err
 		} else if launcher {
 			rels = append(rels, LauncherPath)
@@ -798,7 +798,7 @@ func engineGate(d Deps, who, base, sha string) (string, []string, error) {
 		if err != nil {
 			return "", nil, err
 		}
-		if !present || len(got.Launcher) == 0 || !bytes.Equal(have, got.Launcher) {
+		if !present || !got.SignedLauncher || !bytes.Equal(have, got.Launcher) {
 			return "", nil, fmt.Errorf("%s: %s is not the launcher %s ships", who, LauncherPath, e.Version)
 		}
 	}

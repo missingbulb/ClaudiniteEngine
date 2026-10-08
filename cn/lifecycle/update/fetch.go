@@ -50,8 +50,10 @@ type Fetched struct {
 	KeyID  string
 	Binary string
 	// Launcher is the release's launcher, package/launch in the channel
-	// tarball, or nil for a release that carries none.
-	Launcher []byte
+	// tarball, or nil for a release that carries none; SignedLauncher is
+	// whether the signed manifest hashes it.
+	Launcher       []byte
+	SignedLauncher bool
 }
 
 func binaryName(platform string) string {
@@ -63,6 +65,7 @@ func binaryName(platform string) string {
 
 type manifest struct {
 	Version  string `json:"version"`
+	Launcher string `json:"launcher"`
 	Binaries map[string]struct {
 		File   string `json:"file"`
 		SHA256 string `json:"sha256"`
@@ -139,6 +142,21 @@ func Fetch(in FetchInput) (Fetched, error) {
 	if hex.EncodeToString(sum[:]) != entry.SHA256 || int64(len(bin)) != entry.Size {
 		return Fetched{}, fmt.Errorf("binary hash: the %s binary of %s %s does not match its manifest entry", in.Platform, in.Package, in.Version)
 	}
+	// A launcher the signed manifest hashes is the release's own. One it
+	// does not is vouched for only by npm's integrity, which cn init may
+	// take and an update may not; from a releases repository it is not
+	// vouched for at all.
+	launcher, _ := tarFile(channel, "package/launch")
+	signedLauncher := false
+	if m.Launcher != "" {
+		ls := sha256.Sum256(launcher)
+		if hex.EncodeToString(ls[:]) != m.Launcher {
+			return Fetched{}, fmt.Errorf("launcher hash: the launcher of %s %s does not match its manifest", in.Package, in.Version)
+		}
+		signedLauncher = true
+	} else if in.Releases != "" {
+		launcher = nil
+	}
 	dir := filepath.Join(in.CacheRoot, in.Version)
 	if err := paths.EnsurePrivateDir(in.CacheRoot); err != nil {
 		return Fetched{}, fmt.Errorf("cache: %w", err)
@@ -155,15 +173,15 @@ func Fetch(in FetchInput) (Fetched, error) {
 	if err := paths.PlaceReadOnly(dir, "manifest.sig.json", rawSig, 0o444); err != nil {
 		return Fetched{}, fmt.Errorf("cache: %w", err)
 	}
-	launcher, _ := tarFile(channel, "package/launch")
 	ms := sha512.Sum512(rawManifest)
 	return Fetched{
-		Version:   in.Version,
-		Manifest:  rawManifest,
-		Integrity: "sha512-" + base64.StdEncoding.EncodeToString(ms[:]),
-		KeyID:     body.KeyID,
-		Binary:    filepath.Join(dir, entry.File),
-		Launcher:  launcher,
+		Version:        in.Version,
+		Manifest:       rawManifest,
+		Integrity:      "sha512-" + base64.StdEncoding.EncodeToString(ms[:]),
+		KeyID:          body.KeyID,
+		Binary:         filepath.Join(dir, entry.File),
+		Launcher:       launcher,
+		SignedLauncher: signedLauncher,
 	}, nil
 }
 

