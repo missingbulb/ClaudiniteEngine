@@ -1,8 +1,8 @@
 // Package flatdecl writes and reads the flat declarations: every active
-// pack's task declarations and dashboard descriptor, one file each under
-// .claudinite/cache/, so the dashboard reading a member over the API and a
-// session asking what runs here read one file rather than every task
-// folder; and, beside them, the member file a cn member states its
+// pack's task declarations, in one file under .claudinite/cache/, so the
+// dashboard reading a member over the API and a session asking what runs
+// here read one file rather than every task folder; and, beside it, the
+// member file a cn member states its
 // declaration, pin and held versions in. Each entry carries the source's parsed value as written (no
 // defaults, no normalisation) and the path it was read from; a file that
 // does not parse carries its text. Session-copied packs are left out. The
@@ -36,12 +36,17 @@ const Dir = ".claudinite/cache"
 // @legacy-tolerance advisory:rules-index-current retire:#94
 const LegacyDir = ".claudinite/flat"
 
-// The two files, relative to the repo root.
+// The task file, relative to the repo root.
 const (
-	TasksFile     = Dir + "/tasks.GENERATED.json"
-	DashboardFile = Dir + "/dashboard.GENERATED.json"
-	Version       = 1
+	TasksFile = Dir + "/tasks.GENERATED.json"
+	Version   = 1
 )
+
+// Retired are flat files an earlier engine wrote and this one does not:
+// Write deletes a copy the repo still holds, under Dir or LegacyDir.
+//
+// @legacy-tolerance advisory:none retire:#131
+var Retired = []string{Dir + "/dashboard.GENERATED.json"}
 
 // LegacyPath is rel, a path under Dir, under LegacyDir; any other path is
 // itself.
@@ -83,12 +88,8 @@ func HeldIn(repo, rel string) string {
 	})
 }
 
-// TaskDescriptor is the task declaration's descriptor name, and
-// DashboardDescriptor the dashboard descriptor's file.
-const (
-	TaskDescriptor      = "task"
-	DashboardDescriptor = "dashboard.json"
-)
+// TaskDescriptor is the task declaration's descriptor name.
+const TaskDescriptor = "task"
 
 // Key is a pack as the declaration spells it: local/<id> for a local pack.
 func Key(p packset.Pack) string {
@@ -134,10 +135,10 @@ func TaskFile(dir string) string {
 	return filepath.Base(file)
 }
 
-// Sources are the files the flat declarations copy, keyed as the files
-// key them, each with its repo-relative path.
-func Sources(packs []packset.Pack) (tasks, dashboards map[string]string) {
-	tasks, dashboards = map[string]string{}, map[string]string{}
+// Sources are the task declarations the task file copies, keyed as it
+// keys them, each with its repo-relative path.
+func Sources(packs []packset.Pack) map[string]string {
+	tasks := map[string]string{}
 	for _, p := range packs {
 		if p.Kind == packset.Temp {
 			continue
@@ -152,11 +153,8 @@ func Sources(packs []packset.Pack) (tasks, dashboards map[string]string) {
 				tasks[key+"/"+n.Name()] = path.Join(p.Rel, "tasks", n.Name(), f)
 			}
 		}
-		if st, err := os.Stat(filepath.Join(p.Dir, DashboardDescriptor)); err == nil && st.Mode().IsRegular() {
-			dashboards[key] = path.Join(p.Rel, DashboardDescriptor)
-		}
 	}
-	return tasks, dashboards
+	return tasks
 }
 
 func render(repo, key string, sources map[string]string) (string, error) {
@@ -181,26 +179,21 @@ func render(repo, key string, sources map[string]string) (string, error) {
 }
 
 // Files are the flat files in the order they are written and reported.
-var Files = []string{TasksFile, DashboardFile, MemberFile}
+var Files = []string{TasksFile, MemberFile}
 
 // Content is the flat files' text for the active packs, keyed by file:
-// the task and dashboard declarations, and the member file where the repo
+// the task declarations, and the member file where the repo
 // keeps a .claudinite/settings.*; nil when no pack is active, so an
 // unloadable declaration leaves the files on disk as they are.
 func Content(repo string, packs []packset.Pack) (map[string]string, error) {
 	if len(packs) == 0 {
 		return nil, nil
 	}
-	tasks, dashboards := Sources(packs)
-	t, err := render(repo, "tasks", tasks)
+	t, err := render(repo, "tasks", Sources(packs))
 	if err != nil {
 		return nil, err
 	}
-	d, err := render(repo, "dashboards", dashboards)
-	if err != nil {
-		return nil, err
-	}
-	out := map[string]string{TasksFile: t, DashboardFile: d}
+	out := map[string]string{TasksFile: t}
 	m, ok, err := ReadMember(repo, packs)
 	if err != nil {
 		return nil, err
@@ -213,8 +206,9 @@ func Content(repo string, packs []packset.Pack) (map[string]string, error) {
 	return out, nil
 }
 
-// Write writes whichever file changed where the repo holds it (Held) and
-// returns the paths written.
+// Write writes whichever file changed where the repo holds it (Held),
+// deletes each Retired file the repo still holds, and returns the paths
+// written or deleted.
 func Write(repo string, packs []packset.Pack) ([]string, error) {
 	content, err := Content(repo, packs)
 	if err != nil || content == nil {
@@ -240,5 +234,25 @@ func Write(repo string, packs []packset.Pack) ([]string, error) {
 		}
 		written = append(written, rel)
 	}
-	return written, nil
+	removed, err := RemoveRetired(repo, Dir, LegacyDir)
+	return append(written, removed...), err
+}
+
+// RemoveRetired deletes each Retired file under the directories dirs
+// (Dir, LegacyDir) and returns the paths deleted.
+func RemoveRetired(repo string, dirs ...string) ([]string, error) {
+	var removed []string
+	for _, f := range Retired {
+		for _, dir := range dirs {
+			rel := dir + strings.TrimPrefix(f, Dir)
+			err := os.Remove(filepath.Join(repo, filepath.FromSlash(rel)))
+			switch {
+			case err == nil:
+				removed = append(removed, rel)
+			case !errors.Is(err, os.ErrNotExist):
+				return removed, err
+			}
+		}
+	}
+	return removed, nil
 }

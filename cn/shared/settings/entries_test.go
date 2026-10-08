@@ -10,7 +10,7 @@ import (
 // an entry object and a comment inside, and blocks and comments after it.
 var entrySamples = map[Format]struct{ raw, packs string }{
 	YAML: {
-		raw:   "# head comment\nengine:\n" + enginePart + "packs:\n  channel: \"canary\"\n  # inside the block\n  declared:\n    - hello\n    - id: acme-pack\n      config:\n        zeta: 1\n        alpha: \"a\"\n\n# between blocks\nlicense:\n  plan: \"public\"\nchecks:\n  rules:\n    x: \"off\"\n",
+		raw:   "# head comment\nengine:\n" + enginePart + "packs:\n  channel: \"canary\"\n  # inside the block\n  declared:\n    - hello\n    - id: acme-pack\n      config:\n        zeta: 1\n        alpha: \"a\"\n\n# between blocks\nchecks:\n  rules:\n    x: \"off\"\n",
 		packs: "packs:\n  channel: \"canary\"\n  # inside the block\n  declared:\n    - hello\n    - id: acme-pack\n      config:\n        zeta: 1\n        alpha: \"a\"\n",
 	},
 	TOML: {

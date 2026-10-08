@@ -17,7 +17,7 @@ cd "$(dirname "$0")/../../.."
 root=$(pwd)
 DIST=${DIST:-dist}
 case $DIST in /*) ;; *) DIST=$root/$DIST ;; esac
-ROOTS=${ROOTS:-shared/trust/roots}
+ROOTS=${ROOTS:-cn/shared/trust/roots}
 PLATFORMS=${PLATFORMS:-linux-x64 linux-arm64 darwin-x64 darwin-arm64 windows-x64}
 
 if [ -z "${RELEASE_KEY:-}" ] || [ -z "${RELEASE_CERT:-}" ]; then

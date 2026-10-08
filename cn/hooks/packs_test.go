@@ -367,8 +367,7 @@ func TestTheCheckBuildReportsThroughTheHooks(t *testing.T) {
 	}
 }
 
-// A pending adoption question is one engine line, and an entry another
-// pack pulled in, untouched by the project, asks nothing.
+// A pending adoption question is one engine line.
 func TestSessionStartNamesPendingQuestions(t *testing.T) {
 	asks := map[string]string{"pack.json": `{"version": "1.0", "questions": [{"id": "goals", "prompt": "Why?"}]}`}
 	repo := member(t, []string{"asks"}, map[string]map[string]string{"asks": asks})
@@ -376,14 +375,6 @@ func TestSessionStartNamesPendingQuestions(t *testing.T) {
 	want := "[cn] adoption questions pending (asks/goals): in an interactive session, at a natural moment, ask the person and record each with cn settings answer; an unattended session ignores this\n"
 	if ctx := contextOf(t, out); !strings.Contains(ctx, want) {
 		t.Errorf("no pending line:\n%s", ctx)
-	}
-
-	pulled := t.TempDir()
-	put(t, pulled, ".claudinite/settings.yaml", "engine:\n  version: \"1.1.0\"\npacks:\n  declared:\n    - id: asks\n      via: [other]\n")
-	put(t, pulled, ".claudinite/shared/packs/asks/pack.json", asks["pack.json"])
-	out, _ = hook(t, Handler{ProjectDir: pulled}, "session-start", startIn)
-	if ctx := contextOf(t, out); strings.Contains(ctx, "adoption questions") {
-		t.Errorf("a via-only entry asked:\n%s", ctx)
 	}
 }
 

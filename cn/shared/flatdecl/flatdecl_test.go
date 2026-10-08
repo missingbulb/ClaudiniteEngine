@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/missingbulb/ClaudiniteEngine/cn/shared/jsjson"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/packset"
 )
 
@@ -31,6 +32,8 @@ func TestContentAndWrite(t *testing.T) {
 		".claudinite/shared/packs/acme-pack/dashboard.json":     "{not json",
 		".claudinite/local/packs/mine/tasks/c/task.json":        `{"id": "c"}`,
 		".claudinite/temp/packs/current_user/tasks/d/task.json": `{"id": "d"}`,
+		Retired[0]:             "{}",
+		LegacyPath(Retired[0]): "{}",
 	})
 	packs := []packset.Pack{
 		{ID: "acme-pack", Kind: packset.Canon, Dir: filepath.Join(repo, ".claudinite/shared/packs/acme-pack"), Rel: ".claudinite/shared/packs/acme-pack"},
@@ -72,17 +75,29 @@ func TestContentAndWrite(t *testing.T) {
 	if content[TasksFile] != want {
 		t.Errorf("tasks file:\n%s\nwant:\n%s", content[TasksFile], want)
 	}
-	if !strings.Contains(content[DashboardFile], `"text": "{not json"`) {
-		t.Errorf("a descriptor that does not parse is not carried as text:\n%s", content[DashboardFile])
+	if _, ok := content[Retired[0]]; ok {
+		t.Errorf("content renders the retired %s", Retired[0])
 	}
 	written, err := Write(repo, packs)
-	if err != nil || !reflect.DeepEqual(written, []string{TasksFile, DashboardFile}) {
-		t.Fatalf("first write %v %v", written, err)
+	if err != nil || !reflect.DeepEqual(written, []string{TasksFile, Retired[0], LegacyPath(Retired[0])}) {
+		t.Fatalf("first write %v %v: want the task file written and the retired file deleted where held", written, err)
+	}
+	for _, f := range []string{Retired[0], LegacyPath(Retired[0])} {
+		if _, err := os.Stat(filepath.Join(repo, filepath.FromSlash(f))); !os.IsNotExist(err) {
+			t.Errorf("%s is still there", f)
+		}
 	}
 	if written, err := Write(repo, packs); err != nil || len(written) != 0 {
 		t.Errorf("second write %v %v, want nothing", written, err)
 	}
 	if c, err := Content(repo, nil); c != nil || err != nil {
 		t.Errorf("no packs: %v %v, want nothing to write", c, err)
+	}
+}
+
+// A source that does not parse is carried as its text.
+func TestEntryCarriesUnparsedText(t *testing.T) {
+	if got := Entry("x/task.json", []byte("{not json")); !strings.Contains(jsjson.Stringify(got), `"text":"{not json"`) {
+		t.Errorf("%s", jsjson.Stringify(got))
 	}
 }

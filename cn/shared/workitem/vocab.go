@@ -9,7 +9,10 @@
 // spelling any engine ever wrote and writes only today's.
 package workitem
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 // WorkPrefix opens a filed work item's title.
 const WorkPrefix = "[claudinite-work]"
@@ -57,11 +60,10 @@ const (
 	OriginPlanned = OriginPrefix + "planned"
 	OriginManual  = OriginPrefix + "manual"
 	OriginAdHoc   = OriginPrefix + "ad-hoc"
-	OriginGitHub  = OriginPrefix + "github"
 )
 
-// OriginLabels are the four origins.
-var OriginLabels = []string{OriginPlanned, OriginManual, OriginAdHoc, OriginGitHub}
+// OriginLabels are the three origins.
+var OriginLabels = []string{OriginPlanned, OriginManual, OriginAdHoc}
 
 // AskedForOrigins are the origins a person's action produces.
 var AskedForOrigins = []string{OriginManual, OriginAdHoc}
@@ -105,8 +107,8 @@ type Label struct {
 	Name, Color, Description string
 }
 
-// QueueLabels is every label the queue applies, the legacy block included
-// (open items filed by a fielded engine wear them).
+// QueueLabels is every label the engine applies, and the owner's closed list
+// of the labels it may: the legacy spellings above are read, never written.
 var QueueLabels = []Label{
 	{StatusBlocked, "c5def5", "Claudinite queue: waiting on Blocked-by and/or Not-before"},
 	{StatusReady, "0e8a16", "Claudinite queue: available for an executor to pick up"},
@@ -122,15 +124,6 @@ var QueueLabels = []Label{
 	{OriginPlanned, "c2e0c6", "Claudinite queue: filed by the schedule — a task's own occurrence"},
 	{OriginManual, "bfd4f2", "Claudinite queue: pulled by a person — an occurrence of a declared task, woken or hand-created"},
 	{OriginAdHoc, "bfd4f2", "Claudinite queue: asked for by a person — their own issue, adopted as the work item itself"},
-	{OriginGitHub, "d4c5f9", "Claudinite queue: filed by the platform itself — a workflow reporting its own failure"},
-	{LegacyBlocked, "c5def5", "Claudinite queue (legacy): waiting on Blocked-by and/or Not-before"},
-	{LegacyReady, "0e8a16", "Claudinite queue (legacy): available for an executor to pick up"},
-	{LegacyExecuting, "fbca04", "Claudinite queue (legacy): an executor holds the claim"},
-	{LegacyAgent, "1d76db", "Claudinite queue (legacy): an agent session owns this item"},
-	{NeedsHuman, "b60205", "Claudinite queue (legacy): parked for a human"},
-	{LegacyTaskDone, "0e8a16", "Claudinite queue (legacy): succeeded, nothing pending"},
-	{LegacyTaskObsolete, "ededed", "Claudinite queue (legacy): never ran"},
-	{OutcomeDelivered, "5319e7", "Claudinite queue (legacy): succeeded and left a live artifact the world still has to act on"},
 }
 
 // The comment markers the protocol reads back.
@@ -209,3 +202,23 @@ const (
 	SchedulerWorkflowFile = "claudinite-scheduler.yml"
 	ExecutorWorkflowFile  = "claudinite-executor.yml"
 )
+
+// Approved reports whether the engine may write label.
+func Approved(label string) bool {
+	for _, l := range QueueLabels {
+		if l.Name == label {
+			return true
+		}
+	}
+	return false
+}
+
+// RefuseUnapproved names the first label not on the approved list, or is nil.
+func RefuseUnapproved(labels ...string) error {
+	for _, l := range labels {
+		if !Approved(l) {
+			return fmt.Errorf("label %q is not on the approved list", l)
+		}
+	}
+	return nil
+}

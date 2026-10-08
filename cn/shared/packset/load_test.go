@@ -114,9 +114,9 @@ func TestLoadNotLoaded(t *testing.T) {
 	}
 }
 
-// A pack vendored with a Node engine floor keeps loading until the update
-// replaces it; a floor that is no version at all does not.
-func TestLoadANodeEngineFloor(t *testing.T) {
+// A floor that is no <major>.<day>.<n> version does not load: a Node
+// engine's two-part floor no more than any other.
+func TestLoadRefusesAnUnreadableFloor(t *testing.T) {
 	repo := member(t, "    - old\n    - bad\n")
 	write(t, filepath.Join(Tree(repo, "old"), "pack.json"), `{"version": "1.0", "minEngineVersion": "60928.1"}`)
 	write(t, filepath.Join(Tree(repo, "bad"), "pack.json"), `{"version": "1.0", "minEngineVersion": "soon"}`)
@@ -124,7 +124,7 @@ func TestLoadANodeEngineFloor(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if tokens(s) != "old" || !strings.Contains(notLoaded(s), `bad: minEngineVersion "soon"`) {
+	if tokens(s) != "" || !strings.Contains(notLoaded(s), `bad: minEngineVersion "soon"`) || !strings.Contains(notLoaded(s), `old: minEngineVersion "60928.1"`) {
 		t.Errorf("loaded %s; not loaded:\n%s", tokens(s), notLoaded(s))
 	}
 }

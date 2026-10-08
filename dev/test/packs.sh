@@ -18,7 +18,7 @@ trap 'rm -rf "$work"' EXIT
 
 go build -o "$work/cn" ./cn
 (cd "$packs" && CLAUDINITE_CN=$work/cn sh tools/checks/test.sh)
-(cd "$packs" && CLAUDINITE_CN=$work/cn node --test 'packs/claudinite-dashboard/test/**/*.test.mjs')
+(cd "$packs" && CLAUDINITE_CN=$work/cn node --test 'packs/claudinite-single-repo-dashboard/test/**/*.test.mjs')
 
 rc=0
 sh rewrite-temp/probe/hook-latency/run.sh --node "$shelf" --out "$work/hook-latency" --budget || rc=$?

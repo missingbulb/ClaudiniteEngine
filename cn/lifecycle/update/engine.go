@@ -29,8 +29,6 @@ const (
 	// CIWorkflow is the member workflow whose runs gate main and update
 	// PRs.
 	CIWorkflow = land.CIWorkflow
-	// Label marks the PRs and issues the updater owns.
-	Label = "claudinite-update"
 	// BranchPrefix starts every update branch; the version follows.
 	BranchPrefix = "claudinite/engine-"
 	remote       = "origin"
@@ -45,14 +43,13 @@ type GitHub interface {
 	CreatePull(title, body, head, base string) (githubapi.PR, error)
 	ClosePull(n int) error
 	MergePull(n int, sha, title string) error
-	AddLabel(n int, label string) error
 	Comment(n int, body string) error
 	Dispatch(workflow, ref string, inputs map[string]string) error
 	// HeadRuns are every workflow's runs on one commit.
 	HeadRuns(sha string) ([]githubapi.Run, error)
 	ApproveRun(id int64) error
-	OpenIssues(label string) ([]githubapi.Issue, error)
-	CreateIssue(title, body, label string) (int, error)
+	OpenIssues() ([]githubapi.Issue, error)
+	CreateIssue(title, body string) (int, error)
 	UpdateIssueBody(n int, body string) error
 	CloseIssue(n int) error
 }
@@ -224,12 +221,9 @@ func retryCI(d Deps, res *EngineResult, pr githubapi.PR, prevState string) (stri
 	return "", nil
 }
 
-// updatePRs are the open PRs on an update branch that carry the label or
-// that the job token opened; the second kind lost its label (a failed
-// labelling call, a person removing it) and is relabelled rather than
-// duplicated by a CreatePull GitHub would refuse.
-func updatePRs(d Deps, prs []githubapi.PR) ([]githubapi.PR, error) {
-	return botPRs(d, prs, BranchPrefix)
+// updatePRs are the open engine update PRs the job token opened.
+func updatePRs(prs []githubapi.PR) []githubapi.PR {
+	return botPRs(prs, BranchPrefix)
 }
 
 // Engine is one run of cn update engine. It acts at most once: a green
@@ -299,10 +293,7 @@ func engine(d Deps, o Options, res *EngineResult) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	open, err := updatePRs(d, all)
-	if err != nil {
-		return "", err
-	}
+	open := updatePRs(all)
 	if len(open) > 1 {
 		var names []string
 		for _, p := range open {
@@ -489,7 +480,7 @@ var workflowIssueTitle = regexp.MustCompile(`^Claudinite engine \S+ needs a work
 
 // workflowIssues are the open issues of that title.
 func workflowIssues(d Deps) ([]int, error) {
-	open, err := d.GitHub.OpenIssues(Label)
+	open, err := d.GitHub.OpenIssues()
 	if err != nil {
 		return nil, err
 	}
@@ -504,20 +495,14 @@ func workflowIssues(d Deps) ([]int, error) {
 }
 
 // openPR commits the pin, and the workflows the new engine expects staged
-// beside it, on a fresh update branch, pushes it, opens and labels the PR
-// and closes the workflow-change issues an earlier engine filed, leaving
-// the checkout where it was. It returns the PR, its head and the staged
+// beside it, on a fresh update branch, pushes it, opens the PR and closes
+// the workflow-change issues an earlier engine filed, leaving the checkout
+// where it was. It returns the PR, its head and the staged
 // paths.
 func openPR(d Deps, f settings.Format, raw []byte, got Fetched, self, verifyOut string, forced bool) (int, string, []string, error) {
 	moved, err := settings.SetPin(raw, f, got.Version, got.Integrity)
 	if err != nil {
 		return 0, "", nil, err
-	}
-	dropped := settings.HasRetiredLicense(moved, f)
-	if dropped {
-		if moved, err = settings.DropLicense(moved, f); err != nil {
-			return 0, "", nil, err
-		}
 	}
 	issues, err := workflowIssues(d)
 	if err != nil {
@@ -567,9 +552,6 @@ func openPR(d Deps, f settings.Format, raw []byte, got Fetched, self, verifyOut 
 
 	var b strings.Builder
 	fmt.Fprintf(&b, "Moves this repo's Claudinite engine pin to **%s**. `%s` changes only `engine.version` and `engine.manifest`, with `%s` restating them.\n\n", got.Version, rel, flatdecl.MemberFile)
-	if dropped {
-		fmt.Fprintf(&b, "It also drops the retired `license` block from `%s`: a single repo needs no license, and nothing reads it.\n\n", rel)
-	}
 	fmt.Fprintf(&b, "- Manifest: `%s`\n- Key: `%s`\n\n", got.Integrity, got.KeyID)
 	fmt.Fprintf(&b, "Self-test of the new binary:\n\n```\n%s```\n\n", self)
 	if forced {
@@ -595,9 +577,6 @@ func openPR(d Deps, f settings.Format, raw []byte, got Fetched, self, verifyOut 
 
 	pr, err := d.GitHub.CreatePull(EngineTitle(got.Version), b.String(), branch, mainBranch)
 	if err != nil {
-		return 0, "", nil, err
-	}
-	if err := d.GitHub.AddLabel(pr.Number, Label); err != nil {
 		return 0, "", nil, err
 	}
 	for _, n := range issues {
@@ -644,12 +623,6 @@ func closeUpdatePR(d Deps, pr githubapi.PR, why string) error {
 	return d.Git.DeleteRemoteBranch(remote, pr.HeadRef)
 }
 
-// retiredPlanBranchPrefix starts the plan correction branches an engine
-// before record row 131 opened; one may still stand open in a member.
-//
-// @legacy-tolerance advisory:none retire:#83
-const retiredPlanBranchPrefix = "claudinite/plan-"
-
 // Land squash-merges update PR n at head sha after checking it is the
 // updater's own change, deletes its branch and dispatches CI on main,
 // whose runs the next update needs green. The branch says which shape the
@@ -670,10 +643,8 @@ func Land(d Deps, n int, sha string) (string, error) {
 		return "", fmt.Errorf("#%d is %s", n, pr.State)
 	case pr.Author != gitcmd.BotName:
 		return "", fmt.Errorf("#%d was opened by %s, not %s", n, pr.Author, gitcmd.BotName)
-	case strings.HasPrefix(pr.HeadRef, retiredPlanBranchPrefix):
-		return "", fmt.Errorf("#%d (branch %s) is a plan correction PR, which no engine lands any more: close #%d", n, pr.HeadRef, n)
-	case !pr.HasLabel(Label) || (!strings.HasPrefix(pr.HeadRef, BranchPrefix) && !strings.HasPrefix(pr.HeadRef, PackBranchPrefix)):
-		return "", fmt.Errorf("#%d is not an update PR (label %s, branch %s* or %s*)", n, Label, BranchPrefix, PackBranchPrefix)
+	case !strings.HasPrefix(pr.HeadRef, BranchPrefix) && !strings.HasPrefix(pr.HeadRef, PackBranchPrefix):
+		return "", fmt.Errorf("#%d is not an update PR (branch %s* or %s*)", n, BranchPrefix, PackBranchPrefix)
 	case pr.BaseRef != mainBranch:
 		return "", fmt.Errorf("#%d targets %s, not %s", n, pr.BaseRef, mainBranch)
 	case pr.HeadSHA != sha:
@@ -876,10 +847,10 @@ func expectedWorkflows(d Deps, binary, mb, sha string, moved []string) error {
 	return nil
 }
 
-// upsertIssue opens an issue labelled Label with title, or updates the
+// upsertIssue opens an issue titled title, or updates the
 // body of the open one already carrying that title, and returns its number.
 func upsertIssue(d Deps, title, body string) (int, error) {
-	open, err := d.GitHub.OpenIssues(Label)
+	open, err := d.GitHub.OpenIssues()
 	if err != nil {
 		return 0, err
 	}
@@ -891,7 +862,7 @@ func upsertIssue(d Deps, title, body string) (int, error) {
 			return is.Number, d.GitHub.UpdateIssueBody(is.Number, body)
 		}
 	}
-	return d.GitHub.CreateIssue(title, body, Label)
+	return d.GitHub.CreateIssue(title, body)
 }
 
 // fence is a code fence longer than any backtick run in s.

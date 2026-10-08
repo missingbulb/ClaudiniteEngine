@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -11,7 +10,6 @@ import (
 	"time"
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/growth/capture"
-	"github.com/missingbulb/ClaudiniteEngine/cn/growth/promotescope"
 	"github.com/missingbulb/ClaudiniteEngine/cn/growth/prune"
 	"github.com/missingbulb/ClaudiniteEngine/cn/hooks"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/breadcrumb"
@@ -49,15 +47,13 @@ func crumbOf(o capture.Outcome) breadcrumb.Outcome {
 
 func cmdGrowth(args []string, stdout, stderr io.Writer, start time.Time) error {
 	if len(args) == 0 {
-		return report.New(report.Usage, "growth takes capture, prune or promote-scope")
+		return report.New(report.Usage, "growth takes capture or prune")
 	}
 	switch args[0] {
 	case "capture":
 		return growthCapture(args[1:], stdout, stderr, start)
 	case "prune":
 		return growthPrune(args[1:], stdout)
-	case "promote-scope":
-		return growthPromoteScope(args[1:], stdout, stderr)
 	}
 	return report.New(report.Usage, fmt.Sprintf("unknown growth command %q", args[0]))
 }
@@ -87,44 +83,6 @@ func growthCapture(args []string, stdout, stderr io.Writer, start time.Time) err
 		return report.Said(report.Usage)
 	}
 	return report.Said(report.IO)
-}
-
-// growthPromoteScope is `cn growth promote-scope --base REF`, the canon
-// CI's gate on a promote pull request: exit 0 where every changed path is
-// under the corpus roots, 1 naming each stray path, 2 where the branch
-// has no merge base with REF.
-func growthPromoteScope(args []string, stdout, stderr io.Writer) error {
-	fs := flag.NewFlagSet("growth promote-scope", flag.ContinueOnError)
-	base := fs.String("base", "", "")
-	repo := fs.String("repo", ".", "")
-	if err := flags(fs, args); err != nil {
-		return err
-	}
-	if *base == "" {
-		return report.New(report.Usage, "growth promote-scope needs --base REF")
-	}
-	root, err := filepath.Abs(*repo)
-	if err != nil {
-		return report.Wrap(report.IO, "growth promote-scope", err)
-	}
-	res, err := promotescope.Check(root, *base)
-	if errors.Is(err, promotescope.ErrNoMergeBase) {
-		fmt.Fprintln(stderr, "promote-scope: "+err.Error()+".")
-		return report.Said(report.Usage)
-	}
-	if err != nil {
-		return report.Wrap(report.IO, "growth promote-scope", err)
-	}
-	if len(res.Stray) > 0 {
-		fmt.Fprintf(stderr, "promote-scope: FAIL — the promote phase may write only under %s, but this branch also touches %d path(s):\n", strings.Join(res.Roots, ", "), len(res.Stray))
-		for _, p := range res.Stray {
-			fmt.Fprintln(stderr, "  - "+p)
-		}
-		fmt.Fprintln(stderr, "\nHome each promoted lesson in the corpus; leave anything that can only live elsewhere local. Do not reach past the corpus roots.")
-		return report.Said(report.Verify)
-	}
-	fmt.Fprintf(stdout, "promote-scope: OK — every changed path is under %s.\n", strings.Join(res.Roots, ", "))
-	return nil
 }
 
 // growthPrune is `cn growth prune`, the logs-prune task's code-work: the

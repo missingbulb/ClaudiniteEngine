@@ -88,6 +88,9 @@ func (g World) Issue(n int) (world.Issue, error) {
 }
 
 func (g World) CreateIssue(title, body string, labels []string) (int, error) {
+	if err := workitem.RefuseUnapproved(labels...); err != nil {
+		return 0, err
+	}
 	var out struct {
 		Number int `json:"number"`
 	}
@@ -111,6 +114,9 @@ func (g World) SetIssueTitle(n int, title string) error {
 }
 
 func (g World) AddLabel(n int, label string) error {
+	if err := workitem.RefuseUnapproved(label); err != nil {
+		return err
+	}
 	return gone(g.c.Call("POST", g.path("/issues/%d/labels", n), map[string]any{"labels": []string{label}}, nil))
 }
 
@@ -127,6 +133,10 @@ func (g World) RemoveLabel(n int, label string) error {
 func (g World) EnsureLabels(labels []workitem.Label) error {
 	var failed []error
 	for _, l := range labels {
+		if err := workitem.RefuseUnapproved(l.Name); err != nil {
+			failed = append(failed, err)
+			continue
+		}
 		err := g.c.Call("POST", g.path("/labels"), map[string]any{"name": l.Name, "color": l.Color, "description": l.Description}, nil)
 		if githubapi.StatusOf(err) == 422 {
 			err = g.c.Call("PATCH", g.path("/labels/%s", url.PathEscape(l.Name)), map[string]any{"color": l.Color, "description": l.Description}, nil)

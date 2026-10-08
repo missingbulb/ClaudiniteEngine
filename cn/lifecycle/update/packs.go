@@ -51,27 +51,17 @@ func packMoves(moves []move) []PackMove {
 	return out
 }
 
-// botPRs are the open PRs on branches starting with prefix that carry the
-// label or that the job token opened, relabelled when the label is gone.
-func botPRs(d Deps, prs []githubapi.PR, prefix string) ([]githubapi.PR, error) {
+// botPRs are the open PRs the job token opened on branches starting with
+// prefix.
+func botPRs(prs []githubapi.PR, prefix string) []githubapi.PR {
 	var out []githubapi.PR
 	for _, p := range prs {
-		if !strings.HasPrefix(p.HeadRef, prefix) {
-			continue
+		if strings.HasPrefix(p.HeadRef, prefix) && p.Author == gitcmd.BotName {
+			out = append(out, p)
 		}
-		if !p.HasLabel(Label) {
-			if p.Author != gitcmd.BotName {
-				continue
-			}
-			if err := d.GitHub.AddLabel(p.Number, Label); err != nil {
-				return nil, err
-			}
-			p.Labels = append(p.Labels, Label)
-		}
-		out = append(out, p)
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Number < out[j].Number })
-	return out, nil
+	return out
 }
 
 // Packs is one run of cn update packs. Like Engine it acts at most once:
@@ -106,17 +96,11 @@ func packsRun(d Deps, o Options, res *EngineResult) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	engine, err := botPRs(d, all, BranchPrefix)
-	if err != nil {
-		return "", err
-	}
+	engine := botPRs(all, BranchPrefix)
 	if len(engine) > 0 {
 		return fmt.Sprintf("skipped: engine PR #%d is open", engine[0].Number), nil
 	}
-	open, err := botPRs(d, all, PackBranchPrefix)
-	if err != nil {
-		return "", err
-	}
+	open := botPRs(all, PackBranchPrefix)
 	if len(open) > 1 {
 		var names []string
 		for _, p := range open {
@@ -432,9 +416,9 @@ func pinVersion(repo string) string {
 }
 
 // openPackPR writes the moves on a fresh branch, runs this repo's check
-// world over it and, when it passes, pushes it, opens and labels the PR
-// and lands it on its CI (awaitLanding). With no moves the branch carries
-// the rules index and the import alone. The checkout ends where it was.
+// world over it and, when it passes, pushes it, opens the PR and lands it
+// on its CI (awaitLanding). With no moves the branch carries the rules
+// index and the import alone. The checkout ends where it was.
 func openPackPR(d Deps, res *EngineResult, o Options, moves []move, prev *githubapi.PR) (string, error) {
 	set := describe(moves, false)
 	what := "packs " + set
@@ -568,9 +552,6 @@ func openPackPR(d Deps, res *EngineResult, o Options, moves []move, prev *github
 	if err != nil {
 		return "", err
 	}
-	if err := d.GitHub.AddLabel(pr.Number, Label); err != nil {
-		return "", err
-	}
 	sha, err := d.Git.RevParse("refs/heads/" + branch)
 	if err != nil {
 		return "", err
@@ -649,6 +630,14 @@ func landPacks(d Deps, pr githubapi.PR, sha string) (string, error) {
 			continue
 		}
 		if f == rulesindex.SkillsFile {
+			continue
+		}
+		if slices.Contains(flatdecl.Retired, f) {
+			if _, ok, err := d.Git.Show(sha, f); err != nil {
+				return "", err
+			} else if ok {
+				return "", fmt.Errorf("#%d writes %s, which no engine renders any more", pr.Number, f)
+			}
 			continue
 		}
 		if isFlatFile(f) {

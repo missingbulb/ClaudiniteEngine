@@ -32,7 +32,7 @@ import (
 //	cn          cn's own answer for the fields it changes, and the
 //	            "breaks" it raises that Node has no error for
 //
-// The cn side is `cn settings import` over the tree beside a development
+// The cn side is `fromnode import` over the tree beside a development
 // pin, then `cn verify` over the imported member.
 
 // SettingsExpect is the Node engine's answer for one declaration.
@@ -173,9 +173,9 @@ func cnImport(t *testing.T, c Cn, f SettingsFixture, nodeRoot string) CnSettings
 	if err := os.WriteFile(filepath.Join(dir, ".claudinite/settings.json"), []byte(pin), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	stdout, stderr, code, err := run(dir, c.env(dir), "", c.Binary, "settings", "import", "--repo", dir)
+	stdout, stderr, code, err := run(dir, c.env(dir), "", c.FromNode, "import", "--repo", dir)
 	if err != nil || code > 1 {
-		t.Fatalf("cn settings import: exit %d %v: %s%s", code, err, stdout, stderr)
+		t.Fatalf("fromnode import: exit %d %v: %s%s", code, err, stdout, stderr)
 	}
 	a := CnSettingsAnswer{Code: code, Report: nonEmpty(stdout)}
 	raw, err := os.ReadFile(filepath.Join(dir, ".claudinite/settings.json"))
@@ -247,7 +247,7 @@ func importedCanon(imported map[string]any) []string {
 // member's own packs: a break from one of them, where Node reports no
 // error, is a divergence the fixture must name.
 var settingsRules = map[string]bool{
-	"settings-file": true, "settings-checks": true, "local-pack-shape": true, "pack-declared": true,
+	"settings-file": true, "settings-checks": true, "pack-declared": true,
 	"descriptor-format": true, "descriptor-duplicate": true, "node-leftovers": true,
 }
 

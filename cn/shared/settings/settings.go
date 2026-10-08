@@ -102,10 +102,7 @@ func patternsFor(name string) blockPatterns {
 	}
 }
 
-var (
-	enginePatterns  = patternsFor("engine")
-	licensePatterns = patternsFor("license")
-)
+var enginePatterns = patternsFor("engine")
 
 func lineSpans(raw []byte) []span {
 	var out []span
@@ -305,8 +302,8 @@ func SetPin(raw []byte, f Format, version, manifest string) ([]byte, error) {
 }
 
 // PinOnlyChange refuses unless new is old with at most engine.version and
-// engine.manifest changed, both still valid, the retired license block
-// dropped and a legacy package moved to its channel.
+// engine.manifest changed, both still valid, and a legacy package moved to
+// its channel.
 func PinOnlyChange(old, new []byte, f Format) error {
 	err := pinOnlyChange(old, new, f)
 	if err == nil {
@@ -338,9 +335,6 @@ func pinOnlyChange(old, new []byte, f Format) error {
 		return err
 	}
 	if string(moved) == string(new) {
-		return nil
-	}
-	if dropped, err := DropLicense(moved, f); err == nil && string(dropped) == string(new) {
 		return nil
 	}
 	return errors.New("the settings change touches more than engine.version and engine.manifest")

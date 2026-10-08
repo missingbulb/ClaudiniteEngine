@@ -1,0 +1,11 @@
+mapped packs[0] "claudinite-lifecycle" → packs.declared "claudinite-lifecycle"
+mapped packs[1] "basics" → packs.declared "basics"
+dropped packs[1].version: the installed version is the vendored pack.json's
+mapped packs[1].config → packs.declared "basics" config
+mapped packs[1].rules → packs.declared "basics" rules
+mapped packs[1].accept → packs.declared "basics" accept
+dropped packs[1].via: cn requires every pack a declared one needs to be declared itself, so no entry records who pulled it in
+mapped packs[2] "claude-code-web-users-support" → packs.declared "claude-code-web-users-support"
+dropped packs[2].version: the installed version is the vendored pack.json's
+mapped packs[2].config → packs.declared "claude-code-web-users-support" config
+carried packs[2].answers

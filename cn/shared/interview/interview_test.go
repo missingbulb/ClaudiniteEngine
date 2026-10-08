@@ -21,13 +21,11 @@ func TestState(t *testing.T) {
 		Declared: settings.Packs{Entries: []settings.PackEntry{
 			{ID: "asks"},
 			{ID: "answered", Object: true, Answers: map[string]string{"a": "n/a", "gone": "x"}},
-			{ID: "pulled", Object: true, Via: []any{"asks"}},
 			{ID: "mine", Local: true},
 		}},
 		Packs: []packset.Pack{
 			pack("asks", packset.Canon, "a", "b"),
 			pack("answered", packset.Canon, "a"),
-			pack("pulled", packset.Canon, "a"),
 			pack("mine", packset.Local, "c"),
 			pack("visitor", packset.Temp, "d"),
 		},
