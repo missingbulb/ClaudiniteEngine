@@ -196,6 +196,9 @@ func verify(dist, rootsDir string, platforms []string, stdout io.Writer) error {
 		}
 		roots = append(roots, p)
 	}
+	if len(roots) == 0 {
+		return fmt.Errorf("no trusted roots in %s (no *.pub there)", rootsDir)
+	}
 	manifest, err := os.ReadFile(filepath.Join(dist, "manifest.json"))
 	if err != nil {
 		return err

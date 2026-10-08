@@ -164,8 +164,10 @@ func TestVerify(t *testing.T) {
 	if _, e, c := tool(t, "verify", "--dist", dist, "--roots", roots); c != 0 {
 		t.Fatalf("restored dist fails: %s", e)
 	}
-	if _, _, c := tool(t, "verify", "--dist", dist, "--roots", t.TempDir()); c == 0 {
+	if _, e, c := tool(t, "verify", "--dist", dist, "--roots", t.TempDir()); c == 0 {
 		t.Error("verify passed with no trusted roots")
+	} else if !strings.Contains(e, "no trusted roots in") {
+		t.Errorf("verify with an empty roots folder does not say so: %s", e)
 	}
 }
 
