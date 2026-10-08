@@ -166,6 +166,11 @@ func Move(repo string) ([]string, error) {
 		}
 		changed = append(changed, old, f)
 	}
+	removed, err := flatdecl.RemoveRetired(repo, flatdecl.LegacyDir)
+	changed = append(changed, removed...)
+	if err != nil {
+		return changed, err
+	}
 	// Removes the directory only when the move emptied it.
 	_ = os.Remove(filepath.Join(repo, filepath.FromSlash(flatdecl.LegacyDir)))
 	md := filepath.Join(repo, ClaudeMD)

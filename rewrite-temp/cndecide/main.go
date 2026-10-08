@@ -2,7 +2,6 @@
 // core over a fixture's JSON world, printed as JSON, compared with the
 // frozen Node engine's answer. cn itself carries none of these commands.
 //
-//	cndecide dashboard decide usable --world FILE
 //	cndecide update decide <core> --world FILE
 //	cndecide growth decide <core> --world FILE
 //	cndecide tasks <kind> --world FILE
@@ -17,9 +16,8 @@ import (
 )
 
 var decides = map[string]func(core string, raw []byte) (any, error){
-	"dashboard": dashboardDecide,
-	"update":    updateDecide,
-	"growth":    growthDecide,
+	"update": updateDecide,
+	"growth": growthDecide,
 }
 
 func main() {

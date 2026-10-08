@@ -12,7 +12,6 @@ claudinite-lifecycle
 claudinite-growth
 claudinite-tasks
 claudinite-fleet-sheepdog
-claudinite-dashboard
 chrome-extension
 cloudflare-site
 github-pages

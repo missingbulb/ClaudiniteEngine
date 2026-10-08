@@ -651,6 +651,14 @@ func landPacks(d Deps, pr githubapi.PR, sha string) (string, error) {
 		if f == rulesindex.SkillsFile {
 			continue
 		}
+		if slices.Contains(flatdecl.Retired, f) {
+			if _, ok, err := d.Git.Show(sha, f); err != nil {
+				return "", err
+			} else if ok {
+				return "", fmt.Errorf("#%d writes %s, which no engine renders any more", pr.Number, f)
+			}
+			continue
+		}
 		if isFlatFile(f) {
 			if err := flatRendered(d.Git, sha, f); err != nil {
 				return "", fmt.Errorf("#%d: %s: %w", pr.Number, f, err)
