@@ -1,0 +1,212 @@
+{
+  "input": {
+    "now": "2026-08-21T11:00:00.000Z",
+    "repo": "acme/member",
+    "pack": "claudinite-tasks",
+    "task": "usage-fold",
+    "automerge": "rolling-usage-files",
+    "packs": [
+      {
+        "id": "acme-pack",
+        "kind": "canon"
+      },
+      {
+        "id": "acme-local",
+        "kind": "local"
+      }
+    ],
+    "packConfig": {
+      "actionsMinuteRate": 0.008
+    },
+    "target": {
+      "branch": "main"
+    },
+    "main": [
+      {
+        "date": "2026-08-18T10:00:00Z",
+        "files": {
+          ".claudinite/shared/packs/acme-pack/skills/acme-skill-h/SKILL.md": "# h\n",
+          ".claudinite/local/packs/acme-local/skills/acme-skill-i/SKILL.md": "# i\n",
+          "README.md": "hi\n"
+        }
+      }
+    ],
+    "github": {
+      "runs": {
+        "scheduler": [
+          {
+            "id": 9002,
+            "created_at": "2026-08-21T05:00:00Z",
+            "run_started_at": "2026-08-21T05:00:20Z",
+            "conclusion": "success"
+          },
+          {
+            "id": 9001,
+            "created_at": "2026-08-20T05:00:00Z",
+            "run_started_at": "2026-08-20T05:00:15Z",
+            "conclusion": "failure"
+          }
+        ],
+        "executor": [
+          {
+            "id": 9010,
+            "created_at": "2026-08-20T05:10:00Z",
+            "run_started_at": "2026-08-20T05:10:30Z",
+            "conclusion": "success"
+          }
+        ]
+      },
+      "jobs": {
+        "9002": [
+          {
+            "id": 70001,
+            "name": "job",
+            "started_at": "2026-08-21T05:00:30Z",
+            "completed_at": "2026-08-21T05:02:10Z",
+            "conclusion": "success"
+          }
+        ],
+        "9001": [
+          {
+            "id": 70002,
+            "name": "job",
+            "started_at": "2026-08-20T05:00:20Z",
+            "completed_at": "2026-08-20T05:01:00Z",
+            "conclusion": "failure"
+          }
+        ],
+        "9010": [
+          {
+            "id": 70003,
+            "name": "job",
+            "started_at": "2026-08-20T05:10:40Z",
+            "completed_at": "2026-08-20T05:14:00Z",
+            "conclusion": "success"
+          }
+        ]
+      },
+      "logs": {
+        "70001": "2026-08-21T05:00:30.0000000Z ##[group]Run node cn tasks schedule\n2026-08-21T05:02:00.0000000Z claudinite-run-cost v1 scheduler [9002] calls=12 list=800 ask=3000 drain=40000\n"
+      },
+      "issues": [
+        {
+          "number": 3,
+          "title": "[claudinite-work] acme-pack/acme-task",
+          "body": "",
+          "labels": [
+            {
+              "name": "task:status:done"
+            },
+            {
+              "name": "outcome:delivered"
+            }
+          ],
+          "state": "closed",
+          "created_at": "2026-08-20T06:00:00Z",
+          "closed_at": "2026-08-20T15:00:00Z",
+          "updated_at": "2026-08-20T15:00:00Z"
+        },
+        {
+          "number": 4,
+          "title": "an ordinary bug",
+          "body": "",
+          "labels": [],
+          "state": "closed",
+          "created_at": "2026-08-20T06:00:00Z",
+          "closed_at": "2026-08-20T07:00:00Z",
+          "updated_at": "2026-08-20T07:00:00Z"
+        }
+      ],
+      "timelines": {
+        "3": [
+          {
+            "event": "labeled",
+            "label": {
+              "name": "task:status:needs-human-approval"
+            },
+            "created_at": "2026-08-20T09:00:00Z"
+          },
+          {
+            "event": "commented",
+            "created_at": "2026-08-20T15:00:00Z",
+            "body": "ran\n\n```\nclaudinite-task-exec v1 acme-pack/acme-task [#3] success\nclaudinite-run-cost v1 executor [9010] calls=7 pick=100 code-work=60000\n```"
+          }
+        ]
+      },
+      "events": {
+        "3": [
+          {
+            "event": "labeled",
+            "label": {
+              "name": "task:status:needs-human-approval"
+            },
+            "created_at": "2026-08-20T09:00:00Z"
+          }
+        ]
+      },
+      "pulls": [
+        {
+          "number": 1501,
+          "created_at": "2026-08-20T10:00:00Z",
+          "updated_at": "2026-08-20T18:00:00Z",
+          "merged_at": "2026-08-20T18:00:00Z",
+          "body": "does it\n\nCloses #3\n"
+        }
+      ],
+      "releases": [
+        {
+          "tag_name": "v1",
+          "created_at": "2026-08-15T10:00:00Z",
+          "published_at": "2026-08-15T11:00:00Z"
+        }
+      ]
+    },
+    "logs": {
+      "README.md": "# logs\n",
+      "2026-08-19T0910Z--issue-0--s1.jsonl": "{\"type\": \"user\", \"message\": {\"content\": \"fix the thing\"}, \"timestamp\": \"2026-08-19T09:10:00.000Z\"}\n{\"type\": \"assistant\", \"message\": {\"content\": [{\"type\": \"tool_use\", \"id\": \"t-acme-skill-h2026-08-19T09:11:00.000Z\", \"name\": \"Skill\", \"input\": {\"skill\": \"acme-skill-h\"}}]}, \"timestamp\": \"2026-08-19T09:11:00.000Z\"}\n{\"type\": \"assistant\", \"message\": {\"model\": \"acme-model-large\", \"content\": [], \"usage\": {\"input_tokens\": 300, \"output_tokens\": 40, \"cache_read_input_tokens\": 900}}, \"timestamp\": \"2026-08-19T09:12:00.000Z\"}\n{\"type\": \"user\", \"message\": {\"content\": \"and the other\"}, \"timestamp\": \"2026-08-19T09:20:00.000Z\"}\n",
+      "2026-08-20T1400Z--issue-3--s2.jsonl": "{\"type\": \"user\", \"message\": {\"content\": \"go\"}, \"timestamp\": \"2026-08-20T14:00:00.000Z\"}\n{\"type\": \"assistant\", \"message\": {\"content\": [{\"type\": \"tool_use\", \"id\": \"t-acme-skill-i2026-08-20T14:02:00.000Z\", \"name\": \"Skill\", \"input\": {\"skill\": \"acme-skill-i\"}}]}, \"timestamp\": \"2026-08-20T14:02:00.000Z\"}\n{\"type\": \"assistant\", \"message\": {\"model\": \"acme-model-small\", \"content\": [], \"usage\": {\"input_tokens\": 20, \"output_tokens\": 5, \"cache_read_input_tokens\": 900}}, \"timestamp\": \"2026-08-20T14:03:00.000Z\"}\n",
+      "2026-08-20T1630Z--pr-1501--s3.jsonl": "{\"type\": \"user\", \"message\": {\"content\": \"review\"}, \"timestamp\": \"2026-08-20T16:30:00.000Z\"}\n"
+    }
+  },
+  "expect": [
+    {
+      "branch": {
+        "commits": null,
+        "exists": true,
+        "files": {
+          ".claudinite/local/tasks-usage.GENERATED.json": null,
+          ".claudinite/local/usage.GENERATED.json": null,
+          ".claudinite/usage/sessions-and-elements.json": null,
+          ".claudinite/usage/task-runs-and-costs.json": null
+        }
+      },
+      "said": {
+        "error": "refusing to force-push to main, the base branch — a delivery lands on the task's own branch",
+        "logs": [
+          "git history: complete for the window from 2026-07-23",
+          "sessions: 3 capture file(s), 3 run(s), 1 closed item(s) and 1 merged PR(s)",
+          "machinery: 3 run(s) and 1 closed item(s)"
+        ],
+        "opened": [],
+        "requests": [
+          "/repos/acme/member/actions/workflows/claudinite-scheduler.yml/runs?status=completed\u0026per_page=100\u0026page=1\u0026created=%3E%3D2026-08-18",
+          "/repos/acme/member/actions/workflows/claudinite-executor.yml/runs?status=completed\u0026per_page=100\u0026page=1\u0026created=%3E%3D2026-08-18",
+          "/repos/acme/member/issues?state=closed\u0026sort=updated\u0026direction=desc\u0026since=2026-07-22T11%3A00%3A00.000Z\u0026per_page=100\u0026page=1",
+          "/repos/acme/member/issues/3/events?per_page=100",
+          "/repos/acme/member/pulls?state=closed\u0026sort=updated\u0026direction=desc\u0026per_page=100\u0026page=1",
+          "/repos/acme/member/issues/3",
+          "/repos/acme/member/releases?per_page=100",
+          "/repos/acme/member/actions/workflows/claudinite-scheduler.yml/runs?status=completed\u0026per_page=100\u0026page=1\u0026created=%3E%3D2026-08-18",
+          "/repos/acme/member/actions/workflows/claudinite-executor.yml/runs?status=completed\u0026per_page=100\u0026page=1\u0026created=%3E%3D2026-08-18",
+          "/repos/acme/member/actions/runs/9001/jobs?per_page=100",
+          "/repos/acme/member/actions/jobs/70002/logs",
+          "/repos/acme/member/actions/runs/9010/jobs?per_page=100",
+          "/repos/acme/member/actions/runs/9002/jobs?per_page=100",
+          "/repos/acme/member/actions/jobs/70001/logs",
+          "/repos/acme/member/issues?state=closed\u0026sort=updated\u0026direction=desc\u0026since=2026-07-22T11%3A00%3A00.000Z\u0026per_page=100\u0026page=1",
+          "/repos/acme/member/issues/3/timeline?per_page=100\u0026page=1"
+        ]
+      }
+    }
+  ]
+}

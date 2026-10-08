@@ -14,6 +14,7 @@ fixture format is at the top of its test file.
 | verify answers | `testdata/answered/<rule>/<case>.json` | `testdata/shims/answered.mjs`: the rule's `run` over `nodeFiles` | `cn verify` over `cnShape` with `cnFiles` laid over it |
 | settings | `testdata/settings/<name>/`: a declaration and the tree it sits in | `testdata/shims/settings.mjs`: the reader, the registry and `legacy-shape-in-use` | `fromnode import`, then `cn verify` over the imported member |
 | growth | `testdata/growth/<core>/<name>.json` | `testdata/shims/growth.mjs`: `capture-log.mjs` and `prune-logs.mjs` | `cndecide growth decide <core> --world` |
+| usage | `testdata/usage/fold/<name>.json`: a member, its logs branch and the REST API it reads | `testdata/shims/usage.mjs`: `usage-fold`'s `worker.mjs` | `cndecide usage decide fold --world` |
 | member | `testdata/member/flat-member/<name>.json` | none: no Node engine writes the member file | `cn tasks flat --write` against a hand-written file |
 | from-node | real Node trees in `CLAUDINITE_PARITY_TREES`, moved in `../fromnode`'s `TestMoveOverRealMembers` | none: no Node answer exists for a `cn` tree | `fromnode` over a copy, then `cn verify`: nothing, and `fromnode leftovers` no break |
 
@@ -96,6 +97,52 @@ Update face divergences: 19 of 40 fixtures.
 | 41 | convergescope/stamp-only, convergescope/checkout | the declaration is `.claudinite/settings.*`, whose bookkeeping edit is the engine pin |
 | 63 | pulltext/* | the update opens one pull request per kind and supersedes, never amends |
 | 72 | delivery/failed-forced | a failed self-test opens no pull request, forced or not |
+
+The usage face runs `claudinite-tasks`' whole `usage-fold` worker and
+`cn`'s fold over one member each: a bare origin whose `main` and
+`claudinite/conversation-logs` branches the world writes, a clone of it
+(shallow where the world says), and a harness-owned server answering the
+REST listings the readers page. Each fixture's expect is, per run, what the
+worker printed (its log lines, its error, the pull request it opened), the
+requests it made in order, and the delivery branch's four rolling-file
+paths and commit messages; a later step lands that branch on `main`, or
+leaves it for an open pull request to amend, and may rewrite one value
+deep inside each rolling file first. The two files are compared byte for
+byte, naming the first line that differs. `TestParityUsageFuzz` draws
+worlds from a seed (`CLAUDINITE_PARITY_FUZZ` worlds from
+`CLAUDINITE_PARITY_FUZZ_SEED`, 40 from 1 by default; a world the engines
+disagree on is written to the temporary directory, ready to be a fixture),
+and `CLAUDINITE_PARITY_USAGE_COVERDIR` builds `cndecide` with coverage of
+`cn/tasks/usage` so `go tool covdata` reads which branches the worlds
+reached.
+
+Usage face divergences: 0 of 13 fixtures.
+
+What cannot match byte for byte, and how the face reads it:
+
+- A dropped connection is `fetch failed` to Node and `Get "<url>": <cause>`
+  to Go; the face reads both as `fetch failed`.
+- A half that throws logs `the <half> half failed - its file is unchanged
+  this run: ` and then Node's error text or Go's; the face compares the
+  line to that colon.
+- `net/http` retries a GET once on a dropped reused connection, which
+  would log a request Node never made; `cndecide` reads through a client
+  that keeps no connection alive. `cn usage fold` itself keeps the retry.
+- Where the open pull request's branch already holds the tree a run
+  built, `cn` pushes nothing and Node force-pushes a commit of the same
+  tree and message: the branch's files and messages agree, its head sha
+  does not, and the face compares no sha.
+
+Branches no world reaches, each for a stated reason: the moment and
+caught-skill counts read the declared checks and the corpus owner, which
+Node's mounted corpus never supplies; the run-mark reader is the
+precondition's, judged by `cn/tasks/precondition` and `cn/tasks/signals`
+rather than by the fold; and the counters' type errors are reachable only
+by a prior the decoder has not sanitized, so only a direct call to the
+fold reaches them (`cn/tasks/usage`'s own tests do). Nor does any world
+make git itself fail partway through a run (a plumbing call in the
+delivery, the logs branch's fetch, the local history read): the member is
+always a working clone.
 
 A settings fixture accounts for each Node error and advisory with a line
 the import or verify prints. Where `cn` decides otherwise on purpose it
