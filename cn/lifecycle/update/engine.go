@@ -27,7 +27,7 @@ import (
 
 const (
 	// CIWorkflow is the member workflow whose runs gate main and update
-	// PRs, and which the updater dispatches.
+	// PRs.
 	CIWorkflow = land.CIWorkflow
 	// Label marks the PRs and issues the updater owns.
 	Label = "claudinite-update"
@@ -48,6 +48,9 @@ type GitHub interface {
 	AddLabel(n int, label string) error
 	Comment(n int, body string) error
 	Dispatch(workflow, ref string, inputs map[string]string) error
+	// HeadRuns are every workflow's runs on one commit.
+	HeadRuns(sha string) ([]githubapi.Run, error)
+	ApproveRun(id int64) error
 	OpenIssues(label string) ([]githubapi.Issue, error)
 	CreateIssue(title, body, label string) (int, error)
 	UpdateIssueBody(n int, body string) error
@@ -123,6 +126,10 @@ type EngineResult struct {
 	// MainPending is a run that waited on main's CI, which has no verdict
 	// yet: still running, or just dispatched (MainCIDispatched).
 	MainPending bool
+	// PRPending is a run that left an update PR whose CI has no verdict
+	// yet: its approved runs still running at the landing bound, or just
+	// approved.
+	PRPending bool
 }
 
 // MainCIDispatched is the verdict of a run that found no CI run on main's
@@ -130,12 +137,12 @@ type EngineResult struct {
 const MainCIDispatched = "skipped: main has no CI run yet; dispatched one"
 
 // latest is the newest run that counts: gated action_required runs never
-// do, and keep, when non-empty, limits the events that do.
-func latest(runs []githubapi.Run, keep string) *githubapi.Run {
+// do, and events, when given, limit the events that do.
+func latest(runs []githubapi.Run, events ...string) *githubapi.Run {
 	var best *githubapi.Run
 	for i := range runs {
 		r := &runs[i]
-		if r.Conclusion == "action_required" || (keep != "" && r.Event != keep) {
+		if r.Conclusion == "action_required" || (len(events) > 0 && !has(events, r.Event)) {
 			continue
 		}
 		if best == nil || r.CreatedAt > best.CreatedAt {
@@ -154,6 +161,67 @@ func runState(r *githubapi.Run) string {
 		return r.Status
 	}
 	return r.Conclusion
+}
+
+// landed is Land's answer, noting on res that main's new head has no CI
+// verdict yet when it merged: Land dispatched that CI.
+func landed(res *EngineResult, verdict string, err error) (string, error) {
+	if err == nil && strings.HasPrefix(verdict, "landed ") {
+		res.MainPending = true
+	}
+	return verdict, err
+}
+
+// awaitLanding starts update PR n's checks on sha and lands it on them in
+// this run when they pass in time; otherwise its verdict is opened, the
+// PR left for its land job (a dispatched CI) or for the next run.
+func awaitLanding(d Deps, res *EngineResult, n int, branch, sha, opened string) (string, error) {
+	h, err := startPRCI(d, n, branch, sha, land.HeldWait)
+	if err != nil || h.Seen == 0 {
+		return opened, err
+	}
+	v, pending, err := landOnCI(d, n, sha)
+	if err != nil {
+		return "", err
+	}
+	if v != "" {
+		return landed(res, v, nil)
+	}
+	res.PRPending = pending
+	return opened, nil
+}
+
+// retryCI is the open update PR's CI asked again when prevState says no
+// verdict will come for its head: its held runs approved, else its CI
+// dispatched; it returns the verdict's tail and notes on res a verdict
+// still to come.
+func retryCI(d Deps, res *EngineResult, pr githubapi.PR, prevState string) (string, error) {
+	switch prevState {
+	case "no run":
+		h, err := startPRCI(d, pr.Number, pr.HeadRef, pr.HeadSHA, 0)
+		if err != nil {
+			return "", err
+		}
+		if h.Seen == 0 {
+			return "; dispatched its CI again", nil
+		}
+		res.PRPending = true
+		if h.Approved == 0 {
+			return "", nil
+		}
+		if h.Approved == 1 {
+			return "; approved its held run", nil
+		}
+		return fmt.Sprintf("; approved its %d held runs", h.Approved), nil
+	case "cancelled", "timed_out":
+		if err := d.GitHub.Dispatch(CIWorkflow, pr.HeadRef, map[string]string{"pr": strconv.Itoa(pr.Number)}); err != nil {
+			return "", err
+		}
+		return "; dispatched its CI again", nil
+	case "queued", "in_progress", "waiting", "pending", "requested":
+		res.PRPending = true
+	}
+	return "", nil
 }
 
 // updatePRs are the open PRs on an update branch that carry the label or
@@ -203,7 +271,7 @@ func mainGate(d Deps) (verdict string, pending bool, err error) {
 	if err != nil {
 		return "", false, err
 	}
-	r := latest(runs, "")
+	r := latest(runs)
 	if r == nil {
 		if err := d.GitHub.Dispatch(CIWorkflow, mainBranch, map[string]string{}); err != nil {
 			return "", false, fmt.Errorf("main's head %s has no %s run, and dispatching one failed: %w", head, CIWorkflow, err)
@@ -250,9 +318,10 @@ func engine(d Deps, o Options, res *EngineResult) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		prevState = runState(latest(runs, "workflow_dispatch"))
+		prevState = runState(latest(runs, ciEvents...))
 		if prevState == "success" {
-			return Land(d, prev.Number, prev.HeadSHA)
+			v, err := Land(d, prev.Number, prev.HeadSHA)
+			return landed(res, v, err)
 		}
 	}
 
@@ -344,14 +413,12 @@ func propose(d Deps, o Options, f settings.Format, raw []byte, pin settings.Engi
 		case "queued", "in_progress", "waiting", "pending", "requested":
 			why = "its CI is " + prevState
 		}
-		switch prevState {
-		case "no run", "cancelled", "timed_out":
-			// No verdict will ever come for this head: ask again.
-			if err := d.GitHub.Dispatch(CIWorkflow, prev.HeadRef, map[string]string{"pr": strconv.Itoa(prev.Number)}); err != nil {
-				return "", "", err
-			}
-			why += "; dispatched its CI again"
+		// No verdict will ever come for this head unless it is asked again.
+		tail, err := retryCI(d, res, *prev, prevState)
+		if err != nil {
+			return "", "", err
 		}
+		why += tail
 		return c.Version, fmt.Sprintf("skipped: #%d for %s is open and %s", prev.Number, c.Version, why), nil
 	}
 
@@ -377,7 +444,7 @@ func propose(d Deps, o Options, f settings.Format, raw []byte, pin settings.Engi
 		return c.Version, "no PR: " + c.Version + " would break this repo", nil
 	}
 
-	n, staged, err := openPR(d, f, raw, got, self, verifyOut, broke)
+	n, sha, staged, err := openPR(d, f, raw, got, self, verifyOut, broke)
 	if err != nil {
 		return "", "", err
 	}
@@ -389,7 +456,13 @@ func propose(d Deps, o Options, f settings.Format, raw []byte, pin settings.Engi
 			return "", "", err
 		}
 	}
-	return c.Version, fmt.Sprintf("opened #%d for %s", n, c.Version), nil
+	opened := fmt.Sprintf("opened #%d for %s", n, c.Version)
+	if len(staged) > 0 {
+		// Its CI waits for the agent stage to move them.
+		return c.Version, opened, nil
+	}
+	v, err := awaitLanding(d, res, n, BranchPrefix+c.Version, sha, opened)
+	return c.Version, v, err
 }
 
 // stagedOn is the workflow files staged on an open update PR's head.
@@ -431,29 +504,30 @@ func workflowIssues(d Deps) ([]int, error) {
 }
 
 // openPR commits the pin, and the workflows the new engine expects staged
-// beside it, on a fresh update branch, pushes it, opens and labels the PR,
-// closes the workflow-change issues an earlier engine filed, and dispatches
-// its CI unless workflows are staged, leaving the checkout where it was.
-// It returns the PR and the staged paths.
-func openPR(d Deps, f settings.Format, raw []byte, got Fetched, self, verifyOut string, forced bool) (int, []string, error) {
+// beside it, on a fresh update branch, pushes it, opens and labels the PR
+// and closes the workflow-change issues an earlier engine filed, leaving
+// the checkout where it was. It returns the PR, its head and the staged
+// paths.
+func openPR(d Deps, f settings.Format, raw []byte, got Fetched, self, verifyOut string, forced bool) (int, string, []string, error) {
 	moved, err := settings.SetPin(raw, f, got.Version, got.Integrity)
 	if err != nil {
-		return 0, nil, err
+		return 0, "", nil, err
 	}
 	issues, err := workflowIssues(d)
 	if err != nil {
-		return 0, nil, err
+		return 0, "", nil, err
 	}
 	back, err := d.Git.CurrentBranch()
 	if err != nil {
-		return 0, nil, err
+		return 0, "", nil, err
 	}
 	branch := BranchPrefix + got.Version
 	if err := d.Git.CreateBranch(branch, "HEAD"); err != nil {
-		return 0, nil, err
+		return 0, "", nil, err
 	}
 	rel := settings.RelPath(f)
 	var staged []string
+	var sha string
 	commitErr := func() error {
 		if err := os.WriteFile(filepath.Join(d.Repo, filepath.FromSlash(rel)), moved, 0o644); err != nil {
 			return err
@@ -473,13 +547,16 @@ func openPR(d Deps, f settings.Format, raw []byte, got Fetched, self, verifyOut 
 		if err := d.Git.Commit(EngineTitle(got.Version), rels...); err != nil {
 			return err
 		}
+		if sha, err = d.Git.RevParse("HEAD"); err != nil {
+			return err
+		}
 		return d.Git.Push(remote, branch)
 	}()
 	if err := d.Git.Checkout(back); err != nil {
-		return 0, nil, errors.Join(commitErr, err)
+		return 0, "", nil, errors.Join(commitErr, err)
 	}
 	if commitErr != nil {
-		return 0, nil, commitErr
+		return 0, "", nil, commitErr
 	}
 
 	var b strings.Builder
@@ -502,36 +579,32 @@ func openPR(d Deps, f settings.Format, raw []byte, got Fetched, self, verifyOut 
 		fmt.Fprintf(&b, "It replaces %s, the workflow-change issue an earlier engine filed instead of carrying the change here.\n\n", strings.Join(refs, ", "))
 	}
 	if len(staged) == 0 {
-		b.WriteString("The updater merges this PR once the CI run it dispatched is green.\n")
+		b.WriteString("The updater approves this PR's held CI run and merges it once that run is green.\n")
 	} else {
 		b.WriteString(stagedNote(staged))
 	}
 
 	pr, err := d.GitHub.CreatePull(EngineTitle(got.Version), b.String(), branch, mainBranch)
 	if err != nil {
-		return 0, nil, err
+		return 0, "", nil, err
 	}
 	if err := d.GitHub.AddLabel(pr.Number, Label); err != nil {
-		return 0, nil, err
+		return 0, "", nil, err
 	}
 	for _, n := range issues {
 		if err := d.GitHub.Comment(n, fmt.Sprintf("Closed: #%d carries this repo's workflow change on the engine update PR itself.", pr.Number)); err != nil {
-			return 0, nil, err
+			return 0, "", nil, err
 		}
 		if err := d.GitHub.CloseIssue(n); err != nil {
-			return 0, nil, err
+			return 0, "", nil, err
 		}
 	}
 	if len(staged) > 0 {
 		for _, s := range staged {
 			fmt.Fprintf(d.Out, "staged for the agent stage: %s\n", s)
 		}
-		return pr.Number, staged, nil
 	}
-	if err := d.GitHub.Dispatch(CIWorkflow, branch, map[string]string{"pr": strconv.Itoa(pr.Number)}); err != nil {
-		return 0, nil, err
-	}
-	return pr.Number, nil, nil
+	return pr.Number, sha, staged, nil
 }
 
 // stagedNote is the PR body's account of the staged workflows: what they

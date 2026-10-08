@@ -1,1 +1,0 @@
-run checks/run.mjs

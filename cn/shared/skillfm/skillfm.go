@@ -8,7 +8,6 @@ package skillfm
 
 import (
 	"regexp"
-	"sort"
 	"strings"
 	"unicode/utf8"
 )
@@ -195,55 +194,4 @@ func Read(text string) Meta {
 	m.Prompts = strings_(md[ForceLoadPrompts])
 	m.ToolResults = strings_(md[ForceLoadToolResults])
 	return m
-}
-
-// UsageKey is the metadata block a skill declares its expected usage in,
-// and Expects the values its expect key takes.
-const UsageKey = "usage"
-
-var Expects = []string{"adoption", "triggered", "judgment"}
-
-// Usage is a skill's metadata.usage block: its expect when that is one of
-// Expects, else "", and what is wrong with the block.
-type Usage struct {
-	Expect   string
-	Problems []string
-}
-
-// UsageOf reads frontmatter fm's usage block, or nil when there is none.
-func UsageOf(fm map[string]any) *Usage {
-	v, ok := metadata(fm)[UsageKey]
-	if !ok {
-		return nil
-	}
-	block, ok := v.(map[string]any)
-	if !ok {
-		return &Usage{Problems: []string{UsageKey + " is not a block of keys"}}
-	}
-	u := &Usage{}
-	expect, _ := block["expect"].(string)
-	expect = trim(expect)
-	for _, e := range Expects {
-		if expect == e {
-			u.Expect = e
-		}
-	}
-	if u.Expect == "" {
-		if expect != "" {
-			u.Problems = append(u.Problems, "expect: "+expect+" is outside "+strings.Join(Expects, " | "))
-		} else {
-			u.Problems = append(u.Problems, "expect is missing - one of "+strings.Join(Expects, " | "))
-		}
-	}
-	var keys []string
-	for k := range block {
-		if k != "expect" {
-			keys = append(keys, k)
-		}
-	}
-	sort.Strings(keys)
-	for _, k := range keys {
-		u.Problems = append(u.Problems, k+" is not a key of the usage block, whose only key is expect")
-	}
-	return u
 }

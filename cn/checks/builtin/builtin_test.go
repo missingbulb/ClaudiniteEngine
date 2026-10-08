@@ -192,7 +192,7 @@ func TestEveryBuiltinNamesItsPackAndScope(t *testing.T) {
 	}
 	for _, id := range []string{"shared-tree-immutable", "provenance-integrity", "provenance-change-recorded", "routine-structure",
 		"task-declaration-shape", "task-code-work-env", "executor-workflow-secrets", "automerge-policy-scope",
-		"task-declaration-matches-folder", "task-md-only-when-agentic", "task-worker-restores-main", "flat-declarations-current", "descriptor-usable"} {
+		"task-declaration-matches-folder", "task-md-only-when-agentic", "task-worker-restores-main", "flat-declarations-current"} {
 		if !ids[id] {
 			t.Errorf("%s is not registered", id)
 		}

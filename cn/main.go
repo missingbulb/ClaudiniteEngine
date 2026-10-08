@@ -74,15 +74,15 @@ commands:
                  pack is not declared
   rules-index [--check] [--repo DIR]
                  write the import index of the active packs' prose that
-                 CLAUDE.md imports, and the flat task and dashboard
-                 declarations and the member file beside it; --check
+                 CLAUDE.md imports, and the flat task declarations and
+                 the member file beside it; --check
                  exits 1 when it is stale
   tasks list [--repo DIR]
                  every task the active packs and the engine contribute
   tasks flat [--write|--check|--paths [--json]] [--repo DIR]
-                 the flat task and dashboard declarations and the member
-                 file: print, write, exit 1 naming each file that is
-                 stale, or print the three paths
+                 the flat task declarations and the member file: print,
+                 write, exit 1 naming each file that is stale, or print
+                 the paths
   schedule run [--dry-run] [--wake IDS] [--repo DIR]
                  the scheduler run: repair, ask every scheduled task,
                  ready, adopt, reclaim; publishes the drain gate; needs
@@ -125,11 +125,6 @@ commands:
                  [--branch NAME] [--repo DIR]
                  push the session's transcript, scrubbed, as a delta onto
                  the conversation-logs branch; session-end runs it too
-  growth promote-scope --base REF [--repo DIR]
-                 the promote pull request's gate: every path the branch
-                 touches since its merge base with REF lies under the
-                 canon's corpus roots (packs/ and the canon-curation
-                 entry's write_paths); exit 1 names each stray path
   growth prune [--branch NAME] [--repo DIR]
                  remove the captures past the repo's retention_days in one
                  commit; the logs-prune task's code-work
@@ -154,13 +149,6 @@ commands:
   pack new <name> [--belongs TEXT] [--excludes TEXT] [--repo DIR]
                  scaffold the local pack a repo's own lessons land in,
                  and declare it as local/<name>
-  pack history [<id>...] [--ref REF] [--json] [--repo DIR]
-                 a canon shelf's version walk at REF (HEAD): each pack's
-                 last version move, the shipping files changed since and
-                 the pull requests each version carried
-  dashboard descriptor FILE... [--json]
-                 each pack dashboard descriptor as the page's reader and
-                 the descriptor-usable check see it; exit 1 on a problem
 `
 
 // secretScanPlant is set only by the secret scan's own test build, to prove
@@ -298,8 +286,6 @@ func dispatch(args []string, stdin io.Reader, stdout, stderr io.Writer, start ti
 		return cmdPack(args[1:], stdout)
 	case "session":
 		return cmdSession(args[1:], stdout)
-	case "dashboard":
-		return cmdDashboard(args[1:], stdout)
 	}
 	return report.New(report.Usage, fmt.Sprintf("unknown command %q", args[0]))
 }

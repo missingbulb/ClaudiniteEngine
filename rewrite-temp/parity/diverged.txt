@@ -100,12 +100,6 @@ claudinite-tasks/tasks/verify-production/task.json record-5
 claudinite-tasks/tasks/verify-production/worker.mjs record-5
 claudinite-tasks/workRules record-5
 claudinite-tasks/worldRules record-5
-# Engine chunk 16b: the dashboard pack on cn. Its task declarations lost
-# their $schema and name engine/update with ClaudinitePacks#20 (record row
-# 5), and publish-pages fires on a cn member's settings file too (record
-# row 112):
-claudinite-dashboard/tasks/deploy-oauth-exchange/task.json record-5
-claudinite-dashboard/tasks/publish-pages/task.json record-112
 # Engine chunk 17: the last eight packs' checks in Go. Their task
 # declarations lost $schema with ClaudinitePacks#20 (record row 5); a Node
 # check id carrying a slash is its last segment in cn, and the pack's text

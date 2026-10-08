@@ -2,7 +2,7 @@
 
 The harness that runs the frozen Node engine (missingbulb/Claudinite at the
 commit `CLAUDINITE_NODE_ENGINE` checks out) and `cn` over the same input and
-asserts they agree. The decision faces (tasks, update, growth and the dashboard's usable core) are answered by `../cndecide`, built beside `cn`, so the shipped binary carries none of them. Package documentation is in `engine.go`; each face's
+asserts they agree. The decision faces (tasks, update and growth) are answered by `../cndecide`, built beside `cn`, so the shipped binary carries none of them. Package documentation is in `engine.go`; each face's
 fixture format is at the top of its test file.
 
 | Face | Fixtures | Node side | cn side |
@@ -14,7 +14,7 @@ fixture format is at the top of its test file.
 | verify answers | `testdata/answered/<rule>/<case>.json` | `testdata/shims/answered.mjs`: the rule's `run` over `nodeFiles` | `cn verify` over `cnShape` with `cnFiles` laid over it |
 | settings | `testdata/settings/<name>/`: a declaration and the tree it sits in | `testdata/shims/settings.mjs`: the reader, the registry and `legacy-shape-in-use` | `fromnode import`, then `cn verify` over the imported member |
 | growth | `testdata/growth/<core>/<name>.json` | `testdata/shims/growth.mjs`: `capture-log.mjs` and `prune-logs.mjs` | `cndecide growth decide <core> --world` |
-| dashboard | `testdata/dashboard/<core>/<name>.json` | `testdata/shims/dashboard.mjs`: the page's `parseDescriptor` and the `descriptor-usable` rule's `run` | `cn dashboard descriptor --json`, `cndecide dashboard decide usable --world`; `flat-member` is cn's alone, `cn tasks flat --write` against a hand-written file |
+| member | `testdata/member/flat-member/<name>.json` | none: no Node engine writes the member file | `cn tasks flat --write` against a hand-written file |
 | from-node | real Node trees in `CLAUDINITE_PARITY_TREES`, moved in `../fromnode`'s `TestMoveOverRealMembers` | none: no Node answer exists for a `cn` tree | `fromnode` over a copy, then `cn verify`: nothing, and `fromnode leftovers` no break |
 
 A fixture's `expect` is always the Node engine's answer, written by
@@ -43,37 +43,26 @@ from, where Node's tool found no carrier at all).
 Phase 7 added `scenarios/provenance/*`'s maintainer verbs (nineteen more,
 52 in all: `reduce`, `apply`, `convert-references` and `brief`, whose
 repos carry authors, an origin, a sweep, a moved rule, a rule reworded in
-place, a promoted pack and a declaration re-spelled to the same value) and
-`scenarios/pack-history/*` (three: the shelf, one pack, an earlier ref),
-where Node's `pack-versions.mjs` answers through `shims/pack-history.mjs`
-in `cn pack history --json`'s shape, and `scenarios/promote-scope/*`
-(four: inside the roots, outside, a second root from config, no merge
-base), Node's rule through `shims/promote-scope.mjs` against `--base`. The fixtures keep to what both read:
-cn drops a pack's `test/`, `docs/` and `checks/*_test.go` as the vendored
-set does, where Node dropped only `*.test.mjs`, and reads any dotted pack
-version, where Node read none below a date-anchored one.
+place, a promoted pack and a declaration re-spelled to the same value).
 
 ## Divergences
 
-Scenarios face divergences: 2 of 276 fixtures.
+Scenarios face divergences: 1 of 262 fixtures.
 
 A coded scenario whose `cn` world findings differ on purpose carries
 `"divergence": "record-<row>"` and `cn`'s findings as `"cnWorld"`, its
-`world` staying the Node engine's: `coded-claudinite-canon-curation/pack-no-enforcement-narration-fires`
-is record row 124 (a pack's Go checks name its own rules, which the
-Node engine, reading `.mjs` alone, never saw), and
-`flat-declarations/fires` is record row 137 (cn generates under
+`world` staying the Node engine's: `flat-declarations/fires` is record row 137 (cn generates under
 `.claudinite/cache/`, where the Node engine wrote `.claudinite/flat/`).
 
 Growth face divergences: 0 of 57 fixtures.
 
-Dashboard face divergences: 39 of 47 fixtures.
-
-Each is record row 145: cn's
-descriptor reader has no `fleet` block, so `cn dashboard descriptor` prints
-no `fleet` field and `descriptor-usable` judges only the ids the repo view
-selects, with no fleet mini-card findings. The dormancy core left with
-`cn fleet`.
+The dashboard face, its `descriptor` and `usable` cores and
+`scenarios/lifecycle-dashboard/*` were deleted when `cn dashboard
+descriptor`, the built-in `descriptor-usable` and the flat dashboard file
+left the engine for the claudinite-single-repo-dashboard pack; its
+`flat-member` core is the member face. The flat comparison leaves out
+Node's dashboards document, which cn no longer writes, and
+`flat-declarations/fires` names cn's task file alone.
 
 Tasks face divergences: 1 of 10 fixtures. `contract/invalid` is record row
 89: `log-past-retention` is a built-in term, so the contract's lists of

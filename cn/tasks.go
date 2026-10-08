@@ -118,7 +118,7 @@ func printFlatPaths(stdout io.Writer, asJSON bool) error {
 	}
 	enc := json.NewEncoder(stdout)
 	enc.SetIndent("", "  ")
-	return enc.Encode(map[string]string{"tasks": flatdecl.TasksFile, "dashboards": flatdecl.DashboardFile, "member": flatdecl.MemberFile})
+	return enc.Encode(map[string]string{"tasks": flatdecl.TasksFile, "member": flatdecl.MemberFile})
 }
 
 func cmdTasks(args []string, stdout io.Writer) error {

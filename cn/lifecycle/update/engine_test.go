@@ -88,6 +88,14 @@ func newWorld(t *testing.T, f settings.Format) *world {
 	gitRun(t, w.repo, "remote", "add", "origin", w.bare)
 	gitRun(t, w.repo, "push", "-q", "origin", "main")
 	w.mainRun(t, "success")
+	w.hub.holdOnOpen = true
+	w.hub.headOf = func(ref string) string {
+		out, err := exec.Command("git", "--git-dir", w.bare, "rev-parse", "--verify", "--quiet", "refs/heads/"+ref).Output()
+		if err != nil {
+			return ""
+		}
+		return strings.TrimSpace(string(out))
+	}
 	return w
 }
 
@@ -110,7 +118,7 @@ func (w *world) mainRun(t *testing.T, state string) {
 func (w *world) deps(t *testing.T) Deps {
 	return Deps{GitHub: w.hub, Registry: w.reg.client(), Git: gitcmd.Repo{Dir: w.repo}, Roots: rootsOf(testRoot),
 		CacheRoot: filepath.Join(t.TempDir(), "claudinite"), Platform: version.Platform(), Now: func() time.Time { return t0 },
-		Repo: w.repo, FullName: "o/r", Out: w.out, Timeout: 10 * time.Second}
+		Sleep: func(time.Duration) {}, Repo: w.repo, FullName: "o/r", Out: w.out, Timeout: 10 * time.Second}
 }
 
 func (w *world) publish(t *testing.T, ver string, o relOpts) {
@@ -232,8 +240,11 @@ func TestProposeOpensAPinOnlyPR(t *testing.T) {
 		if got := w.hub.called("label"); len(got) != 1 || got[0] != "label 1 claudinite-update" {
 			t.Errorf("%s: labels %v", f, got)
 		}
-		if got := w.hub.called("dispatch"); len(got) != 1 || got[0] != "dispatch claudinite-ci.yml "+branch+" pr=1" {
+		if got := w.hub.called("dispatch"); len(got) != 0 {
 			t.Errorf("%s: dispatches %v", f, got)
+		}
+		if got := w.hub.called("approve"); !reflect.DeepEqual(got, []string{"approve 1"}) {
+			t.Errorf("%s: approvals %v", f, got)
 		}
 		if _, err := os.Stat(filepath.Join(w.deps(t).CacheRoot, v2)); err == nil {
 			t.Errorf("%s: deps() cache reused", f)
@@ -383,17 +394,90 @@ func TestLandsAGreenUpdatePRFirst(t *testing.T) {
 	}
 }
 
-// Only the run the updater dispatched counts: a gated pull_request run on
-// the same head is not a verdict.
-func TestAnUpdatePRWithOnlyAGatedRunWaits(t *testing.T) {
+// A run held at action_required is no verdict: the update approves it
+// and waits, dispatching nothing; an approved pull_request run that
+// passed lands the PR.
+func TestAnUpdatePRWithOnlyAHeldRunIsApproved(t *testing.T) {
 	t.Parallel()
 	w := newWorld(t, settings.YAML)
 	w.publish(t, v2, relOpts{})
 	sha := w.openUpdatePR(t, 4, v2, "")
-	w.hub.runs[sha] = []githubapi.Run{{HeadSHA: sha, Event: "pull_request", Status: "completed", Conclusion: "success", CreatedAt: "2026-10-01T00:00:00Z"}}
-	v, err := Engine(w.deps(t), Options{})
-	if err != nil || v != "skipped: #4 for "+v2+" is open and has no CI run; dispatched its CI again" {
-		t.Fatalf("%q %v", v, err)
+	w.hub.runs[sha] = []githubapi.Run{{ID: 77, HeadSHA: sha, Event: "pull_request", Status: "completed", Conclusion: "action_required", CreatedAt: "2026-10-01T00:00:00Z"}}
+	r, err := EngineRun(w.deps(t), Options{})
+	if err != nil || r.Verdict != "skipped: #4 for "+v2+" is open and has no CI run; approved its held run" || !r.PRPending {
+		t.Fatalf("%+v %v", r, err)
+	}
+	if got := w.hub.called("approve"); !reflect.DeepEqual(got, []string{"approve 77"}) || len(w.hub.called("dispatch")) != 0 {
+		t.Errorf("%v", w.hub.calls)
+	}
+
+	w = newWorld(t, settings.YAML)
+	w.publish(t, v2, relOpts{})
+	sha = w.openUpdatePR(t, 4, v2, "")
+	w.hub.runs[sha] = []githubapi.Run{{ID: 78, HeadSHA: sha, Event: "pull_request", Status: "completed", Conclusion: "success", CreatedAt: "2026-10-01T00:00:00Z"}}
+	if v, err := Engine(w.deps(t), Options{}); err != nil || v != "landed "+v2 {
+		t.Fatalf("an approved green pull_request run: %q %v", v, err)
+	}
+}
+
+// With approval the PR's own runs land it in the run that opened it,
+// through Land: no dispatch on its branch, CI dispatched on main after.
+func TestAnUpdatePRLandsInTheRunOnItsApprovedCI(t *testing.T) {
+	t.Parallel()
+	w := newWorld(t, settings.YAML)
+	w.publish(t, v2, relOpts{})
+	w.hub.approved = "success"
+	r, err := EngineRun(w.deps(t), Options{})
+	if err != nil || r.Verdict != "landed "+v2 {
+		t.Fatalf("%+v %v\n%s", r, err, w.out)
+	}
+	if got := w.hub.called("merge"); len(got) != 1 || !strings.HasPrefix(got[0], "merge 1 ") {
+		t.Errorf("merge %v", got)
+	}
+	if got := w.hub.called("dispatch"); !reflect.DeepEqual(got, []string{"dispatch claudinite-ci.yml main pr="}) {
+		t.Errorf("dispatches %v", got)
+	}
+	if !r.MainPending {
+		t.Error("main's new head has no CI verdict yet, but the run does not say so")
+	}
+
+	// Red CI leaves the PR open, settled until a person or a newer
+	// version moves it.
+	w = newWorld(t, settings.YAML)
+	w.publish(t, v2, relOpts{})
+	w.hub.approved = "failure"
+	r, err = EngineRun(w.deps(t), Options{})
+	if err != nil || r.Verdict != "opened #1 for "+v2 || r.PRPending || len(w.hub.called("merge")) != 0 {
+		t.Fatalf("%+v %v", r, err)
+	}
+
+	// CI still running at the bound: the PR stays open and the run says
+	// its verdict is still to come.
+	w = newWorld(t, settings.YAML)
+	w.publish(t, v2, relOpts{})
+	r, err = EngineRun(w.deps(t), Options{})
+	if err != nil || r.Verdict != "opened #1 for "+v2 || !r.PRPending || len(w.hub.called("merge")) != 0 {
+		t.Fatalf("%+v %v", r, err)
+	}
+}
+
+// Where no pull_request run appears on the PR's head within the bound,
+// the update dispatches its CI as before, whose land job lands it, and
+// says which path ran.
+func TestAnUpdatePRWithNoHeldRunDispatchesItsCI(t *testing.T) {
+	t.Parallel()
+	w := newWorld(t, settings.YAML)
+	w.publish(t, v2, relOpts{})
+	w.hub.holdOnOpen = false
+	r, err := EngineRun(w.deps(t), Options{})
+	if err != nil || r.Verdict != "opened #1 for "+v2 || r.PRPending {
+		t.Fatalf("%+v %v", r, err)
+	}
+	if got := w.hub.called("dispatch"); !reflect.DeepEqual(got, []string{"dispatch claudinite-ci.yml claudinite/engine-" + v2 + " pr=1"}) {
+		t.Errorf("dispatches %v", got)
+	}
+	if !strings.Contains(w.out.String(), "pull_request run appeared") {
+		t.Errorf("which path ran is not said:\n%s", w.out)
 	}
 }
 
@@ -846,7 +930,13 @@ func TestProposeWaitsForNpmToServeTheTarballs(t *testing.T) {
 	if err != nil || v != "opened #1 for "+v2 {
 		t.Fatalf("%q %v\n%s", v, err, w.out)
 	}
-	if len(slept) != 3 || slept[0] != 20*time.Second {
+	var served []time.Duration
+	for _, s := range slept {
+		if s == servedEvery {
+			served = append(served, s)
+		}
+	}
+	if len(served) != 3 {
 		t.Errorf("slept %v, want three 20s waits", slept)
 	}
 	if !strings.Contains(w.out.String(), "npm lists "+v2+" but does not serve") {
