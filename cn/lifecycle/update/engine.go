@@ -29,8 +29,6 @@ const (
 	// CIWorkflow is the member workflow whose runs gate main and update
 	// PRs.
 	CIWorkflow = land.CIWorkflow
-	// Label marks the PRs and issues the updater owns.
-	Label = "claudinite-update"
 	// BranchPrefix starts every update branch; the version follows.
 	BranchPrefix = "claudinite/engine-"
 	remote       = "origin"
@@ -45,14 +43,13 @@ type GitHub interface {
 	CreatePull(title, body, head, base string) (githubapi.PR, error)
 	ClosePull(n int) error
 	MergePull(n int, sha, title string) error
-	AddLabel(n int, label string) error
 	Comment(n int, body string) error
 	Dispatch(workflow, ref string, inputs map[string]string) error
 	// HeadRuns are every workflow's runs on one commit.
 	HeadRuns(sha string) ([]githubapi.Run, error)
 	ApproveRun(id int64) error
-	OpenIssues(label string) ([]githubapi.Issue, error)
-	CreateIssue(title, body, label string) (int, error)
+	OpenIssues() ([]githubapi.Issue, error)
+	CreateIssue(title, body string) (int, error)
 	UpdateIssueBody(n int, body string) error
 	CloseIssue(n int) error
 }
@@ -224,12 +221,9 @@ func retryCI(d Deps, res *EngineResult, pr githubapi.PR, prevState string) (stri
 	return "", nil
 }
 
-// updatePRs are the open PRs on an update branch that carry the label or
-// that the job token opened; the second kind lost its label (a failed
-// labelling call, a person removing it) and is relabelled rather than
-// duplicated by a CreatePull GitHub would refuse.
-func updatePRs(d Deps, prs []githubapi.PR) ([]githubapi.PR, error) {
-	return botPRs(d, prs, BranchPrefix)
+// updatePRs are the open engine update PRs the job token opened.
+func updatePRs(prs []githubapi.PR) []githubapi.PR {
+	return botPRs(prs, BranchPrefix)
 }
 
 // Engine is one run of cn update engine. It acts at most once: a green
@@ -299,10 +293,7 @@ func engine(d Deps, o Options, res *EngineResult) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	open, err := updatePRs(d, all)
-	if err != nil {
-		return "", err
-	}
+	open := updatePRs(all)
 	if len(open) > 1 {
 		var names []string
 		for _, p := range open {
@@ -489,7 +480,7 @@ var workflowIssueTitle = regexp.MustCompile(`^Claudinite engine \S+ needs a work
 
 // workflowIssues are the open issues of that title.
 func workflowIssues(d Deps) ([]int, error) {
-	open, err := d.GitHub.OpenIssues(Label)
+	open, err := d.GitHub.OpenIssues()
 	if err != nil {
 		return nil, err
 	}
@@ -504,9 +495,9 @@ func workflowIssues(d Deps) ([]int, error) {
 }
 
 // openPR commits the pin, and the workflows the new engine expects staged
-// beside it, on a fresh update branch, pushes it, opens and labels the PR
-// and closes the workflow-change issues an earlier engine filed, leaving
-// the checkout where it was. It returns the PR, its head and the staged
+// beside it, on a fresh update branch, pushes it, opens the PR and closes
+// the workflow-change issues an earlier engine filed, leaving the checkout
+// where it was. It returns the PR, its head and the staged
 // paths.
 func openPR(d Deps, f settings.Format, raw []byte, got Fetched, self, verifyOut string, forced bool) (int, string, []string, error) {
 	moved, err := settings.SetPin(raw, f, got.Version, got.Integrity)
@@ -588,9 +579,6 @@ func openPR(d Deps, f settings.Format, raw []byte, got Fetched, self, verifyOut 
 	if err != nil {
 		return 0, "", nil, err
 	}
-	if err := d.GitHub.AddLabel(pr.Number, Label); err != nil {
-		return 0, "", nil, err
-	}
 	for _, n := range issues {
 		if err := d.GitHub.Comment(n, fmt.Sprintf("Closed: #%d carries this repo's workflow change on the engine update PR itself.", pr.Number)); err != nil {
 			return 0, "", nil, err
@@ -655,8 +643,8 @@ func Land(d Deps, n int, sha string) (string, error) {
 		return "", fmt.Errorf("#%d is %s", n, pr.State)
 	case pr.Author != gitcmd.BotName:
 		return "", fmt.Errorf("#%d was opened by %s, not %s", n, pr.Author, gitcmd.BotName)
-	case !pr.HasLabel(Label) || (!strings.HasPrefix(pr.HeadRef, BranchPrefix) && !strings.HasPrefix(pr.HeadRef, PackBranchPrefix)):
-		return "", fmt.Errorf("#%d is not an update PR (label %s, branch %s* or %s*)", n, Label, BranchPrefix, PackBranchPrefix)
+	case !strings.HasPrefix(pr.HeadRef, BranchPrefix) && !strings.HasPrefix(pr.HeadRef, PackBranchPrefix):
+		return "", fmt.Errorf("#%d is not an update PR (branch %s* or %s*)", n, BranchPrefix, PackBranchPrefix)
 	case pr.BaseRef != mainBranch:
 		return "", fmt.Errorf("#%d targets %s, not %s", n, pr.BaseRef, mainBranch)
 	case pr.HeadSHA != sha:
@@ -859,10 +847,10 @@ func expectedWorkflows(d Deps, binary, mb, sha string, moved []string) error {
 	return nil
 }
 
-// upsertIssue opens an issue labelled Label with title, or updates the
+// upsertIssue opens an issue titled title, or updates the
 // body of the open one already carrying that title, and returns its number.
 func upsertIssue(d Deps, title, body string) (int, error) {
-	open, err := d.GitHub.OpenIssues(Label)
+	open, err := d.GitHub.OpenIssues()
 	if err != nil {
 		return 0, err
 	}
@@ -874,7 +862,7 @@ func upsertIssue(d Deps, title, body string) (int, error) {
 			return is.Number, d.GitHub.UpdateIssueBody(is.Number, body)
 		}
 	}
-	return d.GitHub.CreateIssue(title, body, Label)
+	return d.GitHub.CreateIssue(title, body)
 }
 
 // fence is a code fence longer than any backtick run in s.

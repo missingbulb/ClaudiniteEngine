@@ -271,6 +271,9 @@ func (g *GitHub) Issue(n int) (world.Issue, error) {
 func (g *GitHub) CreateIssue(title, body string, labels []string) (int, error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
+	if err := workitem.RefuseUnapproved(labels...); err != nil {
+		return 0, err
+	}
 	if err := g.charge("POST issues"); err != nil {
 		return 0, err
 	}
@@ -330,6 +333,9 @@ func (g *GitHub) SetIssueTitle(n int, title string) error {
 
 // AddLabel adds one label.
 func (g *GitHub) AddLabel(n int, label string) error {
+	if err := workitem.RefuseUnapproved(label); err != nil {
+		return err
+	}
 	return g.mutate(fmt.Sprintf("POST issues/%d/labels %s", n, label), n, func(i *StoredIssue) error {
 		if g.Faults.TearNextSwap && g.removed {
 			g.Faults.TearNextSwap, g.removed = false, false
@@ -366,6 +372,9 @@ func (g *GitHub) EnsureLabels(labels []workitem.Label) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	for _, l := range labels {
+		if err := workitem.RefuseUnapproved(l.Name); err != nil {
+			return err
+		}
 		if _, ok := g.labelDefs[l.Name]; ok {
 			continue
 		}

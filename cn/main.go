@@ -90,7 +90,7 @@ commands:
   schedule drain
                  dispatch the executor workflow on the default branch
   schedule report-failure [--title T]
-                 file, or comment on, the one workflow-failure issue
+                 file, or comment on, the one failure issue
   work create <pack>/<task> [--urgent] [--context T] [--not-before ISO]
                  [--blocked-by #N,#M] [--qualifier T] [--supersedes #N]
                  file a work item by hand; an unqualified item for a

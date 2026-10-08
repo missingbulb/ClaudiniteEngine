@@ -25,7 +25,6 @@ func proposeStaged(t *testing.T) (*world, EngineResult) {
 		t.Fatalf("%+v %v\n%s", got, err, w.out)
 	}
 	w.hub.pulls[0].HeadSHA = gitRun(t, w.bare, "rev-parse", got.Branch)
-	w.hub.pulls[0].Labels = []string{Label}
 	return w, got
 }
 
@@ -228,7 +227,6 @@ func TestLandRefusesAnyOtherWorkflowEdit(t *testing.T) {
 	if _, err := EngineRun(w.deps(t), Options{}); err != nil {
 		t.Fatal(err)
 	}
-	w.hub.pulls[0].Labels = []string{Label}
 	sha := moveStaged(t, w, func(dir string) { _ = os.Remove(filepath.Join(dir, ".github", "workflows", "claudinite-ci.yml")) })
 	if _, err := Land(w.deps(t), 1, sha); err == nil || !strings.Contains(err.Error(), "claudinite-ci.yml") {
 		t.Errorf("a deletion: %v", err)

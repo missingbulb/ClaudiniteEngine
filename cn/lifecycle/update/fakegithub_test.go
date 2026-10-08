@@ -15,7 +15,6 @@ type fakeGitHub struct {
 	runs   map[string][]githubapi.Run // by head sha
 	pulls  []githubapi.PR
 	issues []githubapi.Issue
-	labels map[int][]string
 	calls  []string
 	next   int
 	failOn string
@@ -32,7 +31,7 @@ type fakeGitHub struct {
 }
 
 func newFake() *fakeGitHub {
-	return &fakeGitHub{runs: map[string][]githubapi.Run{}, labels: map[int][]string{}, next: 1}
+	return &fakeGitHub{runs: map[string][]githubapi.Run{}, next: 1}
 }
 
 func (f *fakeGitHub) record(format string, args ...any) error {
@@ -102,7 +101,6 @@ func (f *fakeGitHub) OpenPulls() ([]githubapi.PR, error) {
 	var out []githubapi.PR
 	for _, p := range f.pulls {
 		if p.State == "open" {
-			p.Labels = append(p.Labels, f.labels[p.Number]...)
 			out = append(out, p)
 		}
 	}
@@ -115,7 +113,6 @@ func (f *fakeGitHub) Pull(n int) (githubapi.PR, error) {
 	}
 	for _, p := range f.pulls {
 		if p.Number == n {
-			p.Labels = append(p.Labels, f.labels[n]...)
 			return p, nil
 		}
 	}
@@ -168,24 +165,14 @@ func (f *fakeGitHub) MergePull(n int, sha, title string) error {
 	return nil
 }
 
-func (f *fakeGitHub) AddLabel(n int, label string) error {
-	if err := f.record("label %d %s", n, label); err != nil {
-		return err
-	}
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.labels[n] = append(f.labels[n], label)
-	return nil
-}
-
 func (f *fakeGitHub) Comment(n int, body string) error { return f.record("comment %d %s", n, body) }
 
 func (f *fakeGitHub) Dispatch(workflow, ref string, inputs map[string]string) error {
 	return f.record("dispatch %s %s pr=%s", workflow, ref, inputs["pr"])
 }
 
-func (f *fakeGitHub) OpenIssues(label string) ([]githubapi.Issue, error) {
-	if err := f.record("issues %s", label); err != nil {
+func (f *fakeGitHub) OpenIssues() ([]githubapi.Issue, error) {
+	if err := f.record("issues"); err != nil {
 		return nil, err
 	}
 	f.mu.Lock()
@@ -193,8 +180,8 @@ func (f *fakeGitHub) OpenIssues(label string) ([]githubapi.Issue, error) {
 	return append([]githubapi.Issue{}, f.issues...), nil
 }
 
-func (f *fakeGitHub) CreateIssue(title, body, label string) (int, error) {
-	if err := f.record("create-issue %s|%s", title, label); err != nil {
+func (f *fakeGitHub) CreateIssue(title, body string) (int, error) {
+	if err := f.record("create-issue %s", title); err != nil {
 		return 0, err
 	}
 	f.mu.Lock()
