@@ -195,6 +195,10 @@ const (
 	DormantConfigKey = "dormant"
 )
 
+// RoutinePrompt is the executor routine's whole stored prompt: the
+// procedure itself ships in the engine the member pins.
+const RoutinePrompt = "Run `.claudinite/bin/cn work instructions` from the repository root and follow what it prints."
+
 // The two member workflow files.
 const (
 	SchedulerWorkflowFile = "claudinite-scheduler.yml"
