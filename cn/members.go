@@ -108,7 +108,7 @@ func cmdCheckWorld(args []string, stdout, stderr io.Writer) error {
 	ran := allFindings(*repo, "world", declared.Selection{Tags: []string{"world"}}, false, stderr)
 	all := append(verifyFindings(*repo, stderr), ran...)
 	full := repoFullName(*repo)
-	in := world.Input{Repo: *repo, PRAuthor: *author, BaseRef: *base, Git: g, CheckPin: checkPin, Findings: all,
+	in := world.Input{Repo: *repo, PRAuthor: *author, BaseRef: *base, Git: g, CheckPin: checkPin, Findings: all, Launcher: launcher.Script,
 		Workflows: workflows.Names, ExpectedWorkflow: func(name string, base []byte) ([]byte, error) {
 			return workflows.Expected(name, base, full)
 		}}

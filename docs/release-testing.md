@@ -18,7 +18,7 @@ Two things ship on separate paths and reach a member in separate PRs, so each is
 
 | Release | What ships | How it reaches a member | Held fixed while it lands |
 | --- | --- | --- | --- |
-| Engine | The `cn` binary for five platforms, its manifest, the embedded runner script and SDK, the updater and its verify | The engine update runs the new engine's verify against the repo, then opens a PR that moves the pin only | The member's committed packs and its own files |
+| Engine | The `cn` binary for five platforms, its manifest, the embedded runner script and SDK, the updater and its verify | The engine update runs the new engine's verify against the repo, then opens a PR that moves the pin and carries the launcher that engine ships (Record decision 155) | The member's committed packs and its own files |
 | Pack | One pack's vendored set at one version: rules, skills, declared checks, coded checks, tasks | The pack update runs the pinned engine's checks with the new packs, then opens a PR with pack changes only | The member's pinned engine |
 
 No update rewrites a member's files. Within a major the engine only adds and deprecates, so a release must keep every file shape the major has accepted working; a major removes old shapes, and a person fixes what verify reports in a Claude session.
