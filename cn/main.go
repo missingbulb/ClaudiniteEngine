@@ -183,10 +183,6 @@ commands:
                  touches since its merge base with REF lies under the
                  canon's corpus roots (packs/ and the fleet block's
                  writePaths); exit 1 names each stray path
-  fleet pack-history [<id>...] [--ref REF] [--json] [--repo DIR]
-                 a canon shelf's version walk at REF (HEAD): each pack's
-                 last version move, the shipping files changed since and
-                 the pull requests each version carried
 `
 
 // secretScanPlant is set only by the secret scan's own test build, to prove

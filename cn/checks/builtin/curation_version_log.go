@@ -22,7 +22,7 @@ var versionLog = declared.Builtin{
 	Pack:   packset.FleetPack,
 	OnFail: "block",
 	Tags:   []string{"world", "builtin", packset.FleetPack},
-	Doc:    "cn fleet pack-history",
+	Doc:    "fleet/pack-version-history",
 	Why:    "a reader trusts a VERSIONS.md row's position to say its age; once the tail drifts out of sequence a number near the bottom could be old or merely misplaced, and nothing short of re-deriving the order from the numbers themselves can tell which",
 }
 
