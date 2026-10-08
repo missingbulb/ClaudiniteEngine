@@ -9,7 +9,7 @@
 # RELEASE_KEY and RELEASE_CERT name the release key and its certificate.
 # ROOTS (default cn/shared/trust/roots, what a released cn trusts) names the roots
 # the signature must verify against; the tests and dev/release/verify/rehearse.sh,
-# which sign with dev/keys/testkeys/, set it to cn/shared/trust/devroots. PLATFORMS
+# which sign with dev/release/keys/testkeys/, set it to cn/shared/trust/devroots. PLATFORMS
 # (default all five) is the platforms the manifest must list, as for
 # dev/release/create/build.sh.
 set -eu
