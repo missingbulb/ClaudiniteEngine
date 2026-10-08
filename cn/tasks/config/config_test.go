@@ -28,7 +28,7 @@ func TestNoTasksBlockReadsAsTheDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(c.Routines) != 0 || c.Delivery != AutoMerge || len(c.Disabled) != 0 || c.Dormant {
+	if len(c.Routines) != 0 || c.Delivery != AutoMerge || len(c.Disabled) != 0 || c.Dormant || c.MinuteRate != nil {
 		t.Errorf("%+v", c)
 	}
 }
@@ -43,6 +43,7 @@ func TestTheTasksBlockReadsEachKey(t *testing.T) {
   disabled:
     - acme-pack/acme-task
   dormant: true
+  actionsMinuteRate: 0.008
 `))
 	if err != nil {
 		t.Fatal(err)
@@ -50,7 +51,7 @@ func TestTheTasksBlockReadsEachKey(t *testing.T) {
 	if e, _ := c.Routines["default"].(map[string]any); e["url"] != "https://example.test/fire" {
 		t.Errorf("routines %v", c.Routines)
 	}
-	if c.Delivery != Review || len(c.Disabled) != 1 || c.Disabled[0] != "acme-pack/acme-task" || !c.Dormant {
+	if c.Delivery != Review || len(c.Disabled) != 1 || c.Disabled[0] != "acme-pack/acme-task" || !c.Dormant || c.MinuteRate == nil || *c.MinuteRate != 0.008 {
 		t.Errorf("%+v", c)
 	}
 }
@@ -65,6 +66,8 @@ func TestAMalformedTasksBlockIsRefused(t *testing.T) {
 		"tasks:\n  disabled: acme-pack/acme-task\n":      "disabled",
 		"tasks:\n  disabled: [3]\n":                      "disabled",
 		"tasks:\n  routines: [a]\n":                      "routines",
+		"tasks:\n  actionsMinuteRate: cheap\n":           "actionsMinuteRate",
+		"tasks:\n  actionsMinuteRate: -1\n":              "actionsMinuteRate",
 		"tasks:\n  agenticTaskInvocationEndpoints: {}\n": "agenticTaskInvocationEndpoints",
 	} {
 		if _, err := Read(repoWith(t, block)); err == nil || !strings.Contains(err.Error(), want) {
@@ -87,12 +90,13 @@ func TestTheRetiredPackEntrysConfigReadsAsTheTasksBlock(t *testing.T) {
         dailyClaudiniteUpdatesRequirePrReview: true
         disabledTasks: [acme-pack/acme-task]
         dormant: true
+        actionsMinuteRate: 0.008
 `
 	c, err := Read(repoWith(t, entry))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if e, _ := c.Routines["default"].(map[string]any); e["url"] != "https://example.test/fire" || c.Delivery != Review || len(c.Disabled) != 1 || !c.Dormant || !c.Legacy {
+	if e, _ := c.Routines["default"].(map[string]any); e["url"] != "https://example.test/fire" || c.Delivery != Review || len(c.Disabled) != 1 || !c.Dormant || c.MinuteRate == nil || !c.Legacy {
 		t.Errorf("%+v", c)
 	}
 	both, err := Read(repoWith(t, entry+"tasks:\n  delivery: auto-merge\n"))

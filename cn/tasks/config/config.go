@@ -6,6 +6,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"strings"
 
@@ -25,6 +26,9 @@ const (
 	DisabledKey = "disabled"
 	// DormantKey stops the repo's recurring work while true.
 	DormantKey = workitem.DormantConfigKey
+	// MinuteRateKey is what a minute of Actions costs, which the usage
+	// fold prices each run's billed minutes at; absent prices none.
+	MinuteRateKey = "actionsMinuteRate"
 )
 
 // The delivery values; absent is AutoMerge.
@@ -36,6 +40,7 @@ const (
 var schema = descriptor.Schema{Name: "tasks", Keys: map[string]descriptor.Kind{
 	RoutinesKey: descriptor.Object, DeliveryKey: descriptor.String,
 	DisabledKey: descriptor.List, DormantKey: descriptor.Bool,
+	MinuteRateKey: descriptor.Number,
 }}
 
 // Config is the tasks block with its defaults applied.
@@ -44,6 +49,8 @@ type Config struct {
 	Delivery string
 	Disabled []string
 	Dormant  bool
+	// MinuteRate is nil where the block names none.
+	MinuteRate *float64
 	// Legacy is whether the settings still declare the retired
 	// claudinite-tasks entry.
 	Legacy bool
@@ -99,5 +106,11 @@ func Parse(block map[string]any) (Config, error) {
 		}
 	}
 	c.Dormant, _ = block[DormantKey].(bool)
+	if rate, ok := block[MinuteRateKey].(float64); ok {
+		if math.IsNaN(rate) || math.IsInf(rate, 0) || rate < 0 {
+			return Config{}, fmt.Errorf("tasks: %q must be a non-negative number, not %v", MinuteRateKey, rate)
+		}
+		c.MinuteRate = &rate
+	}
 	return c, nil
 }

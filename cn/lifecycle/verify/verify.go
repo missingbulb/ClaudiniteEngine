@@ -686,7 +686,7 @@ func checkTasksSettings(in Input) []findings.Finding {
 		return []findings.Finding{brk("tasks-settings", rel, err.Error()+"; every scheduler and executor run fails until it is fixed")}
 	}
 	if c.Legacy {
-		return []findings.Finding{dep("tasks-settings", rel, "packs.declared still names "+settings.RetiredTasksPack+", whose config is now the top-level tasks block: move agenticTaskInvocationEndpoints to tasks.routines, dailyClaudiniteUpdatesRequirePrReview: true to tasks.delivery: review, disabledTasks to tasks.disabled and dormant to tasks.dormant, then remove the entry")}
+		return []findings.Finding{dep("tasks-settings", rel, "packs.declared still names "+settings.RetiredTasksPack+", whose config is now the top-level tasks block: move agenticTaskInvocationEndpoints to tasks.routines, dailyClaudiniteUpdatesRequirePrReview: true to tasks.delivery: review, disabledTasks to tasks.disabled, and dormant and actionsMinuteRate under the same names, then remove the entry")}
 	}
 	return nil
 }
