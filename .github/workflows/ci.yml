@@ -41,11 +41,16 @@ jobs:
             ~/.cache/golangci-lint
           key: go-${{ runner.os }}-${{ hashFiles('go.sum') }}-check-${{ github.sha }}
           restore-keys: go-${{ runner.os }}-${{ hashFiles('go.sum') }}-check-
+      # Only main saves, so only main's runs trim the cache to what they used.
+      - if: github.event_name == 'push'
+        run: dev/test/go-cache.sh age
       - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         with:
           version: v2.5.0
           install-only: true
       - run: dev/test/check.sh
+      - if: github.event_name == 'push'
+        run: dev/test/go-cache.sh trim
       # Only main's caches are visible to every branch.
       - if: github.event_name == 'push'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
