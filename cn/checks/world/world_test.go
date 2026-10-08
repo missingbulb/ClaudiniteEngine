@@ -221,6 +221,16 @@ func TestPinGuardLetsAPersonAdoptAndEditTheirSettings(t *testing.T) {
 				write(t, dir, ".claudinite/settings.yaml", settingsBody("1.2.0", pin2)+"  channel: \"staging\"\n")
 			})
 		}, nil, 1, "pin-guard", false},
+		{"a person points the engine at a releases repository", func(t *testing.T) string {
+			return member(t, func(dir string) {
+				write(t, dir, ".claudinite/settings.yaml", settingsBody("1.1.0", pin1)+"  releases: \"acme/acme-distro\"\n")
+			})
+		}, nil, 0, "", false},
+		{"a person points the engine at a releases repository and moves the pin", func(t *testing.T) string {
+			return member(t, func(dir string) {
+				write(t, dir, ".claudinite/settings.yaml", settingsBody("1.2.0", pin2)+"  releases: \"acme/acme-distro\"\n")
+			})
+		}, nil, 1, "pin-guard", false},
 		{"a person edits the launcher of an adopted repo", func(t *testing.T) string {
 			return member(t, func(dir string) { write(t, dir, ".claudinite/launch", "#!/bin/sh\n# edited\n") })
 		}, nil, 1, "pin-guard", false},

@@ -287,9 +287,11 @@ func personGuard(in Input, base string, pinFiles []string) error {
 		if err != nil {
 			return refuse()
 		}
-		// The channel is the person's choice of which releases to take; the
-		// update bot still moves the pin.
+		// The channel and the releases repository are the person's choice of
+		// which releases to take and from where; the update bot still moves
+		// the pin.
 		now.Channel, now.HasChannel = was.Channel, was.HasChannel
+		now.Releases = was.Releases
 		if now != was {
 			return refuse()
 		}

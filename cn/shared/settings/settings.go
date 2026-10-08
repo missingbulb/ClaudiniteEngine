@@ -43,6 +43,8 @@ var (
 	VersionPattern  = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+$`)
 	ManifestPattern = regexp.MustCompile(`^sha512-[A-Za-z0-9+/]{86}==$`)
 	PackagePattern  = regexp.MustCompile(`^@claudinite/cli(-rc)?$`)
+	// ReleasesPattern is a GitHub owner/name.
+	ReleasesPattern = regexp.MustCompile(`^[A-Za-z0-9-]+/[A-Za-z0-9_-][A-Za-z0-9._-]*$`)
 )
 
 // RelPath is a settings file's path relative to the repo root.
@@ -72,6 +74,9 @@ type Engine struct {
 	// absent, it is stable.
 	Channel    string
 	HasChannel bool
+	// Releases is the GitHub repository, owner/name, whose releases serve
+	// the engine in place of npm; empty when engine.releases is absent.
+	Releases string
 }
 
 // span is a byte range of the file holding one "line" of the engine block:
@@ -261,6 +266,9 @@ func ReadEngine(raw []byte, f Format) (Engine, error) {
 		return Engine{}, err
 	}
 	e.HasChannel = e.Channel != ""
+	if err := get("releases", ReleasesPattern, `GitHub repository like "owner/name"`, &e.Releases, false); err != nil {
+		return Engine{}, err
+	}
 	switch {
 	case e.HasChannel:
 	case e.Package == LegacyCanaryPackage:
@@ -329,6 +337,9 @@ func pinOnlyChange(old, new []byte, f Format) error {
 	}
 	if oe.Channel != ne.Channel || oe.HasChannel != ne.HasChannel {
 		return errors.New("engine.channel changed")
+	}
+	if oe.Releases != ne.Releases {
+		return errors.New("engine.releases changed")
 	}
 	moved, err := SetPin(old, f, ne.Version, ne.Manifest)
 	if err != nil {
