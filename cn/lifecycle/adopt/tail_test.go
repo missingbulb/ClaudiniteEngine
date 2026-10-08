@@ -196,7 +196,7 @@ HANDOVER — 4 step(s) only a human can do; file them as ONE issue, a checkbox e
 	}
 	buf.Reset()
 	writeNext(&buf, NextInput{First: []string{"git rm old-config.json"}, Routine: true, Handover: true})
-	if buf.String() != "\nNEXT: git rm old-config.json; then create the executor routine with create_trigger and record its endpoint on the claudinite-tasks entry's config.agenticTaskInvocationEndpoints; then commit everything above and open one pull request, which a person merges; then file the HANDOVER block as one issue.\n" {
+	if buf.String() != "\nNEXT: git rm old-config.json; then create the executor routine with create_trigger, its stored prompt \"Read `.claudinite/cache/instructions.md` and follow it.\", and record its endpoint on the claudinite-tasks entry's config.agenticTaskInvocationEndpoints; then commit everything above and open one pull request, which a person merges; then file the HANDOVER block as one issue.\n" {
 		t.Errorf("next %q", buf.String())
 	}
 }

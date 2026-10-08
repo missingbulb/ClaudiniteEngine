@@ -197,6 +197,9 @@
 //   - A marked issue is adopted once, as itself, and a stranger's
 //     parameters are ignored. schedule.TestAMarkedIssueIsAdoptedOnceAsItself,
 //     schedule.TestAStrangersParametersAreIgnored
+//   - A marked issue naming no task is adopted into the one active task
+//     gated on request-eligible, and waits while none or several are.
+//     schedule.TestAMarkedIssueNamingNoTaskWaitsUnlessExactlyOneTaskTakesRequests
 //
 // # Cost
 //

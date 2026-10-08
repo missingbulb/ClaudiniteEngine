@@ -3,6 +3,7 @@ package adopt
 import (
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/packset"
@@ -75,7 +76,7 @@ type NextInput struct {
 func writeNext(out io.Writer, in NextInput) {
 	steps := append([]string{}, in.First...)
 	if in.Routine {
-		steps = append(steps, "create the executor routine with create_trigger and record its endpoint on the "+workitem.TasksPackID+" entry's config.agenticTaskInvocationEndpoints")
+		steps = append(steps, "create the executor routine with create_trigger, its stored prompt "+strconv.Quote(workitem.RoutinePrompt)+", and record its endpoint on the "+workitem.TasksPackID+" entry's config.agenticTaskInvocationEndpoints")
 	}
 	steps = append(steps, "commit everything above and open one pull request, which a person merges")
 	if in.Handover {

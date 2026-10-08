@@ -152,6 +152,11 @@ func LoadSet(repo, engine string, extra ...Builtin) (*Set, error) {
 	for _, p := range set.Packs {
 		active[p.ID] = true
 		cs, err := Load(repo, p.Rel, p.ID)
+		if err == nil {
+			var engine []*Check
+			engine, err = LoadEngine(p.ID)
+			cs = withEngine(cs, engine)
+		}
 		if err != nil {
 			var le *LoadError
 			if errors.As(err, &le) {

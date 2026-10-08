@@ -203,6 +203,9 @@ func HoldsOnFailure(pre any) bool { return gatesOn(pre, NotFailedTerm) || gatesO
 // HoldsOnAnyPark reports whether the task stops past every park.
 func HoldsOnAnyPark(pre any) bool { return gatesOn(pre, NotParkedTerm) }
 
+// GatesOnRequest reports whether the task runs only on an eligible request.
+func GatesOnRequest(pre any) bool { return gatesOn(pre, RequestEligible) }
+
 // TermSpec is what a term is, apart from how it judges: the signals it
 // reads, whether it takes an argument (and which), whether it reads the
 // item.
@@ -267,6 +270,7 @@ var BuiltinTerms = Terms{
 	{Name: "no-open-pr-touching", Signals: []string{"prs"}, TakesArg: true, ArgName: "path-prefix", ArgOk: literalPrefix, ArgHint: literalPrefixHint},
 	{Name: "no-open-pr-titled", Signals: []string{"prs"}, TakesArg: true, ArgName: "title-prefix"},
 	{Name: LogPastRetention, Signals: []string{"conversationLogs"}},
+	{Name: RequestEligible, Signals: []string{"request"}, NeedsItem: true},
 }
 
 // A path-prefix term matches its argument as a literal prefix in both
@@ -280,12 +284,10 @@ const literalPrefixHint = "a literal path prefix, which matches no wildcard: dro
 // boundary, which no movement term can say.
 const LogPastRetention = "log-past-retention"
 
-// RequestEligible is the engine's own request task's term: about one named
-// issue, so it reads the item.
+// RequestEligible holds when the issue a request item names is open, still
+// marked and asked for by someone with push access: about one named issue,
+// so it reads the item.
 const RequestEligible = "request-eligible"
-
-// EngineTerms are the terms only the engine's built-in task may name.
-var EngineTerms = Terms{{Name: RequestEligible, Signals: []string{"request"}, NeedsItem: true}}
 
 // Resolve is a term by name: the built-ins first, then the task's own.
 func Resolve(name string, task Terms) (TermSpec, bool) {

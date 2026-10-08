@@ -226,8 +226,7 @@ func TestAHeartbeatKeepsALongRunAlive(t *testing.T) {
 }
 
 func requestTask() taskspec.Task {
-	return taskspec.Task{Pack: taskspec.BuiltinPack, ID: taskspec.RequestTask,
-		Decl: taskspec.Normalize(map[string]any{"id": taskspec.RequestTask, "trigger": "request", "preconditions": []any{"request-eligible"}}).(taskspec.Decl)}
+	return task("acme-task", map[string]any{"trigger": "request", "preconditions": []any{"request-eligible"}})
 }
 
 func TestAMarkedIssueIsAdoptedOnceAsItself(t *testing.T) {
@@ -265,11 +264,35 @@ func TestAStrangersParametersAreIgnored(t *testing.T) {
 	if f.Model != nil || f.Merge != nil || !got.HasLabel(workitem.OriginAdHoc) || !got.HasLabel(workitem.StatusReady) {
 		t.Fatalf("fields %+v labels %v", f, got.Labels)
 	}
-	if workitem.Str(f.TaskPath) != taskspec.RequestTaskPath {
+	if workitem.Str(f.TaskPath) != requestTask().TaskPath() {
 		t.Fatalf("path %v", workitem.Str(f.TaskPath))
 	}
 	if !strings.Contains(got.Comments[0].Body, "were ignored") {
 		t.Fatalf("comment %q", got.Comments[0].Body)
+	}
+}
+
+func TestAMarkedIssueNamingNoTaskWaitsUnlessExactlyOneTaskTakesRequests(t *testing.T) {
+	second := task("other-task", map[string]any{"trigger": "request", "preconditions": []any{"request-eligible"}})
+	for _, c := range []struct {
+		name  string
+		tasks []taskspec.Task
+		adopt bool
+	}{
+		{"none", nil, false},
+		{"one", []taskspec.Task{requestTask()}, true},
+		{"two", []taskspec.Task{requestTask(), second}, false},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			h := newHarness(t, c.tasks...)
+			h.gh.Roles["owner"] = "admin"
+			n := h.gh.Seed(sim.StoredIssue{Author: "owner", Issue: workitem.Issue{Title: "Do it", Body: "Please.\n", Labels: []string{workitem.OriginAdHoc}}})
+			h.run("")
+			got, _ := h.gh.Get(n)
+			if got.HasLabel(workitem.StatusReady) != c.adopt {
+				t.Fatalf("labels %v", got.Labels)
+			}
+		})
 	}
 }
 

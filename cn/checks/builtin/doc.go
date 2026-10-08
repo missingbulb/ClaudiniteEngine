@@ -22,6 +22,10 @@
 //	task-worker-restores-main        claudinite-growth     packs/claudinite-growth/worldRules/task-worker-restores-main.mjs
 //	flat-declarations-current        claudinite-lifecycle  packs/claudinite-lifecycle/worldRules/flat-declarations-current.mjs
 //
+// The folded packs' declared checks are carried as data, not Go: each
+// file under declared/ is one pack's declarations, named for its id,
+// which LoadSet loads where that pack is declared.
+//
 // The provenance grammar they read is shared/provenance, from
 // engine/checks/helpers/provenance.mjs; the task contract the
 // task checks hold declarations to is shared/taskspec, the merge policy

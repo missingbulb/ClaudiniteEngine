@@ -142,7 +142,8 @@ var holds map[string]holdsFunc
 
 func init() {
 	holds = map[string]holdsFunc{
-		taskspec.ScheduleTerm: scheduleHolds,
+		taskspec.ScheduleTerm:    scheduleHolds,
+		taskspec.RequestEligible: requestEligible,
 		taskspec.DueTerm: func(s Signals, o Opts) Outcome {
 			arg := taskspec.AtMostPrefix
 			if o.Arg != nil {
@@ -309,46 +310,43 @@ func init() {
 // PushPermissions are the permissions that count as push access.
 var PushPermissions = []string{"admin", "maintain", "write"}
 
-var engineHolds = map[string]holdsFunc{
-	taskspec.RequestEligible: func(s Signals, o Opts) Outcome {
-		req := s.Request
-		if req == nil {
-			field := "missing"
-			if o.Item != nil && o.Item.Request != nil {
-				field = "#" + itoa(*o.Item.Request)
-			}
-			return Outcome{Error: "this item names no readable request (its `Request:` field is " + field + ")"}
+func requestEligible(s Signals, o Opts) Outcome {
+	req := s.Request
+	if req == nil {
+		field := "missing"
+		if o.Item != nil && o.Item.Request != nil {
+			field = "#" + itoa(*o.Item.Request)
 		}
-		n := "#" + itoa(req.Number)
-		switch {
-		case req.Unreadable:
-			return Outcome{Error: "issue " + n + " could not be read: " + req.Error + " — refusing to guess"}
-		case req.Gone:
-			return Outcome{Reason: "issue " + n + " does not exist"}
-		case req.State != "open":
-			return Outcome{Reason: "issue " + n + " was closed before this ran"}
-		case !req.Queued:
-			return Outcome{Reason: "issue " + n + " no longer carries the mark — the request was withdrawn"}
+		return Outcome{Error: "this item names no readable request (its `Request:` field is " + field + ")"}
+	}
+	n := "#" + itoa(req.Number)
+	switch {
+	case req.Unreadable:
+		return Outcome{Error: "issue " + n + " could not be read: " + req.Error + " — refusing to guess"}
+	case req.Gone:
+		return Outcome{Reason: "issue " + n + " does not exist"}
+	case req.State != "open":
+		return Outcome{Reason: "issue " + n + " was closed before this ran"}
+	case !req.Queued:
+		return Outcome{Reason: "issue " + n + " no longer carries the mark — the request was withdrawn"}
+	}
+	if has(PushPermissions, req.AuthorPermission) {
+		return Outcome{Holds: true, Reason: n + ": opened by @" + req.Author + ", who has push access"}
+	}
+	for _, a := range req.Approvals {
+		if has(PushPermissions, a.Permission) {
+			return Outcome{Holds: true, Reason: n + ": approved by @" + a.Login + " with `/claude go`"}
 		}
-		if has(PushPermissions, req.AuthorPermission) {
-			return Outcome{Holds: true, Reason: n + ": opened by @" + req.Author + ", who has push access"}
-		}
-		for _, a := range req.Approvals {
-			if has(PushPermissions, a.Permission) {
-				return Outcome{Holds: true, Reason: n + ": approved by @" + a.Login + " with `/claude go`"}
-			}
-		}
-		return Outcome{Reason: n + ": neither opened nor approved with `/claude go` by anyone with push access on this repository"}
-	},
+	}
+	return Outcome{Reason: n + ": neither opened nor approved with `/claude go` by anyone with push access on this repository"}
 }
 
-// EngineJudged reports whether the engine answers the term itself: a
-// built-in, or the engine's own task's term. Anything else a task names
-// is its preconditions.mjs's, asked through the runner.
+// EngineJudged reports whether the engine answers the term itself, as it
+// does every built-in. Anything else a task names is its
+// preconditions.mjs's, asked through the runner.
 func EngineJudged(name string) bool {
 	_, builtin := holds[name]
-	_, engine := engineHolds[name]
-	return builtin || engine
+	return builtin
 }
 
 // logPastRetention holds on no reading at all: nothing asks the prune, so

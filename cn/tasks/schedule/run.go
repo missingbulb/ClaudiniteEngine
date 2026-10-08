@@ -370,7 +370,7 @@ func Run(in RunIn) (RunOut, error) {
 		}
 	}
 	for _, t := range in.Tasks {
-		if t.Pack == taskspec.BuiltinPack && t.ID == taskspec.RequestTask {
+		if taskspec.GatesOnRequest(t.Decl.Preconditions()) {
 			var origins []workitem.Label
 			for _, l := range workitem.QueueLabels {
 				if has(workitem.OriginLabels, l.Name) {
