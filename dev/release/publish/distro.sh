@@ -31,7 +31,9 @@ while [ $# -gt 0 ]; do
     *) fail "usage: dev/release/publish/distro.sh --version V --integrity PIN --commit SHA [--dry-run]" ;;
   esac
 done
-[ -n "$version" ] && [ -n "$integrity" ] && [ -n "$commit" ] || fail "--version, --integrity and --commit are required"
+if [ -z "$version" ] || [ -z "$integrity" ] || [ -z "$commit" ]; then
+  fail "--version, --integrity and --commit are required"
+fi
 
 repo=$(tr -d ' \r\n' < dev/release/publish/staging-distro)
 printf '%s\n' "$repo" | grep -Eqx '[A-Za-z0-9-]+/[A-Za-z0-9_-][A-Za-z0-9._-]*' \
