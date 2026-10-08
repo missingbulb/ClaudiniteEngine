@@ -126,8 +126,7 @@ func cmdWorkValidate(args []string, stdout io.Writer) error {
 	fmt.Fprintf(stdout, "item #%s is this session's: %s\ntask file: %s\nmodel: %s\noutcome ceiling: %s\n",
 		strconv.Itoa(item.Number), v.Task.Path(), v.TaskPath, v.Model, v.Outcome)
 	if v.Outcome != taskspec.OutcomeNoPR {
-		fmt.Fprintf(stdout, "delivery: %s\n\nThis task delivers a pull request; deliver it by this procedure:\n\n%s",
-			land.DeliveryFor(r.packConfig(workitem.TasksPackID)), items.DeliveryProcedure)
+		fmt.Fprintf(stdout, "delivery: %s\n", land.DeliveryFor(r.packConfig(workitem.TasksPackID)))
 	}
 	if text := taskspec.EngineInstructions(v.Task); text != "" {
 		fmt.Fprintf(stdout, "\nThe engine carries this task's file, which no checkout holds; run these instructions as the task file:\n\n%s", text)

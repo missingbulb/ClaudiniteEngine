@@ -135,7 +135,7 @@ func TestValidateGatesTheSessionOnTheNonce(t *testing.T) {
 }
 
 // A task whose outcome delivers a pull request is handed the repo's
-// delivery and the procedure that lands it; one that opens none is not.
+// delivery; one that opens none is not.
 func TestValidatePrintsTheDeliveryOnlyForATaskThatDeliversAPR(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
@@ -149,7 +149,7 @@ func TestValidatePrintsTheDeliveryOnlyForATaskThatDeliversAPR(t *testing.T) {
 		return out.String()
 	}
 	pr := validate(sessionRepo(t))
-	if !strings.Contains(pr, "delivery: auto-merge\n") || !strings.Contains(pr, "# Delivering a scheduled task's pull request") {
+	if !strings.Contains(pr, "delivery: auto-merge\n") {
 		t.Errorf("a PR task:\n%s", pr)
 	}
 	repo := sessionRepo(t)
@@ -157,18 +157,8 @@ func TestValidatePrintsTheDeliveryOnlyForATaskThatDeliversAPR(t *testing.T) {
 	if err := os.WriteFile(decl, []byte(`{"id": "a", "trigger": "request", "expected_outcome": "no_code_changes", "agent_model": "sonnet", "agent_instructions": "task.md", "agent_execution_timeout": 3600}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if none := validate(repo); strings.Contains(none, "delivery:") || strings.Contains(none, "# Delivering") {
+	if none := validate(repo); strings.Contains(none, "delivery:") {
 		t.Errorf("a task that opens no PR:\n%s", none)
 	}
 }
 
-func TestWorkInstructionsPrintsTheRoutineProcedure(t *testing.T) {
-	t.Parallel()
-	var out bytes.Buffer
-	if err := cmdWork([]string{"instructions"}, &out); err != nil || !strings.HasPrefix(out.String(), "# Executing one Claudinite work item") {
-		t.Errorf("%v:\n%.200s", err, out.String())
-	}
-	if err := cmdWork([]string{"instructions", "extra"}, &out); report.CodeOf(err) != report.Usage {
-		t.Error(err)
-	}
-}
