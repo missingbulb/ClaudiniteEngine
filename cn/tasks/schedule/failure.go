@@ -7,13 +7,8 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/world"
 )
 
-// WorkflowFailureLabel marks the one issue a failing workflow reports on.
-const WorkflowFailureLabel = "workflow-failure"
-
-// FailureLabels are the labels the one workflow-failure issue wears.
+// FailureLabels are the labels the one failure issue wears.
 var FailureLabels = []workitem.Label{
-	{Name: WorkflowFailureLabel, Color: "b60205", Description: "Claudinite scheduler: a scheduler run or task failed"},
-	{Name: workitem.OriginGitHub, Color: "d4c5f9", Description: "Claudinite queue: filed by the platform itself — a workflow reporting its own failure"},
 	{Name: workitem.StatusNeedsHumanFailure, Color: "b60205", Description: "Claudinite queue: parked — the run broke, diagnose and fix"},
 }
 
@@ -32,7 +27,7 @@ func ReportFailure(gh world.Issues, labels []workitem.Label, title, body string)
 	want := strings.TrimSpace(title)
 	found := 0
 	for page := 1; found == 0; page++ {
-		got, err := gh.IssuesPage(world.Query{State: "open", Label: WorkflowFailureLabel}, page)
+		got, err := gh.IssuesPage(world.Query{State: "open", Label: workitem.StatusNeedsHumanFailure}, page)
 		if err != nil {
 			return 0, false, err
 		}

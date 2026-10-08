@@ -197,7 +197,7 @@ func TestAnApprovalHandsALegacyRequestToTheReviewerAndAFailureLeavesItArmed(t *t
 	item := held(func(i *workitem.Issue) { i.Body = "packs/acme-pack/tasks/a/task.md\n\nRequest: #42\n" })
 	req := workitem.Issue{Number: 42, State: "open", Labels: []string{workitem.QueuedLabel}}
 	a := apply(item, Plan{Issue: 7, Outcome: "approval", Summary: "s", PR: 9}, req)
-	if !reflect.DeepEqual([]string(a.others[42].Labels), []string{workitem.InReviewLabel}) || !strings.Contains(a.comments[42][0], "#9") {
+	if len(a.others[42].Labels) != 0 || !strings.Contains(a.comments[42][0], "#9") {
 		t.Error(a.others[42], a.comments)
 	}
 	a = apply(item, Plan{Issue: 7, Outcome: "failure", Summary: "s"}, req)
@@ -205,7 +205,7 @@ func TestAnApprovalHandsALegacyRequestToTheReviewerAndAFailureLeavesItArmed(t *t
 		t.Error(a.others[42], a.comments)
 	}
 	script := SessionScript(item, Plan{Issue: 7, Outcome: "approval", Summary: "s", PR: 9}, "o/r")
-	if !strings.Contains(script, "On #42: ADD the label `claude-in-review`") {
+	if !strings.Contains(script, "On #42: REMOVE the label `claude-queued`") || strings.Contains(script, "claude-in-review") {
 		t.Error(script)
 	}
 }
