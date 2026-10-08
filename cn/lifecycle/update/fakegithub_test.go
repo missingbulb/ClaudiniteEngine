@@ -19,6 +19,16 @@ type fakeGitHub struct {
 	calls  []string
 	next   int
 	failOn string
+	// headOf reads a branch's head, which CreatePull answers as GitHub
+	// does; nil answers none.
+	headOf func(ref string) string
+	// holdOnOpen holds a claudinite-ci.yml pull_request run at
+	// action_required on each PR CreatePull opens, as GitHub holds a
+	// job-token PR's runs.
+	holdOnOpen bool
+	// approved is what an approved run concludes; "" leaves it queued.
+	approved string
+	runID    int64
 }
 
 func newFake() *fakeGitHub {
@@ -53,6 +63,36 @@ func (f *fakeGitHub) WorkflowRuns(workflow, sha string) ([]githubapi.Run, error)
 		return nil, err
 	}
 	return f.runs[sha], nil
+}
+
+func (f *fakeGitHub) HeadRuns(sha string) ([]githubapi.Run, error) {
+	if err := f.record("head-runs %s", sha); err != nil {
+		return nil, err
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]githubapi.Run{}, f.runs[sha]...), nil
+}
+
+func (f *fakeGitHub) ApproveRun(id int64) error {
+	if err := f.record("approve %d", id); err != nil {
+		return err
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for sha, runs := range f.runs {
+		for i := range runs {
+			if runs[i].ID == id && runs[i].Conclusion == "action_required" {
+				runs[i].Status, runs[i].Conclusion = "queued", ""
+				if f.approved != "" {
+					runs[i].Status, runs[i].Conclusion = "completed", f.approved
+				}
+				f.runs[sha] = runs
+				return nil
+			}
+		}
+	}
+	return fmt.Errorf("approve %d: 403 This run is not waiting for approval", id)
 }
 
 func (f *fakeGitHub) OpenPulls() ([]githubapi.PR, error) {
@@ -90,6 +130,14 @@ func (f *fakeGitHub) CreatePull(title, body, head, base string) (githubapi.PR, e
 	defer f.mu.Unlock()
 	p := githubapi.PR{Number: f.next, Title: title, Author: "github-actions[bot]", HeadRef: head, BaseRef: base, State: "open"}
 	f.next++
+	if f.headOf != nil {
+		p.HeadSHA = f.headOf(head)
+	}
+	if f.holdOnOpen && p.HeadSHA != "" {
+		f.runID++
+		f.runs[p.HeadSHA] = append(f.runs[p.HeadSHA], githubapi.Run{ID: f.runID, Name: "claudinite-ci", HeadSHA: p.HeadSHA, Event: "pull_request",
+			Status: "completed", Conclusion: "action_required", CreatedAt: "2026-10-01T00:00:00Z"})
+	}
 	f.pulls = append(f.pulls, p)
 	return p, nil
 }
@@ -192,7 +240,7 @@ func writes(calls []string) []string {
 	var out []string
 	for _, c := range calls {
 		switch strings.SplitN(c, " ", 2)[0] {
-		case "pull", "pulls", "runs", "issues":
+		case "pull", "pulls", "runs", "head-runs", "issues":
 		default:
 			out = append(out, c)
 		}

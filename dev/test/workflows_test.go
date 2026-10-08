@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/missingbulb/ClaudiniteEngine/dev/internal/scripttest"
 	relpublish "github.com/missingbulb/ClaudiniteEngine/dev/release/publish"
+	"github.com/missingbulb/ClaudiniteEngine/dev/test/scripttest"
 )
 
 // runBlocks returns each step's run: body in a workflow file, by indentation:

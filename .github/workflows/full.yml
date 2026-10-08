@@ -46,7 +46,7 @@ jobs:
         with:
           node-version: "22"
       # The rehearsal's release: built with the development roots and signed with the
-      # development keys (dev/keys/testkeys/), which dev/release/verify/rehearse.sh's every key chains to.
+      # development keys (dev/release/keys/testkeys/), which dev/release/verify/rehearse.sh's every key chains to.
       - run: dev/release/create/build.sh
         env:
           VERSION: "1.61001.1"
@@ -54,8 +54,8 @@ jobs:
           BUILD_TAGS: devroots
       - run: dev/release/create/sign.sh
         env:
-          RELEASE_KEY: dev/keys/testkeys/release.key
-          RELEASE_CERT: dev/keys/testkeys/release.cert.json
+          RELEASE_KEY: dev/release/keys/testkeys/release.key
+          RELEASE_CERT: dev/release/keys/testkeys/release.cert.json
           ROOTS: cn/shared/trust/devroots
       - run: dev/release/verify/sums.sh
       - run: dev/release/verify/smoke.sh

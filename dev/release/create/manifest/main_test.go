@@ -55,7 +55,7 @@ func writeSign(t *testing.T, dist string) {
 		t.Fatalf("write: %s", e)
 	}
 	root := repoRoot(t)
-	if _, e, c := tool(t, "sign", "--dist", dist, "--key", filepath.Join(root, "dev/keys/testkeys/release.key"), "--cert", filepath.Join(root, "dev/keys/testkeys/release.cert.json")); c != 0 {
+	if _, e, c := tool(t, "sign", "--dist", dist, "--key", filepath.Join(root, "dev/release/keys/testkeys/release.key"), "--cert", filepath.Join(root, "dev/release/keys/testkeys/release.cert.json")); c != 0 {
 		t.Fatalf("sign: %s", e)
 	}
 }
@@ -164,8 +164,10 @@ func TestVerify(t *testing.T) {
 	if _, e, c := tool(t, "verify", "--dist", dist, "--roots", roots); c != 0 {
 		t.Fatalf("restored dist fails: %s", e)
 	}
-	if _, _, c := tool(t, "verify", "--dist", dist, "--roots", t.TempDir()); c == 0 {
+	if _, e, c := tool(t, "verify", "--dist", dist, "--roots", t.TempDir()); c == 0 {
 		t.Error("verify passed with no trusted roots")
+	} else if !strings.Contains(e, "no trusted roots in") {
+		t.Errorf("verify with an empty roots folder does not say so: %s", e)
 	}
 }
 
@@ -184,7 +186,7 @@ func TestWriteAndVerifyANamedPlatformSet(t *testing.T) {
 	if err != nil || len(m.Binaries) != 1 || m.Binaries["linux-x64"].File != "cn" {
 		t.Fatalf("manifest %+v %v", m.Binaries, err)
 	}
-	if _, e, c := tool(t, "sign", "--dist", dist, "--key", filepath.Join(root, "dev/keys/testkeys/release.key"), "--cert", filepath.Join(root, "dev/keys/testkeys/release.cert.json")); c != 0 {
+	if _, e, c := tool(t, "sign", "--dist", dist, "--key", filepath.Join(root, "dev/release/keys/testkeys/release.key"), "--cert", filepath.Join(root, "dev/release/keys/testkeys/release.cert.json")); c != 0 {
 		t.Fatalf("sign: %s", e)
 	}
 	if _, e, c := tool(t, "verify", "--dist", dist, "--roots", roots, "--platforms", "linux-x64"); c != 0 {
@@ -217,12 +219,12 @@ func TestSignRefusesACertificateExpiringWithin14Days(t *testing.T) {
 		t.Fatal(e)
 	}
 	root := repoRoot(t)
-	rootRaw, _ := os.ReadFile(filepath.Join(root, "dev/keys/testkeys/root.key"))
+	rootRaw, _ := os.ReadFile(filepath.Join(root, "dev/release/keys/testkeys/root.key"))
 	rootKey, err := sign.ParsePrivateKey(string(rootRaw))
 	if err != nil {
 		t.Fatal(err)
 	}
-	pubRaw, _ := os.ReadFile(filepath.Join(root, "dev/keys/testkeys/release.pub"))
+	pubRaw, _ := os.ReadFile(filepath.Join(root, "dev/release/keys/testkeys/release.pub"))
 	pub, err := sign.ParsePublicKey(string(pubRaw))
 	if err != nil {
 		t.Fatal(err)
@@ -239,7 +241,7 @@ func TestSignRefusesACertificateExpiringWithin14Days(t *testing.T) {
 		certPath := filepath.Join(t.TempDir(), "cert.json")
 		raw, _ := json.Marshal(cert)
 		_ = os.WriteFile(certPath, raw, 0o644)
-		_, e, code := tool(t, "sign", "--dist", dist, "--key", filepath.Join(root, "dev/keys/testkeys/release.key"), "--cert", certPath)
+		_, e, code := tool(t, "sign", "--dist", dist, "--key", filepath.Join(root, "dev/release/keys/testkeys/release.key"), "--cert", certPath)
 		if (code == 0) != c.ok {
 			t.Errorf("%d days left: exit %d %s", c.days, code, e)
 		}

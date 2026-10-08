@@ -164,7 +164,7 @@ func requireProtected(gh secretStore, repo, env string) error {
 	}
 	switch {
 	case e == nil:
-		return fmt.Errorf("%s has no environment %q; create it with yourself as a required reviewer (dev/keys/cn-keys/README.md)", repo, env)
+		return fmt.Errorf("%s has no environment %q; create it with yourself as a required reviewer (dev/release/keys/cn-keys/README.md)", repo, env)
 	case !e.RequiredReviewers:
 		return fmt.Errorf("%s environment %q has no required reviewer; add yourself before running", repo, env)
 	case !e.BranchPolicy:

@@ -196,6 +196,9 @@ func verify(dist, rootsDir string, platforms []string, stdout io.Writer) error {
 		}
 		roots = append(roots, p)
 	}
+	if len(roots) == 0 {
+		return fmt.Errorf("no trusted roots in %s (no *.pub there)", rootsDir)
+	}
 	manifest, err := os.ReadFile(filepath.Join(dist, "manifest.json"))
 	if err != nil {
 		return err
@@ -254,7 +257,7 @@ func checkExpiry(cert sign.Certificate, now time.Time) error {
 		return fmt.Errorf("certificate notAfter: %w", err)
 	}
 	if notAfter.Sub(now) < renewMargin {
-		return fmt.Errorf("the release key's certificate expires %s, less than 14 days from now; certify a new one (dev/keys/cn-keys/README.md, \"Rotating the release key\")", body.NotAfter)
+		return fmt.Errorf("the release key's certificate expires %s, less than 14 days from now; certify a new one (dev/release/keys/cn-keys/README.md, \"Rotating the release key\")", body.NotAfter)
 	}
 	return nil
 }

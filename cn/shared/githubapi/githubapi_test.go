@@ -48,6 +48,8 @@ func TestCalls(t *testing.T) {
 		"POST /repos/o/r/issues/8/labels":                                `[]`,
 		"POST /repos/o/r/issues/7/comments":                              `{}`,
 		"POST /repos/o/r/actions/workflows/claudinite-ci.yml/dispatches": "",
+		"GET /repos/o/r/actions/runs":                                    `{"workflow_runs":[{"id":5,"name":"claudinite-ci","head_sha":"abc","event":"pull_request","status":"completed","conclusion":"action_required"}]}`,
+		"POST /repos/o/r/actions/runs/5/approve":                         `{}`,
 		"GET /repos/o/r/issues":                                          `[{"number":3,"title":"Claudinite engine 1.2.0 needs a workflow change","body":"b","labels":[{"name":"claudinite-update"}]},{"number":7,"title":"pr","pull_request":{}}]`,
 		"POST /repos/o/r/issues":                                         `{"number":9,"title":"x"}`,
 		"PATCH /repos/o/r/issues/3":                                      `{"number":3}`,
@@ -55,6 +57,13 @@ func TestCalls(t *testing.T) {
 	runs, err := c.WorkflowRuns("claudinite-ci.yml", "abc")
 	if err != nil || len(runs) != 1 || runs[0].Conclusion != "success" || runs[0].Event != "workflow_dispatch" {
 		t.Fatalf("%+v %v", runs, err)
+	}
+	held, err := c.HeadRuns("abc")
+	if err != nil || len(held) != 1 || held[0].ID != 5 || held[0].Name != "claudinite-ci" || held[0].Conclusion != "action_required" {
+		t.Fatalf("%+v %v", held, err)
+	}
+	if err := c.ApproveRun(5); err != nil {
+		t.Fatal(err)
 	}
 	prs, err := c.OpenPulls()
 	if err != nil || len(prs) != 1 || prs[0].Author != "github-actions[bot]" || !prs[0].HasLabel("claudinite-update") || prs[0].HeadRef != "claudinite/engine-1.2.0" {
@@ -98,10 +107,12 @@ func TestCalls(t *testing.T) {
 	}
 	want := map[string]string{
 		"GET /repos/o/r/actions/workflows/claudinite-ci.yml/runs?head_sha=abc&per_page=100": "",
-		"PATCH /repos/o/r/pulls/7":                                       `{"state":"closed"}`,
-		"PUT /repos/o/r/pulls/7/merge":                                   `{"commit_title":"Claudinite engine 1.2.0","merge_method":"squash","sha":"abc"}`,
-		"POST /repos/o/r/actions/workflows/claudinite-ci.yml/dispatches": `{"inputs":{"pr":"8"},"ref":"main"}`,
-		"POST /repos/o/r/issues":                                         `{"body":"b","labels":["claudinite-update"],"title":"t"}`,
+		"GET /repos/o/r/actions/runs?head_sha=abc&per_page=100":                             "",
+		"POST /repos/o/r/actions/runs/5/approve":                                            "",
+		"PATCH /repos/o/r/pulls/7":                                                          `{"state":"closed"}`,
+		"PUT /repos/o/r/pulls/7/merge":                                                      `{"commit_title":"Claudinite engine 1.2.0","merge_method":"squash","sha":"abc"}`,
+		"POST /repos/o/r/actions/workflows/claudinite-ci.yml/dispatches":                    `{"inputs":{"pr":"8"},"ref":"main"}`,
+		"POST /repos/o/r/issues":                                                            `{"body":"b","labels":["claudinite-update"],"title":"t"}`,
 	}
 	for k, body := range want {
 		found := false

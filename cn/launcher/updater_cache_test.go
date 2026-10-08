@@ -22,12 +22,12 @@ import (
 // key, to the release's channel tarball.
 func signRelease(t *testing.T, r release, pkg string) {
 	t.Helper()
-	key, err := sign.ParsePrivateKey(readFile(t, filepath.Join(repoRoot, "dev/keys/testkeys", "release.key")))
+	key, err := sign.ParsePrivateKey(readFile(t, filepath.Join(repoRoot, "dev/release/keys/testkeys", "release.key")))
 	if err != nil {
 		t.Fatal(err)
 	}
 	var cert sign.Certificate
-	if err := json.Unmarshal([]byte(readFile(t, filepath.Join(repoRoot, "dev/keys/testkeys", "release.cert.json"))), &cert); err != nil {
+	if err := json.Unmarshal([]byte(readFile(t, filepath.Join(repoRoot, "dev/release/keys/testkeys", "release.cert.json"))), &cert); err != nil {
 		t.Fatal(err)
 	}
 	sig, _ := json.Marshal(sign.SignManifest(key, cert, r.manifest))

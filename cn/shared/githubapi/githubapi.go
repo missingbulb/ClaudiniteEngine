@@ -9,6 +9,8 @@
 // The calls, each one method here:
 //
 //	GET   /repos/{repo}/actions/workflows/{workflow}/runs?head_sha=  WorkflowRuns
+//	GET   /repos/{repo}/actions/runs?head_sha=                       HeadRuns
+//	POST  /repos/{repo}/actions/runs/{id}/approve                    ApproveRun
 //	GET   /repos/{repo}/pulls?state=open                             OpenPulls
 //	GET   /repos/{repo}/pulls/{n}                                    Pull
 //	POST  /repos/{repo}/pulls                                        CreatePull
@@ -161,6 +163,7 @@ func (c *Client) Raw(method, path string, in any) (int, []byte, error) {
 // Run is one workflow run.
 type Run struct {
 	ID         int64  `json:"id"`
+	Name       string `json:"name"`
 	HeadSHA    string `json:"head_sha"`
 	Event      string `json:"event"`
 	Status     string `json:"status"`
@@ -175,6 +178,22 @@ func (c *Client) WorkflowRuns(workflow, sha string) ([]Run, error) {
 	}
 	err := c.do(http.MethodGet, fmt.Sprintf("/repos/%s/actions/workflows/%s/runs?head_sha=%s&per_page=100", c.Repo, url.PathEscape(workflow), url.QueryEscape(sha)), nil, &out)
 	return out.Runs, err
+}
+
+// HeadRuns lists every workflow's runs on one commit, newest first.
+func (c *Client) HeadRuns(sha string) ([]Run, error) {
+	var out struct {
+		Runs []Run `json:"workflow_runs"`
+	}
+	err := c.do(http.MethodGet, fmt.Sprintf("/repos/%s/actions/runs?head_sha=%s&per_page=100", c.Repo, url.QueryEscape(sha)), nil, &out)
+	return out.Runs, err
+}
+
+// ApproveRun approves a run GitHub holds at action_required, as it holds
+// the pull_request runs of a pull request the job token opened; the run
+// then executes. The token needs actions: write.
+func (c *Client) ApproveRun(id int64) error {
+	return c.do(http.MethodPost, fmt.Sprintf("/repos/%s/actions/runs/%d/approve", c.Repo, id), nil, nil)
 }
 
 // PR is a pull request.
