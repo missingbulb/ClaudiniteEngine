@@ -134,11 +134,6 @@ commands:
                  [--branch NAME] [--repo DIR]
                  push the session's transcript, scrubbed, as a delta onto
                  the conversation-logs branch; session-end runs it too
-  growth promote-scope --base REF [--repo DIR]
-                 the promote pull request's gate: every path the branch
-                 touches since its merge base with REF lies under the
-                 canon's corpus roots (packs/ and the canon-curation
-                 entry's write_paths); exit 1 names each stray path
   growth prune [--branch NAME] [--repo DIR]
                  remove the captures past the repo's retention_days in one
                  commit; the logs-prune task's code-work
@@ -163,10 +158,6 @@ commands:
   pack new <name> [--belongs TEXT] [--excludes TEXT] [--repo DIR]
                  scaffold the local pack a repo's own lessons land in,
                  and declare it as local/<name>
-  pack history [<id>...] [--ref REF] [--json] [--repo DIR]
-                 a canon shelf's version walk at REF (HEAD): each pack's
-                 last version move, the shipping files changed since and
-                 the pull requests each version carried
 `
 
 // secretScanPlant is set only by the secret scan's own test build, to prove
