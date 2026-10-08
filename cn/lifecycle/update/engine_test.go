@@ -538,7 +538,7 @@ func TestLand(t *testing.T) {
 	if v, err := gateAt(t, w.repo, w.deps(t), w.hub.pulls[0]); err != nil || v != "ok: "+sha+" may land "+v2 || len(writes(w.hub.calls[before:])) != 0 {
 		t.Errorf("the gate on a pin-only PR: %q %v, calls %v", v, err, w.hub.calls[before:])
 	}
-	v, err := Land(w.deps(t), 4, sha)
+	v, err := Land(landJob(w.hub, w.deps(t), sha), 4, sha)
 	if err != nil || v != "landed "+v2 {
 		t.Fatalf("%q %v", v, err)
 	}
@@ -819,7 +819,7 @@ func TestLandAnUpdatePRRestatingTheMemberFile(t *testing.T) {
 	}
 	w, sha := propose(t)
 	w.hub.pulls[0].HeadSHA = sha
-	if v, err := Land(w.deps(t), 1, sha); err != nil || v != "landed "+v2 {
+	if v, err := Land(landJob(w.hub, w.deps(t), sha), 1, sha); err != nil || v != "landed "+v2 {
 		t.Fatalf("%q %v\n%s", v, err, w.out)
 	}
 
@@ -862,7 +862,7 @@ func TestLandAnUpdatePRRestatingTheMemberFile(t *testing.T) {
 	}
 	sha = gitRun(t, w.bare, "rev-parse", branch)
 	w.hub.pulls[0].HeadSHA = sha
-	if v, err := Land(w.deps(t), 1, sha); err != nil || v != "landed "+v2 {
+	if v, err := Land(landJob(w.hub, w.deps(t), sha), 1, sha); err != nil || v != "landed "+v2 {
 		t.Errorf("a legacy member's engine PR: %q %v\n%s", v, err, w.out)
 	}
 

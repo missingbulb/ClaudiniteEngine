@@ -86,6 +86,9 @@ type Deps struct {
 	Packs PackReader
 	// Exe is this cn, which runs check world over a pack branch.
 	Exe string
+	// SelfRun is the workflow run this cn runs in (GITHUB_RUN_ID), 0
+	// outside one: a land job's own run on the PR's head counts green.
+	SelfRun int64
 }
 
 // Options are cn update engine's flags.
@@ -314,11 +317,9 @@ func engine(d Deps, o Options, res *EngineResult) (string, error) {
 	prevState := ""
 	if len(open) == 1 {
 		prev = &open[0]
-		runs, err := d.GitHub.WorkflowRuns(CIWorkflow, prev.HeadSHA)
-		if err != nil {
+		if prevState, err = prevCI(d, prev.HeadSHA); err != nil {
 			return "", err
 		}
-		prevState = runState(latest(runs, ciEvents...))
 		if prevState == "success" {
 			v, err := Land(d, prev.Number, prev.HeadSHA)
 			return landed(res, v, err)
@@ -696,8 +697,10 @@ func Land(d Deps, n int, sha string) (string, error) {
 	if len(moved) > 0 {
 		return fmt.Sprintf("skipped: #%d changes %s, which GitHub lets no job token merge; its agent stage merges it once cn update land --check passes", n, strings.Join(moved, ", ")), nil
 	}
-	if err := landPinned(d, pr, sha, EngineTitle(ver)); err != nil {
+	if why, err := landPinned(d, pr, sha, EngineTitle(ver)); err != nil {
 		return "", err
+	} else if why != "" {
+		return notLanded(pr.Number, why), nil
 	}
 	if err := d.GitHub.Dispatch(CIWorkflow, mainBranch, map[string]string{}); err != nil {
 		return "", err

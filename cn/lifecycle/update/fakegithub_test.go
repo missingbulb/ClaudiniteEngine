@@ -29,6 +29,9 @@ type fakeGitHub struct {
 	// approved is what an approved run concludes; "" leaves it queued.
 	approved string
 	runID    int64
+	// onOpen are other workflows' runs GitHub starts on each PR
+	// CreatePull opens, on its head.
+	onOpen []githubapi.Run
 }
 
 func newFake() *fakeGitHub {
@@ -62,7 +65,18 @@ func (f *fakeGitHub) WorkflowRuns(workflow, sha string) ([]githubapi.Run, error)
 	if err := f.record("runs %s %s", workflow, sha); err != nil {
 		return nil, err
 	}
-	return f.runs[sha], nil
+	// A run is the workflow named for its file; an unnamed one is
+	// claudinite-ci's.
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	name := strings.TrimSuffix(workflow, ".yml")
+	var out []githubapi.Run
+	for _, r := range f.runs[sha] {
+		if r.Name == name || (r.Name == "" && workflow == CIWorkflow) {
+			out = append(out, r)
+		}
+	}
+	return out, nil
 }
 
 func (f *fakeGitHub) HeadRuns(sha string) ([]githubapi.Run, error) {
@@ -137,6 +151,12 @@ func (f *fakeGitHub) CreatePull(title, body, head, base string) (githubapi.PR, e
 		f.runID++
 		f.runs[p.HeadSHA] = append(f.runs[p.HeadSHA], githubapi.Run{ID: f.runID, Name: "claudinite-ci", HeadSHA: p.HeadSHA, Event: "pull_request",
 			Status: "completed", Conclusion: "action_required", CreatedAt: "2026-10-01T00:00:00Z"})
+	}
+	for _, r := range f.onOpen {
+		if p.HeadSHA != "" {
+			r.HeadSHA = p.HeadSHA
+			f.runs[p.HeadSHA] = append(f.runs[p.HeadSHA], r)
+		}
 	}
 	f.pulls = append(f.pulls, p)
 	return p, nil
