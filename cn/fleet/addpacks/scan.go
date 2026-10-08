@@ -74,7 +74,7 @@ func action(s string) *string { return &s }
 // finding: closed when nothing is suspected, rewritten when open, left
 // alone after a `not planned` close, opened otherwise.
 func ConvergeSuspected(gh fleet.GH, repo string, fits []string, body string) (Converged, error) {
-	open, closed, err := fleet.LabeledIssues(gh, repo, Label)
+	open, closed, err := fleet.TitledIssues(gh, repo, IsWorkListTitle)
 	if err != nil {
 		return Converged{}, err
 	}
@@ -121,9 +121,6 @@ func ConvergeSuspected(gh fleet.GH, repo string, fits []string, body string) (Co
 	}
 	if prior != nil && prior.StateReason != nil && *prior.StateReason == "not_planned" {
 		return Converged{}, nil
-	}
-	if err := EnsureListLabel(gh, repo); err != nil {
-		return Converged{}, err
 	}
 	if err := EnsureMark(gh, repo); err != nil {
 		return Converged{}, err
@@ -236,7 +233,7 @@ func RunScan(gh fleet.GH, repos []fleet.Repo, home string, cfg fleet.Config, cor
 				s.Actions = append(s.Actions, *conv.Action)
 			}
 			var open []fleet.Issue
-			open, _, err = fleet.LabeledIssues(gh, r.FullName, Label)
+			open, _, err = fleet.TitledIssues(gh, r.FullName, IsWorkListTitle)
 			if err == nil {
 				var closed string
 				closed, err = CloseSatisfied(gh, r.FullName, declared, open)

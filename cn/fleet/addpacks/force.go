@@ -279,10 +279,7 @@ func NodeDeclared(entries []any) []string {
 // returning its number and the action taken, "" when it was already
 // right.
 func ConvergeRequested(gh fleet.GH, repo, body string) (int, string, error) {
-	if err := EnsureListLabel(gh, repo); err != nil {
-		return 0, "", err
-	}
-	open, _, err := fleet.LabeledIssues(gh, repo, Label)
+	open, _, err := fleet.TitledIssues(gh, repo, IsWorkListTitle)
 	if err != nil {
 		return 0, "", err
 	}
@@ -307,7 +304,7 @@ func ConvergeRequested(gh fleet.GH, repo, body string) (int, string, error) {
 
 // openIssue opens a marked work list.
 func openIssue(gh fleet.GH, repo, title, body, what string) (int, error) {
-	r, err := gh("POST", "/repos/"+repo+"/issues", map[string]any{"title": title, "body": body, "labels": []string{Label, Mark}})
+	r, err := gh("POST", "/repos/"+repo+"/issues", map[string]any{"title": title, "body": body, "labels": []string{Mark}})
 	if err != nil {
 		return 0, err
 	}

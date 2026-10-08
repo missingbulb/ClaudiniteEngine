@@ -131,16 +131,16 @@ type Issue struct {
 	PullRequest json.RawMessage    `json:"pull_request"`
 }
 
-// LabeledIssues is every issue ever carrying label in repo, open and
-// closed, pull requests left out.
-func LabeledIssues(gh GH, repo, label string) (open, closed []Issue, err error) {
-	raw, err := Paged(gh, "/repos/"+repo+"/issues?labels="+label+"&state=all")
+// TitledIssues is every issue in repo whose title titled accepts, open
+// and closed: the title is the key a sweep converges its issues by.
+func TitledIssues(gh GH, repo string, titled func(string) bool) (open, closed []Issue, err error) {
+	raw, err := Paged(gh, "/repos/"+repo+"/issues?state=all")
 	if err != nil {
 		return nil, nil, err
 	}
 	for _, r := range raw {
 		var i Issue
-		if json.Unmarshal(r, &i) != nil || (len(i.PullRequest) > 0 && string(i.PullRequest) != "null") {
+		if json.Unmarshal(r, &i) != nil || (len(i.PullRequest) > 0 && string(i.PullRequest) != "null") || !titled(i.Title) {
 			continue
 		}
 		switch i.State {

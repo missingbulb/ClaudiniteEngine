@@ -39,7 +39,7 @@ func fleetProtocol(args []string, stdout io.Writer) error {
 		enc.SetIndent("", "  ")
 		return enc.Encode(p)
 	}
-	for _, k := range []string{"label", "mark", "memberTaskId", "requestedTitle", "suspectedTitle"} {
+	for _, k := range []string{"mark", "memberTaskId", "requestedTitle", "suspectedTitle"} {
 		fmt.Fprintf(stdout, "%s: %s\n", k, p[k])
 	}
 	return nil

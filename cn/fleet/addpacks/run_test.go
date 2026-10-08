@@ -70,7 +70,7 @@ func TestAForceOfAnUnknownPackIsRefusedUpFront(t *testing.T) {
 // The protocol the member half holds its copy to.
 func TestProtocolNamesTheWorkListConstants(t *testing.T) {
 	p := addpacks.Protocol()
-	for _, k := range []string{"label", "mark", "memberTaskId", "requestedTitle", "suspectedTitle"} {
+	for _, k := range []string{"mark", "memberTaskId", "requestedTitle", "suspectedTitle"} {
 		if p[k] == "" {
 			t.Errorf("protocol has no %s: %v", k, p)
 		}

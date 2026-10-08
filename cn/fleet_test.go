@@ -139,7 +139,7 @@ func TestFleetProtocolPrintsTheWorkListConstants(t *testing.T) {
 	if code != 0 || json.Unmarshal([]byte(out), &p) != nil {
 		t.Fatalf("exit %d, out %q, err %q", code, out, errOut)
 	}
-	if p["label"] == "" || p["memberTaskId"] == "" || p["requestedTitle"] == "" {
+	if p["memberTaskId"] == "" || p["requestedTitle"] == "" {
 		t.Errorf("protocol %v", p)
 	}
 }

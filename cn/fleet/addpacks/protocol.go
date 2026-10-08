@@ -15,11 +15,6 @@ import (
 // member half carries its own copy in the lifecycle pack; that copy's
 // test holds it to `cn fleet protocol --json`, which prints these.
 const (
-	// Label is what every work-list issue in a member carries.
-	Label = "add-packs"
-	// LabelColor and LabelDescription are how the sweep creates it.
-	LabelColor       = "0E8A16"
-	LabelDescription = "The fleet asks this repo to declare packs — adopted by the adopt-requested-packs task"
 	// RequestedTitle is the list a person asked for: the member adopts
 	// what its JSON block says, verbatim.
 	RequestedTitle = "Add packs: requested for this repo"
@@ -33,9 +28,13 @@ const (
 	MemberTaskID = "claudinite-lifecycle/adopt-requested-packs"
 )
 
+// IsWorkListTitle says whether title is one of the two work lists: the
+// title is the list's key, in the member and in every sweep.
+func IsWorkListTitle(title string) bool { return title == RequestedTitle || title == SuspectedTitle }
+
 // Protocol is the constants as `cn fleet protocol --json` prints them.
 func Protocol() map[string]string {
-	return map[string]string{"label": Label, "requestedTitle": RequestedTitle, "suspectedTitle": SuspectedTitle, "mark": Mark, "memberTaskId": MemberTaskID}
+	return map[string]string{"requestedTitle": RequestedTitle, "suspectedTitle": SuspectedTitle, "mark": Mark, "memberTaskId": MemberTaskID}
 }
 
 var blockJSON = regexp.MustCompile("(?s)```json\n(.*?)\n```")

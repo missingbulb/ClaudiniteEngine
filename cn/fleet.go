@@ -395,10 +395,6 @@ func fleetRoster(args []string, stdout, stderr io.Writer, start time.Time) error
 	r := roster.Build(s.gh, repos, s.home, s.cfg, s.shelf)
 	cov, fresh := roster.CoverageView(r), roster.FreshnessView(r)
 	covered, total := len(cov.Covered)+len(cov.Dormant), len(r)
-	if err := fleet.EnsureLabel(s.gh, s.home, roster.Label, roster.LabelColor, roster.LabelDescription); err != nil {
-		s.crumb("roster", "error", covered, total)
-		return s.failed(err)
-	}
 	actions, err := roster.ConvergeAdoption(s.gh, s.home, cov.Uncovered, append(append([]string{}, cov.Covered...), cov.Dormant...), cov.Ignored)
 	if err != nil {
 		s.crumb("roster", "error", covered, total)

@@ -10,7 +10,7 @@ That one roster then answers two questions, each with its own issue family and i
 
 | question | module | finding | where the answer goes |
 |---|---|---|---|
-| is this repo a **member**? | adoption | an uncovered repo under the owner | a `fleet-adoption` issue asking for `cn init` |
+| is this repo a **member**? | adoption | an uncovered repo under the owner | an `Adopt <repo> into the Claudinite fleet` issue asking for `cn init` |
 | is that membership still **meaning** anything? | freshness | a covered member whose mount has fallen behind | the run report's freshness section |
 | what does every repository read as? | the roster artifact | one `fleet.Verdict` per enumerated repository, the manager's own row with `scope: home` | `.claudinite/fleet/roster.GENERATED.json` in this repo, which a fleet dashboard reads |
 

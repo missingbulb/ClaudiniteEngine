@@ -9,13 +9,6 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/cn/fleet"
 )
 
-// The adoption issue family's label, as Node's.
-const (
-	Label            = "fleet-adoption"
-	LabelColor       = "1D76DB"
-	LabelDescription = "Repo awaiting adoption into the Claudinite fleet"
-)
-
 var titleRE = regexp.MustCompile(`^Adopt (\S+/\S+) into the Claudinite fleet$`)
 
 // Title is the one adoption issue's title for repo.
@@ -49,7 +42,7 @@ func Body(repo string) string {
 // or ignored or gone (not_planned). It returns the actions taken.
 func ConvergeAdoption(gh fleet.GH, home string, uncovered, covered, ignored []string) ([]string, error) {
 	actions := []string{}
-	open, closed, err := fleet.LabeledIssues(gh, home, Label)
+	open, closed, err := fleet.TitledIssues(gh, home, titleRE.MatchString)
 	if err != nil {
 		return actions, err
 	}
@@ -90,7 +83,7 @@ func ConvergeAdoption(gh fleet.GH, home string, uncovered, covered, ignored []st
 			actions = append(actions, fmt.Sprintf("reopened #%d (%s)", prior.Number, repo))
 			continue
 		}
-		r, err := gh("POST", "/repos/"+home+"/issues", map[string]any{"title": title, "body": Body(repo), "labels": []string{Label}})
+		r, err := gh("POST", "/repos/"+home+"/issues", map[string]any{"title": title, "body": Body(repo)})
 		if err != nil {
 			return actions, err
 		}

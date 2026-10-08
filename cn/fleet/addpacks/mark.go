@@ -26,11 +26,6 @@ func EnsureMark(gh fleet.GH, repo string) error {
 	return fleet.EnsureLabel(gh, repo, Mark, l.Color, l.Description)
 }
 
-// EnsureListLabel creates the work-list label in repo.
-func EnsureListLabel(gh fleet.GH, repo string) error {
-	return fleet.EnsureLabel(gh, repo, Label, LabelColor, LabelDescription)
-}
-
 // MarkedBody is the body to write for a work list: the targeting fields,
 // the list, and the machine block the member already wrote into existing,
 // re-attached unchanged.

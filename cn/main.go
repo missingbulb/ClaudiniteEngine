@@ -153,7 +153,7 @@ commands:
                  scaffold the local pack a repo's own lessons land in,
                  and declare it as local/<name>
   fleet roster [--repo DIR] [--api URL]
-                 a fleet manager's sweep: one fleet-adoption issue per
+                 a fleet manager's sweep: one adoption issue per
                  uncovered repo and the coverage and freshness report;
                  needs FLEET_GITHUB_TOKEN; exit 1 on any unknown
   fleet update [--repo DIR] [--api URL]

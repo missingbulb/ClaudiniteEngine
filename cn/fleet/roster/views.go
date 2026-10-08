@@ -1,6 +1,6 @@
 // Package roster is the fleet-roster sweep: one walk of every repository
 // under the owner answering two questions of each, whether it is a member
-// (the fleet-adoption issues in the manager) and whether that membership
+// (the adoption issues in the manager) and whether that membership
 // still means anything (the report's freshness section, which files
 // nothing). Each repository's tree is read once and both halves consume
 // the one roster, so a repository has one membership verdict and the

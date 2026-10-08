@@ -9,7 +9,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/cn/fleet/roster"
 )
 
-const listing = "/repos/acme/manager/issues?labels=fleet-adoption&state=all&per_page=100&page=1"
+const listing = "/repos/acme/manager/issues?state=all&per_page=100&page=1"
 
 // table answers a listing and one status for every write to an issue.
 func table(issues string, write int) fleet.GH {

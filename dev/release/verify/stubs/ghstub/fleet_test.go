@@ -156,10 +156,10 @@ func TestADispatchCanStartNoRunAndADeniedMemberAnswers403(t *testing.T) {
 func TestAFleetMemberKeepsItsOwnIssues(t *testing.T) {
 	t.Parallel()
 	c, srv := startFleet(t, "acme/a="+t.TempDir())
-	if status, _, err := c.Raw("POST", "/repos/acme/a/labels", map[string]string{"name": "add-packs", "color": "0E8A16"}); err != nil || status != 201 {
+	if status, _, err := c.Raw("POST", "/repos/acme/a/labels", map[string]string{"name": "task:origin:ad-hoc", "color": "0E8A16"}); err != nil || status != 201 {
 		t.Fatalf("label: %d %v", status, err)
 	}
-	status, raw, err := c.Raw("POST", "/repos/acme/a/issues", map[string]any{"title": "t", "body": "b", "labels": []string{"add-packs"}})
+	status, raw, err := c.Raw("POST", "/repos/acme/a/issues", map[string]any{"title": "t", "body": "b", "labels": []string{"task:origin:ad-hoc"}})
 	if err != nil || status != 201 {
 		t.Fatalf("create: %d %s %v", status, raw, err)
 	}
@@ -172,7 +172,7 @@ func TestAFleetMemberKeepsItsOwnIssues(t *testing.T) {
 	if status, raw, _ := c.Raw("PATCH", fmt.Sprintf("/repos/acme/a/issues/%d", created.Number), map[string]string{"body": "b2"}); status != 200 {
 		t.Fatalf("edit: %d %s", status, raw)
 	}
-	status, raw, _ = c.Raw("GET", "/repos/acme/a/issues?labels=add-packs&state=all&per_page=100&page=1", nil)
+	status, raw, _ = c.Raw("GET", "/repos/acme/a/issues?labels=task:origin:ad-hoc&state=all&per_page=100&page=1", nil)
 	if status != 200 || !strings.Contains(string(raw), `"b2"`) {
 		t.Fatalf("list: %d %s", status, raw)
 	}
