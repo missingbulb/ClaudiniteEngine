@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/checks/declared"
-	"github.com/missingbulb/ClaudiniteEngine/cn/fleet/curation"
+	"github.com/missingbulb/ClaudiniteEngine/cn/shared/curation"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/findings"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/packset"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/transcript"

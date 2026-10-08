@@ -97,7 +97,7 @@ func Build(out string, c Config) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	defer os.RemoveAll(stage)
+	defer func() { _ = os.RemoveAll(stage) }()
 	n, err := stageSite(stage, c)
 	if err != nil {
 		return 0, err

@@ -1,12 +1,13 @@
 package dashboard
 
 import (
+	"encoding/json"
 	"io/fs"
 	"regexp"
 	"strings"
 	"testing"
 
-	"go.yaml.in/yaml/v3"
+	"github.com/missingbulb/ClaudiniteEngine/cn/shared/descriptor"
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/fleet/roster"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/flatdecl"
@@ -85,18 +86,26 @@ func cleanJoin(dir, rel string) string {
 // gate's OIDC exchange need.
 func TestThePagesWorkflowBuildsWithTheVerbAndDeploys(t *testing.T) {
 	var wf struct {
-		Permissions map[string]string `yaml:"permissions"`
+		Permissions map[string]string `json:"permissions"`
 		Jobs        map[string]struct {
-			Permissions map[string]string `yaml:"permissions"`
+			Permissions map[string]string `json:"permissions"`
 			Steps       []struct {
-				Uses string            `yaml:"uses"`
-				Run  string            `yaml:"run"`
-				With map[string]string `yaml:"with"`
-				Env  map[string]string `yaml:"env"`
-			} `yaml:"steps"`
-		} `yaml:"jobs"`
+				Uses string            `json:"uses"`
+				Run  string            `json:"run"`
+				With map[string]any    `json:"with"`
+				Env  map[string]string `json:"env"`
+			} `json:"steps"`
+		} `json:"jobs"`
 	}
-	if err := yaml.Unmarshal([]byte(PagesWorkflow), &wf); err != nil {
+	doc, err := descriptor.ParseDocument([]byte(PagesWorkflow), descriptor.YAML)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := json.Marshal(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(raw, &wf); err != nil {
 		t.Fatal(err)
 	}
 	var built, uploaded, deployed bool

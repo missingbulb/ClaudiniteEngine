@@ -3,10 +3,8 @@ package pack
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/lifecycle/rulesindex"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/packset"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/taskspec"
 )
@@ -25,7 +23,7 @@ func repoWith(t *testing.T, settings string) string {
 }
 
 // A fleet manager runs the fleet pack the binary carries: its tasks are
-// discovered as engine tasks and its rules reach the session's index. A
+// discovered as engine tasks and it carries its rules and skills. A
 // repo with no fleet block carries none of it.
 func TestAFleetManagerRunsTheFleetPack(t *testing.T) {
 	repo := repoWith(t, "engine:\n  version: \"1.1.0\"\nfleet:\n  owner: acme\n")
@@ -57,13 +55,6 @@ func TestAFleetManagerRunsTheFleetPack(t *testing.T) {
 		if !got[d.Name()] {
 			t.Errorf("task %s not discovered: %v", d.Name(), got)
 		}
-	}
-	if _, err := rulesindex.Converge(repo, "0.0.0"); err != nil {
-		t.Fatal(err)
-	}
-	raw, _ := os.ReadFile(filepath.Join(repo, rulesindex.File))
-	if !strings.Contains(string(raw), "@../temp/packs/fleet/RULES.md\n") {
-		t.Errorf("rules index: %q", raw)
 	}
 
 	plain := repoWith(t, "engine:\n  version: \"1.1.0\"\n")

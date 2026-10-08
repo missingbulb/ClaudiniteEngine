@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/fleet/curation"
+	"github.com/missingbulb/ClaudiniteEngine/cn/shared/curation"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/report"
 )
 
