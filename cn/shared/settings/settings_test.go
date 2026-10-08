@@ -212,3 +212,19 @@ func TestFromLegacyPackage(t *testing.T) {
 		}
 	}
 }
+
+// engine.releases is validated in Go, by the launcher and by the staging
+// upload; the two shell scripts spell ReleasesPattern unanchored for
+// grep -Eqx, so this reads their spelling back and compares.
+func TestReleasesPatternIsTheScripts(t *testing.T) {
+	want := strings.TrimSuffix(strings.TrimPrefix(ReleasesPattern.String(), "^"), "$")
+	for _, script := range []string{"../../launcher/launch", "../../../dev/release/publish/distro.sh"} {
+		raw, err := os.ReadFile(script)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(string(raw), "'"+want+"'") {
+			t.Errorf("%s does not spell engine.releases' pattern as '%s'", script, want)
+		}
+	}
+}
