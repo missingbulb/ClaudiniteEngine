@@ -18,6 +18,8 @@ const (
 	bot  = "github-actions[bot]"
 	pin1 = "sha512-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
 	pin2 = "sha512-BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=="
+	// shippedLauncher is the launcher the engine under test ships.
+	shippedLauncher = "#!/bin/sh\n# shipped\n"
 )
 
 func git(t *testing.T, dir string, args ...string) {
@@ -83,7 +85,7 @@ func (p *pinCheck) check(e settings.Engine) error {
 func runWorld(t *testing.T, dir, author string, pc *pinCheck, fs []findings.Finding) (int, string) {
 	t.Helper()
 	var out bytes.Buffer
-	code := Run(&out, Input{Repo: dir, PRAuthor: author, BaseRef: "main", Git: gitcmd.Repo{Dir: dir}, CheckPin: pc.check, Findings: fs})
+	code := Run(&out, Input{Repo: dir, PRAuthor: author, BaseRef: "main", Git: gitcmd.Repo{Dir: dir}, CheckPin: pc.check, Launcher: []byte(shippedLauncher), Findings: fs})
 	return code, out.String()
 }
 
@@ -119,6 +121,15 @@ func TestPinGuard(t *testing.T) {
 		{"the bot edits the launcher", func(t *testing.T) func(string) {
 			return func(dir string) { write(t, dir, ".claudinite/launch", "#!/bin/sh\n# edited\n") }
 		}, bot, nil, 1, "launcher", false},
+		{"the bot moves the pin and the launcher to the one this engine ships", func(t *testing.T) func(string) {
+			return func(dir string) { movePin(t)(dir); write(t, dir, ".claudinite/launch", shippedLauncher) }
+		}, bot, nil, 0, "", true},
+		{"the bot moves the pin and the launcher to one this engine does not ship", func(t *testing.T) func(string) {
+			return func(dir string) { movePin(t)(dir); write(t, dir, ".claudinite/launch", "#!/bin/sh\n# edited\n") }
+		}, bot, nil, 1, "does not ship", false},
+		{"the bot changes only the launcher, to the one this engine ships", func(t *testing.T) func(string) {
+			return func(dir string) { write(t, dir, ".claudinite/launch", shippedLauncher) }
+		}, bot, nil, 1, "only the launcher", false},
 		{"the bot changes the package", func(t *testing.T) func(string) {
 			return func(dir string) {
 				write(t, dir, ".claudinite/settings.yaml", strings.Replace(settingsBody("1.2.0", pin2), "cli-rc", "cli", 1))

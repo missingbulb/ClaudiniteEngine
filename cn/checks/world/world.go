@@ -13,6 +13,7 @@
 package world
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"strings"
@@ -49,7 +50,10 @@ type Input struct {
 	// exactly so. A nil ExpectedWorkflow accepts none.
 	Workflows        []string
 	ExpectedWorkflow func(name string, base []byte) ([]byte, error)
-	Findings         []findings.Finding
+	// Launcher is the launcher this engine ships: an update PR may carry
+	// it, byte for byte, and no other.
+	Launcher []byte
+	Findings []findings.Finding
 }
 
 // Run prints the guard's verdict and the findings, and returns 1 on a
@@ -129,17 +133,30 @@ func guard(in Input) error {
 	if in.PRAuthor != Bot {
 		return personGuard(in, base, pinFiles)
 	}
+	var settingsFiles []string
 	for _, p := range pinFiles {
-		if p == ".claudinite/launch" {
-			return fmt.Errorf("the PR changes the launcher, .claudinite/launch; an engine update PR moves only engine.version and engine.manifest")
+		if p != ".claudinite/launch" {
+			settingsFiles = append(settingsFiles, p)
+			continue
+		}
+		have, _, err := in.Git.Show("HEAD", p)
+		if err != nil {
+			return err
+		}
+		if len(in.Launcher) == 0 || !bytes.Equal(have, in.Launcher) {
+			return fmt.Errorf("the PR changes the launcher, .claudinite/launch, to one this engine does not ship")
 		}
 	}
+	if len(settingsFiles) == 0 {
+		return fmt.Errorf("an update PR moves engine.version and engine.manifest, but this one changes only the launcher")
+	}
+	pinFiles = settingsFiles
 	// The member file restates the pin, so the engine update PR carries it,
-	// and the workflows the new engine expects, which its agent stage moved
-	// in.
+	// with the launcher the new engine ships and the workflows it expects,
+	// which its agent stage moved in.
 	others := 0
 	for _, c := range changed {
-		if c == flatdecl.MemberFile || c == flatdecl.LegacyPath(flatdecl.MemberFile) {
+		if c == flatdecl.MemberFile || c == flatdecl.LegacyPath(flatdecl.MemberFile) || c == ".claudinite/launch" {
 			continue
 		}
 		accepted, err := expectedWorkflow(in, base, c)
