@@ -243,11 +243,10 @@ func Plan(in PlanIn) ([]Op, []Asked, error) {
 			continue
 		}
 		fields := workitem.ParseRequestFields(req.Body, req.AuthorHasPush != nil && *req.AuthorHasPush)
-		id := fields.Task
-		if id == "" {
-			id = taskspec.BuiltinPack + "/" + taskspec.RequestTask
+		task, ok := byID[fields.Task]
+		if fields.Task == "" {
+			task, ok = taskspec.RequestHandler(in.Tasks)
 		}
-		task, ok := byID[id]
 		if !ok {
 			continue
 		}

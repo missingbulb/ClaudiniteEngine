@@ -1143,7 +1143,7 @@ GO
       pull_after() { (cd "$member" && git -c push.negotiate=false pull -q --ff-only origin main) || fail "tasks: pull"; }
 
       cn_member tasks list > "$work/list.out" 2>&1 || fail "tasks 1: tasks list: $(cat "$work/list.out")"
-      for t in hello/hello-fold hello/hello-agent engine/implement-request; do
+      for t in hello/hello-fold hello/hello-agent; do
         grep -q "^$t " "$work/list.out" || fail "tasks 1: tasks list does not name $t: $(cat "$work/list.out")"
       done
       cn_member check world > "$work/world.out" 2>&1 || fail "tasks 1: check world: $(cat "$work/world.out")"
@@ -1156,7 +1156,7 @@ GO
       grep -q "task-declaration-shape .claudinite/local/packs/probe/tasks/probe/task.json" "$work/world.out" \
         || fail "tasks 1: task-declaration-shape did not fail it: $(cat "$work/world.out")"
       rm -r "$member/.claudinite/local"
-      step "tasks 1: tasks list names the three tasks; check world passes, and task-declaration-shape fails a misspelt field"
+      step "tasks 1: tasks list names the two tasks; check world passes, and task-declaration-shape fails a misspelt field"
 
       sched run > "$work/sched.out" 2>&1 || fail "tasks 2: schedule run: $(cat "$work/sched.out")"
       [ "$(gh_count 'st.issues.length')" = 0 ] || fail "tasks 2: a quiet repo filed an item: $(gh_state)"

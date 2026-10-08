@@ -105,7 +105,9 @@ commands:
                  print one execution record
   work validate --issue N --nonce X --item-file PATH --comments-file PATH
                  [--request-file PATH] [--repo DIR]
-                 a routine session's entry gate: the hand-off's nonce
+                 a routine session's entry gate: the hand-off's nonce;
+                 for a task that delivers a pull request, the repo's
+                 delivery
   execute loop [--repo DIR]
                  the executor: claim, re-evaluate, run and converge every
                  ready item; needs GITHUB_TOKEN

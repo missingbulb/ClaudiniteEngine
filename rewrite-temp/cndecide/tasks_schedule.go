@@ -26,9 +26,7 @@ func fixtureTasks(specs []fixtureTask) []taskspec.Task {
 	out := make([]taskspec.Task, 0, len(specs))
 	for _, s := range specs {
 		t := taskspec.Task{Pack: s.Pack, ID: s.ID, Decl: taskspec.Normalize(s.Decl).(taskspec.Decl)}
-		if s.Pack != taskspec.BuiltinPack || s.TaskPath != taskspec.RequestTaskPath {
-			t.Rel = strings.TrimSuffix(s.TaskPath, "/task.md")
-		}
+		t.Rel = strings.TrimSuffix(s.TaskPath, "/task.md")
 		out = append(out, t)
 	}
 	return out

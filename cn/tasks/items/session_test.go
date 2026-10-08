@@ -90,7 +90,7 @@ func TestAnItemThisSessionDoesNotHoldIsRefused(t *testing.T) {
 	}
 	marked := held(func(i *workitem.Issue) {
 		i.Title = "Implement the thing"
-		i.Body = "do it\n\n<!-- claudinite-item -->\n.claudinite/shared/packs/claudinite-tasks/public/implement-request.md\n\nRequest: #7\n<!-- /claudinite-item -->\n"
+		i.Body = "do it\n\n<!-- claudinite-item -->\n.claudinite/shared/packs/acme-pack/tasks/acme-task/task.md\n\nRequest: #7\n<!-- /claudinite-item -->\n"
 	})
 	if r := Refusal(marked, 7); r != "" {
 		t.Error(r)

@@ -188,6 +188,15 @@ const (
 	DormantConfigKey = "dormant"
 )
 
+// InstructionsFile is where SessionStart writes RoutineInstructions in a
+// repo declaring the tasks pack; the file ignores itself, so it is always
+// the pinned engine's copy.
+const InstructionsFile = ".claudinite/cache/instructions.md"
+
+// RoutinePrompt is the executor routine's whole stored prompt: the
+// procedure itself ships in the engine the member pins.
+const RoutinePrompt = "Read `" + InstructionsFile + "` and follow it."
+
 // The two member workflow files.
 const (
 	SchedulerWorkflowFile = "claudinite-scheduler.yml"

@@ -214,8 +214,6 @@ func Evaluate(in Input) Verdict {
 				var out Outcome
 				if h, builtin := holds[ref.Name]; builtin {
 					out = h(in.Signals, o)
-				} else if h, engine := engineHolds[ref.Name]; engine {
-					out = h(in.Signals, o)
 				} else if in.Local != nil {
 					out = in.Local(ref, in.Signals, o)
 				} else {
