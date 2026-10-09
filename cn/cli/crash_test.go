@@ -85,7 +85,7 @@ func crashFileFrom(t *testing.T, stderr, wantCrumb string) string {
 
 func TestSelftestPanicWritesCrashFile(t *testing.T) {
 	t.Parallel()
-	bin := buildCN(t, "-X github.com/missingbulb/ClaudiniteEngine/cn/packaging/version.version=1.1.0")
+	bin := buildCN(t, versioned)
 	cache := t.TempDir()
 	_, errOut, code := runCN(t, bin, []string{"XDG_CACHE_HOME=" + cache, "CN_TEST_SECRET=hunter2-env"}, "stdin-secret-xyz", "selftest", "--panic")
 	if code != 1 {
@@ -106,7 +106,7 @@ func TestSelftestPanicWritesCrashFile(t *testing.T) {
 		t.Fatalf("mode %v", st.Mode().Perm())
 	}
 	raw, _ := os.ReadFile(file)
-	for _, want := range []string{"1.1.0", "selftest --panic", "goroutine"} {
+	for _, want := range []string{"1.60928.3", "selftest --panic", "goroutine"} {
 		if !strings.Contains(string(raw), want) {
 			t.Errorf("crash file lacks %q", want)
 		}

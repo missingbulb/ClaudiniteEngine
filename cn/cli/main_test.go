@@ -41,6 +41,10 @@ type cnBuild struct {
 	err  error
 }
 
+// versioned is a release build's ldflags: the version and commit cn
+// reports, injected as a release's are.
+const versioned = "-X github.com/missingbulb/ClaudiniteEngine/cn/packaging/version.version=1.60928.3 -X github.com/missingbulb/ClaudiniteEngine/cn/packaging/version.commit=abc1234"
+
 // buildCN builds the real binary with extra ldflags, once per ldflags for the
 // whole package, and returns its path; tests only run it.
 func buildCN(t *testing.T, ldflags string) string {
@@ -90,7 +94,7 @@ func runCN(t *testing.T, bin string, env []string, stdin string, args ...string)
 
 func TestVersionPrintsInjectedVersion(t *testing.T) {
 	t.Parallel()
-	bin := buildCN(t, "-X github.com/missingbulb/ClaudiniteEngine/cn/packaging/version.version=1.60928.3 -X github.com/missingbulb/ClaudiniteEngine/cn/packaging/version.commit=abc1234")
+	bin := buildCN(t, versioned)
 	out, _, code := runCN(t, bin, nil, "", "version")
 	if code != 0 {
 		t.Fatalf("exit %d", code)
