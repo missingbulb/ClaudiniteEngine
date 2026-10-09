@@ -41,7 +41,7 @@ func TestThePortSpeaksTheIssuesAPI(t *testing.T) {
 			return 404, `{"message":"Not Found"}`
 		case r.method == "DELETE":
 			return 404, `{"message":"Label does not exist"}`
-		case r.path == "/repos/o/r/labels" && strings.Contains(r.body, `"exists"`):
+		case r.path == "/repos/o/r/labels" && strings.Contains(r.body, `"task:status:done"`):
 			return 422, `{"message":"already_exists"}`
 		case r.path == "/repos/o/r/collaborators/stranger/permission":
 			return 404, `{}`
@@ -66,11 +66,11 @@ func TestThePortSpeaksTheIssuesAPI(t *testing.T) {
 	if err := g.RemoveLabel(3, "task:status:blocked"); err != nil {
 		t.Errorf("removing an absent label is the end state asked for: %v", err)
 	}
-	if err := g.EnsureLabels([]workitem.Label{{Name: "exists", Color: "fff"}}); err != nil {
+	if err := g.EnsureLabels([]workitem.Label{{Name: workitem.StatusDone, Color: "fff"}}); err != nil {
 		t.Errorf("ensure: %v", err)
 	}
 	last := (*seen)[len(*seen)-1]
-	if last.method != "PATCH" || last.path != "/repos/o/r/labels/exists" {
+	if last.method != "PATCH" || last.path != "/repos/o/r/labels/task:status:done" {
 		t.Errorf("a label that exists is reconciled, got %+v", last)
 	}
 	if _, err := g.Permission("stranger"); !errors.Is(err, world.ErrGone) {
@@ -116,7 +116,9 @@ func TestThePortSpeaksThePullsAndLaneAPIs(t *testing.T) {
 		case r.path == "/repos/o/r/rules/branches/main":
 			return 200, `[{"type":"deletion"},{"type":"pull_request"}]`
 		case strings.HasPrefix(r.path, "/repos/o/r/actions/runs?head_sha=abc"):
-			return 200, `{"workflow_runs":[{"name":"CI","status":"completed","conclusion":"success"}]}`
+			return 200, `{"workflow_runs":[{"id":41,"name":"CI","event":"pull_request","status":"completed","conclusion":"success"}]}`
+		case r.path == "/repos/o/r/actions/runs/42/approve":
+			return 403, `{"message":"Resource not accessible by integration"}`
 		case r.path == "/graphql":
 			if strings.Contains(r.body, "PR_bad") {
 				return 200, `{"errors":[{"message":"Pull request is in clean status"}]}`
@@ -163,8 +165,14 @@ func TestThePortSpeaksThePullsAndLaneAPIs(t *testing.T) {
 	if rules, err := g.BranchRules("main"); err != nil || strings.Join(rules, ",") != "deletion,pull_request" {
 		t.Error(rules, err)
 	}
-	if runs, err := g.RunsForSHA("abc"); err != nil || len(runs) != 1 || runs[0].Conclusion != "success" {
+	if runs, err := g.RunsForSHA("abc"); err != nil || len(runs) != 1 || runs[0].Conclusion != "success" || runs[0].ID != 41 || runs[0].Event != "pull_request" {
 		t.Error(runs, err)
+	}
+	if err := g.ApproveRun(41); err != nil {
+		t.Error(err)
+	}
+	if err := g.ApproveRun(42); !errors.As(err, &se) || se.Status != 403 {
+		t.Error("the lane reads a refused approval's status:", err)
 	}
 	if err := g.EnableAutoMerge("PR_5"); err != nil {
 		t.Error(err)
@@ -193,5 +201,21 @@ func TestThePortSpeaksThePullsAndLaneAPIs(t *testing.T) {
 	}
 	if last := (*seen)[len(*seen)-1]; last.method != "DELETE" || last.path != "/repos/o/r/git/refs/heads/claudinite/a/x" {
 		t.Error(last)
+	}
+}
+
+func TestThePortRefusesALabelOffTheApprovedList(t *testing.T) {
+	g, seen := stubGitHub(t, func(recorded) (int, string) { return 200, `{"number":1}` })
+	if err := g.AddLabel(3, "made-up"); err == nil {
+		t.Error("adding an unapproved label succeeded")
+	}
+	if _, err := g.CreateIssue("t", "b", []string{workitem.OriginManual, "made-up"}); err == nil {
+		t.Error("filing an issue under an unapproved label succeeded")
+	}
+	if err := g.EnsureLabels([]workitem.Label{{Name: "made-up"}}); err == nil {
+		t.Error("defining an unapproved label succeeded")
+	}
+	if len(*seen) != 0 {
+		t.Errorf("a refused label still reached GitHub: %+v", *seen)
 	}
 }

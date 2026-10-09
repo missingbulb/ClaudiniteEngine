@@ -202,6 +202,11 @@ func (h Handler) sessionStart(repo, session string, outcome breadcrumb.Outcome, 
 		}
 	}
 	if ctx.selfCheck != "" {
+		if err := writeInstructions(repo); err != nil {
+			fmt.Fprintf(&b, "[cn] routine instructions not written: %v\n", err)
+		}
+	}
+	if ctx.selfCheck != "" {
 		b.WriteString(ctx.selfCheck + "\n")
 	}
 	b.WriteString(breadcrumb.Line("hooks", "session-start", outcome, time.Since(start)) + "\n")

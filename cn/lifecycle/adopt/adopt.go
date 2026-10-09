@@ -27,8 +27,6 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/packindex"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/packset"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/settings"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/settings/node"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/workitem"
 )
 
 // DefaultPackage is the engine package a pin names when it names none.
@@ -54,23 +52,23 @@ type Input struct {
 	Answers []AnswerFlag
 }
 
-// vendored is one pack chosen and read, ready to unpack.
-type vendored struct {
-	id      string
-	entry   packindex.Entry
-	archive []byte
+// Vendored is one pack chosen and read, ready to unpack.
+type Vendored struct {
+	ID      string
+	Entry   packindex.Entry
+	Archive []byte
 }
 
-// resolve selects every id and what their requires pull in, in order,
+// Resolve selects every id and what their requires pull in, in order,
 // for an engine at pin on channel, and reads each archive. held names the
 // packs already declared, which are not vendored again.
-func resolve(r update.PackReader, ids []string, held map[string]bool, channel, pin string, out io.Writer) ([]vendored, error) {
+func Resolve(r update.PackReader, ids []string, held map[string]bool, channel, pin string, out io.Writer) ([]Vendored, error) {
 	queue := append([]string{}, ids...)
 	seen := map[string]bool{}
 	for _, id := range ids {
 		seen[id] = true
 	}
-	var got []vendored
+	var got []Vendored
 	for len(queue) > 0 {
 		id := queue[0]
 		queue = queue[1:]
@@ -97,7 +95,7 @@ func resolve(r update.PackReader, ids []string, held map[string]bool, channel, p
 		if err != nil {
 			return nil, err
 		}
-		got = append(got, vendored{id: id, entry: *c.Entry, archive: data})
+		got = append(got, Vendored{ID: id, Entry: *c.Entry, Archive: data})
 	}
 	return got, nil
 }
@@ -130,29 +128,26 @@ func Init(in Input) error {
 	if _, err := os.Stat(filepath.Join(in.Repo, ".claudinite", "launch")); err == nil {
 		return errors.New(".claudinite/launch already exists: this repo is adopted")
 	}
-	if _, err := os.Stat(filepath.Join(in.Repo, node.File)); err == nil {
-		return fmt.Errorf("%s exists: this repo runs the Node engine; cn init --from-node moves it", node.File)
-	}
 	if err := checkIDs(in.Packs); err != nil {
 		return err
 	}
-	got, err := pickEngine(&in)
+	got, err := PickEngine(&in)
 	if err != nil {
 		return err
 	}
-	chosen, err := resolve(in.Reader, in.Packs, nil, packsChannel(in.Channel), got.Version, in.Out)
+	chosen, err := Resolve(in.Reader, in.Packs, nil, PacksChannel(in.Channel), got.Version, in.Out)
 	if err != nil {
 		return err
 	}
 	var ids []string
 	for _, v := range chosen {
-		ids = append(ids, v.id)
-		fmt.Fprintf(in.Out, "pack: %s %s\n", v.id, v.entry.Version)
+		ids = append(ids, v.ID)
+		fmt.Fprintf(in.Out, "pack: %s %s\n", v.ID, v.Entry.Version)
 	}
 
 	var cfg bytes.Buffer
-	cfg.WriteString(engineBlock(in.Channel, got.Version, got.Integrity))
-	fmt.Fprintf(&cfg, "packs:\n  channel: %q\n  declared:\n", packsChannel(in.Channel))
+	cfg.WriteString(EngineBlock(in.Channel, got.Version, got.Integrity))
+	fmt.Fprintf(&cfg, "packs:\n  channel: %q\n  declared:\n", PacksChannel(in.Channel))
 	for _, id := range ids {
 		fmt.Fprintf(&cfg, "    - %s\n", id)
 	}
@@ -179,7 +174,7 @@ func Init(in Input) error {
 		return err
 	}
 	for _, v := range chosen {
-		if err := packs.Unpack(v.archive, packset.Tree(in.Repo, v.id)); err != nil {
+		if err := packs.Unpack(v.Archive, packset.Tree(in.Repo, v.ID)); err != nil {
 			return err
 		}
 	}
@@ -189,12 +184,12 @@ func Init(in Input) error {
 	if _, err := rulesindex.EnsureImport(in.Repo); err != nil {
 		return err
 	}
-	return finish(finishInput{Repo: in.Repo, Engine: got.Version, Newly: ids, Answers: in.Answers, Core: true, Out: in.Out})
+	return Finish(FinishInput{Repo: in.Repo, Engine: got.Version, Newly: ids, Answers: in.Answers, Core: true, Out: in.Out})
 }
 
-// engineBlock is the pin a new member starts from, naming its channel
+// EngineBlock is the pin a new member starts from, naming its channel
 // unless it is stable.
-func engineBlock(channel, version, integrity string) string {
+func EngineBlock(channel, version, integrity string) string {
 	var b strings.Builder
 	b.WriteString("engine:\n")
 	if channel != settings.ChannelStable {
@@ -204,18 +199,18 @@ func engineBlock(channel, version, integrity string) string {
 	return b.String()
 }
 
-// packsChannel is the pack channel beside an engine channel: staging's
+// PacksChannel is the pack channel beside an engine channel: staging's
 // quick engines read the canary packs.
-func packsChannel(engine string) string {
+func PacksChannel(engine string) string {
 	if engine == settings.ChannelStaging {
 		return settings.ChannelCanary
 	}
 	return engine
 }
 
-// pickEngine settles in's channel, then picks, fetches and selftests the
+// PickEngine settles in's channel, then picks, fetches and selftests the
 // newest engine the channel's tags allow, printing what it chose.
-func pickEngine(in *Input) (update.Fetched, error) {
+func PickEngine(in *Input) (update.Fetched, error) {
 	if in.Channel == "" {
 		in.Channel = settings.ChannelStable
 	}
@@ -249,9 +244,9 @@ func pickEngine(in *Input) (update.Fetched, error) {
 	return got, nil
 }
 
-// finishInput is the tail init and adopt share once the packs are
+// FinishInput is the tail init and adopt share once the packs are
 // vendored and declared.
-type finishInput struct {
+type FinishInput struct {
 	Repo, Engine string
 	// Newly are the packs this run vendored, in the order it chose them.
 	Newly   []string
@@ -260,14 +255,14 @@ type finishInput struct {
 	Core bool
 	// First are NEXT's steps before the commit's.
 	First []string
-	// Seed writes the new packs' seedOps; a move seeds nothing.
+	// NoSeed leaves the new packs' seedOps unwritten.
 	NoSeed bool
 	Out    io.Writer
 }
 
-// finish records the answers, seeds and stamps for the new packs, and
+// Finish records the answers, seeds and stamps for the new packs, and
 // prints QUESTIONS, HANDOVER and NEXT.
-func finish(in finishInput) error {
+func Finish(in FinishInput) error {
 	if err := applyAnswers(in.Repo, in.Engine, in.Answers, in.Out); err != nil {
 		return err
 	}
@@ -296,10 +291,10 @@ func finish(in finishInput) error {
 		}
 	}
 	pending, _ := interview.State(set)
-	steps := Handover(HandoverInput{Core: in.Core, Tasks: newly[workitem.TasksPackID], Newly: packs})
+	steps := Handover(HandoverInput{Core: in.Core, Newly: packs})
 	writeQuestions(in.Out, pending)
 	writeHandover(in.Out, steps)
-	writeNext(in.Out, NextInput{First: in.First, Routine: newly[workitem.TasksPackID], Handover: len(steps) > 0})
+	writeNext(in.Out, NextInput{First: in.First, Routine: in.Core, Handover: len(steps) > 0})
 	return nil
 }
 
@@ -308,16 +303,16 @@ func finish(in finishInput) error {
 // cn does not own survive (re-serialized, the one Claude Code file cn
 // init rewrites).
 func mergeHooks(path string) ([]byte, error) {
-	obj, err := readClaudeSettings(path)
+	obj, err := ReadClaudeSettings(path)
 	if err != nil {
 		return nil, err
 	}
-	return mergeHooksInto(obj)
+	return MergeHooksInto(obj)
 }
 
-// readClaudeSettings is .claude/settings.json as an object, empty when
+// ReadClaudeSettings is .claude/settings.json as an object, empty when
 // the file is absent.
-func readClaudeSettings(path string) (map[string]any, error) {
+func ReadClaudeSettings(path string) (map[string]any, error) {
 	obj := map[string]any{}
 	if raw, err := os.ReadFile(path); err == nil {
 		if err := json.Unmarshal(raw, &obj); err != nil {
@@ -329,9 +324,9 @@ func readClaudeSettings(path string) (map[string]any, error) {
 	return obj, nil
 }
 
-// mergeHooksInto adds the six wirings to obj where missing and serializes
+// MergeHooksInto adds the six wirings to obj where missing and serializes
 // it.
-func mergeHooksInto(obj map[string]any) ([]byte, error) {
+func MergeHooksInto(obj map[string]any) ([]byte, error) {
 	hooks, _ := obj["hooks"].(map[string]any)
 	if hooks == nil {
 		if _, present := obj["hooks"]; present {
@@ -385,8 +380,8 @@ const SkillsIgnore = ".claude/skills/.gitignore"
 
 const skillsIgnoreBody = "*\n!.gitignore\n"
 
-// ensureSkillsIgnore writes SkillsIgnore when the repo has none.
-func ensureSkillsIgnore(repo string) error {
+// EnsureSkillsIgnore writes SkillsIgnore when the repo has none.
+func EnsureSkillsIgnore(repo string) error {
 	path := filepath.Join(repo, filepath.FromSlash(SkillsIgnore))
 	if _, err := os.Lstat(path); err == nil {
 		return nil
@@ -431,22 +426,22 @@ func Adopt(in AdoptInput) error {
 			return fmt.Errorf("pack %s is already declared", id)
 		}
 	}
-	chosen, err := resolve(in.Reader, in.IDs, held, declared.Channel, pin.Version, in.Out)
+	chosen, err := Resolve(in.Reader, in.IDs, held, declared.Channel, pin.Version, in.Out)
 	if err != nil {
 		return err
 	}
 	var ids []string
 	for _, v := range chosen {
-		if raw, err = settings.AddDeclared(raw, f, v.id); err != nil {
+		if raw, err = settings.AddDeclared(raw, f, v.ID); err != nil {
 			return err
 		}
-		ids = append(ids, v.id)
+		ids = append(ids, v.ID)
 	}
 	for _, v := range chosen {
-		if err := packs.Unpack(v.archive, packset.Tree(in.Repo, v.id)); err != nil {
+		if err := packs.Unpack(v.Archive, packset.Tree(in.Repo, v.ID)); err != nil {
 			return err
 		}
-		fmt.Fprintf(in.Out, "pack: %s %s\n", v.id, v.entry.Version)
+		fmt.Fprintf(in.Out, "pack: %s %s\n", v.ID, v.Entry.Version)
 	}
 	if err := writeKeepingMode(path, raw); err != nil {
 		return err
@@ -457,9 +452,32 @@ func Adopt(in AdoptInput) error {
 	if _, err := rulesindex.EnsureImport(in.Repo); err != nil {
 		return err
 	}
-	if err := ensureSkillsIgnore(in.Repo); err != nil {
+	if err := EnsureSkillsIgnore(in.Repo); err != nil {
 		return err
 	}
 	fmt.Fprintf(in.Out, "Declared in %s.\n", settings.RelPath(f))
-	return finish(finishInput{Repo: in.Repo, Engine: pin.Version, Newly: ids, Answers: in.Answers, Out: in.Out})
+	return Finish(FinishInput{Repo: in.Repo, Engine: pin.Version, Newly: ids, Answers: in.Answers, Out: in.Out})
+}
+
+// memberFile is one file init writes.
+type memberFile struct {
+	rel  string
+	data []byte
+	mode os.FileMode
+}
+
+func writeFiles(repo string, files []memberFile) error {
+	for _, f := range files {
+		p := filepath.Join(repo, filepath.FromSlash(f.rel))
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(p, f.data, f.mode); err != nil {
+			return err
+		}
+		if err := os.Chmod(p, f.mode); err != nil {
+			return err
+		}
+	}
+	return nil
 }

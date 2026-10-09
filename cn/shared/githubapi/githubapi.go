@@ -9,15 +9,16 @@
 // The calls, each one method here:
 //
 //	GET   /repos/{repo}/actions/workflows/{workflow}/runs?head_sha=  WorkflowRuns
+//	GET   /repos/{repo}/actions/runs?head_sha=                       HeadRuns
+//	POST  /repos/{repo}/actions/runs/{id}/approve                    ApproveRun
 //	GET   /repos/{repo}/pulls?state=open                             OpenPulls
 //	GET   /repos/{repo}/pulls/{n}                                    Pull
 //	POST  /repos/{repo}/pulls                                        CreatePull
 //	PATCH /repos/{repo}/pulls/{n}  state=closed                      ClosePull
 //	PUT   /repos/{repo}/pulls/{n}/merge  squash                      MergePull
-//	POST  /repos/{repo}/issues/{n}/labels                            AddLabel
 //	POST  /repos/{repo}/issues/{n}/comments                          Comment
 //	POST  /repos/{repo}/actions/workflows/{workflow}/dispatches      Dispatch
-//	GET   /repos/{repo}/issues?state=open&labels=                    OpenIssues
+//	GET   /repos/{repo}/issues?state=open&page=                      OpenIssues
 //	POST  /repos/{repo}/issues                                       CreateIssue
 //	PATCH /repos/{repo}/issues/{n}  body                             UpdateIssueBody
 //	PATCH /repos/{repo}/issues/{n}  state=closed                     CloseIssue
@@ -161,6 +162,7 @@ func (c *Client) Raw(method, path string, in any) (int, []byte, error) {
 // Run is one workflow run.
 type Run struct {
 	ID         int64  `json:"id"`
+	Name       string `json:"name"`
 	HeadSHA    string `json:"head_sha"`
 	Event      string `json:"event"`
 	Status     string `json:"status"`
@@ -175,6 +177,22 @@ func (c *Client) WorkflowRuns(workflow, sha string) ([]Run, error) {
 	}
 	err := c.do(http.MethodGet, fmt.Sprintf("/repos/%s/actions/workflows/%s/runs?head_sha=%s&per_page=100", c.Repo, url.PathEscape(workflow), url.QueryEscape(sha)), nil, &out)
 	return out.Runs, err
+}
+
+// HeadRuns lists every workflow's runs on one commit, newest first.
+func (c *Client) HeadRuns(sha string) ([]Run, error) {
+	var out struct {
+		Runs []Run `json:"workflow_runs"`
+	}
+	err := c.do(http.MethodGet, fmt.Sprintf("/repos/%s/actions/runs?head_sha=%s&per_page=100", c.Repo, url.QueryEscape(sha)), nil, &out)
+	return out.Runs, err
+}
+
+// ApproveRun approves a run GitHub holds at action_required, as it holds
+// the pull_request runs of a pull request the job token opened; the run
+// then executes. The token needs actions: write.
+func (c *Client) ApproveRun(id int64) error {
+	return c.do(http.MethodPost, fmt.Sprintf("/repos/%s/actions/runs/%d/approve", c.Repo, id), nil, nil)
 }
 
 // PR is a pull request.
@@ -263,12 +281,6 @@ func (c *Client) MergePull(n int, sha, title string) error {
 	return c.do(http.MethodPut, fmt.Sprintf("/repos/%s/pulls/%d/merge", c.Repo, n), map[string]string{"merge_method": "squash", "sha": sha, "commit_title": title}, nil)
 }
 
-// AddLabel adds label to an issue or pull request, creating the label if
-// the repository lacks it.
-func (c *Client) AddLabel(n int, label string) error {
-	return c.do(http.MethodPost, fmt.Sprintf("/repos/%s/issues/%d/labels", c.Repo, n), map[string][]string{"labels": {label}}, nil)
-}
-
 // Comment comments on an issue or pull request.
 func (c *Client) Comment(n int, body string) error {
 	return c.do(http.MethodPost, fmt.Sprintf("/repos/%s/issues/%d/comments", c.Repo, n), map[string]string{"body": body}, nil)
@@ -290,32 +302,36 @@ type Issue struct {
 	Body   string
 }
 
-// OpenIssues lists open issues (not pull requests) carrying label.
-func (c *Client) OpenIssues(label string) ([]Issue, error) {
-	var raw []struct {
-		Number      int             `json:"number"`
-		Title       string          `json:"title"`
-		Body        string          `json:"body"`
-		PullRequest json.RawMessage `json:"pull_request"`
-	}
-	if err := c.do(http.MethodGet, fmt.Sprintf("/repos/%s/issues?state=open&per_page=100&labels=%s", c.Repo, url.QueryEscape(label)), nil, &raw); err != nil {
-		return nil, err
-	}
+// OpenIssues lists every open issue (not pull requests).
+func (c *Client) OpenIssues() ([]Issue, error) {
 	var out []Issue
-	for _, r := range raw {
-		if r.PullRequest == nil {
-			out = append(out, Issue{r.Number, r.Title, r.Body})
+	for page := 1; ; page++ {
+		var raw []struct {
+			Number      int             `json:"number"`
+			Title       string          `json:"title"`
+			Body        string          `json:"body"`
+			PullRequest json.RawMessage `json:"pull_request"`
+		}
+		if err := c.do(http.MethodGet, fmt.Sprintf("/repos/%s/issues?state=open&per_page=100&page=%d", c.Repo, page), nil, &raw); err != nil {
+			return nil, err
+		}
+		for _, r := range raw {
+			if r.PullRequest == nil {
+				out = append(out, Issue{r.Number, r.Title, r.Body})
+			}
+		}
+		if len(raw) < 100 {
+			return out, nil
 		}
 	}
-	return out, nil
 }
 
-// CreateIssue opens an issue carrying label and returns its number.
-func (c *Client) CreateIssue(title, body, label string) (int, error) {
+// CreateIssue opens an issue and returns its number.
+func (c *Client) CreateIssue(title, body string) (int, error) {
 	var out struct {
 		Number int `json:"number"`
 	}
-	err := c.do(http.MethodPost, fmt.Sprintf("/repos/%s/issues", c.Repo), map[string]any{"title": title, "body": body, "labels": []string{label}}, &out)
+	err := c.do(http.MethodPost, fmt.Sprintf("/repos/%s/issues", c.Repo), map[string]any{"title": title, "body": body}, &out)
 	return out.Number, err
 }
 

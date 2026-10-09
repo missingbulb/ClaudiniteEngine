@@ -9,12 +9,12 @@
 // vetoes, `under:<dir>` scopes to a folder, and an unknown name fails
 // closed. The built-in classes and the composite are string-identical with
 // the Node engine's merge-policy.mjs at missingbulb/Claudinite@057841ac,
-// but for the two engine-update classes Node has no counterpart of; a
-// pack adds its own as data in merge-rules.json (or .yaml, .toml). Under a
-// list policy the files that define policies are never coverable unless
-// the edit is comment-only, so a run cannot widen its own authorization;
-// the one exception is engine-pin-move, a settings edit moving nothing but
-// the engine pin.
+// but for the engine-update and usage-fold classes, which that engine has
+// no counterpart of; a pack adds its own as data in merge-rules.json (or
+// .yaml, .toml). Under a list policy the files that define policies are
+// never coverable unless the edit is comment-only, so a run cannot widen
+// its own authorization; the one exception is engine-pin-move, a settings
+// edit moving nothing but the engine pin.
 package mergepolicy
 
 import (
@@ -203,13 +203,16 @@ func isEnginePinMove(e Entry) bool {
 }
 
 // isEngineUpdateFile is the member file, at its path or the legacy one,
-// or a managed workflow, added or modified.
+// or a managed workflow, added or modified, or the launcher, modified.
 func isEngineUpdateFile(e Entry) bool {
 	if e.ChangeKind() == "deleted" {
 		return false
 	}
 	if e.File == flatdecl.MemberFile || e.File == flatdecl.LegacyPath(flatdecl.MemberFile) {
 		return true
+	}
+	if e.File == ".claudinite/launch" {
+		return e.ChangeKind() == "modified"
 	}
 	for _, n := range EngineWorkflows {
 		if e.File == ".github/workflows/"+n {
@@ -226,7 +229,15 @@ var builtinOrder = []string{
 	"doc-changes", "readme-changes", "comment-only-changes", "test-changes", "markdown-line-removals",
 	"markdown-trims", "file-additions", "generated-file-changes", "javascript-changes",
 	"single-file-code-changes", "single-folder-code-changes", "engine-pin-move", "engine-update-files",
+	"rolling-usage-files", "rolling-usage-file-moves",
 }
+
+// The usage fold's two rolling files, and the legacy copies a fold moves
+// them out of.
+var (
+	rollingUsageFile       = regexp.MustCompile(`^\.claudinite/usage/[^/]+\.json$`)
+	legacyRollingUsageFile = regexp.MustCompile(`^\.claudinite/local/(usage|tasks-usage)\.GENERATED\.json$`)
+)
 
 // Builtins are the built-in diff classes by name.
 var Builtins = map[string]Rule{
@@ -256,6 +267,12 @@ var Builtins = map[string]Rule{
 	}},
 	"engine-pin-move":     {AppliesTo: isEnginePinMove, CoversPolicySource: true},
 	"engine-update-files": {AppliesTo: isEngineUpdateFile},
+	"rolling-usage-files": {AppliesTo: func(e Entry) bool {
+		return e.ChangeKind() != "deleted" && rollingUsageFile.MatchString(e.File)
+	}},
+	"rolling-usage-file-moves": {AppliesTo: func(e Entry) bool {
+		return e.ChangeKind() == "deleted" && legacyRollingUsageFile.MatchString(e.File)
+	}},
 	"single-folder-code-changes": {AppliesTo: isRealCodeChange, Constraint: func(covered []Entry) string {
 		dirs := uniqueSorted(covered, func(e Entry) string { return path.Dir(e.File) })
 		if len(dirs) <= 1 {

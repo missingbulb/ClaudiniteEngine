@@ -25,7 +25,6 @@ func proposeStaged(t *testing.T) (*world, EngineResult) {
 		t.Fatalf("%+v %v\n%s", got, err, w.out)
 	}
 	w.hub.pulls[0].HeadSHA = gitRun(t, w.bare, "rev-parse", got.Branch)
-	w.hub.pulls[0].Labels = []string{Label}
 	return w, got
 }
 
@@ -60,7 +59,7 @@ func TestAWorkflowChangeIsStagedOnTheUpdatePR(t *testing.T) {
 }
 
 // Workflows already as the new engine expects stage nothing: the PR is the
-// pin alone and its CI is dispatched as before.
+// pin alone and its held CI run is approved.
 func TestEqualWorkflowsStageNothing(t *testing.T) {
 	t.Parallel()
 	w := newWorld(t, settings.YAML)
@@ -72,8 +71,8 @@ func TestEqualWorkflowsStageNothing(t *testing.T) {
 	if files := gitRun(t, w.bare, "diff", "--name-only", "main", "claudinite/engine-"+v2); files != settings.RelPath(settings.YAML) {
 		t.Errorf("branch changes %q", files)
 	}
-	if d := w.hub.called("dispatch"); len(d) != 1 {
-		t.Errorf("dispatches %v", d)
+	if a := w.hub.called("approve"); len(a) != 1 || len(w.hub.called("dispatch")) != 0 {
+		t.Errorf("calls %v", w.hub.calls)
 	}
 }
 
@@ -228,7 +227,6 @@ func TestLandRefusesAnyOtherWorkflowEdit(t *testing.T) {
 	if _, err := EngineRun(w.deps(t), Options{}); err != nil {
 		t.Fatal(err)
 	}
-	w.hub.pulls[0].Labels = []string{Label}
 	sha := moveStaged(t, w, func(dir string) { _ = os.Remove(filepath.Join(dir, ".github", "workflows", "claudinite-ci.yml")) })
 	if _, err := Land(w.deps(t), 1, sha); err == nil || !strings.Contains(err.Error(), "claudinite-ci.yml") {
 		t.Errorf("a deletion: %v", err)

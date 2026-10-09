@@ -87,30 +87,30 @@ func TestReadPacksRefuses(t *testing.T) {
 	}
 }
 
-// The Node engine's pack-entry via and answers are carried opaque, and an
-// override in the retired severity spelling is read as its on_fail and
-// recorded for verify to name.
-func TestParseFileReadsTheNodeShapes(t *testing.T) {
-	raw := "packs:\n  declared:\n    - id: hello\n      via: [basics]\n      answers: {store: \"o/r\"}\n      rules: {x: advisory}\nchecks:\n  rules:\n    y: blocking\n    z: \"off\"\n"
+// The Node engine's settings keys are unknown keys: each refuses the
+// file. Answers stay read, and an override in the retired severity
+// spelling parses as written, for verify to judge.
+func TestParseFileRefusesTheNodeShapes(t *testing.T) {
+	for name, raw := range map[string]string{
+		"entry via":                 "packs:\n  declared:\n    - id: hello\n      via: [basics]\n",
+		"entry version":             "packs:\n  declared:\n    - id: hello\n      version: \"1.0\"\n",
+		"top-level sharedConstants": "sharedConstants: []\npacks:\n  declared:\n    - basics\n",
+		"license block":             "license:\n  plan: \"public\"\n",
+	} {
+		if _, err := ParseFile([]byte(raw), YAML); err == nil || !strings.Contains(err.Error(), "is not a") {
+			t.Errorf("%s: %v", name, err)
+		}
+	}
+	raw := "packs:\n  declared:\n    - id: hello\n      answers: {store: \"o/r\"}\nchecks:\n  rules:\n    y: blocking\n"
 	p, err := ParseFile([]byte(raw), YAML)
 	if err != nil {
 		t.Fatal(err)
 	}
-	e := p.Packs.Entries[0]
-	if !reflect.DeepEqual(e.Via, []any{"basics"}) || !reflect.DeepEqual(e.Answers, map[string]string{"store": "o/r"}) {
-		t.Errorf("via %v, answers %v", e.Via, e.Answers)
+	if e := p.Packs.Entries[0]; !reflect.DeepEqual(e.Answers, map[string]string{"store": "o/r"}) {
+		t.Errorf("answers %v", e.Answers)
 	}
-	rules, _, _ := p.Effective()
-	if !reflect.DeepEqual(rules, map[string]string{"x": "advise", "y": "block", "z": "off"}) {
+	if rules, _, _ := p.Effective(); rules["y"] != "blocking" {
 		t.Errorf("rules %v", rules)
-	}
-	got := map[string]string{}
-	for _, r := range p.Retired {
-		got[r.Rule] = r.Where + " " + r.Value + " " + r.OnFail
-	}
-	want := map[string]string{"x": "the hello pack entry advisory advise", "y": "the top-level checks block blocking block"}
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("retired %v", got)
 	}
 }
 

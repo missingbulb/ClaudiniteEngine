@@ -159,12 +159,10 @@ func TestStatusDecode(t *testing.T) {
 
 func TestTaskIDFromPath(t *testing.T) {
 	for path, want := range map[string]string{
-		"packs/p/tasks/t/task.md":                                              "p/t",
-		".claudinite/shared/packs/p/tasks/t/task.md":                           "p/t",
-		"engine/scheduler/queue/tasks/implement-request/task.md":               "engine/implement-request",
-		"packs/claudinite-tasks/queue/tasks/implement-request/task.md":         "engine/implement-request",
-		"packs/claudinite-tasks/public/implement-request.md":                   "engine/implement-request",
-		".claudinite/local/packs/claudinite-tasks/public/implement-request.md": "engine/implement-request",
+		"packs/p/tasks/t/task.md":                                      "p/t",
+		".claudinite/shared/packs/p/tasks/t/task.md":                   "p/t",
+		"engine/scheduler/queue/tasks/implement-request/task.md":       "engine/implement-request",
+		"packs/claudinite-tasks/queue/tasks/implement-request/task.md": "engine/implement-request",
 	} {
 		got, ok := TaskIDFromPath(path)
 		if !ok || got.ID() != want {

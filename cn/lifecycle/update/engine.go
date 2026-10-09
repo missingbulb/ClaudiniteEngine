@@ -27,10 +27,8 @@ import (
 
 const (
 	// CIWorkflow is the member workflow whose runs gate main and update
-	// PRs, and which the updater dispatches.
+	// PRs.
 	CIWorkflow = land.CIWorkflow
-	// Label marks the PRs and issues the updater owns.
-	Label = "claudinite-update"
 	// BranchPrefix starts every update branch; the version follows.
 	BranchPrefix = "claudinite/engine-"
 	remote       = "origin"
@@ -45,11 +43,13 @@ type GitHub interface {
 	CreatePull(title, body, head, base string) (githubapi.PR, error)
 	ClosePull(n int) error
 	MergePull(n int, sha, title string) error
-	AddLabel(n int, label string) error
 	Comment(n int, body string) error
 	Dispatch(workflow, ref string, inputs map[string]string) error
-	OpenIssues(label string) ([]githubapi.Issue, error)
-	CreateIssue(title, body, label string) (int, error)
+	// HeadRuns are every workflow's runs on one commit.
+	HeadRuns(sha string) ([]githubapi.Run, error)
+	ApproveRun(id int64) error
+	OpenIssues() ([]githubapi.Issue, error)
+	CreateIssue(title, body string) (int, error)
 	UpdateIssueBody(n int, body string) error
 	CloseIssue(n int) error
 }
@@ -59,6 +59,9 @@ type GitHub interface {
 type Deps struct {
 	GitHub   GitHub
 	Registry npmreg.Client
+	// ReleasesHost is where a pin's engine.releases repository is read
+	// from; empty is github.com.
+	ReleasesHost string
 	// Git is the member checkout, on main.
 	Git   gitcmd.Repo
 	Roots []ed25519.PublicKey
@@ -83,6 +86,9 @@ type Deps struct {
 	Packs PackReader
 	// Exe is this cn, which runs check world over a pack branch.
 	Exe string
+	// SelfRun is the workflow run this cn runs in (GITHUB_RUN_ID), 0
+	// outside one: a land job's own run on the PR's head counts green.
+	SelfRun int64
 }
 
 // Options are cn update engine's flags.
@@ -123,6 +129,10 @@ type EngineResult struct {
 	// MainPending is a run that waited on main's CI, which has no verdict
 	// yet: still running, or just dispatched (MainCIDispatched).
 	MainPending bool
+	// PRPending is a run that left an update PR whose CI has no verdict
+	// yet: its approved runs still running at the landing bound, or just
+	// approved.
+	PRPending bool
 }
 
 // MainCIDispatched is the verdict of a run that found no CI run on main's
@@ -130,12 +140,12 @@ type EngineResult struct {
 const MainCIDispatched = "skipped: main has no CI run yet; dispatched one"
 
 // latest is the newest run that counts: gated action_required runs never
-// do, and keep, when non-empty, limits the events that do.
-func latest(runs []githubapi.Run, keep string) *githubapi.Run {
+// do, and events, when given, limit the events that do.
+func latest(runs []githubapi.Run, events ...string) *githubapi.Run {
 	var best *githubapi.Run
 	for i := range runs {
 		r := &runs[i]
-		if r.Conclusion == "action_required" || (keep != "" && r.Event != keep) {
+		if r.Conclusion == "action_required" || (len(events) > 0 && !has(events, r.Event)) {
 			continue
 		}
 		if best == nil || r.CreatedAt > best.CreatedAt {
@@ -156,12 +166,70 @@ func runState(r *githubapi.Run) string {
 	return r.Conclusion
 }
 
-// updatePRs are the open PRs on an update branch that carry the label or
-// that the job token opened; the second kind lost its label (a failed
-// labelling call, a person removing it) and is relabelled rather than
-// duplicated by a CreatePull GitHub would refuse.
-func updatePRs(d Deps, prs []githubapi.PR) ([]githubapi.PR, error) {
-	return botPRs(d, prs, BranchPrefix)
+// landed is Land's answer, noting on res that main's new head has no CI
+// verdict yet when it merged: Land dispatched that CI.
+func landed(res *EngineResult, verdict string, err error) (string, error) {
+	if err == nil && strings.HasPrefix(verdict, "landed ") {
+		res.MainPending = true
+	}
+	return verdict, err
+}
+
+// awaitLanding starts update PR n's checks on sha and lands it on them in
+// this run when they pass in time; otherwise its verdict is opened, the
+// PR left for its land job (a dispatched CI) or for the next run.
+func awaitLanding(d Deps, res *EngineResult, n int, branch, sha, opened string) (string, error) {
+	h, err := startPRCI(d, n, branch, sha, land.HeldWait)
+	if err != nil || h.Seen == 0 {
+		return opened, err
+	}
+	v, pending, err := landOnCI(d, n, sha)
+	if err != nil {
+		return "", err
+	}
+	if v != "" {
+		return landed(res, v, nil)
+	}
+	res.PRPending = pending
+	return opened, nil
+}
+
+// retryCI is the open update PR's CI asked again when prevState says no
+// verdict will come for its head: its held runs approved, else its CI
+// dispatched; it returns the verdict's tail and notes on res a verdict
+// still to come.
+func retryCI(d Deps, res *EngineResult, pr githubapi.PR, prevState string) (string, error) {
+	switch prevState {
+	case "no run":
+		h, err := startPRCI(d, pr.Number, pr.HeadRef, pr.HeadSHA, 0)
+		if err != nil {
+			return "", err
+		}
+		if h.Seen == 0 {
+			return "; dispatched its CI again", nil
+		}
+		res.PRPending = true
+		if h.Approved == 0 {
+			return "", nil
+		}
+		if h.Approved == 1 {
+			return "; approved its held run", nil
+		}
+		return fmt.Sprintf("; approved its %d held runs", h.Approved), nil
+	case "cancelled", "timed_out":
+		if err := d.GitHub.Dispatch(CIWorkflow, pr.HeadRef, map[string]string{"pr": strconv.Itoa(pr.Number)}); err != nil {
+			return "", err
+		}
+		return "; dispatched its CI again", nil
+	case "queued", "in_progress", "waiting", "pending", "requested":
+		res.PRPending = true
+	}
+	return "", nil
+}
+
+// updatePRs are the open engine update PRs the job token opened.
+func updatePRs(prs []githubapi.PR) []githubapi.PR {
+	return botPRs(prs, BranchPrefix)
 }
 
 // Engine is one run of cn update engine. It acts at most once: a green
@@ -203,7 +271,7 @@ func mainGate(d Deps) (verdict string, pending bool, err error) {
 	if err != nil {
 		return "", false, err
 	}
-	r := latest(runs, "")
+	r := latest(runs)
 	if r == nil {
 		if err := d.GitHub.Dispatch(CIWorkflow, mainBranch, map[string]string{}); err != nil {
 			return "", false, fmt.Errorf("main's head %s has no %s run, and dispatching one failed: %w", head, CIWorkflow, err)
@@ -231,10 +299,7 @@ func engine(d Deps, o Options, res *EngineResult) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	open, err := updatePRs(d, all)
-	if err != nil {
-		return "", err
-	}
+	open := updatePRs(all)
 	if len(open) > 1 {
 		var names []string
 		for _, p := range open {
@@ -246,13 +311,12 @@ func engine(d Deps, o Options, res *EngineResult) (string, error) {
 	prevState := ""
 	if len(open) == 1 {
 		prev = &open[0]
-		runs, err := d.GitHub.WorkflowRuns(CIWorkflow, prev.HeadSHA)
-		if err != nil {
+		if prevState, err = prevCI(d, prev.HeadSHA); err != nil {
 			return "", err
 		}
-		prevState = runState(latest(runs, "workflow_dispatch"))
 		if prevState == "success" {
-			return Land(d, prev.Number, prev.HeadSHA)
+			v, err := Land(d, prev.Number, prev.HeadSHA)
+			return landed(res, v, err)
 		}
 	}
 
@@ -272,12 +336,15 @@ func engine(d Deps, o Options, res *EngineResult) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	p, err := d.Registry.Packument(pin.Package)
-	if err != nil {
-		return "", err
+	var p *npmreg.Packument
+	states := StatesFromPackument(nil)
+	if pin.Releases == "" {
+		if p, err = d.Registry.Packument(pin.Package); err != nil {
+			return "", err
+		}
+		states = StatesFromPackument(p)
 	}
-	states := StatesFromPackument(p)
-	if prev != nil {
+	if prev != nil && p != nil {
 		ver := strings.TrimPrefix(prev.HeadRef, BranchPrefix)
 		if why := pinRefusal(p, states, ver); why != "" {
 			if err := closeUpdatePR(d, *prev, fmt.Sprintf("Closed: %s is now %s, so this pin is never merged.", ver, why)); err != nil {
@@ -303,10 +370,9 @@ func engine(d Deps, o Options, res *EngineResult) (string, error) {
 // the 404 is an error.
 const servedEvery = 20 * time.Second
 
-func fetchServed(d Deps, pkg, ver string, p *npmreg.Packument) (Fetched, error) {
+func fetchServed(d Deps, pin settings.Engine, ver string, p *npmreg.Packument) (Fetched, error) {
 	for waited := time.Duration(0); ; waited += servedEvery {
-		got, err := Fetch(FetchInput{Registry: d.Registry, Package: pkg, Version: ver, Packument: p,
-			Roots: d.Roots, CacheRoot: d.CacheRoot, Platform: d.Platform, Now: d.Now()})
+		got, err := Fetch(fetchInput(d, pin, ver, p))
 		var ns *npmreg.NotServedError
 		if !errors.As(err, &ns) || waited >= npmreg.ServeWait {
 			return got, err
@@ -320,7 +386,10 @@ func fetchServed(d Deps, pkg, ver string, p *npmreg.Packument) (Fetched, error) 
 // or its verify breaks this repo, opens its update PR. It returns the
 // candidate, empty for none, and the verdict.
 func propose(d Deps, o Options, f settings.Format, raw []byte, pin settings.Engine, p *npmreg.Packument, states States, prev *githubapi.PR, prevState string, res *EngineResult) (string, string, error) {
-	c := Candidate(pin.Version, pin.Channel, p, states)
+	c, err := candidateOf(d, pin, p, states)
+	if err != nil {
+		return "", "", err
+	}
 	if c.Skipped != nil {
 		fmt.Fprintf(d.Out, "%s skipped: %s\n", c.Skipped.Version, c.Skipped.Reason)
 	}
@@ -344,18 +413,16 @@ func propose(d Deps, o Options, f settings.Format, raw []byte, pin settings.Engi
 		case "queued", "in_progress", "waiting", "pending", "requested":
 			why = "its CI is " + prevState
 		}
-		switch prevState {
-		case "no run", "cancelled", "timed_out":
-			// No verdict will ever come for this head: ask again.
-			if err := d.GitHub.Dispatch(CIWorkflow, prev.HeadRef, map[string]string{"pr": strconv.Itoa(prev.Number)}); err != nil {
-				return "", "", err
-			}
-			why += "; dispatched its CI again"
+		// No verdict will ever come for this head unless it is asked again.
+		tail, err := retryCI(d, res, *prev, prevState)
+		if err != nil {
+			return "", "", err
 		}
+		why += tail
 		return c.Version, fmt.Sprintf("skipped: #%d for %s is open and %s", prev.Number, c.Version, why), nil
 	}
 
-	got, err := fetchServed(d, pin.Package, c.Version, p)
+	got, err := fetchServed(d, pin, c.Version, p)
 	if err != nil {
 		return "", "", err
 	}
@@ -377,7 +444,7 @@ func propose(d Deps, o Options, f settings.Format, raw []byte, pin settings.Engi
 		return c.Version, "no PR: " + c.Version + " would break this repo", nil
 	}
 
-	n, staged, err := openPR(d, f, raw, got, self, verifyOut, broke)
+	n, sha, staged, err := openPR(d, f, raw, got, self, verifyOut, broke)
 	if err != nil {
 		return "", "", err
 	}
@@ -389,7 +456,13 @@ func propose(d Deps, o Options, f settings.Format, raw []byte, pin settings.Engi
 			return "", "", err
 		}
 	}
-	return c.Version, fmt.Sprintf("opened #%d for %s", n, c.Version), nil
+	opened := fmt.Sprintf("opened #%d for %s", n, c.Version)
+	if len(staged) > 0 {
+		// Its CI waits for the agent stage to move them.
+		return c.Version, opened, nil
+	}
+	v, err := awaitLanding(d, res, n, BranchPrefix+c.Version, sha, opened)
+	return c.Version, v, err
 }
 
 // stagedOn is the workflow files staged on an open update PR's head.
@@ -416,7 +489,7 @@ var workflowIssueTitle = regexp.MustCompile(`^Claudinite engine \S+ needs a work
 
 // workflowIssues are the open issues of that title.
 func workflowIssues(d Deps) ([]int, error) {
-	open, err := d.GitHub.OpenIssues(Label)
+	open, err := d.GitHub.OpenIssues()
 	if err != nil {
 		return nil, err
 	}
@@ -431,40 +504,40 @@ func workflowIssues(d Deps) ([]int, error) {
 }
 
 // openPR commits the pin, and the workflows the new engine expects staged
-// beside it, on a fresh update branch, pushes it, opens and labels the PR,
-// closes the workflow-change issues an earlier engine filed, and dispatches
-// its CI unless workflows are staged, leaving the checkout where it was.
-// It returns the PR and the staged paths.
-func openPR(d Deps, f settings.Format, raw []byte, got Fetched, self, verifyOut string, forced bool) (int, []string, error) {
+// beside it, on a fresh update branch, pushes it, opens the PR and closes
+// the workflow-change issues an earlier engine filed, leaving the checkout
+// where it was. It returns the PR, its head and the staged
+// paths.
+func openPR(d Deps, f settings.Format, raw []byte, got Fetched, self, verifyOut string, forced bool) (int, string, []string, error) {
 	moved, err := settings.SetPin(raw, f, got.Version, got.Integrity)
 	if err != nil {
-		return 0, nil, err
-	}
-	dropped := settings.HasRetiredLicense(moved, f)
-	if dropped {
-		if moved, err = settings.DropLicense(moved, f); err != nil {
-			return 0, nil, err
-		}
+		return 0, "", nil, err
 	}
 	issues, err := workflowIssues(d)
 	if err != nil {
-		return 0, nil, err
+		return 0, "", nil, err
 	}
 	back, err := d.Git.CurrentBranch()
 	if err != nil {
-		return 0, nil, err
+		return 0, "", nil, err
 	}
 	branch := BranchPrefix + got.Version
 	if err := d.Git.CreateBranch(branch, "HEAD"); err != nil {
-		return 0, nil, err
+		return 0, "", nil, err
 	}
 	rel := settings.RelPath(f)
 	var staged []string
+	var sha string
 	commitErr := func() error {
 		if err := os.WriteFile(filepath.Join(d.Repo, filepath.FromSlash(rel)), moved, 0o644); err != nil {
 			return err
 		}
 		rels := []string{rel}
+		if launcher, err := writeLauncher(d.Repo, got); err != nil {
+			return err
+		} else if launcher {
+			rels = append(rels, LauncherPath)
+		}
 		member, err := writeMemberFile(d.Repo)
 		if err != nil {
 			return err
@@ -479,20 +552,20 @@ func openPR(d Deps, f settings.Format, raw []byte, got Fetched, self, verifyOut 
 		if err := d.Git.Commit(EngineTitle(got.Version), rels...); err != nil {
 			return err
 		}
+		if sha, err = d.Git.RevParse("HEAD"); err != nil {
+			return err
+		}
 		return d.Git.Push(remote, branch)
 	}()
 	if err := d.Git.Checkout(back); err != nil {
-		return 0, nil, errors.Join(commitErr, err)
+		return 0, "", nil, errors.Join(commitErr, err)
 	}
 	if commitErr != nil {
-		return 0, nil, commitErr
+		return 0, "", nil, commitErr
 	}
 
 	var b strings.Builder
 	fmt.Fprintf(&b, "Moves this repo's Claudinite engine pin to **%s**. `%s` changes only `engine.version` and `engine.manifest`, with `%s` restating them.\n\n", got.Version, rel, flatdecl.MemberFile)
-	if dropped {
-		fmt.Fprintf(&b, "It also drops the retired `license` block from `%s`: a single repo needs no license, and nothing reads it.\n\n", rel)
-	}
 	fmt.Fprintf(&b, "- Manifest: `%s`\n- Key: `%s`\n\n", got.Integrity, got.KeyID)
 	fmt.Fprintf(&b, "Self-test of the new binary:\n\n```\n%s```\n\n", self)
 	if forced {
@@ -511,36 +584,29 @@ func openPR(d Deps, f settings.Format, raw []byte, got Fetched, self, verifyOut 
 		fmt.Fprintf(&b, "It replaces %s, the workflow-change issue an earlier engine filed instead of carrying the change here.\n\n", strings.Join(refs, ", "))
 	}
 	if len(staged) == 0 {
-		b.WriteString("The updater merges this PR once the CI run it dispatched is green.\n")
+		b.WriteString("The updater approves this PR's held CI run and merges it once that run is green.\n")
 	} else {
 		b.WriteString(stagedNote(staged))
 	}
 
 	pr, err := d.GitHub.CreatePull(EngineTitle(got.Version), b.String(), branch, mainBranch)
 	if err != nil {
-		return 0, nil, err
-	}
-	if err := d.GitHub.AddLabel(pr.Number, Label); err != nil {
-		return 0, nil, err
+		return 0, "", nil, err
 	}
 	for _, n := range issues {
 		if err := d.GitHub.Comment(n, fmt.Sprintf("Closed: #%d carries this repo's workflow change on the engine update PR itself.", pr.Number)); err != nil {
-			return 0, nil, err
+			return 0, "", nil, err
 		}
 		if err := d.GitHub.CloseIssue(n); err != nil {
-			return 0, nil, err
+			return 0, "", nil, err
 		}
 	}
 	if len(staged) > 0 {
 		for _, s := range staged {
 			fmt.Fprintf(d.Out, "staged for the agent stage: %s\n", s)
 		}
-		return pr.Number, staged, nil
 	}
-	if err := d.GitHub.Dispatch(CIWorkflow, branch, map[string]string{"pr": strconv.Itoa(pr.Number)}); err != nil {
-		return 0, nil, err
-	}
-	return pr.Number, nil, nil
+	return pr.Number, sha, staged, nil
 }
 
 // stagedNote is the PR body's account of the staged workflows: what they
@@ -571,12 +637,6 @@ func closeUpdatePR(d Deps, pr githubapi.PR, why string) error {
 	return d.Git.DeleteRemoteBranch(remote, pr.HeadRef)
 }
 
-// retiredPlanBranchPrefix starts the plan correction branches an engine
-// before record row 131 opened; one may still stand open in a member.
-//
-// @legacy-tolerance advisory:none retire:#83
-const retiredPlanBranchPrefix = "claudinite/plan-"
-
 // Land squash-merges update PR n at head sha after checking it is the
 // updater's own change, deletes its branch and dispatches CI on main,
 // whose runs the next update needs green. The branch says which shape the
@@ -597,10 +657,8 @@ func Land(d Deps, n int, sha string) (string, error) {
 		return "", fmt.Errorf("#%d is %s", n, pr.State)
 	case pr.Author != gitcmd.BotName:
 		return "", fmt.Errorf("#%d was opened by %s, not %s", n, pr.Author, gitcmd.BotName)
-	case strings.HasPrefix(pr.HeadRef, retiredPlanBranchPrefix):
-		return "", fmt.Errorf("#%d (branch %s) is a plan correction PR, which no engine lands any more: close #%d", n, pr.HeadRef, n)
-	case !pr.HasLabel(Label) || (!strings.HasPrefix(pr.HeadRef, BranchPrefix) && !strings.HasPrefix(pr.HeadRef, PackBranchPrefix)):
-		return "", fmt.Errorf("#%d is not an update PR (label %s, branch %s* or %s*)", n, Label, BranchPrefix, PackBranchPrefix)
+	case !strings.HasPrefix(pr.HeadRef, BranchPrefix) && !strings.HasPrefix(pr.HeadRef, PackBranchPrefix):
+		return "", fmt.Errorf("#%d is not an update PR (branch %s* or %s*)", n, BranchPrefix, PackBranchPrefix)
 	case pr.BaseRef != mainBranch:
 		return "", fmt.Errorf("#%d targets %s, not %s", n, pr.BaseRef, mainBranch)
 	case pr.HeadSHA != sha:
@@ -623,8 +681,10 @@ func Land(d Deps, n int, sha string) (string, error) {
 	if len(moved) > 0 {
 		return fmt.Sprintf("skipped: #%d changes %s, which GitHub lets no job token merge; its agent stage merges it once cn update land --check passes", n, strings.Join(moved, ", ")), nil
 	}
-	if err := landPinned(d, pr, sha, EngineTitle(ver)); err != nil {
+	if why, err := landPinned(d, pr, sha, EngineTitle(ver)); err != nil {
 		return "", err
+	} else if why != "" {
+		return notLanded(pr.Number, why), nil
 	}
 	if err := d.GitHub.Dispatch(CIWorkflow, mainBranch, map[string]string{}); err != nil {
 		return "", err
@@ -654,7 +714,8 @@ func CheckLand(d Deps, base, head string) (string, error) {
 // branch it merges into: it moves base's pin to a newer verified engine,
 // restates the member file at most, and changes under .github/workflows/
 // exactly what that engine expects (expectedWorkflows), with nothing left
-// staged. It returns the new version and the workflow files changed; who
+// staged, and replaces the launcher only with the one that engine ships.
+// It returns the new version and the workflow files changed; who
 // names the PR in a refusal.
 func engineGate(d Deps, who, base, sha string) (string, []string, error) {
 	all, err := d.Git.ChangedFiles(base, sha)
@@ -662,8 +723,11 @@ func engineGate(d Deps, who, base, sha string) (string, []string, error) {
 		return "", nil, err
 	}
 	var files, moved, staged []string
+	launcher := false
 	for _, file := range all {
 		switch {
+		case file == LauncherPath:
+			launcher = true
 		case strings.HasPrefix(file, workflows.StagingDir+"/"):
 			staged = append(staged, file)
 		case strings.HasPrefix(file, ".github/workflows/"):
@@ -731,6 +795,22 @@ func engineGate(d Deps, who, base, sha string) (string, []string, error) {
 	got, err := checkPin(d, e)
 	if err != nil {
 		return "", nil, fmt.Errorf("%s: %w", who, err)
+	}
+	if launcher {
+		have, present, err := d.Git.Show(sha, LauncherPath)
+		if err != nil {
+			return "", nil, err
+		}
+		_, held, err := d.Git.Show(mb, LauncherPath)
+		if err != nil {
+			return "", nil, err
+		}
+		if !held {
+			return "", nil, fmt.Errorf("%s adds %s, which only cn init writes", who, LauncherPath)
+		}
+		if !present || !got.SignedLauncher || !bytes.Equal(have, got.Launcher) {
+			return "", nil, fmt.Errorf("%s: %s is not the launcher %s ships", who, LauncherPath, e.Version)
+		}
 	}
 	if err := expectedWorkflows(d, got.Binary, mb, sha, moved); err != nil {
 		return "", nil, fmt.Errorf("%s: %w", who, err)
@@ -803,10 +883,10 @@ func expectedWorkflows(d Deps, binary, mb, sha string, moved []string) error {
 	return nil
 }
 
-// upsertIssue opens an issue labelled Label with title, or updates the
+// upsertIssue opens an issue titled title, or updates the
 // body of the open one already carrying that title, and returns its number.
 func upsertIssue(d Deps, title, body string) (int, error) {
-	open, err := d.GitHub.OpenIssues(Label)
+	open, err := d.GitHub.OpenIssues()
 	if err != nil {
 		return 0, err
 	}
@@ -818,7 +898,7 @@ func upsertIssue(d Deps, title, body string) (int, error) {
 			return is.Number, d.GitHub.UpdateIssueBody(is.Number, body)
 		}
 	}
-	return d.GitHub.CreateIssue(title, body, Label)
+	return d.GitHub.CreateIssue(title, body)
 }
 
 // fence is a code fence longer than any backtick run in s.

@@ -18,6 +18,8 @@ const (
 	bot  = "github-actions[bot]"
 	pin1 = "sha512-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
 	pin2 = "sha512-BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=="
+	// shippedLauncher is the launcher the engine under test ships.
+	shippedLauncher = "#!/bin/sh\n# shipped\n"
 )
 
 func git(t *testing.T, dir string, args ...string) {
@@ -83,7 +85,7 @@ func (p *pinCheck) check(e settings.Engine) error {
 func runWorld(t *testing.T, dir, author string, pc *pinCheck, fs []findings.Finding) (int, string) {
 	t.Helper()
 	var out bytes.Buffer
-	code := Run(&out, Input{Repo: dir, PRAuthor: author, BaseRef: "main", Git: gitcmd.Repo{Dir: dir}, CheckPin: pc.check, Findings: fs})
+	code := Run(&out, Input{Repo: dir, PRAuthor: author, BaseRef: "main", Git: gitcmd.Repo{Dir: dir}, CheckPin: pc.check, Launcher: []byte(shippedLauncher), Findings: fs})
 	return code, out.String()
 }
 
@@ -119,6 +121,15 @@ func TestPinGuard(t *testing.T) {
 		{"the bot edits the launcher", func(t *testing.T) func(string) {
 			return func(dir string) { write(t, dir, ".claudinite/launch", "#!/bin/sh\n# edited\n") }
 		}, bot, nil, 1, "launcher", false},
+		{"the bot moves the pin and the launcher to the one this engine ships", func(t *testing.T) func(string) {
+			return func(dir string) { movePin(t)(dir); write(t, dir, ".claudinite/launch", shippedLauncher) }
+		}, bot, nil, 0, "", true},
+		{"the bot moves the pin and the launcher to one this engine does not ship", func(t *testing.T) func(string) {
+			return func(dir string) { movePin(t)(dir); write(t, dir, ".claudinite/launch", "#!/bin/sh\n# edited\n") }
+		}, bot, nil, 1, "does not ship", false},
+		{"the bot changes only the launcher, to the one this engine ships", func(t *testing.T) func(string) {
+			return func(dir string) { write(t, dir, ".claudinite/launch", shippedLauncher) }
+		}, bot, nil, 1, "only the launcher", false},
 		{"the bot changes the package", func(t *testing.T) func(string) {
 			return func(dir string) {
 				write(t, dir, ".claudinite/settings.yaml", strings.Replace(settingsBody("1.2.0", pin2), "cli-rc", "cli", 1))
@@ -166,41 +177,13 @@ func TestFindingsDecideTheExit(t *testing.T) {
 	}
 }
 
-// retired is main's settings file still carrying the license block.
-var retired = settingsBody("1.1.0", pin1) + "license:\n  plan: \"public\"\n"
-
-func TestPinGuardLetsTheUpdateDropTheRetiredLicenseBlock(t *testing.T) {
-	t.Parallel()
-	cases := []struct {
-		name   string
-		body   string
-		author string
-		code   int
-		want   string
-	}{
-		{"the bot moves the pin and drops the license block", settingsBody("1.2.0", pin2), bot, 0, ""},
-		{"the bot moves the pin and keeps the license block", settingsBody("1.2.0", pin2) + "license:\n  plan: \"public\"\n", bot, 0, ""},
-		{"the bot drops only the license block", settingsBody("1.1.0", pin1), bot, 0, ""},
-		{"the bot moves the pin and changes the plan", settingsBody("1.2.0", pin2) + "license:\n  plan: \"private-repo\"\n", bot, 1, "pin-guard"},
-		{"a person drops the license block, leaving the engine block alone", settingsBody("1.1.0", pin1), "someone", 0, ""},
-		{"a person drops the license block and moves the pin", settingsBody("1.2.0", pin2), "someone", 1, "pin-guard"},
-	}
-	for _, c := range cases {
-		dir := memberOn(t, retired, func(dir string) { write(t, dir, ".claudinite/settings.yaml", c.body) })
-		code, out := runWorld(t, dir, c.author, &pinCheck{}, nil)
-		if code != c.code || !strings.Contains(out, c.want) {
-			t.Errorf("%s: exit %d, want %d; output lacks %q:\n%s", c.name, code, c.code, c.want, out)
-		}
-	}
-}
-
 // unadopted is a repo whose main holds no settings file and no launcher,
 // checked out on a branch that the change function edits and commits.
 func unadopted(t *testing.T, change func(dir string)) string {
 	t.Helper()
 	dir := t.TempDir()
 	git(t, dir, "init", "-q", "-b", "main")
-	write(t, dir, ".claudinite-settings.json", "{}\n")
+	write(t, dir, "README.md", "unadopted\n")
 	git(t, dir, "add", "-A")
 	git(t, dir, "commit", "-q", "-m", "base")
 	git(t, dir, "checkout", "-q", "-b", "change")
@@ -247,6 +230,16 @@ func TestPinGuardLetsAPersonAdoptAndEditTheirSettings(t *testing.T) {
 		{"a person changes the channel and moves the pin", func(t *testing.T) string {
 			return member(t, func(dir string) {
 				write(t, dir, ".claudinite/settings.yaml", settingsBody("1.2.0", pin2)+"  channel: \"staging\"\n")
+			})
+		}, nil, 1, "pin-guard", false},
+		{"a person points the engine at a releases repository", func(t *testing.T) string {
+			return member(t, func(dir string) {
+				write(t, dir, ".claudinite/settings.yaml", settingsBody("1.1.0", pin1)+"  releases: \"acme/acme-distro\"\n")
+			})
+		}, nil, 0, "", false},
+		{"a person points the engine at a releases repository and moves the pin", func(t *testing.T) string {
+			return member(t, func(dir string) {
+				write(t, dir, ".claudinite/settings.yaml", settingsBody("1.2.0", pin2)+"  releases: \"acme/acme-distro\"\n")
 			})
 		}, nil, 1, "pin-guard", false},
 		{"a person edits the launcher of an adopted repo", func(t *testing.T) string {
@@ -303,5 +296,25 @@ func symlinkSettings(t *testing.T, engine string) func(string) {
 		if err := os.Symlink(target, p); err != nil {
 			t.Fatal(err)
 		}
+	}
+}
+
+// Only cn init writes the first launcher: the bot's update PR may replace
+// one, never add it, even the one this engine ships.
+func TestPinGuardRefusesTheBotAddingALauncher(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	git(t, dir, "init", "-q", "-b", "main")
+	write(t, dir, ".claudinite/settings.yaml", settingsBody("1.1.0", pin1))
+	git(t, dir, "add", "-A")
+	git(t, dir, "commit", "-q", "-m", "base")
+	git(t, dir, "checkout", "-q", "-b", "change")
+	movePin(t)(dir)
+	write(t, dir, ".claudinite/launch", shippedLauncher)
+	git(t, dir, "add", "-A")
+	git(t, dir, "commit", "-q", "-m", "change")
+	code, out := runWorld(t, dir, bot, &pinCheck{}, nil)
+	if code != 1 || !strings.Contains(out, "adds the launcher") {
+		t.Errorf("exit %d, want a refusal naming the added launcher:\n%s", code, out)
 	}
 }

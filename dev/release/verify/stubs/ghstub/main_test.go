@@ -74,20 +74,27 @@ func TestTheUpdatersCallsAgainstTheStub(t *testing.T) {
 	if err != nil || pr.Number != 1 || pr.HeadSHA != sha || pr.Author != "github-actions[bot]" {
 		t.Fatalf("%+v %v", pr, err)
 	}
-	if err := c.AddLabel(1, "claudinite-update"); err != nil {
-		t.Fatal(err)
-	}
 	open, err := c.OpenPulls()
-	if err != nil || len(open) != 1 || !open[0].HasLabel("claudinite-update") {
+	if err != nil || len(open) != 1 || open[0].HeadRef != "claudinite/engine-2.0.0" {
 		t.Fatalf("%+v %v", open, err)
 	}
 
+	held, err := c.HeadRuns(sha)
+	if err != nil || len(held) != 1 || held[0].Event != "pull_request" || held[0].Conclusion != "action_required" {
+		t.Fatalf("the job token's PR got no held run: %+v %v", held, err)
+	}
+	if err := c.ApproveRun(held[0].ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.ApproveRun(held[0].ID); githubapi.StatusOf(err) != 403 {
+		t.Errorf("a run no longer held was approved again: %v", err)
+	}
 	control(t, srv, "/_stub/dispatch", map[string]string{"conclusion": "success"})
 	if err := c.Dispatch("claudinite-ci.yml", "claudinite/engine-2.0.0", map[string]string{"pr": "1"}); err != nil {
 		t.Fatal(err)
 	}
 	runs, err := c.WorkflowRuns("claudinite-ci.yml", sha)
-	if err != nil || len(runs) != 1 || runs[0].Event != "workflow_dispatch" || runs[0].Conclusion != "success" {
+	if err != nil || len(runs) != 2 || runs[0].Event != "workflow_dispatch" || runs[0].Conclusion != "success" || runs[1].Event != "pull_request" || runs[1].Conclusion != "success" {
 		t.Fatalf("%+v %v", runs, err)
 	}
 
@@ -104,14 +111,14 @@ func TestTheUpdatersCallsAgainstTheStub(t *testing.T) {
 		t.Errorf("merged PR state %q", p.State)
 	}
 
-	n, err := c.CreateIssue("Claudinite engine 1.0.0 is revoked", "b", "claudinite-update")
+	n, err := c.CreateIssue("Claudinite engine 1.0.0 is revoked", "b")
 	if err != nil || n != 2 {
 		t.Fatalf("%d %v", n, err)
 	}
 	if err := c.UpdateIssueBody(n, "b2"); err != nil {
 		t.Fatal(err)
 	}
-	issues, err := c.OpenIssues("claudinite-update")
+	issues, err := c.OpenIssues()
 	if err != nil || len(issues) != 1 || issues[0].Body != "b2" {
 		t.Fatalf("%+v %v", issues, err)
 	}
@@ -119,7 +126,7 @@ func TestTheUpdatersCallsAgainstTheStub(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := state(t, srv)
-	want := []string{"create-pull 1 claudinite/engine-2.0.0", "label 1 claudinite-update", "dispatch claudinite-ci.yml claudinite/engine-2.0.0 pr=1", "merge 1 " + sha, "create-issue 2 Claudinite engine 1.0.0 is revoked", "update-issue 2", "comment 1"}
+	want := []string{"create-pull 1 claudinite/engine-2.0.0", "approve " + strconv.FormatInt(held[0].ID, 10), "dispatch claudinite-ci.yml claudinite/engine-2.0.0 pr=1", "merge 1 " + sha, "create-issue 2 Claudinite engine 1.0.0 is revoked", "update-issue 2", "comment 1"}
 	if strings.Join(s.Calls, "\n") != strings.Join(want, "\n") {
 		t.Errorf("calls:\n%s", strings.Join(s.Calls, "\n"))
 	}
@@ -189,7 +196,7 @@ func TestStubFollowsADispatchedRunByEventAndID(t *testing.T) {
 		}
 		return resp.StatusCode
 	}
-	post := httptest.NewRequest("POST", srv.URL+"/repos/acme/member/actions/workflows/claudinite-dashboard-pages.yml/dispatches", strings.NewReader(`{"ref":"main"}`))
+	post := httptest.NewRequest("POST", srv.URL+"/repos/acme/member/actions/workflows/claudinite-single-repo-dashboard-pages.yml/dispatches", strings.NewReader(`{"ref":"main"}`))
 	post.RequestURI = ""
 	post.Header.Set("Authorization", "Bearer tok")
 	resp, err := srv.Client().Do(post)
@@ -201,7 +208,7 @@ func TestStubFollowsADispatchedRunByEventAndID(t *testing.T) {
 	var listed struct {
 		Runs []run `json:"workflow_runs"`
 	}
-	if code := get("/actions/workflows/claudinite-dashboard-pages.yml/runs?event=workflow_dispatch&created=%3E%3D2026-01-01T00%3A00%3A00Z&per_page=5", &listed); code != 200 || len(listed.Runs) != 1 {
+	if code := get("/actions/workflows/claudinite-single-repo-dashboard-pages.yml/runs?event=workflow_dispatch&created=%3E%3D2026-01-01T00%3A00%3A00Z&per_page=5", &listed); code != 200 || len(listed.Runs) != 1 {
 		t.Fatalf("%d %+v", code, listed)
 	}
 	r := listed.Runs[0]
@@ -222,7 +229,7 @@ func TestStubFollowsADispatchedRunByEventAndID(t *testing.T) {
 	var bySha struct {
 		Runs []run `json:"workflow_runs"`
 	}
-	if get("/actions/workflows/claudinite-dashboard-pages.yml/runs", &bySha); len(bySha.Runs) != 0 {
+	if get("/actions/workflows/claudinite-single-repo-dashboard-pages.yml/runs", &bySha); len(bySha.Runs) != 0 {
 		t.Errorf("a listing naming neither sha nor event answered %+v", bySha.Runs)
 	}
 }

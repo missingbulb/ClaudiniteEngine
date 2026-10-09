@@ -4,8 +4,10 @@
     ".claudinite/shared/engine/checks/check_the_world.mjs": "// sweep\n",
     ".claudinite/shared/engine/checks/ci-work-scope.mjs": "// work\n"
   },
-  "cnShape": "v8-rules-blocking",
-  "cnFiles": {},
+  "cnShape": "v6-shared-constants-entry",
+  "cnFiles": {
+    ".claudinite/settings.yaml": "engine:\n  package: \"@claudinite/cli-rc\"\n  version: \"1.61001.1\"\n  manifest: \"sha512-v1shapev1shapev1shapev1shapev1shapev1shapev1shapev1shapev1shapev1shapev1shapev1shapev1==\"\npacks:\n  channel: \"stable\"\n  declared:\n    - id: basics\n      config:\n        sharedConstants:\n          - name: \"the hook deadline\"\n            files: [src/a.js, src/b.js]\nchecks:\n  rules:\n    node/earn-each-dependency: \"off\"\n    basics/shared-constants: \"blocking\"\n"
+  },
   "answeredBy": "settings-checks",
   "nodeFires": true
 }

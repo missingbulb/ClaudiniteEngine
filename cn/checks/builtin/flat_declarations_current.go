@@ -40,7 +40,6 @@ type flatSource struct {
 
 var flatSources = []flatSource{
 	{flatdecl.TasksFile, "tasks", regexp.MustCompile(`^tasks/([^/]+)/task\.(json|yaml|toml)$`), func(pack string, m []string) string { return pack + "/" + m[1] }},
-	{flatdecl.DashboardFile, "dashboards", regexp.MustCompile(`^dashboard\.json$`), func(pack string, _ []string) string { return pack }},
 }
 
 // heldSources is a flat file's expected names, in the order first seen.

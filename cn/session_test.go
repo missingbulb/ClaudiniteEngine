@@ -133,3 +133,31 @@ func TestValidateGatesTheSessionOnTheNonce(t *testing.T) {
 		t.Error("the nonce is required:", err)
 	}
 }
+
+// A task whose outcome delivers a pull request is handed the repo's
+// delivery; one that opens none is not.
+func TestValidatePrintsTheDeliveryOnlyForATaskThatDeliversAPR(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	item := writeJSON(t, dir, "item.json", heldItem())
+	comments := writeJSON(t, dir, "comments.json", []world.Comment{{ID: 1, Body: execute.HandoffComment("E1", "7-n")}})
+	validate := func(repo string) string {
+		var out bytes.Buffer
+		if err := cmdWorkValidate([]string{"--repo", repo, "--issue", "7", "--nonce", "7-n", "--item-file", item, "--comments-file", comments}, &out); err != nil {
+			t.Fatal(err)
+		}
+		return out.String()
+	}
+	pr := validate(sessionRepo(t))
+	if !strings.Contains(pr, "delivery: auto-merge\n") {
+		t.Errorf("a PR task:\n%s", pr)
+	}
+	repo := sessionRepo(t)
+	decl := filepath.Join(repo, ".claudinite/local/packs/acme-pack/tasks/a/task.json")
+	if err := os.WriteFile(decl, []byte(`{"id": "a", "trigger": "request", "expected_outcome": "no_code_changes", "agent_model": "sonnet", "agent_instructions": "task.md", "agent_execution_timeout": 3600}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if none := validate(repo); strings.Contains(none, "delivery:") {
+		t.Errorf("a task that opens no PR:\n%s", none)
+	}
+}

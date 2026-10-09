@@ -98,6 +98,12 @@ linters:
             # update's landing enters it at the pinned-sha merge, so the
             # update and a task cannot drift on how a PR lands.
             - github.com/missingbulb/ClaudiniteEngine/cn/tasks/land
+            # The queue's two workflow templates are the tasks capability's;
+            # the member's workflows are written and diffed here with them.
+            - github.com/missingbulb/ClaudiniteEngine/cn/tasks/workflows
+            # Verify reads the settings' tasks block as the queue does, so a
+            # value the queue would refuse breaks before an update lands.
+            - github.com/missingbulb/ClaudiniteEngine/cn/tasks/config
         checks:
           list-mode: strict
           files:

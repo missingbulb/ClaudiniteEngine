@@ -1,0 +1,48 @@
+{
+  "input": {
+    "files": {
+      ".claudinite/settings.yaml": "# a member on YAML\nengine:\n  version: \"1.61003.1\"\n  manifest: \"sha512-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\"\npacks:\n  channel: \"canary\"\n  declared:\n    - id: basics\n      config:\n        sharedConstants: []\n        note: \"kept\"\n    - id: claudinite-tasks\n      config:\n        dormant: false\n    - local/mine\n",
+      ".claudinite/shared/packs/basics/pack.json": "{\"version\": \"61003.1\", \"minEngineVersion\": \"0.0.0\"}",
+      ".claudinite/shared/packs/claudinite-tasks/pack.json": "{\"version\": \"61003.2\", \"minEngineVersion\": \"0.0.0\"}",
+      ".claudinite/local/packs/mine/RULES.md": "- mine\n"
+    }
+  },
+  "expect": {
+    "version": 1,
+    "settings": {
+      "path": ".claudinite/settings.yaml",
+      "format": "yaml"
+    },
+    "engine": {
+      "package": "@claudinite/cli",
+      "version": "1.61003.1",
+      "channel": "stable"
+    },
+    "packs": {
+      "channel": "canary",
+      "declared": [
+        {
+          "id": "basics",
+          "config": {
+            "sharedConstants": [],
+            "note": "kept"
+          }
+        },
+        {
+          "id": "claudinite-tasks",
+          "config": {
+            "dormant": false
+          }
+        },
+        {
+          "id": "local/mine"
+        }
+      ]
+    },
+    "dormant": false,
+    "held": {
+      "basics": "61003.1",
+      "claudinite-tasks": "61003.2"
+    }
+  }
+}

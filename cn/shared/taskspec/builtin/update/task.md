@@ -36,16 +36,21 @@ it to the branch.
 ## 2. Get it green, pass the engine's gate, and merge it
 
 GitHub refuses a merge that changes `.github/workflows/` when the job token
-asks, so the engine's own `land` job skips this pull request and the merge is
-yours. Two things authorize it, and you need both: this task's `automerge`,
+asks, so the engine never merges this pull request and the merge is yours. Two things authorize it, and you need both: this task's `automerge`,
 `engine-pin-move` and `engine-update-files`, which covers the pin moved, the
-member file and the three managed workflows and nothing else, and the
+member file, the launcher and the three managed workflows and nothing else, and the
 engine's gate, `cn update land --check`, at the head it passed. A diff the
 policy does not cover is not yours to merge.
 
-1. Dispatch the workflow `claudinite-ci.yml` on `Target-branch:` with the input
-   `pr` set to the pull request's number. Its `check` job runs the new engine
-   over the branch.
+1. Start CI on the head you pushed in §1. GitHub may hold its `pull_request`
+   runs at `action_required` for approval, since the job token opened this
+   pull request: list the runs on that head sha, and approve each one whose
+   conclusion is `action_required` (`POST /repos/{owner}/{repo}/actions/runs/{id}/approve`).
+   A run already queued or in progress needs nothing. Only if no
+   `pull_request` run has appeared on the head after about 90 seconds,
+   dispatch the workflow `claudinite-ci.yml` on `Target-branch:` with the
+   input `pr` set to the pull request's number. Either way its `check` job
+   runs the new engine over the branch.
 2. Wait, within your time budget, for every CI run on the branch's head (the
    commit you pushed in §1) to conclude. Each must be green.
 3. Run the gate. It reads git alone, so it needs no GitHub token: fetch

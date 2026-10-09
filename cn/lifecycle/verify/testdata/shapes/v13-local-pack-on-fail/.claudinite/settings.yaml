@@ -1,0 +1,16 @@
+engine:
+  package: "@claudinite/cli-rc"
+  version: "1.61001.1"
+  manifest: "sha512-v1shapev1shapev1shapev1shapev1shapev1shapev1shapev1shapev1shapev1shapev1shapev1shapev1=="
+packs:
+  channel: "stable"
+  declared:
+    - local/mine
+    - id: basics
+      config:
+        sharedConstants:
+          - name: "the hook deadline"
+            files: [src/a.js, src/b.js]
+checks:
+  rules:
+    node/earn-each-dependency: "off"

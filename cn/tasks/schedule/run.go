@@ -219,6 +219,10 @@ func signalError(s precondition.Signals, name string) string {
 		if s.Request != nil {
 			return s.Request.Error
 		}
+	case "usageFold":
+		if s.UsageFold != nil {
+			return s.UsageFold.Error
+		}
 	default:
 		if m, ok := s.Extra[name].(map[string]string); ok {
 			return m["error"]
@@ -370,7 +374,7 @@ func Run(in RunIn) (RunOut, error) {
 		}
 	}
 	for _, t := range in.Tasks {
-		if t.Pack == taskspec.BuiltinPack && t.ID == taskspec.RequestTask {
+		if taskspec.GatesOnRequest(t.Decl.Preconditions()) {
 			var origins []workitem.Label
 			for _, l := range workitem.QueueLabels {
 				if has(workitem.OriginLabels, l.Name) {

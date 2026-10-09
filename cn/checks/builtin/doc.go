@@ -11,16 +11,22 @@
 //	provenance-change-recorded  claudinite-growth     packs/claudinite-growth/workRules/provenance-change-recorded.mjs
 //	routine-structure           claudinite-growth     packs/claudinite-growth/skills/unattended-agents/routine-structure.mjs
 //
-// and the eight of the task runner:
+// and the eight of the task runner, the four ported from claudinite-tasks tagged cn and running on
+// every member:
 //
-//	task-declaration-shape           claudinite-tasks      packs/claudinite-tasks/worldRules/task-declaration-shape.mjs
-//	task-code-work-env               claudinite-tasks      packs/claudinite-tasks/worldRules/task-code-work-env.mjs
-//	executor-workflow-secrets        claudinite-tasks      packs/claudinite-tasks/worldRules/executor-workflow-secrets.mjs
-//	automerge-policy-scope           claudinite-tasks      packs/claudinite-tasks/workRules/automerge-policy-scope.mjs
+//	task-declaration-shape           cn                    packs/claudinite-tasks/worldRules/task-declaration-shape.mjs
+//	task-code-work-env               cn                    packs/claudinite-tasks/worldRules/task-code-work-env.mjs
+//	executor-workflow-secrets        cn                    packs/claudinite-tasks/worldRules/executor-workflow-secrets.mjs
+//	automerge-policy-scope           cn                    packs/claudinite-tasks/workRules/automerge-policy-scope.mjs
 //	task-declaration-matches-folder  claudinite-growth     packs/claudinite-growth/worldRules/task-declaration-matches-folder.mjs
 //	task-md-only-when-agentic        claudinite-growth     packs/claudinite-growth/worldRules/task-md-only-when-agentic.mjs
 //	task-worker-restores-main        claudinite-growth     packs/claudinite-growth/worldRules/task-worker-restores-main.mjs
 //	flat-declarations-current        claudinite-lifecycle  packs/claudinite-lifecycle/worldRules/flat-declarations-current.mjs
+//
+// The folded packs' declared checks are carried as data, not Go: each
+// file under declared/ is one pack's declarations, named for its id,
+// which LoadSet loads where that pack is declared; cn.json, the queue's,
+// loads on every member.
 //
 // The provenance grammar they read is shared/provenance, from
 // engine/checks/helpers/provenance.mjs; the task contract the

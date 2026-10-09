@@ -1,7 +1,7 @@
 // Command pipeline prints what the release workflows need from package
 // release: package names, the release kind, the publish mode, the bodies
-// of the comments and issues they post, and whether npm holds what a
-// release published.
+// of the comments and issues they post, whether npm holds what a release
+// published, and a staging release's release.json.
 package main
 
 import (
@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/missingbulb/ClaudiniteEngine/cn/shared/ghrelease"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/npmreg"
 	"github.com/missingbulb/ClaudiniteEngine/dev/release"
 	"github.com/missingbulb/ClaudiniteEngine/dev/release/publish"
@@ -29,6 +30,7 @@ const usage = `usage:
   pipeline deprecate-commands --action hold|revoke|release --version V [--reason R] --versions-dir DIR
   pipeline unpublish-commands --version V --versions-dir DIR --dist-tags FILE
   pipeline npm-holds --dist DIR --version V --channel C --repo OWNER/NAME [--registry URL] [--timeout DURATION]
+  pipeline release-json --version V --manifest INTEGRITY --commit SHA
 
 A --versions-dir holds each CLI package's ` + "`npm view <pkg> versions --json`" + ` at
 <DIR>/<package name>.json.
@@ -73,6 +75,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return unpublishCommands(args[1:], stdout, stderr)
 	case "npm-holds":
 		return npmHolds(args[1:], stdout, stderr)
+	case "release-json":
+		return releaseJSON(args[1:], stdout, stderr)
 	}
 	fmt.Fprintf(stderr, "pipeline: unknown command %q\n%s", args[0], usage)
 	return 2
@@ -136,6 +140,27 @@ func holdsFlags(args []string) (publish.HoldsInput, bool) {
 	fs.DurationVar(&in.Timeout, "timeout", npmreg.ServeWait, "")
 	err := fs.Parse(args)
 	return in, err == nil && fs.NArg() == 0 && in.Dist != "" && in.Version != "" && in.Channel != "" && in.Repo != ""
+}
+
+// releaseJSON prints the release.json a staging release carries.
+func releaseJSON(args []string, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("release-json", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	var l ghrelease.Latest
+	fs.StringVar(&l.Version, "version", "", "")
+	fs.StringVar(&l.Manifest, "manifest", "", "")
+	fs.StringVar(&l.Commit, "commit", "", "")
+	if err := fs.Parse(args); err != nil || fs.NArg() != 0 {
+		fmt.Fprint(stderr, usage)
+		return 2
+	}
+	raw, err := ghrelease.FormatLatest(l)
+	if err != nil {
+		fmt.Fprintf(stderr, "pipeline: %v\n", err)
+		return 1
+	}
+	_, _ = stdout.Write(raw)
+	return 0
 }
 
 // blockerIssue prints the issue's title, a blank line, then its body.

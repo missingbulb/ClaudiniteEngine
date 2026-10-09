@@ -60,7 +60,6 @@ type fakePacks struct {
 	entries  map[string][]packindex.Entry
 	archives map[string][]byte
 	reads    int
-	disagree *packs.SourcesDisagree
 }
 
 func newFakePacks(t *testing.T) *fakePacks {
@@ -78,9 +77,6 @@ func (f *fakePacks) publish(id, ver, channel string, files map[string]string) {
 
 func (f *fakePacks) VerifiedIndex(id string) (packs.Verified, error) {
 	f.reads++
-	if f.disagree != nil {
-		return packs.Verified{}, f.disagree
-	}
 	if _, ok := f.entries[id]; !ok {
 		return packs.Verified{}, fmt.Errorf("no index for %s", id)
 	}
@@ -175,7 +171,7 @@ func TestPacksProposesAPackPR(t *testing.T) {
 	}
 	branch := "claudinite/packs-" + fmt.Sprint(versionDay())
 	files := gitRun(t, w.bare, "diff", "--name-only", "main", branch)
-	if files != ".claudinite/cache/claudinite-rules.GENERATED.md\n.claudinite/cache/claudinite-skills.GENERATED.md\n.claudinite/cache/dashboard.GENERATED.json\n.claudinite/cache/member.GENERATED.json\n.claudinite/cache/tasks.GENERATED.json\n.claudinite/shared/packs/hello/RULES.md\n.claudinite/shared/packs/hello/pack.json\nCLAUDE.md" {
+	if files != ".claudinite/cache/claudinite-rules.GENERATED.md\n.claudinite/cache/claudinite-skills.GENERATED.md\n.claudinite/cache/member.GENERATED.json\n.claudinite/cache/tasks.GENERATED.json\n.claudinite/shared/packs/hello/RULES.md\n.claudinite/shared/packs/hello/pack.json\nCLAUDE.md" {
 		t.Errorf("changed %q", files)
 	}
 	if msg := gitRun(t, w.bare, "log", "-1", "--format=%s", branch); msg != "Claudinite packs "+fmt.Sprint(versionDay())+": hello 1.0→1.1" {
@@ -185,11 +181,11 @@ func TestPacksProposesAPackPR(t *testing.T) {
 	if len(created) != 1 || !strings.Contains(created[0], "| hello | 1.0 | 1.1 | canary | 3 | cdn | `kid` | `"+w.packs.entries["hello"][1].SHA256+"` |") || !strings.Contains(created[0], "no findings") {
 		t.Errorf("PR %v", created)
 	}
-	if got := w.hub.called("dispatch"); len(got) != 1 || got[0] != "dispatch claudinite-ci.yml "+branch+" pr=1" {
+	if got := w.hub.called("dispatch"); len(got) != 0 {
 		t.Errorf("dispatch %v", got)
 	}
-	if got := w.hub.called("label"); len(got) != 1 {
-		t.Errorf("label %v", got)
+	if got := w.hub.called("approve"); !reflect.DeepEqual(got, []string{"approve 1"}) {
+		t.Errorf("approvals %v", got)
 	}
 	if b := gitRun(t, w.repo, "branch", "--show-current"); b != "main" {
 		t.Errorf("left on %s", b)
@@ -228,7 +224,7 @@ func TestPacksAddTheImportToAnExistingClaudeMD(t *testing.T) {
 		if _, err := gateAt(t, w.repo, w.deps(t), pr); err == nil || !strings.Contains(err.Error(), "not only the settings file") {
 			t.Errorf("%s: the gate took a pack PR: %v", name, err)
 		}
-		if v, err := Land(w.deps(t), pr.Number, pr.HeadSHA); err != nil || v != "landed packs hello 1.1" {
+		if v, err := Land(landJob(w.hub, w.deps(t), pr.HeadSHA), pr.Number, pr.HeadSHA); err != nil || v != "landed packs hello 1.1" {
 			t.Errorf("%s: %q %v", name, v, err)
 		}
 	}
@@ -291,7 +287,7 @@ func TestPacksConvergeTheIndexWhenNoPackMoves(t *testing.T) {
 		t.Errorf("title %q", pr.Title)
 	}
 	files := gitRun(t, w.bare, "diff", "--name-only", "main", pr.HeadRef)
-	if files != ".claudinite/cache/claudinite-rules.GENERATED.md\n.claudinite/cache/claudinite-skills.GENERATED.md\n.claudinite/cache/dashboard.GENERATED.json\n.claudinite/cache/member.GENERATED.json\n.claudinite/cache/tasks.GENERATED.json\nCLAUDE.md" {
+	if files != ".claudinite/cache/claudinite-rules.GENERATED.md\n.claudinite/cache/claudinite-skills.GENERATED.md\n.claudinite/cache/member.GENERATED.json\n.claudinite/cache/tasks.GENERATED.json\nCLAUDE.md" {
 		t.Errorf("changed %q", files)
 	}
 	if c := w.hub.pulls[len(w.hub.pulls)-1]; !strings.Contains(c.Title, "rules index") {
@@ -338,20 +334,6 @@ func TestPacksSkipAPackWhoseRequiresIsNotDeclared(t *testing.T) {
 	}
 }
 
-func TestPacksSkipWhileTheSourcesDisagree(t *testing.T) {
-	t.Parallel()
-	w := newPackWorld(t)
-	w.packs.disagree = &packs.SourcesDisagree{Serials: []packs.SourceSerial{{Source: "cdn", Serial: 5}, {Source: "branch", Serial: 4}}}
-	v, err := Packs(w.deps(t), Options{})
-	if err != nil || v != "skipped: pack index sources disagree (cdn serial 5, branch serial 4)" {
-		t.Errorf("%q %v", v, err)
-	}
-	if len(w.hub.called("create-pull")) != 0 {
-		t.Error("opened a PR")
-	}
-}
-
-// openPackPR runs a proposal and leaves its PR open with CI concluded.
 func (w *packWorld) openPackPR(t *testing.T, ci string) githubapi.PR {
 	t.Helper()
 	if v, err := Packs(w.deps(t), Options{}); err != nil || !strings.HasPrefix(v, "opened #") {
@@ -524,7 +506,7 @@ func TestLandRefusesAPackPRThatIsNotThePublishedSet(t *testing.T) {
 	}
 	w := newPackWorld(t)
 	pr := w.openPackPR(t, "")
-	if v, err := Land(w.deps(t), pr.Number, pr.HeadSHA); err != nil || v != "landed packs hello 1.1" {
+	if v, err := Land(landJob(w.hub, w.deps(t), pr.HeadSHA), pr.Number, pr.HeadSHA); err != nil || v != "landed packs hello 1.1" {
 		t.Errorf("the published set: %q %v", v, err)
 	}
 }
@@ -609,5 +591,79 @@ func TestLandRefusesAPackPRWritingTheLegacyDirectory(t *testing.T) {
 	w.hub.pulls[len(w.hub.pulls)-1].HeadSHA = sha
 	if _, err := Land(w.deps(t), pr.Number, sha); err == nil || !strings.Contains(err.Error(), "which a pack update only empties") {
 		t.Errorf("a pack PR writing the legacy directory landed: %v", err)
+	}
+}
+
+// A member still holding a flat file no engine writes any more has it
+// deleted by the rules index PR, which lands.
+func TestPacksDeleteARetiredFlatFile(t *testing.T) {
+	w := newPackWorld(t)
+	w.packs.entries["hello"] = w.packs.entries["hello"][:1]
+	if _, err := rulesindex.Converge(w.repo, pinVersion(w.repo)); err != nil {
+		t.Fatal(err)
+	}
+	stale := flatdecl.Retired[0]
+	if err := os.WriteFile(filepath.Join(w.repo, filepath.FromSlash(stale)), []byte("{}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	gitRun(t, w.repo, "add", "-A")
+	gitRun(t, w.repo, "commit", "-q", "-m", "a member from before the file retired")
+	gitRun(t, w.repo, "push", "-q", "origin", "main")
+	w.mainRun(t, "success")
+
+	if v, err := Packs(w.deps(t), Options{}); err != nil || !strings.HasPrefix(v, "opened #") {
+		t.Fatalf("%q %v\n%s", v, err, w.out)
+	}
+	pr := w.hub.pulls[len(w.hub.pulls)-1]
+	pr.HeadSHA = gitRun(t, w.bare, "rev-parse", pr.HeadRef)
+	w.hub.pulls[len(w.hub.pulls)-1].HeadSHA = pr.HeadSHA
+	w.hub.runs[pr.HeadSHA] = []githubapi.Run{{HeadSHA: pr.HeadSHA, Event: "workflow_dispatch", Status: "completed", Conclusion: "success", CreatedAt: "2026-10-01T00:00:00Z"}}
+	if files := gitRun(t, w.bare, "diff", "--no-renames", "--name-status", "main", pr.HeadRef); !strings.Contains(files+"\n", "D\t"+stale+"\n") {
+		t.Errorf("the PR does not delete %s:\n%s", stale, files)
+	}
+	if v, err := Packs(w.deps(t), Options{}); err != nil || v != "landed the rules index" {
+		t.Errorf("land: %q %v\n%s", v, err, w.out)
+	}
+}
+
+// A pack PR that writes a retired flat file is not the updater's own and
+// is refused.
+func TestLandRefusesAPackPRWritingARetiredFlatFile(t *testing.T) {
+	w := newPackWorld(t)
+	w.packs.entries["hello"] = w.packs.entries["hello"][:1]
+	pr := w.openPackPR(t, "success")
+	gitRun(t, w.repo, "fetch", "-q", "origin", pr.HeadRef)
+	gitRun(t, w.repo, "checkout", "-q", "FETCH_HEAD")
+	p := filepath.Join(w.repo, filepath.FromSlash(flatdecl.Retired[0]))
+	_ = os.MkdirAll(filepath.Dir(p), 0o755)
+	_ = os.WriteFile(p, []byte("{}\n"), 0o644)
+	gitRun(t, w.repo, "add", "-A")
+	gitRun(t, w.repo, "commit", "-q", "-m", "tamper")
+	gitRun(t, w.repo, "push", "-q", "-f", "origin", "HEAD:refs/heads/"+pr.HeadRef)
+	sha := w.head(t)
+	gitRun(t, w.repo, "checkout", "-q", "main")
+	w.hub.pulls[len(w.hub.pulls)-1].HeadSHA = sha
+	if _, err := Land(w.deps(t), pr.Number, sha); err == nil || !strings.Contains(err.Error(), "which no engine renders any more") {
+		t.Errorf("a pack PR writing a retired flat file landed: %v", err)
+	}
+}
+
+// A pack PR lands in the run that opened it once its approved
+// pull_request run passes, as an engine PR does.
+func TestAPackPRLandsInTheRunOnItsApprovedCI(t *testing.T) {
+	t.Parallel()
+	w := newPackWorld(t)
+	w.hub.approved = "success"
+	r, err := PacksRun(w.deps(t), Options{})
+	if err != nil || r.Verdict != "landed packs hello 1.1" || !r.MainPending || r.PRPending {
+		t.Fatalf("%+v %v\n%s", r, err, w.out)
+	}
+	if got := w.hub.called("dispatch"); !reflect.DeepEqual(got, []string{"dispatch claudinite-ci.yml main pr="}) {
+		t.Errorf("dispatches %v", got)
+	}
+	w = newPackWorld(t)
+	r, err = PacksRun(w.deps(t), Options{})
+	if err != nil || r.Verdict != "opened #1 for packs hello 1.1" || !r.PRPending {
+		t.Fatalf("still running: %+v %v", r, err)
 	}
 }

@@ -1,8 +1,0 @@
-{
-  "packs": [
-    "claudinite-canon-curation"
-  ],
-  "rules": {
-    "skill-usage-declared": "advise"
-  }
-}

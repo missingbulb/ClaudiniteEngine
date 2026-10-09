@@ -49,7 +49,11 @@ func TestSandboxPinWritesTheRehearsalFixture(t *testing.T) {
 	}
 	for _, name := range []string{"claudinite-ci.yml", "claudinite-scheduler.yml", "claudinite-executor.yml"} {
 		got, err := os.ReadFile(filepath.Join(sandbox, ".github", "workflows", name))
-		want, _ := os.ReadFile(filepath.Join("../../../cn/lifecycle/workflows/templates", name))
+		dir := "../../../cn/tasks/workflows/templates"
+		if name == "claudinite-ci.yml" {
+			dir = "../../../cn/lifecycle/workflows/templates"
+		}
+		want, _ := os.ReadFile(filepath.Join(dir, name))
 		if err != nil || string(got) != string(want) {
 			t.Errorf(".github/workflows/%s is not the engine's template: %v", name, err)
 		}

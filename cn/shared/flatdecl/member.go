@@ -24,12 +24,11 @@ type MemberEngine struct {
 	Channel string `json:"channel"`
 }
 
-// MemberEntry is one declared pack: its id as declared, its config and
-// its via when the declaration carries them.
+// MemberEntry is one declared pack: its id as declared and its config
+// when the declaration carries one.
 type MemberEntry struct {
 	ID     string         `json:"id"`
 	Config map[string]any `json:"config,omitempty"`
-	Via    any            `json:"via,omitempty"`
 }
 
 // Member is the member file. Engine is nil when the settings file holds
@@ -50,7 +49,7 @@ type Member struct {
 }
 
 // ReadMember is the member file's content for repo: false when the repo
-// keeps no .claudinite/settings.* (a Node member, or the shelf). packs
+// keeps no .claudinite/settings.* (an unadopted repo, or the shelf). packs
 // are the loaded packs, whose canon versions are the held ones.
 func ReadMember(repo string, packs []packset.Pack) (Member, bool, error) {
 	path, f, err := settings.Find(repo)
@@ -66,21 +65,20 @@ func ReadMember(repo string, packs []packset.Pack) (Member, bool, error) {
 	if e, err := settings.ReadEngine(raw, f); err == nil {
 		m.Engine = &MemberEngine{Package: e.Package, Version: e.Version, Channel: e.Channel}
 	}
-	declared, err := settings.ReadPacks(raw, f)
+	parsed, err := settings.ParseFile(raw, f)
 	if err != nil {
 		return Member{}, false, err
 	}
+	declared := parsed.Packs
+	tasks, _ := parsed.TasksBlock()
+	m.Dormant, _ = tasks[workitem.DormantConfigKey].(bool)
 	m.Packs.Channel = declared.Channel
 	if m.Packs.Channel == "" {
 		m.Packs.Channel = settings.ChannelStable
 	}
 	m.Packs.Declared = []MemberEntry{}
 	for _, e := range declared.Entries {
-		m.Packs.Declared = append(m.Packs.Declared, MemberEntry{ID: e.Token(), Config: e.Config, Via: e.Via})
-		if !e.Local && e.ID == workitem.TasksPackID {
-			b, ok := e.Config[workitem.DormantConfigKey].(bool)
-			m.Dormant = ok && b
-		}
+		m.Packs.Declared = append(m.Packs.Declared, MemberEntry{ID: e.Token(), Config: e.Config})
 	}
 	for _, p := range packs {
 		if p.Kind == packset.Canon && p.Version != "" {

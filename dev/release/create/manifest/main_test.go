@@ -71,13 +71,20 @@ func TestWriteListsExactlyTheFivePlatforms(t *testing.T) {
 	if err := json.Unmarshal(raw, &m); err != nil {
 		t.Fatal(err)
 	}
-	for _, k := range []string{"v", "version", "builtAt", "commit", "goVersion", "updaterDigest", "binaries", "testedPacks"} {
+	for _, k := range []string{"v", "version", "builtAt", "commit", "goVersion", "updaterDigest", "binaries", "launcher", "testedPacks"} {
 		if _, ok := m[k]; !ok {
 			t.Errorf("manifest lacks %q", k)
 		}
 	}
-	if len(m) != 8 {
-		t.Errorf("manifest has %d keys, want 8", len(m))
+	if len(m) != 9 {
+		t.Errorf("manifest has %d keys, want 9", len(m))
+	}
+	launcher, _, err := releasefiles.HashFile(filepath.Join(repoRoot(t), "cn", "launcher", "launch"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := string(m["launcher"]); got != `"`+launcher+`"` {
+		t.Errorf("launcher %s, want the hash of cn/launcher/launch, %s", got, launcher)
 	}
 	want, err := releasefiles.UpdaterDigest(repoRoot(t))
 	if err != nil {
@@ -164,8 +171,10 @@ func TestVerify(t *testing.T) {
 	if _, e, c := tool(t, "verify", "--dist", dist, "--roots", roots); c != 0 {
 		t.Fatalf("restored dist fails: %s", e)
 	}
-	if _, _, c := tool(t, "verify", "--dist", dist, "--roots", t.TempDir()); c == 0 {
+	if _, e, c := tool(t, "verify", "--dist", dist, "--roots", t.TempDir()); c == 0 {
 		t.Error("verify passed with no trusted roots")
+	} else if !strings.Contains(e, "no trusted roots in") {
+		t.Errorf("verify with an empty roots folder does not say so: %s", e)
 	}
 }
 

@@ -2,7 +2,7 @@
 
 The harness that runs the frozen Node engine (missingbulb/Claudinite at the
 commit `CLAUDINITE_NODE_ENGINE` checks out) and `cn` over the same input and
-asserts they agree. The decision faces (tasks, update, growth and the dashboard's usable core) are answered by `../cndecide`, built beside `cn`, so the shipped binary carries none of them. Package documentation is in `engine.go`; each face's
+asserts they agree. The decision faces (tasks, update and growth) are answered by `../cndecide`, built beside `cn`, so the shipped binary carries none of them. Package documentation is in `engine.go`; each face's
 fixture format is at the top of its test file.
 
 | Face | Fixtures | Node side | cn side |
@@ -12,10 +12,11 @@ fixture format is at the top of its test file.
 | tasks | `testdata/tasks/<kind>/<name>.json` | `testdata/shims/tasks.mjs` | `cndecide tasks <kind> --world` |
 | update | `testdata/update/<core>/<name>.json` | `testdata/shims/update.mjs` | `cndecide update decide <core> --world` |
 | verify answers | `testdata/answered/<rule>/<case>.json` | `testdata/shims/answered.mjs`: the rule's `run` over `nodeFiles` | `cn verify` over `cnShape` with `cnFiles` laid over it |
-| settings | `testdata/settings/<name>/`: a declaration and the tree it sits in | `testdata/shims/settings.mjs`: the reader, the registry and `legacy-shape-in-use` | `cn settings import`, then `cn verify` over the imported member |
+| settings | `testdata/settings/<name>/`: a declaration and the tree it sits in | `testdata/shims/settings.mjs`: the reader, the registry and `legacy-shape-in-use` | `fromnode import`, then `cn verify` over the imported member |
 | growth | `testdata/growth/<core>/<name>.json` | `testdata/shims/growth.mjs`: `capture-log.mjs` and `prune-logs.mjs` | `cndecide growth decide <core> --world` |
-| dashboard | `testdata/dashboard/<core>/<name>.json` | `testdata/shims/dashboard.mjs`: the page's `parseDescriptor` and the `descriptor-usable` rule's `run` | `cn dashboard descriptor --json`, `cndecide dashboard decide usable --world`; `flat-member` is cn's alone, `cn tasks flat --write` against a hand-written file |
-| from-node | real Node trees in `CLAUDINITE_PARITY_TREES`, moved in `lifecycle/adopt`'s `TestFromNodeOverRealMembers` | none: no Node answer exists for a `cn` tree | `cn init --from-node` over a copy, then `cn verify`: only `node-leftovers`, `local-pack-shape` and the shelf's legacy minimums |
+| usage | `testdata/usage/fold/<name>.json`: a member, its logs branch and the REST API it reads | `testdata/shims/usage.mjs`: `usage-fold`'s `worker.mjs` | `cndecide usage decide fold --world` |
+| member | `testdata/member/flat-member/<name>.json` | none: no Node engine writes the member file | `cn tasks flat --write` against a hand-written file |
+| from-node | real Node trees in `CLAUDINITE_PARITY_TREES`, moved in `../fromnode`'s `TestMoveOverRealMembers` | none: no Node answer exists for a `cn` tree | `fromnode` over a copy, then `cn verify`: nothing, and `fromnode leftovers` no break |
 
 A fixture's `expect` is always the Node engine's answer, written by
 `CLAUDINITE_PARITY_RECORD=1` before the Go side existed.
@@ -43,37 +44,26 @@ from, where Node's tool found no carrier at all).
 Phase 7 added `scenarios/provenance/*`'s maintainer verbs (nineteen more,
 52 in all: `reduce`, `apply`, `convert-references` and `brief`, whose
 repos carry authors, an origin, a sweep, a moved rule, a rule reworded in
-place, a promoted pack and a declaration re-spelled to the same value) and
-`scenarios/pack-history/*` (three: the shelf, one pack, an earlier ref),
-where Node's `pack-versions.mjs` answers through `shims/pack-history.mjs`
-in `cn pack history --json`'s shape, and `scenarios/promote-scope/*`
-(four: inside the roots, outside, a second root from config, no merge
-base), Node's rule through `shims/promote-scope.mjs` against `--base`. The fixtures keep to what both read:
-cn drops a pack's `test/`, `docs/` and `checks/*_test.go` as the vendored
-set does, where Node dropped only `*.test.mjs`, and reads any dotted pack
-version, where Node read none below a date-anchored one.
+place, a promoted pack and a declaration re-spelled to the same value).
 
 ## Divergences
 
-Scenarios face divergences: 2 of 276 fixtures.
+Scenarios face divergences: 1 of 262 fixtures.
 
 A coded scenario whose `cn` world findings differ on purpose carries
 `"divergence": "record-<row>"` and `cn`'s findings as `"cnWorld"`, its
-`world` staying the Node engine's: `coded-claudinite-canon-curation/pack-no-enforcement-narration-fires`
-is record row 124 (a pack's Go checks name its own rules, which the
-Node engine, reading `.mjs` alone, never saw), and
-`flat-declarations/fires` is record row 137 (cn generates under
+`world` staying the Node engine's: `flat-declarations/fires` is record row 137 (cn generates under
 `.claudinite/cache/`, where the Node engine wrote `.claudinite/flat/`).
 
 Growth face divergences: 0 of 57 fixtures.
 
-Dashboard face divergences: 39 of 47 fixtures.
-
-Each is record row 145: cn's
-descriptor reader has no `fleet` block, so `cn dashboard descriptor` prints
-no `fleet` field and `descriptor-usable` judges only the ids the repo view
-selects, with no fleet mini-card findings. The dormancy core left with
-`cn fleet`.
+The dashboard face, its `descriptor` and `usable` cores and
+`scenarios/lifecycle-dashboard/*` were deleted when `cn dashboard
+descriptor`, the built-in `descriptor-usable` and the flat dashboard file
+left the engine for the claudinite-single-repo-dashboard pack; its
+`flat-member` core is the member face. The flat comparison leaves out
+Node's dashboards document, which cn no longer writes, and
+`flat-declarations/fires` names cn's task file alone.
 
 Tasks face divergences: 1 of 10 fixtures. `contract/invalid` is record row
 89: `log-past-retention` is a built-in term, so the contract's lists of
@@ -101,12 +91,58 @@ Update face divergences: 19 of 40 fixtures.
 | --- | --- | --- |
 | 8 | plan/downgrade-refused | a pin only moves forward: the plan keeps the newer held version |
 | 12 | plan/min-engine-blocks | a minimum engine is `<major>.<day>.<n>` |
-| 120 | plan/two-part-min-engine | a two-part minimum names a Node engine version, which no cn release meets: the plan blocks it |
+| 149 | plan/two-part-min-engine | a minimum that is no `<major>.<day>.<n>` version, a Node engine's two-part one included, blocks the plan: no engine loads that pack |
 | 32 | gap/unstamped, gap/old-engine, gap/mid-engine, applystage/record-asks, applystage/withheld, applystage/test-visible, terminal/apply-stage | no update migrates member files, and the one agent stage an update runs moves the engine's staged workflows only (row 141), never a plan's apply stage |
 | 39 | convergescope/mount-wiring | a pack PR carries the packs, the flat files and the CLAUDE.md import, never hook settings |
 | 41 | convergescope/stamp-only, convergescope/checkout | the declaration is `.claudinite/settings.*`, whose bookkeeping edit is the engine pin |
 | 63 | pulltext/* | the update opens one pull request per kind and supersedes, never amends |
 | 72 | delivery/failed-forced | a failed self-test opens no pull request, forced or not |
+
+The usage face runs `claudinite-tasks`' whole `usage-fold` worker and
+`cn`'s fold over one member each: a bare origin whose `main` and
+`claudinite/conversation-logs` branches the world writes, a clone of it
+(shallow where the world says), and a harness-owned server answering the
+REST listings the readers page. Each fixture's expect is, per run, what the
+worker printed (its log lines, its error, the pull request it opened), the
+requests it made in order, and the delivery branch's four rolling-file
+paths and commit messages; a later step lands that branch on `main`, or
+leaves it for an open pull request to amend, and may rewrite one value
+deep inside each rolling file first. The two files are compared byte for
+byte, naming the first line that differs. `TestParityUsageFuzz` draws
+worlds from a seed (`CLAUDINITE_PARITY_FUZZ` worlds from
+`CLAUDINITE_PARITY_FUZZ_SEED`, 40 from 1 by default; a world the engines
+disagree on is written to the temporary directory, ready to be a fixture),
+and `CLAUDINITE_PARITY_USAGE_COVERDIR` builds `cndecide` with coverage of
+`cn/tasks/usage` so `go tool covdata` reads which branches the worlds
+reached.
+
+Usage face divergences: 0 of 13 fixtures.
+
+What cannot match byte for byte, and how the face reads it:
+
+- A dropped connection is `fetch failed` to Node and `Get "<url>": <cause>`
+  to Go; the face reads both as `fetch failed`.
+- A half that throws logs `the <half> half failed - its file is unchanged
+  this run: ` and then Node's error text or Go's; the face compares the
+  line to that colon.
+- `net/http` retries a GET once on a dropped reused connection, which
+  would log a request Node never made; `cndecide` reads through a client
+  that keeps no connection alive. `cn usage fold` itself keeps the retry.
+- Where the open pull request's branch already holds the tree a run
+  built, `cn` pushes nothing and Node force-pushes a commit of the same
+  tree and message: the branch's files and messages agree, its head sha
+  does not, and the face compares no sha.
+
+Branches no world reaches, each for a stated reason: the moment and
+caught-skill counts read the declared checks and the corpus owner, which
+Node's mounted corpus never supplies; the run-mark reader is the
+precondition's, judged by `cn/tasks/precondition` and `cn/tasks/signals`
+rather than by the fold; and the counters' type errors are reachable only
+by a prior the decoder has not sanitized, so only a direct call to the
+fold reaches them (`cn/tasks/usage`'s own tests do). Nor does any world
+make git itself fail partway through a run (a plumbing call in the
+delivery, the logs branch's fetch, the local history read): the member is
+always a working clone.
 
 A settings fixture accounts for each Node error and advisory with a line
 the import or verify prints. Where `cn` decides otherwise on purpose it

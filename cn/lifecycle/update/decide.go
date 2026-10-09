@@ -1,7 +1,6 @@
 package update
 
 import (
-	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -45,10 +44,10 @@ type PackPlan struct {
 // engine, or "" when it can.
 func MinEngineBlock(id, ver, min, engine string) string {
 	m, err := version.ParseMinEngineVersion(min)
-	if errors.Is(err, version.ErrNodeEngine) {
-		return fmt.Sprintf("pack %q version %s names the Node engine version %s as its floor, which no cn release meets", id, ver, min)
+	if err != nil {
+		return fmt.Sprintf("pack %q version %s: %v, so no engine loads it", id, ver, err)
 	}
-	if err != nil || m.Satisfies(engine) {
+	if m.Satisfies(engine) {
 		return ""
 	}
 	return fmt.Sprintf("pack %q version %s needs engine %s; this repo runs engine %s", id, ver, min, engine)

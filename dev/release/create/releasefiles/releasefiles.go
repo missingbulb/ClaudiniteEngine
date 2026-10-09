@@ -44,9 +44,12 @@ type Manifest struct {
 	// UpdaterDigest is UpdaterDigest of the source the release was built
 	// from: equal digests mean equal update paths, so a hop one release
 	// completed proves the other's.
-	UpdaterDigest string                     `json:"updaterDigest"`
-	Binaries      map[string]Binary          `json:"binaries"`
-	TestedPacks   map[string]json.RawMessage `json:"testedPacks"`
+	UpdaterDigest string            `json:"updaterDigest"`
+	Binaries      map[string]Binary `json:"binaries"`
+	// Launcher is the SHA-256, in hex, of the launcher the release ships
+	// beside the manifest, which the signature then vouches for.
+	Launcher    string                     `json:"launcher,omitempty"`
+	TestedPacks map[string]json.RawMessage `json:"testedPacks"`
 }
 
 // BinaryName is the binary's file name on a platform.
@@ -92,7 +95,11 @@ func Format(m Manifest) []byte {
 		}
 		fmt.Fprintf(&b, "    %s: {\"file\": %s, \"sha256\": %s, \"size\": %d}%s\n", str(p), str(e.File), str(e.SHA256), e.Size, sep)
 	}
-	b.WriteString("  },\n  \"testedPacks\": {}\n}\n")
+	b.WriteString("  },\n")
+	if m.Launcher != "" {
+		fmt.Fprintf(&b, "  \"launcher\": %s,\n", str(m.Launcher))
+	}
+	b.WriteString("  \"testedPacks\": {}\n}\n")
 	return []byte(b.String())
 }
 
@@ -151,6 +158,7 @@ var UpdaterSource = []string{
 	"cn/shared/gitcmd",
 	"cn/shared/npmreg",
 	"cn/shared/settings",
+	"cn/tasks/workflows",
 }
 
 // UpdaterDigest is the SHA-256, in hex, over every regular file of

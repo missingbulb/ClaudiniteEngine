@@ -148,10 +148,15 @@ func LoadSet(repo, engine string, extra ...Builtin) (*Set, error) {
 	s.Packs = set.Packs
 	s.Config.Packs = set.Packs
 	s.Triggers, _ = skilltriggers.FromPacks(set.Packs)
+	queue, err := LoadEngine(EnginePack)
+	if err != nil {
+		return nil, err
+	}
+	s.Checks = append(s.Checks, queue...)
 	active := map[string]bool{}
 	for _, p := range set.Packs {
 		active[p.ID] = true
-		cs, err := Load(repo, p.Rel, p.ID, p.Kind != packset.Canon)
+		cs, err := Load(repo, p.Rel, p.ID)
 		if err != nil {
 			var le *LoadError
 			if errors.As(err, &le) {
@@ -161,7 +166,7 @@ func LoadSet(repo, engine string, extra ...Builtin) (*Set, error) {
 				Sentence: fmt.Sprintf("the declared checks of pack %s failed to load: %v", p.ID, err)})
 			continue
 		}
-		s.Checks = append(s.Checks, cs...)
+		s.Checks = append(s.Checks, outranked(cs, queue)...)
 	}
 	for _, b := range append([]Builtin{builtinBarrier, builtinSpecKeys, builtinSkillLoaded, builtinRemoteDelete}, extra...) {
 		if b.active(active) {

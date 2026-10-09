@@ -59,6 +59,13 @@
 //     engine's path, and a bare force id reaches it; it closes on
 //     its verdicts. schedule.TestTheEnginesUpdateIsFiledOnceADay,
 //     execute.TestTheEnginesUpdateRunsAndClosesOnItsVerdicts
+//   - The engine's own usage fold is filed on every repo the queue runs
+//     in, at the engine's path, while its run mark stands before the UTC
+//     day opened, as well as on a commit or a capture; the mark is read
+//     from the rolling file, or the legacy one not yet moved.
+//     schedule.TestTheUsageFoldIsFiledWhileTheMachineryRanUnfolded,
+//     precondition.TestRunsSinceFoldReadsTheFilesOwnWatermark,
+//     signals.TestReadLocalReadsTheUsageFoldsRunMark
 //   - The engine's update hands its agent stage the engine PR it opened,
 //     amending that PR's branch, only when that PR carries staged workflow
 //     files. execute.TestTheEnginesUpdateHandsItsOwnPRToTheAgentStage
@@ -197,6 +204,9 @@
 //   - A marked issue is adopted once, as itself, and a stranger's
 //     parameters are ignored. schedule.TestAMarkedIssueIsAdoptedOnceAsItself,
 //     schedule.TestAStrangersParametersAreIgnored
+//   - A marked issue naming no task is adopted into the one active task
+//     gated on request-eligible, and waits while none or several are.
+//     schedule.TestAMarkedIssueNamingNoTaskWaitsUnlessExactlyOneTaskTakesRequests
 //
 // # Cost
 //

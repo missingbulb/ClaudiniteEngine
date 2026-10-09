@@ -45,9 +45,10 @@ func TestCalls(t *testing.T) {
 		"POST /repos/o/r/pulls":                                          `{"number":8,"head":{"ref":"b","sha":"def"}}`,
 		"PATCH /repos/o/r/pulls/7":                                       `{"number":7,"state":"closed"}`,
 		"PUT /repos/o/r/pulls/7/merge":                                   `{"merged":true,"sha":"fff"}`,
-		"POST /repos/o/r/issues/8/labels":                                `[]`,
 		"POST /repos/o/r/issues/7/comments":                              `{}`,
 		"POST /repos/o/r/actions/workflows/claudinite-ci.yml/dispatches": "",
+		"GET /repos/o/r/actions/runs":                                    `{"workflow_runs":[{"id":5,"name":"claudinite-ci","head_sha":"abc","event":"pull_request","status":"completed","conclusion":"action_required"}]}`,
+		"POST /repos/o/r/actions/runs/5/approve":                         `{}`,
 		"GET /repos/o/r/issues":                                          `[{"number":3,"title":"Claudinite engine 1.2.0 needs a workflow change","body":"b","labels":[{"name":"claudinite-update"}]},{"number":7,"title":"pr","pull_request":{}}]`,
 		"POST /repos/o/r/issues":                                         `{"number":9,"title":"x"}`,
 		"PATCH /repos/o/r/issues/3":                                      `{"number":3}`,
@@ -55,6 +56,13 @@ func TestCalls(t *testing.T) {
 	runs, err := c.WorkflowRuns("claudinite-ci.yml", "abc")
 	if err != nil || len(runs) != 1 || runs[0].Conclusion != "success" || runs[0].Event != "workflow_dispatch" {
 		t.Fatalf("%+v %v", runs, err)
+	}
+	held, err := c.HeadRuns("abc")
+	if err != nil || len(held) != 1 || held[0].ID != 5 || held[0].Name != "claudinite-ci" || held[0].Conclusion != "action_required" {
+		t.Fatalf("%+v %v", held, err)
+	}
+	if err := c.ApproveRun(5); err != nil {
+		t.Fatal(err)
 	}
 	prs, err := c.OpenPulls()
 	if err != nil || len(prs) != 1 || prs[0].Author != "github-actions[bot]" || !prs[0].HasLabel("claudinite-update") || prs[0].HeadRef != "claudinite/engine-1.2.0" {
@@ -72,20 +80,17 @@ func TestCalls(t *testing.T) {
 	if err := c.MergePull(7, "abc", "Claudinite engine 1.2.0"); err != nil {
 		t.Fatal(err)
 	}
-	if err := c.AddLabel(8, "claudinite-update"); err != nil {
-		t.Fatal(err)
-	}
 	if err := c.Comment(7, "superseded"); err != nil {
 		t.Fatal(err)
 	}
 	if err := c.Dispatch("claudinite-ci.yml", "main", map[string]string{"pr": "8"}); err != nil {
 		t.Fatal(err)
 	}
-	issues, err := c.OpenIssues("claudinite-update")
+	issues, err := c.OpenIssues()
 	if err != nil || len(issues) != 1 || issues[0].Number != 3 {
 		t.Fatalf("issues %+v %v", issues, err)
 	}
-	if n, err := c.CreateIssue("t", "b", "claudinite-update"); err != nil || n != 9 {
+	if n, err := c.CreateIssue("t", "b"); err != nil || n != 9 {
 		t.Fatalf("%d %v", n, err)
 	}
 	if err := c.UpdateIssueBody(3, "new"); err != nil {
@@ -98,10 +103,13 @@ func TestCalls(t *testing.T) {
 	}
 	want := map[string]string{
 		"GET /repos/o/r/actions/workflows/claudinite-ci.yml/runs?head_sha=abc&per_page=100": "",
-		"PATCH /repos/o/r/pulls/7":                                       `{"state":"closed"}`,
-		"PUT /repos/o/r/pulls/7/merge":                                   `{"commit_title":"Claudinite engine 1.2.0","merge_method":"squash","sha":"abc"}`,
-		"POST /repos/o/r/actions/workflows/claudinite-ci.yml/dispatches": `{"inputs":{"pr":"8"},"ref":"main"}`,
-		"POST /repos/o/r/issues":                                         `{"body":"b","labels":["claudinite-update"],"title":"t"}`,
+		"GET /repos/o/r/actions/runs?head_sha=abc&per_page=100":                             "",
+		"POST /repos/o/r/actions/runs/5/approve":                                            "",
+		"PATCH /repos/o/r/pulls/7":                                                          `{"state":"closed"}`,
+		"PUT /repos/o/r/pulls/7/merge":                                                      `{"commit_title":"Claudinite engine 1.2.0","merge_method":"squash","sha":"abc"}`,
+		"POST /repos/o/r/actions/workflows/claudinite-ci.yml/dispatches":                    `{"inputs":{"pr":"8"},"ref":"main"}`,
+		"POST /repos/o/r/issues":                                                            `{"body":"b","title":"t"}`,
+		"GET /repos/o/r/issues?state=open&per_page=100&page=1":                              "",
 	}
 	for k, body := range want {
 		found := false

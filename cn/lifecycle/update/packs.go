@@ -51,53 +51,56 @@ func packMoves(moves []move) []PackMove {
 	return out
 }
 
-// botPRs are the open PRs on branches starting with prefix that carry the
-// label or that the job token opened, relabelled when the label is gone.
-func botPRs(d Deps, prs []githubapi.PR, prefix string) ([]githubapi.PR, error) {
+// botPRs are the open PRs the job token opened on branches starting with
+// prefix.
+func botPRs(prs []githubapi.PR, prefix string) []githubapi.PR {
 	var out []githubapi.PR
 	for _, p := range prs {
-		if !strings.HasPrefix(p.HeadRef, prefix) {
-			continue
+		if strings.HasPrefix(p.HeadRef, prefix) && p.Author == gitcmd.BotName {
+			out = append(out, p)
 		}
-		if !p.HasLabel(Label) {
-			if p.Author != gitcmd.BotName {
-				continue
-			}
-			if err := d.GitHub.AddLabel(p.Number, Label); err != nil {
-				return nil, err
-			}
-			p.Labels = append(p.Labels, Label)
-		}
-		out = append(out, p)
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Number < out[j].Number })
-	return out, nil
+	return out
 }
 
 // Packs is one run of cn update packs. Like Engine it acts at most once:
 // a green main is required and an open engine PR makes it wait; a green
 // open pack PR is landed; otherwise every declared pack with a newer
 // allowed version moves, in one commit on a fresh branch that this repo's
-// own check world must pass before it is pushed and proposed.
+// own check world must pass before it is pushed and proposed, and lands
+// in the same run when its CI passes in time.
 func Packs(d Deps, o Options) (string, error) {
-	if verdict, _, err := mainGate(d); err != nil || verdict != "" {
+	r, err := PacksRun(d, o)
+	return r.Verdict, err
+}
+
+// PacksRun is Packs, saying whether a CI verdict is still to come: main's
+// or the pack PR's.
+func PacksRun(d Deps, o Options) (EngineResult, error) {
+	var r EngineResult
+	v, err := packsRun(d, o, &r)
+	if err != nil {
+		return EngineResult{}, err
+	}
+	r.Verdict = v
+	return r, nil
+}
+
+func packsRun(d Deps, o Options, res *EngineResult) (string, error) {
+	if verdict, pending, err := mainGate(d); err != nil || verdict != "" {
+		res.MainPending = pending
 		return verdict, err
 	}
 	all, err := d.GitHub.OpenPulls()
 	if err != nil {
 		return "", err
 	}
-	engine, err := botPRs(d, all, BranchPrefix)
-	if err != nil {
-		return "", err
-	}
+	engine := botPRs(all, BranchPrefix)
 	if len(engine) > 0 {
 		return fmt.Sprintf("skipped: engine PR #%d is open", engine[0].Number), nil
 	}
-	open, err := botPRs(d, all, PackBranchPrefix)
-	if err != nil {
-		return "", err
-	}
+	open := botPRs(all, PackBranchPrefix)
 	if len(open) > 1 {
 		var names []string
 		for _, p := range open {
@@ -109,21 +112,16 @@ func Packs(d Deps, o Options) (string, error) {
 	prevState := ""
 	if len(open) == 1 {
 		prev = &open[0]
-		runs, err := d.GitHub.WorkflowRuns(CIWorkflow, prev.HeadSHA)
-		if err != nil {
+		if prevState, err = prevCI(d, prev.HeadSHA); err != nil {
 			return "", err
 		}
-		prevState = runState(latest(runs, "workflow_dispatch"))
 		if prevState == "success" {
-			return Land(d, prev.Number, prev.HeadSHA)
+			v, err := Land(d, prev.Number, prev.HeadSHA)
+			return landed(res, v, err)
 		}
 	}
 
 	moves, err := proposePacks(d)
-	var dis *packs.SourcesDisagree
-	if errors.As(err, &dis) {
-		return "skipped: " + dis.Error(), nil
-	}
 	if err != nil {
 		return "", err
 	}
@@ -133,13 +131,13 @@ func Packs(d Deps, o Options) (string, error) {
 			return "up to date", err
 		}
 		if prev != nil && prev.Title == IndexTitle {
-			return pendingPR(d, *prev, prevState, "for the rules index")
+			return pendingPR(d, res, *prev, prevState, "for the rules index")
 		}
-		return openPackPR(d, o, nil, prev)
+		return openPackPR(d, res, o, nil, prev)
 	}
 	set := describe(moves, false)
 	if prev != nil && strings.HasSuffix(prev.Title, ": "+describe(moves, true)) {
-		return pendingPR(d, *prev, prevState, "for packs "+set)
+		return pendingPR(d, res, *prev, prevState, "for packs "+set)
 	}
 	for i := range moves {
 		data, err := d.Packs.Archive(moves[i].id, moves[i].entry)
@@ -148,7 +146,7 @@ func Packs(d Deps, o Options) (string, error) {
 		}
 		moves[i].archive = data
 	}
-	return openPackPR(d, o, moves, prev)
+	return openPackPR(d, res, o, moves, prev)
 }
 
 // IndexTitle is the title of a pack PR that moves no pack and carries only
@@ -177,9 +175,9 @@ func indexNeedsPR(repo string) (bool, error) {
 }
 
 // pendingPR is the verdict on the open pack PR proposing what this run
-// would: its CI state, dispatching its CI again when it never ran or was
-// cut short.
-func pendingPR(d Deps, prev githubapi.PR, prevState, what string) (string, error) {
+// would: its CI state, asking for its CI again when it never ran or was
+// cut short (retryCI).
+func pendingPR(d Deps, res *EngineResult, prev githubapi.PR, prevState, what string) (string, error) {
 	why := "its CI concluded " + prevState
 	switch prevState {
 	case "no run":
@@ -187,14 +185,11 @@ func pendingPR(d Deps, prev githubapi.PR, prevState, what string) (string, error
 	case "queued", "in_progress", "waiting", "pending", "requested":
 		why = "its CI is " + prevState
 	}
-	switch prevState {
-	case "no run", "cancelled", "timed_out":
-		if err := d.GitHub.Dispatch(CIWorkflow, prev.HeadRef, map[string]string{"pr": strconv.Itoa(prev.Number)}); err != nil {
-			return "", err
-		}
-		why += "; dispatched its CI again"
+	tail, err := retryCI(d, res, prev, prevState)
+	if err != nil {
+		return "", err
 	}
-	return fmt.Sprintf("skipped: #%d %s is open and %s", prev.Number, what, why), nil
+	return fmt.Sprintf("skipped: #%d %s is open and %s%s", prev.Number, what, why, tail), nil
 }
 
 // proposePacks selects, for each declared pack in declared order, the
@@ -415,10 +410,10 @@ func pinVersion(repo string) string {
 }
 
 // openPackPR writes the moves on a fresh branch, runs this repo's check
-// world over it and, when it passes, pushes it, opens and labels the PR
-// and dispatches its CI. With no moves the branch carries the rules index
-// and the import alone. The checkout ends where it was.
-func openPackPR(d Deps, o Options, moves []move, prev *githubapi.PR) (string, error) {
+// world over it and, when it passes, pushes it, opens the PR and lands it
+// on its CI (awaitLanding). With no moves the branch carries the rules
+// index and the import alone. The checkout ends where it was.
+func openPackPR(d Deps, res *EngineResult, o Options, moves []move, prev *githubapi.PR) (string, error) {
 	set := describe(moves, false)
 	what := "packs " + set
 	back, err := d.Git.CurrentBranch()
@@ -535,7 +530,7 @@ func openPackPR(d Deps, o Options, moves []move, prev *githubapi.PR) (string, er
 	} else {
 		fmt.Fprintf(&b, "This repo's `check world` over the branch:\n\n%s\n%s%s\n\n", fence(checkOut), checkOut, fence(checkOut))
 	}
-	b.WriteString("The updater merges this PR once the CI run it dispatched is green.\n")
+	b.WriteString("The updater approves this PR's held CI run and merges it once that run is green.\n")
 
 	if prev != nil {
 		if err := closeUpdatePR(d, *prev, "Superseded: "+set+" is proposed instead."); err != nil {
@@ -551,16 +546,14 @@ func openPackPR(d Deps, o Options, moves []move, prev *githubapi.PR) (string, er
 	if err != nil {
 		return "", err
 	}
-	if err := d.GitHub.AddLabel(pr.Number, Label); err != nil {
-		return "", err
-	}
-	if err := d.GitHub.Dispatch(CIWorkflow, branch, map[string]string{"pr": strconv.Itoa(pr.Number)}); err != nil {
+	sha, err := d.Git.RevParse("refs/heads/" + branch)
+	if err != nil {
 		return "", err
 	}
 	if err := d.Git.DeleteBranch(branch); err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("opened #%d for %s", pr.Number, what), nil
+	return awaitLanding(d, res, pr.Number, branch, sha, fmt.Sprintf("opened #%d for %s", pr.Number, what))
 }
 
 // onlyAppendsImport refuses a CLAUDE.md on sha that is anything but
@@ -631,6 +624,14 @@ func landPacks(d Deps, pr githubapi.PR, sha string) (string, error) {
 			continue
 		}
 		if f == rulesindex.SkillsFile {
+			continue
+		}
+		if slices.Contains(flatdecl.Retired, f) {
+			if _, ok, err := d.Git.Show(sha, f); err != nil {
+				return "", err
+			} else if ok {
+				return "", fmt.Errorf("#%d writes %s, which no engine renders any more", pr.Number, f)
+			}
 			continue
 		}
 		if isFlatFile(f) {
@@ -736,8 +737,10 @@ func landPacks(d Deps, pr githubapi.PR, sha string) (string, error) {
 		}
 		landed = append(landed, id+" "+m.Version)
 	}
-	if err := landPinned(d, pr, sha, pr.Title); err != nil {
+	if why, err := landPinned(d, pr, sha, pr.Title); err != nil {
 		return "", err
+	} else if why != "" {
+		return notLanded(pr.Number, why), nil
 	}
 	if err := d.GitHub.Dispatch(CIWorkflow, mainBranch, map[string]string{}); err != nil {
 		return "", err

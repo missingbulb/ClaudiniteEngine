@@ -25,7 +25,8 @@
 #            dev/release/verify/stubs/cdnstub and read as the vendored branch), its session
 #            loads the pack and its Go check blocks Stop, and cn update
 #            packs proposes, refuses, skips and lands pack versions as the
-#            fixture publishes and revokes them, then refuses an index whose
+#            fixture publishes and revokes them, approving each PR's held CI
+#            run and landing on it in the same run, then refuses an index whose
 #            serial regressed or whose signature broke; cn init asks for no
 #            license; hello's declared checks fail the
 #            world and block Stop, and the member's checks block turns them
@@ -35,8 +36,8 @@
 #   adopt    the adoption flow over hello and the hello-asks probe: cn init
 #            ends on QUESTIONS and HANDOVER with the seed written and the
 #            task secret stamped, adoption-answers-pending blocks Stop until
-#            cn settings answer, cn adopt does the same for a pack added
-#            later, and cn init --from-node moves a Node-shaped member.
+#            cn settings answer, and cn adopt does the same for a pack
+#            added later.
 #   tasks    a member on hello 1.4 with the three workflows runs the task
 #            queue against ghstub (its routine route and dev/release/stub-
 #            agent.sh): tasks list and the declaration check,
@@ -51,26 +52,25 @@
 #            prune as its code-work only once the captures are past
 #            retention, and cn pack new leaves verify and cn provenance
 #            check clean.
-#   dashboard a member declaring claudinite-dashboard in YAML with a local
-#            descriptor (dev/release/verify/fixtures/dashboard-fixture.sh): the flat files and
-#            the member file, tasks flat --check, descriptor-usable on a
-#            local descriptor and silent on the mount's, cn dashboard
-#            descriptor; then publish-pages building the real pack from
+#   dashboard a member declaring claudinite-single-repo-dashboard in YAML
+#            (dev/release/verify/fixtures/dashboard-fixture.sh): the flat
+#            task file and the member file, the retired flat dashboard file
+#            deleted, tasks flat --check; then publish-pages building the real pack from
 #            CLAUDINITE_PACKS_TREE (a ClaudinitePacks checkout, which this
 #            mode requires) and following its deploy to success.
 #
 # One more mode reads the real shelf and is never in the default set:
 #
 #   live-packs  a member declaring basics, git-github, claudinite-lifecycle,
-#            claudinite-tasks, claudinite-growth, node, python and aws-sam on
+#            claudinite-growth, node, python and aws-sam on
 #            the canary channel adopts them through the npx bootstrap from
 #            the real pack CDN and ClaudinitePacks' vendored branch, each
 #            index verified against the roots this release embeds (a
 #            devroots build trusts the ceremony's and the development roots); its session loads them, check world runs their declared
 #            and Go checks silent and a planted aws-sam violation fires; cn
-#            update packs is up to date from both sources, from the branch
-#            alone with the CDN unreachable, and skips naming both serials
-#            when a local mirror of the branch is one release behind. Built
+#            update packs is up to date from the CDN, from the branch
+#            alone with the CDN unreachable, and from the CDN still when a
+#            local mirror of the branch is one release behind. Built
 #            at today's version when the release is older than the shelf's
 #            floor. CLAUDINITE_OFFLINE=1 skips it with a notice.
 #
@@ -380,9 +380,6 @@ for mode in $modes; do
     update)
       step "update: a member on $version with a bare origin, and the GitHub stub"
       warm_member update
-      # The member still carries the retired license block; its update PR
-      # drops it.
-      printf 'license:\n  plan: "public"\n' >> "$member/.claudinite/settings.yaml"
       origin=$work/origin.git
       git init -q --bare -b main "$origin"
       # The member declares a pack, so its update PR restates the member file.
@@ -481,11 +478,10 @@ for mode in $modes; do
       (cd "$member" && git fetch -q origin && git reset -q --hard origin/main) || fail "update 3: pull"
       grep -q "version: \"$next\"" "$member/.claudinite/settings.yaml" || fail "update 3: main does not pin $next"
       grep -q "\"version\": \"$next\"" "$member/.claudinite/cache/member.GENERATED.json" || fail "update 3: main's member file does not state $next"
-      if grep -q '^license:' "$member/.claudinite/settings.yaml"; then fail "update 3: main kept the retired license block"; fi
-      grep -q '^  declared:$' "$member/.claudinite/settings.yaml" || fail "update 3: dropping the license block took the packs block: $(cat "$member/.claudinite/settings.yaml")"
+      grep -q '^  declared:$' "$member/.claudinite/settings.yaml" || fail "update 3: the update PR took the packs block: $(cat "$member/.claudinite/settings.yaml")"
       grep -q '^    - cron: "[0-9]* [0-9]*,[0-9]* \* \* \*"$' "$member/$sched" || fail "update 3: main's scheduler carries no hashed cron: $(cat "$member/$sched")"
       [ ! -e "$member/.claudinite/cache/pending-workflows" ] || fail "update 3: main holds the staging directory"
-      step "update 3: landed $next, merged by the agent stage once land skipped it and the gate passed; the member file and the moved scheduler beside the pin, the retired license block dropped"
+      step "update 3: landed $next, merged by the agent stage once land skipped it and the gate passed; the member file and the moved scheduler beside the pin"
 
       : > "$work/requests.log"
       out=$(session_start) || fail "update 4: SessionStart exited non-zero"
@@ -717,13 +713,8 @@ for mode in $modes; do
       pull() { (cd "$member" && git fetch -q origin && git reset -q --hard origin/main) || fail "packs: pull"; }
       day=$(cn_member version --day)
       branch=claudinite/packs-$day
-      # land N: CI green on PR N's head, then cn update land.
-      land() {
-        head=$(git --git-dir "$origin" rev-parse "$branch")
-        ctl /_stub/run "{\"sha\":\"$head\",\"event\":\"workflow_dispatch\",\"conclusion\":\"success\"}"
-        cn_member update land --pr "$1" --sha "$head" > "$work/land.out" 2>&1 || fail "packs: land #$1: $(cat "$work/land.out")"
-        verdict=$(sed -n '$p' "$work/land.out")
-      }
+      # A pack PR's held CI run, once approved, passes.
+      ctl /_stub/approve '{"conclusion":"success"}'
 
       # A member from before the rules channel: CLAUDE.md without the import.
       printf '# Member\n' > "$member/CLAUDE.md"
@@ -734,19 +725,19 @@ for mode in $modes; do
       fixture --publish v2
       main_run success
       update_packs
-      expect_verdict "opened #1 for packs hello 1.4"
-      if git --git-dir "$origin" diff --name-only main "$branch" | grep -v '^CLAUDE\.md$' | grep -Ev '^\.claudinite/cache/(claudinite-skills\.GENERATED\.md|(tasks|dashboard|member)\.GENERATED\.json)$' | grep -qv '^\.claudinite/shared/packs/hello/'; then fail "packs 5: the branch changes more than the hello pack, the skills index, the flat files and CLAUDE.md"; fi
-      git --git-dir "$origin" show "$branch:.claudinite/cache/member.GENERATED.json" | grep -q '"hello": "1.4"' || fail "packs 5: the member file does not hold hello 1.4: $(git --git-dir "$origin" show "$branch:.claudinite/cache/member.GENERATED.json" 2>&1)"
-      git --git-dir "$origin" show "$branch:.claudinite/cache/claudinite-skills.GENERATED.md" | grep -q hello-guide || fail "packs 5: the branch's skills index does not name hello-guide"
-      [ "$(git --git-dir "$origin" show "$branch:CLAUDE.md")" = "$(printf '# Member\n@.claudinite/cache/claudinite-rules.GENERATED.md')" ] || fail "packs 5: the branch's CLAUDE.md: $(git --git-dir "$origin" show "$branch:CLAUDE.md")"
-      [ "$(gh_count 'st.dispatches.filter(d=>d.ref==="'"$branch"'"&&d.inputs.pr==="1").length')" = 1 ] || fail "packs 5: dispatches $(gh_state)"
-      head=$(git --git-dir "$origin" rev-parse "$branch")
-      (cd "$member" && git fetch -q origin && git checkout -q "$head") || fail "packs 5: checkout"
-      cn_member check world --pr-author 'github-actions[bot]' --base-ref origin/main > "$work/world.out" 2>&1 || fail "packs 5: check world on the branch: $(cat "$work/world.out")"
-      (cd "$member" && git checkout -q main) || fail "packs 5: back to main"
-      land 1
       expect_verdict "landed packs hello 1.4"
+      grep -q "^approved the held pull_request run " "$work/update.out" || fail "packs 5: no approval said: $(cat "$work/update.out")"
+      [ "$(gh_count 'st.calls.filter(c=>c.startsWith("approve ")).length')" = 1 ] || fail "packs 5: approvals $(gh_state)"
+      [ "$(gh_count 'st.dispatches.filter(d=>d.ref==="'"$branch"'").length')" = 0 ] || fail "packs 5: CI was dispatched on the PR branch: $(gh_state)"
+      [ "$(gh_count 'st.pulls.filter(p=>p.number===1&&p.merged).length')" = 1 ] || fail "packs 5: #1 did not merge: $(gh_state)"
+      [ -z "$(git --git-dir "$origin" branch --list "$branch")" ] || fail "packs 5: $branch was not deleted"
+      # The squash on main is the PR's change.
+      if git --git-dir "$origin" diff --name-only main~1 main | grep -v '^CLAUDE\.md$' | grep -Ev '^\.claudinite/cache/(claudinite-skills\.GENERATED\.md|(tasks|member)\.GENERATED\.json)$' | grep -qv '^\.claudinite/shared/packs/hello/'; then fail "packs 5: the branch changes more than the hello pack, the skills index, the flat files and CLAUDE.md"; fi
+      git --git-dir "$origin" show "main:.claudinite/cache/member.GENERATED.json" | grep -q '"hello": "1.4"' || fail "packs 5: the member file does not hold hello 1.4: $(git --git-dir "$origin" show "main:.claudinite/cache/member.GENERATED.json" 2>&1)"
+      git --git-dir "$origin" show "main:.claudinite/cache/claudinite-skills.GENERATED.md" | grep -q hello-guide || fail "packs 5: the skills index does not name hello-guide"
+      [ "$(git --git-dir "$origin" show "main:CLAUDE.md")" = "$(printf '# Member\n@.claudinite/cache/claudinite-rules.GENERATED.md')" ] || fail "packs 5: CLAUDE.md: $(git --git-dir "$origin" show "main:CLAUDE.md")"
       pull
+      cn_member check world --pr-author 'github-actions[bot]' --base-ref origin/main~1 > "$work/world.out" 2>&1 || fail "packs 5: check world over the PR's change: $(cat "$work/world.out")"
       grep -q '"version": "1.4"' "$member/.claudinite/shared/packs/hello/pack.json" || fail "packs 5: main does not hold hello 1.4"
       out=$(session_start) || fail "packs 5: SessionStart"
       case $out in *"[cn] packs 1/1 loaded (hello 1.4: rules 5 skills 2)"*) ;; *) fail "packs 5: SessionStart on 1.4: $out" ;; esac
@@ -756,7 +747,7 @@ for mode in $modes; do
       # The key covers the engine, the SDK and the check sources; 1.4 adds
       # Go checks, so its checks binary is a second one beside 1.0's.
       [ "$(find "$checks" -mindepth 1 -maxdepth 1 -type d ! -name sessions | wc -l | tr -d ' ')" = 2 ] || fail "packs 5: hello 1.4's checks did not build a second checks binary"
-      step "packs 5: opened, checked and landed hello 1.4 with the CLAUDE.md import restored; its Go checks build a second checks binary"
+      step "packs 5: opened hello 1.4, approved its held CI run and landed it in the same run with the CLAUDE.md import restored; its Go checks build a second checks binary"
 
       fixture --publish v3
       main_run success
@@ -769,10 +760,8 @@ for mode in $modes; do
 
       fixture --revoke v3 --publish v4
       update_packs
-      expect_verdict "opened #2 for packs hello 1.6"
-      grep -q '^hello 1.5 skipped: revoked$' "$work/update.out" || fail "packs 7: no revoked skip: $(cat "$work/update.out")"
-      land 2
       expect_verdict "landed packs hello 1.6"
+      grep -q '^hello 1.5 skipped: revoked$' "$work/update.out" || fail "packs 7: no revoked skip: $(cat "$work/update.out")"
       pull
       main_run success
       step "packs 7: revoked 1.5 skipped; hello 1.6 landed"
@@ -786,8 +775,8 @@ for mode in $modes; do
       fixture --publish v6
       update_packs
       expect_verdict "up to date"
-      grep -q '^hello 1.8 skipped: names a Node engine version$' "$work/update.out" || fail "packs 8b: no Node-floor skip: $(cat "$work/update.out")"
-      step "packs 8b: hello 1.8, whose floor names a Node engine version, skipped and never an error"
+      grep -q '^hello 1.8 skipped: not for this engine$' "$work/update.out" || fail "packs 8b: no unreadable-floor skip: $(cat "$work/update.out")"
+      step "packs 8b: hello 1.8, whose two-part floor is no version, skipped as not for this engine and never an error"
 
       # set_channel C: the member's packs channel, committed and pushed, main
       # green. The engine block's own channel stays.
@@ -825,13 +814,14 @@ for mode in $modes; do
 
       fixture --serial 1 --mirror-only
       update_packs
-      case $verdict in "skipped: pack index sources disagree (cdn serial "*", branch serial 1)") ;; *) fail "packs 11: a branch behind the CDN: verdict '$verdict'" ;; esac
+      expect_verdict "up to date"
+      grep -q '^packs: hello: index serial [0-9]* from cdn$' "$work/update.out" "$work/update.err" || fail "packs 11: a branch behind the CDN: the read is not the CDN's: $(cat "$work/update.out" "$work/update.err")"
       fixture --flip-sig
       if cn_member update packs > "$work/update.out" 2>&1; then fail "packs 11: a flipped signature was read: $(cat "$work/update.out")"; fi
       grep -qi 'signature\|certificate' "$work/update.out" || fail "packs 11: the refusal names no signature check: $(cat "$work/update.out")"
       [ -z "$(cd "$member" && git status --porcelain)" ] || fail "packs 11: the checkout changed: $(cd "$member" && git status --porcelain)"
       [ -z "$(git --git-dir "$origin" branch --list 'claudinite/packs-*')" ] || fail "packs 11: a branch was pushed"
-      step "packs 11: a branch behind the CDN is a skip naming both serials; a flipped signature is refused; nothing changed"
+      step "packs 11: a branch behind the CDN is not read while the CDN answers; a flipped signature is refused; nothing changed"
 
       echo hello > "$member/HELLO_DECLARED"
       if cn_member check --tag world > "$work/check.out" 2>&1; then fail "packs 12: check --tag world passed with HELLO_DECLARED"; fi
@@ -1113,19 +1103,16 @@ GO
       (cd "$member" && "$npx/.bin/cn" init --packs hello --channel canary --repo "$member") > "$work/init.out" 2>&1 \
         || fail "tasks: init: $(cat "$work/init.out")"
       grep -q '"version": "1.4"' "$member/.claudinite/shared/packs/hello/pack.json" || fail "tasks: init did not vendor hello 1.4"
-      # The two engine packs whose checks the steps run, claudinite-tasks
-      # carrying the routine the hand-off fires; each stands in as its
-      # manifest alone, as nothing here publishes them.
-      for p in claudinite-tasks claudinite-lifecycle; do
-        mkdir -p "$member/.claudinite/shared/packs/$p"
-        printf '{\n  "version": "1.0",\n  "minEngineVersion": "%s"\n}\n' "$version" > "$member/.claudinite/shared/packs/$p/pack.json"
-      done
-      awk -v url="$gh/routines/trig_hello" '{ print } /^    - hello$/ {
-        print "    - claudinite-lifecycle"; print "    - id: claudinite-tasks"; print "      config:"
-        print "        disabledTasks:"; print "          - engine/update"
-        print "        agenticTaskInvocationEndpoints:"; print "          default:"; print "            url: \"" url "\"" }' \
+      # The engine pack whose checks the steps run, standing in as its
+      # manifest alone, as nothing here publishes it; the settings' tasks
+      # block carries the routine the hand-off fires.
+      mkdir -p "$member/.claudinite/shared/packs/claudinite-lifecycle"
+      printf '{\n  "version": "1.0",\n  "minEngineVersion": "%s"\n}\n' "$version" > "$member/.claudinite/shared/packs/claudinite-lifecycle/pack.json"
+      awk '{ print } /^    - hello$/ { print "    - claudinite-lifecycle" }' \
         "$member/.claudinite/settings.yaml" > "$work/settings.yaml"
       mv "$work/settings.yaml" "$member/.claudinite/settings.yaml"
+      printf 'tasks:\n  disabled:\n    - engine/update\n  routines:\n    default:\n      url: "%s"\n' "$gh/routines/trig_hello" \
+        >> "$member/.claudinite/settings.yaml"
       # The adoption is three days old, so the repo starts quiet.
       old=$(date -u -d '3 days ago' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -v-3d +%Y-%m-%dT%H:%M:%SZ)
       gitc() { (cd "$member" && git -c user.name=rehearse -c user.email=r@x -c commit.gpgsign=false "$@"); }
@@ -1150,7 +1137,7 @@ GO
       pull_after() { (cd "$member" && git -c push.negotiate=false pull -q --ff-only origin main) || fail "tasks: pull"; }
 
       cn_member tasks list > "$work/list.out" 2>&1 || fail "tasks 1: tasks list: $(cat "$work/list.out")"
-      for t in hello/hello-fold hello/hello-agent engine/implement-request; do
+      for t in hello/hello-fold hello/hello-agent; do
         grep -q "^$t " "$work/list.out" || fail "tasks 1: tasks list does not name $t: $(cat "$work/list.out")"
       done
       cn_member check world > "$work/world.out" 2>&1 || fail "tasks 1: check world: $(cat "$work/world.out")"
@@ -1163,7 +1150,7 @@ GO
       grep -q "task-declaration-shape .claudinite/local/packs/probe/tasks/probe/task.json" "$work/world.out" \
         || fail "tasks 1: task-declaration-shape did not fail it: $(cat "$work/world.out")"
       rm -r "$member/.claudinite/local"
-      step "tasks 1: tasks list names the three tasks; check world passes, and task-declaration-shape fails a misspelt field"
+      step "tasks 1: tasks list names the two tasks; check world passes, and task-declaration-shape fails a misspelt field"
 
       sched run > "$work/sched.out" 2>&1 || fail "tasks 2: schedule run: $(cat "$work/sched.out")"
       [ "$(gh_count 'st.issues.length')" = 0 ] || fail "tasks 2: a quiet repo filed an item: $(gh_state)"
@@ -1194,6 +1181,9 @@ GO
       head_ref=$(gh_count 'st.pulls.find(p=>p.number==='"$pr"').head')
       case $head_ref in claudinite/hello/hello-fold/*-*) ;; *) fail "tasks 3: PR #$pr is from $head_ref" ;; esac
       [ "$(gh_count 'st.pulls.find(p=>p.number==='"$pr"').state')" = closed ] || fail "tasks 3: PR #$pr did not land: $(cat "$work/exec.out")"
+      # Its checks were its own pull_request run, held for the job token's PR and approved.
+      [ "$(gh_count 'st.dispatches.filter(d=>d.ref==="'"$head_ref"'").length')" = 0 ] || fail "tasks 3: CI was dispatched on the PR branch: $(gh_state)"
+      [ "$(gh_count 'st.calls.filter(c=>c.startsWith("approve ")).length')" = 1 ] || fail "tasks 3: the held run was not approved: $(gh_state)"
       git --git-dir "$origin" show main:HELLO_FOLD.json > /dev/null 2>&1 || fail "tasks 3: main holds no HELLO_FOLD.json"
       # The merge was the job token's, whose push starts no workflow.
       [ "$(gh_count "$ci_on_main")" = $((main_ci_before + 1)) ] || fail "tasks 3: the lane did not dispatch claudinite-ci.yml on main after the merge: $(gh_state)"
@@ -1214,7 +1204,7 @@ GO
       grep -q "automerge-policy-scope" "$work/work.out" || fail "tasks 3: automerge-policy-scope did not fail it: $(cat "$work/work.out")"
       (cd "$member" && git checkout -q main && git branch -q -D fold-probe) || fail "tasks 3: back to main"
       pull_after
-      step "tasks 3: #$n ran the worker, landed PR #$pr from $head_ref with both trailers, dispatched CI on main and converged done; automerge-policy-scope holds the branch to the policy"
+      step "tasks 3: #$n ran the worker, landed PR #$pr from $head_ref on its approved held run with both trailers, dispatched CI on main and converged done; automerge-policy-scope holds the branch to the policy"
 
       unset HELLO_FOLD_SECRET
       cn_member work create hello/hello-fold --qualifier secret > "$work/create.out" 2>&1 || fail "tasks 4: work create: $(cat "$work/create.out")"
@@ -1311,7 +1301,7 @@ GO
         [ -f "$fresh/.github/workflows/$f.yml" ] || fail "tasks 10: init wrote no $f.yml"
       done
       [ ! -e "$fresh/.github/workflows/claudinite-update.yml" ] || fail "tasks 10: init wrote the superseded update workflow"
-      for f in tasks.GENERATED.json dashboard.GENERATED.json member.GENERATED.json; do
+      for f in tasks.GENERATED.json member.GENERATED.json; do
         [ -f "$fresh/.claudinite/cache/$f" ] || fail "tasks 10: init wrote no $f"
       done
       sed 's/once a day after any commit/once a day after a commit/' "$work/task.json" > "$decl"
@@ -1444,23 +1434,6 @@ GO
       member=$dir
       selftest_member 4
       step "adopt 4: with no credential and no license server, cn init asks for no plan; cn login is gone"
-
-      member=$work/adopt-node
-      cp -R cn/lifecycle/adopt/testdata/node-member "$member"
-      printf '{\n  "packs": [\n    "hello",\n    "local/mine"\n  ]\n}\n' > "$member/.claudinite-settings.json"
-      printf '{}\n' > "$member/.claudinite/local/packs/mine/pack.json"
-      printf 'node_modules/\n' > "$member/.gitignore"
-      rm "$member/.github/workflows/ci.yml"
-      (cd "$member" && "$npx/.bin/cn" init --from-node --channel canary --repo "$member") > "$work/init.out" 2>&1 \
-        || fail "adopt 5: init --from-node: $(cat "$work/init.out")"
-      grep -q '^pack: hello 1.0$' "$work/init.out" || fail "adopt 5: hello not vendored: $(cat "$work/init.out")"
-      grep -q '^NEXT: git rm .claudinite-settings.json' "$work/init.out" || fail "adopt 5: NEXT does not start with the declaration's removal: $(cat "$work/init.out")"
-      [ ! -e "$member/.claudinite/shared/engine" ] || fail "adopt 5: the Node engine survived the move"
-      verify_out=$(launch verify) || fail "adopt 5: verify: $verify_out"
-      [ "$verify_out" = "deprecation node-leftovers .claudinite-settings.json: the Node engine's declaration, which cn no longer reads; the move pull request deletes it" ] \
-        || fail "adopt 5: verify reported: $verify_out"
-      selftest_member 5
-      step "adopt 5: cn init --from-node moves the Node-shaped fixture; verify names the declaration alone"
       ;;
     growth)
       step "growth: a member declaring claudinite-growth with a GitHub origin and ghstub"
@@ -1469,7 +1442,7 @@ GO
       warm_member growth
       # The packs the steps read, each standing in as its manifest, and
       # claudinite-growth's logs-prune task as the pack declares it.
-      for p in claudinite-growth claudinite-tasks claudinite-lifecycle; do
+      for p in claudinite-growth claudinite-lifecycle; do
         mkdir -p "$member/.claudinite/shared/packs/$p"
         printf '{\n  "version": "1.0",\n  "minEngineVersion": "%s"\n}\n' "$version" > "$member/.claudinite/shared/packs/$p/pack.json"
       done
@@ -1490,10 +1463,9 @@ packs:
   declared:
     - claudinite-growth
     - claudinite-lifecycle
-    - id: claudinite-tasks
-      config:
-        disabledTasks:
-          - engine/update
+tasks:
+  disabled:
+    - engine/update
 YAML
       # The rules index and its import, as init writes them.
       (cd "$member" && .claudinite/bin/cn rules-index) > "$work/index.out" 2>&1 || fail "growth: rules-index: $(cat "$work/index.out")"
@@ -1575,7 +1547,7 @@ YAML
       step "growth 6: cn pack new declared local/acme and wrote the rules index; verify and cn provenance check are clean; append wrote the entry"
       ;;
     dashboard)
-      step "dashboard: a member declaring claudinite-dashboard in YAML with a local descriptor, then publishing its pages"
+      step "dashboard: a member declaring claudinite-single-repo-dashboard in YAML, then publishing its pages"
       warm_member dashboard
       sh dev/release/verify/fixtures/dashboard-fixture.sh member "$member" "$version" || fail "dashboard: member fixture"
       (cd "$member" && git init -q -b main && git add -A && git -c user.name=rehearse -c user.email=r@x -c commit.gpgsign=false commit -q -m adopt) \
@@ -1583,51 +1555,36 @@ YAML
       flat=$member/.claudinite/cache
       # json FILE EXPR: a value read from a JSON file with node.
       json() { node -e 'const st=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));process.stdout.write(String(eval(process.argv[2])))' "$1" "$2"; }
+      execute() { (cd "$member" && GITHUB_TOKEN=rehearsal-token CLAUDINITE_NOW=${1:-} .claudinite/bin/cn execute loop) > "$work/exec.out" 2>&1; }
+      item() { gh_count 'Math.max(0,...st.issues.filter(i=>i.title==="'"$1"'").map(i=>i.number))'; }
+      labels_of() { gh_count 'st.issues.find(i=>i.number==='"$1"').labels.join(" ")'; }
 
       cn_member rules-index > "$work/index.out" 2>&1 || fail "dashboard 1: rules-index: $(cat "$work/index.out")"
-      for f in tasks dashboard member; do
+      for f in tasks member; do
         [ -f "$flat/$f.GENERATED.json" ] || fail "dashboard 1: no $f.GENERATED.json: $(cat "$work/index.out")"
       done
+      [ ! -e "$flat/dashboard.GENERATED.json" ] || fail "dashboard 1: the retired dashboard.GENERATED.json is still there: $(cat "$work/index.out")"
       [ "$(json "$flat/member.GENERATED.json" 'st.settings.path+" "+st.settings.format')" = ".claudinite/settings.yaml yaml" ] \
         || fail "dashboard 1: the member file names $(json "$flat/member.GENERATED.json" 'JSON.stringify(st.settings)')"
       [ "$(json "$flat/member.GENERATED.json" 'st.engine.package+" "+st.engine.version+" "+st.engine.channel')" = "$package $version canary" ] \
         || fail "dashboard 1: the member file's pin is $(json "$flat/member.GENERATED.json" 'JSON.stringify(st.engine)')"
-      [ "$(json "$flat/member.GENERATED.json" 'JSON.stringify(st.held)+" "+st.packs.declared.map(e=>e.id).join(",")+" "+st.dormant')" = '{"claudinite-dashboard":"1.0"} claudinite-dashboard,local/acme false' ] \
+      [ "$(json "$flat/member.GENERATED.json" 'JSON.stringify(st.held)+" "+st.packs.declared.map(e=>e.id).join(",")+" "+st.dormant')" = '{"claudinite-single-repo-dashboard":"1.0"} claudinite-single-repo-dashboard,local/acme false' ] \
         || fail "dashboard 1: the member file: $(cat "$flat/member.GENERATED.json")"
-      step "dashboard 1: rules-index wrote the three flat files; member.GENERATED.json names the YAML path, the pin and the held versions"
+      step "dashboard 1: rules-index wrote the task and member files and deleted the retired dashboard file; member.GENERATED.json names the YAML path, the pin and the held versions"
 
       cn_member tasks flat --check > "$work/flat.out" 2>&1 || fail "dashboard 2: a fresh tree is stale: $(cat "$work/flat.out")"
-      sed 's/        mode: "repo"/        mode: "fleet"/' "$member/.claudinite/settings.yaml" > "$work/settings.yaml" && mv "$work/settings.yaml" "$member/.claudinite/settings.yaml"
+      sed 's|        defaultRepo: "acme/member"|        defaultRepo: "acme/other"|' "$member/.claudinite/settings.yaml" > "$work/settings.yaml" && mv "$work/settings.yaml" "$member/.claudinite/settings.yaml"
       if cn_member tasks flat --check > "$work/flat.out" 2>&1; then fail "dashboard 2: --check passed a moved declaration"; fi
       grep -q 'member.GENERATED.json' "$work/flat.out" || fail "dashboard 2: --check names no member file: $(cat "$work/flat.out")"
       cn_member tasks flat --write > "$work/flat.out" 2>&1 || fail "dashboard 2: --write: $(cat "$work/flat.out")"
       cn_member tasks flat --check > "$work/flat.out" 2>&1 || fail "dashboard 2: stale after --write: $(cat "$work/flat.out")"
-      [ "$(json "$flat/member.GENERATED.json" 'st.packs.declared[0].config.mode')" = fleet ] || fail "dashboard 2: the member file kept the old config"
+      [ "$(json "$flat/member.GENERATED.json" 'st.packs.declared[0].config.defaultRepo')" = acme/other ] || fail "dashboard 2: the member file kept the old config"
       step "dashboard 2: tasks flat --check exits 1 once the declaration moves and 0 after --write"
 
-      cn_member check world > "$work/world.out" 2>&1 || fail "dashboard 3: check world: $(cat "$work/world.out")"
-      local_desc=$member/.claudinite/local/packs/acme/dashboard.json
-      cp "$local_desc" "$work/dashboard.json"
-      sed 's/"repo": \["widgets", "shipped"\]/"repo": ["widgets", "ghost"]/' "$work/dashboard.json" > "$local_desc"
-      if cn_member check world > "$work/world.out" 2>&1; then fail "dashboard 3: an undeclared id passed: $(cat "$work/world.out")"; fi
-      grep -F 'descriptor-usable' "$work/world.out" | grep -F '.claudinite/local/packs/acme/dashboard.json' | grep -qF 'selects widget id(s) it does not declare: ghost' \
-        || fail "dashboard 3: no descriptor-usable finding: $(cat "$work/world.out")"
-      cp "$local_desc" "$member/.claudinite/shared/packs/claudinite-dashboard/dashboard.json"
-      cp "$work/dashboard.json" "$local_desc"
-      cn_member check world > "$work/world.out" 2>&1 || fail "dashboard 3: a broken mount descriptor fired: $(cat "$work/world.out")"
-      step "dashboard 3: check world passes; an undeclared id in the local descriptor blocks on descriptor-usable; the same file in the mount is silent"
-
-      cn_member dashboard descriptor .claudinite/local/packs/acme/dashboard.json > "$work/desc.out" 2>&1 || fail "dashboard 4: a good descriptor: $(cat "$work/desc.out")"
-      grep -qx '.claudinite/local/packs/acme/dashboard.json: ok' "$work/desc.out" || fail "dashboard 4: $(cat "$work/desc.out")"
-      if cn_member dashboard descriptor --json .claudinite/shared/packs/claudinite-dashboard/dashboard.json > "$work/desc.out" 2>&1; then fail "dashboard 4: a broken descriptor exited 0"; fi
-      [ "$(json "$work/desc.out" 'st[0].pack+" "+st[0].repo.join(",")+" "+st[0].problems.map(p=>p.what).join("|")')" = 'claudinite-dashboard widgets selects widget id(s) it does not declare: ghost' ] \
-        || fail "dashboard 4: the verdict: $(cat "$work/desc.out")"
-      step "dashboard 4: cn dashboard descriptor says ok over a good descriptor and exits 1 with the JSON verdict over the broken one"
-
-      sed 's/        mode: "fleet"/        mode: "repo"/' "$member/.claudinite/settings.yaml" > "$work/settings.yaml" && mv "$work/settings.yaml" "$member/.claudinite/settings.yaml"
+      sed 's|        defaultRepo: "acme/other"|        defaultRepo: "acme/member"|' "$member/.claudinite/settings.yaml" > "$work/settings.yaml" && mv "$work/settings.yaml" "$member/.claudinite/settings.yaml"
       origin=$work/dashboard-origin.git
       git init -q --bare -b main "$origin"
-      (cd "$member" && git add -A && git -c user.name=rehearse -c user.email=r@x -c commit.gpgsign=false commit -q -m "repo mode") || fail "dashboard: git"
+      (cd "$member" && git add -A && git -c user.name=rehearse -c user.email=r@x -c commit.gpgsign=false commit -q -m "this repo") || fail "dashboard: git"
       github_origin "$origin"
       (cd "$member" && git -c push.negotiate=false push -q origin main) || fail "dashboard: the first push"
       start_ghstub "$origin"
@@ -1640,47 +1597,46 @@ YAML
       # archive leaves them, under the fixture's manifest granted the dispatch the
       # real one grants: publish-pages builds the site on this cn member and
       # follows the deploy it dispatches to success.
-      if [ -z "${CLAUDINITE_PACKS_TREE:-}" ] || [ ! -d "$CLAUDINITE_PACKS_TREE/packs/claudinite-dashboard/src" ]; then
-        fail "dashboard 5: CLAUDINITE_PACKS_TREE names no ClaudinitePacks checkout carrying claudinite-dashboard"
+      if [ -z "${CLAUDINITE_PACKS_TREE:-}" ] || [ ! -d "$CLAUDINITE_PACKS_TREE/packs/claudinite-single-repo-dashboard/src" ]; then
+        fail "dashboard 3: CLAUDINITE_PACKS_TREE names no ClaudinitePacks checkout carrying claudinite-single-repo-dashboard"
       fi
-      dash=$member/.claudinite/shared/packs/claudinite-dashboard
-      cp "$dash/pack.json" "$dash/dashboard.json" "$work/"
+      dash=$member/.claudinite/shared/packs/claudinite-single-repo-dashboard
+      cp "$dash/pack.json" "$work/"
       rm -rf "$dash"
       mkdir -p "$dash"
-      (cd "$CLAUDINITE_PACKS_TREE/packs/claudinite-dashboard" && tar cf - --exclude=./test .) | (cd "$dash" && tar xf -) || fail "dashboard 5: copying the pack"
+      (cd "$CLAUDINITE_PACKS_TREE/packs/claudinite-single-repo-dashboard" && tar cf - --exclude=./test .) | (cd "$dash" && tar xf -) || fail "dashboard 3: copying the pack"
       node -e 'const fs=require("fs");const m=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));m.githubActions=["dispatchWorkflow"];fs.writeFileSync(process.argv[2],JSON.stringify(m,null,2)+"\n")' \
-        "$work/pack.json" "$dash/pack.json" || fail "dashboard 5: the manifest"
-      cp "$work/dashboard.json" "$dash/dashboard.json"
-      cn_member tasks flat --write > "$work/flat.out" 2>&1 || fail "dashboard 5: tasks flat --write: $(cat "$work/flat.out")"
-      [ "$(json "$member/.claudinite/cache/member.GENERATED.json" 'JSON.stringify(st.packs.declared.find(e=>e.id==="claudinite-dashboard").config)')" = '{"mode":"repo"}' ] \
-        || fail "dashboard 5: the member file: $(cat "$member/.claudinite/cache/member.GENERATED.json")"
+        "$work/pack.json" "$dash/pack.json" || fail "dashboard 3: the manifest"
+      cn_member tasks flat --write > "$work/flat.out" 2>&1 || fail "dashboard 3: tasks flat --write: $(cat "$work/flat.out")"
+      [ "$(json "$member/.claudinite/cache/member.GENERATED.json" 'JSON.stringify(st.packs.declared.find(e=>e.id==="claudinite-single-repo-dashboard").config)')" = '{"defaultRepo":"acme/member"}' ] \
+        || fail "dashboard 3: the member file: $(cat "$member/.claudinite/cache/member.GENERATED.json")"
       (cd "$member" && git add -A && git -c user.name=rehearse -c user.email=r@x -c commit.gpgsign=false commit -q -m "the dashboard pack" \
-        && git -c push.negotiate=false push -q origin main) || fail "dashboard 5: git"
+        && git -c push.negotiate=false push -q origin main) || fail "dashboard 3: git"
       GITHUB_API_URL=$gh NODE_EXTRA_CA_CERTS=$work/cas.pem
       export GITHUB_API_URL NODE_EXTRA_CA_CERTS
       ctl /_stub/dispatch '{"conclusion":"success"}'
-      cn_member work create claudinite-dashboard/publish-pages --qualifier rehearsal > "$work/create.out" 2>&1 || fail "dashboard 5: work create: $(cat "$work/create.out")"
-      n=$(item "[claudinite-work] claudinite-dashboard/publish-pages rehearsal")
-      execute || fail "dashboard 5: execute: $(cat "$work/exec.out")"
-      case " $(labels_of "$n") " in *" task:status:done "*) ;; *) fail "dashboard 5: #$n is $(labels_of "$n"): $(cat "$work/exec.out")" ;; esac
-      [ "$(gh_count 'st.dispatches.filter(d=>d.workflow==="claudinite-dashboard-pages.yml"&&d.ref==="main").length')" = 1 ] \
-        || fail "dashboard 5: the deploy dispatches: $(gh_state)"
+      cn_member work create claudinite-single-repo-dashboard/publish-pages --qualifier rehearsal > "$work/create.out" 2>&1 || fail "dashboard 3: work create: $(cat "$work/create.out")"
+      n=$(item "[claudinite-work] claudinite-single-repo-dashboard/publish-pages rehearsal")
+      execute || fail "dashboard 3: execute: $(cat "$work/exec.out")"
+      case " $(labels_of "$n") " in *" task:status:done "*) ;; *) fail "dashboard 3: #$n is $(labels_of "$n"): $(cat "$work/exec.out")" ;; esac
+      [ "$(gh_count 'st.dispatches.filter(d=>d.workflow==="claudinite-single-repo-dashboard-pages.yml"&&d.ref==="main").length')" = 1 ] \
+        || fail "dashboard 3: the deploy dispatches: $(gh_state)"
       [ "$(git --git-dir "$origin" ls-tree --name-only gh-pages | tr '\n' ' ')" = ".nojekyll deployed.json index.html packs " ] \
-        || fail "dashboard 5: the site's root: $(git --git-dir "$origin" ls-tree --name-only gh-pages 2>&1)"
-      [ "$(git --git-dir "$origin" ls-tree --name-only gh-pages:packs)" = claudinite-dashboard ] \
-        || fail "dashboard 5: the site carries $(git --git-dir "$origin" ls-tree --name-only gh-pages:packs | tr '\n' ' ')"
-      git --git-dir "$origin" cat-file -e gh-pages:packs/claudinite-dashboard/index.html || fail "dashboard 5: no page"
-      git --git-dir "$origin" cat-file -e gh-pages:packs/claudinite-dashboard/src/app.mjs || fail "dashboard 5: no modules"
-      git --git-dir "$origin" show gh-pages:packs/claudinite-dashboard/dashboard.config.json > "$work/site-config.json" || fail "dashboard 5: no config"
-      [ "$(json "$work/site-config.json" 'st.mode+" "+st.owner+" "+st.deploymentRepo')" = "repo null acme/member" ] \
-        || fail "dashboard 5: the site's config: $(cat "$work/site-config.json")"
-      if git --git-dir "$origin" ls-tree -r --name-only gh-pages | grep -q -e '^engine/' -e '/test/'; then fail "dashboard 5: the site carries an engine or tests"; fi
-      [ -z "$(cd "$member" && git status --porcelain)" ] || fail "dashboard 5: the run left the checkout changed: $(cd "$member" && git status --porcelain)"
+        || fail "dashboard 3: the site's root: $(git --git-dir "$origin" ls-tree --name-only gh-pages 2>&1)"
+      [ "$(git --git-dir "$origin" ls-tree --name-only gh-pages:packs)" = claudinite-single-repo-dashboard ] \
+        || fail "dashboard 3: the site carries $(git --git-dir "$origin" ls-tree --name-only gh-pages:packs | tr '\n' ' ')"
+      git --git-dir "$origin" cat-file -e gh-pages:packs/claudinite-single-repo-dashboard/index.html || fail "dashboard 3: no page"
+      git --git-dir "$origin" cat-file -e gh-pages:packs/claudinite-single-repo-dashboard/src/app.mjs || fail "dashboard 3: no modules"
+      git --git-dir "$origin" show gh-pages:packs/claudinite-single-repo-dashboard/dashboard.config.json > "$work/site-config.json" || fail "dashboard 3: no config"
+      [ "$(json "$work/site-config.json" 'st.defaultRepo+" "+("mode" in st)+" "+("owner" in st)')" = "acme/member false false" ] \
+        || fail "dashboard 3: the site's config: $(cat "$work/site-config.json")"
+      if git --git-dir "$origin" ls-tree -r --name-only gh-pages | grep -q -e '^engine/' -e '/test/'; then fail "dashboard 3: the site carries an engine or tests"; fi
+      [ -z "$(cd "$member" && git status --porcelain)" ] || fail "dashboard 3: the run left the checkout changed: $(cd "$member" && git status --porcelain)"
       unset GITHUB_API_URL NODE_EXTRA_CA_CERTS
-      step "dashboard 5: publish-pages built the real pack on a cn member, pushed index.html, the page's own modules and nothing else to gh-pages, and followed its deploy to success"
+      step "dashboard 3: publish-pages built the real pack on a cn member, pushed index.html, the page's own modules and nothing else to gh-pages, and followed its deploy to success"
       ;;
     live-packs)
-      live_packs="basics git-github claudinite-lifecycle claudinite-tasks claudinite-growth node python aws-sam"
+      live_packs="basics git-github claudinite-lifecycle claudinite-growth node python aws-sam"
       step "live-packs: cn $live_version, signed with the development keys, against the real pack CDN and ClaudinitePacks' vendored branch"
       # The real shelf: both sources at the engine's defaults.
       unset CLAUDINITE_PACKS_CDN CLAUDINITE_PACKS_REPO
@@ -1761,8 +1717,8 @@ YAML
         [ "$verdict" = "$1" ] || fail "live-packs 3: verdict '$verdict', want '$1': $(cat "$work/update.out" "$work/update.err")"
       }
       update_live "up to date"
-      grep -q 'basics: index serial [0-9]* from cdn (read: cdn serial [0-9]*, branch serial [0-9]*)' "$work/update.out" "$work/update.err" \
-        || fail "live-packs 3: the read names both sources: $(cat "$work/update.out" "$work/update.err")"
+      grep -q 'basics: index serial [0-9]* from cdn$' "$work/update.out" "$work/update.err" \
+        || fail "live-packs 3: the CDN did not answer: $(cat "$work/update.out" "$work/update.err")"
       CLAUDINITE_PACKS_CDN=https://127.0.0.1:9
       export CLAUDINITE_PACKS_CDN
       update_live "up to date"
@@ -1780,13 +1736,13 @@ YAML
       git --git-dir "$mirror" update-ref refs/heads/vendored "$moved^" || fail "live-packs 3: rewind the mirror"
       CLAUDINITE_PACKS_REPO=$mirror
       export CLAUDINITE_PACKS_REPO
-      cn_member update packs > "$work/update.out" 2> "$work/update.err" || fail "live-packs 3: update packs: $(cat "$work/update.out" "$work/update.err")"
-      verdict=$(sed -n '$p' "$work/update.out")
-      case $verdict in "skipped: pack index sources disagree (cdn serial "*", branch serial "*")") ;; *) fail "live-packs 3: a branch one release behind: '$verdict': $(cat "$work/update.err")" ;; esac
+      update_live "up to date"
+      grep -q 'basics: index serial [0-9]* from cdn$' "$work/update.out" "$work/update.err" \
+        || fail "live-packs 3: a branch one release behind was read over the CDN: $(cat "$work/update.out" "$work/update.err")"
       unset CLAUDINITE_PACKS_REPO
       [ -z "$(cd "$member" && git status --porcelain)" ] || fail "live-packs 3: update packs left the checkout changed: $(cd "$member" && git status --porcelain)"
       [ "$(gh_count 'st.pulls.length')" = 0 ] || fail "live-packs 3: a pull request was opened: $(gh_state)"
-      step "live-packs 3: cn update packs is up to date from both sources and from the branch alone; a branch one release behind is $verdict"
+      step "live-packs 3: cn update packs is up to date from the CDN, from the branch alone behind an unreachable CDN, and from the CDN over a branch one release behind"
       ;;
   esac
 done

@@ -9,6 +9,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/workitem"
 	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/calendar"
 	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/localterms"
+	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/precondition"
 	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/schedule"
 	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/signals"
 	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/sim"
@@ -23,6 +24,7 @@ type harness struct {
 	gh     *sim.GitHub
 	repo   *sim.Repo
 	tasks  []taskspec.Task
+	local  signals.Local
 	logs   []string
 	output map[string]string
 }
@@ -47,7 +49,7 @@ func (h *harness) run(wake string) schedule.RunOut {
 	out, err := schedule.Run(schedule.RunIn{
 		Issues: h.gh, Tasks: h.tasks, Now: h.gh.Clock.Now(), Wake: wake, LocalTerms: h.terms,
 		Collector: func(items []workitem.Issue) *signals.Collector {
-			return &signals.Collector{Issues: h.gh, Repo: h.repo, DefaultBranch: "main", Items: items}
+			return &signals.Collector{Issues: h.gh, Repo: h.repo, DefaultBranch: "main", Items: items, Local: h.local}
 		},
 		Log:       func(s string) { h.logs = append(h.logs, s) },
 		SetOutput: func(k, v string) error { h.output[k] = v; return nil },
@@ -226,8 +228,7 @@ func TestAHeartbeatKeepsALongRunAlive(t *testing.T) {
 }
 
 func requestTask() taskspec.Task {
-	return taskspec.Task{Pack: taskspec.BuiltinPack, ID: taskspec.RequestTask,
-		Decl: taskspec.Normalize(map[string]any{"id": taskspec.RequestTask, "trigger": "request", "preconditions": []any{"request-eligible"}}).(taskspec.Decl)}
+	return task("acme-task", map[string]any{"trigger": "request", "preconditions": []any{"request-eligible"}})
 }
 
 func TestAMarkedIssueIsAdoptedOnceAsItself(t *testing.T) {
@@ -265,11 +266,35 @@ func TestAStrangersParametersAreIgnored(t *testing.T) {
 	if f.Model != nil || f.Merge != nil || !got.HasLabel(workitem.OriginAdHoc) || !got.HasLabel(workitem.StatusReady) {
 		t.Fatalf("fields %+v labels %v", f, got.Labels)
 	}
-	if workitem.Str(f.TaskPath) != taskspec.RequestTaskPath {
+	if workitem.Str(f.TaskPath) != requestTask().TaskPath() {
 		t.Fatalf("path %v", workitem.Str(f.TaskPath))
 	}
 	if !strings.Contains(got.Comments[0].Body, "were ignored") {
 		t.Fatalf("comment %q", got.Comments[0].Body)
+	}
+}
+
+func TestAMarkedIssueNamingNoTaskWaitsUnlessExactlyOneTaskTakesRequests(t *testing.T) {
+	second := task("other-task", map[string]any{"trigger": "request", "preconditions": []any{"request-eligible"}})
+	for _, c := range []struct {
+		name  string
+		tasks []taskspec.Task
+		adopt bool
+	}{
+		{"none", nil, false},
+		{"one", []taskspec.Task{requestTask()}, true},
+		{"two", []taskspec.Task{requestTask(), second}, false},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			h := newHarness(t, c.tasks...)
+			h.gh.Roles["owner"] = "admin"
+			n := h.gh.Seed(sim.StoredIssue{Author: "owner", Issue: workitem.Issue{Title: "Do it", Body: "Please.\n", Labels: []string{workitem.OriginAdHoc}}})
+			h.run("")
+			got, _ := h.gh.Get(n)
+			if got.HasLabel(workitem.StatusReady) != c.adopt {
+				t.Fatalf("labels %v", got.Labels)
+			}
+		})
 	}
 }
 
@@ -331,6 +356,36 @@ func TestATornItemSettledBeforeTheWriteIsLeftAlone(t *testing.T) {
 
 // The engine's own update is a scheduled task like any other: at most one
 // occurrence a UTC day, filed at the engine's path, whatever the repo did.
+// The usage fold is the engine's own on every repo the queue runs in, and
+// a repo whose only activity is its own machinery files it while the
+// fold's run mark stands before the UTC day opened.
+func TestTheUsageFoldIsFiledWhileTheMachineryRanUnfolded(t *testing.T) {
+	all, errs := taskspec.Discover(t.TempDir(), nil)
+	if len(errs) > 0 {
+		t.Fatal(errs)
+	}
+	var fold taskspec.Task
+	for _, tk := range all {
+		if tk.ID == taskspec.UsageFoldTask {
+			fold = tk
+		}
+	}
+	h := newHarness(t, fold)
+	caughtUp := "2026-10-01T05:00:00Z"
+	h.local.UsageFold = precondition.UsageFold{RunsFoldedThrough: &caughtUp}
+	if out := h.run(""); len(h.open()) != 0 || out.Asked[0].Verdict != schedule.VerdictNo {
+		t.Fatalf("a mark inside today: open %v, asked %+v", h.open(), out.Asked)
+	}
+	behind := "2026-09-30T17:10:00Z"
+	h.local.UsageFold = precondition.UsageFold{RunsFoldedThrough: &behind}
+	h.run("")
+	open := h.open()
+	if len(open) != 1 || open[0].Title != "[claudinite-work] engine/usage-fold" ||
+		!strings.HasPrefix(open[0].Body, taskspec.BuiltinTaskPath(taskspec.UsageFoldTask)+"\n") {
+		t.Fatalf("a mark before today: %+v", open)
+	}
+}
+
 func TestTheEnginesUpdateIsFiledOnceADay(t *testing.T) {
 	all, errs := taskspec.Discover(t.TempDir(), nil)
 	if len(errs) > 0 {

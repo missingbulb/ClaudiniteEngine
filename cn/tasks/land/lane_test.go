@@ -10,25 +10,6 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/mergepolicy"
 )
 
-func TestDeliveryForOnlyAnExplicitTrueWithholdsThePR(t *testing.T) {
-	cases := []struct {
-		settings map[string]any
-		want     string
-	}{
-		{map[string]any{"dailyClaudiniteUpdatesRequirePrReview": true}, Review},
-		{map[string]any{"dailyClaudiniteUpdatesRequirePrReview": false}, AutoMerge},
-		{map[string]any{"packs": []any{"acme-pack"}}, AutoMerge},
-		{nil, AutoMerge},
-		{map[string]any{"dailyClaudiniteUpdatesRequirePrReview": "true"}, AutoMerge},
-		{map[string]any{"maintenance": map[string]any{"delivery": "review"}}, AutoMerge},
-	}
-	for _, c := range cases {
-		if got := DeliveryFor(c.settings); got != c.want {
-			t.Errorf("%v: %s, want %s", c.settings, got, c.want)
-		}
-	}
-}
-
 func TestWorkflowTriggersReadsEveryShape(t *testing.T) {
 	cases := map[string][]string{
 		"name: Tests\non:\n  workflow_dispatch:\n  pull_request:\n    branches: [main]\n  push:\n    branches: [main, \"claude/**\"]\njobs:\n  test:\n    runs-on: ubuntu-latest": {"workflow_dispatch", "pull_request", "push"},
@@ -211,6 +192,9 @@ type fakeAPI struct {
 	runs       [][]Run // successive reads
 	armErr     error
 	mergeErr   error
+	approveErr error
+
+	approved []int64
 
 	dispatched []string
 	merged     []Merge
@@ -255,6 +239,13 @@ func (f *fakeAPI) EnableAutoMerge(nodeID string) error {
 	return nil
 }
 func (f *fakeAPI) DeleteBranch(ref string) error { f.deleted = append(f.deleted, ref); return nil }
+func (f *fakeAPI) ApproveRun(id int64) error {
+	if f.approveErr != nil {
+		return f.approveErr
+	}
+	f.approved = append(f.approved, id)
+	return nil
+}
 
 type fakeClock struct{ t time.Time }
 
@@ -304,26 +295,27 @@ func TestDeliverSkipsTheDoomedArmOnAnUngatedBaseAndLandsOnItsOwnEvidence(t *test
 	api := &fakeAPI{
 		files: []WorkflowFile{{"test.yml", prCI}}, dispatchOK: map[string]bool{"test.yml": true},
 		protected: &no, rules: []string{"deletion"},
-		runs: [][]Run{nil, {running("test")}, {done("success", "test")}},
+		runs: [][]Run{{held(1, "test")}, {running("test")}, {done("success", "test")}},
 	}
 	l, _ := lane(api)
 	got := l.Deliver(pr, "main", AutoMerge, "acme-pack/acme-task", nil)
-	if !got.Merged || got.Action != ActLand || len(api.armed) != 0 || api.reads != 3 {
+	if !got.Merged || got.Action != ActLand || len(api.armed) != 0 || api.reads != 3 || !reflect.DeepEqual(api.approved, []int64{1}) {
 		t.Fatalf("%+v reads %d armed %v", got, api.reads, api.armed)
 	}
 }
 
 func TestDeliverArmsBehindAGateAndPollsOnlyWhenTheArmFails(t *testing.T) {
 	yes := true
-	api := &fakeAPI{files: []WorkflowFile{{"test.yml", prCI}}, dispatchOK: map[string]bool{"test.yml": true}, protected: &yes}
+	api := &fakeAPI{files: []WorkflowFile{{"test.yml", prCI}}, dispatchOK: map[string]bool{"test.yml": true}, protected: &yes,
+		runs: [][]Run{{held(1, "test")}}}
 	l, _ := lane(api)
 	got := l.Deliver(pr, "main", AutoMerge, "", nil)
-	if got.Merged || got.Action != ActArm || !reflect.DeepEqual(api.armed, []string{"PR_7"}) || api.reads != 0 {
+	if got.Merged || got.Action != ActArm || !reflect.DeepEqual(api.armed, []string{"PR_7"}) || api.reads != 1 {
 		t.Fatalf("%+v %+v", got, api)
 	}
 
 	api = &fakeAPI{files: []WorkflowFile{{"test.yml", prCI}}, dispatchOK: map[string]bool{"test.yml": true}, protected: &yes,
-		armErr: errors.New("Pull request is in clean status"), runs: [][]Run{{done("success", "test"), done("action_required", "test")}}}
+		armErr: errors.New("Pull request is in clean status"), runs: [][]Run{{held(1, "test")}, {done("success", "test"), done("action_required", "other")}}}
 	l, logs := lane(api)
 	got = l.Deliver(pr, "main", AutoMerge, "", nil)
 	if !got.Merged || api.merged[0].Message != "" {
@@ -344,8 +336,8 @@ func TestDeliverTreatsAnUnreadableTreeAsCIAndADeniedDispatchAsNothingToWaitFor(t
 	api = &fakeAPI{files: []WorkflowFile{{"test.yml", prCI}}, dispatchOK: map[string]bool{}, protected: &no, runs: [][]Run{nil}}
 	l, logs := lane(api)
 	got := l.Deliver(pr, "main", AutoMerge, "", nil)
-	if got.Merged || api.reads != 1 {
-		t.Errorf("%+v reads %d", got, api.reads)
+	if got.Merged || len(api.dispatched) != 0 {
+		t.Errorf("%+v dispatched %v", got, api.dispatched)
 	}
 	if !strings.Contains(strings.Join(*logs, "\n"), "actions: write") {
 		t.Errorf("%v", *logs)
@@ -478,5 +470,89 @@ func TestABaseCIThatCannotBeDispatchedLeavesTheMerge(t *testing.T) {
 	}
 	if !strings.Contains(strings.Join(*logs, "\n"), "could not dispatch "+CIWorkflow+" on main") {
 		t.Errorf("%v", *logs)
+	}
+}
+
+// held is a pull_request run GitHub created for a PR the job token
+// opened, waiting for approval.
+func held(id int64, name string) Run {
+	return Run{ID: id, Name: name, Event: "pull_request", Status: "completed", Conclusion: "action_required"}
+}
+
+func onBranch(api *fakeAPI) []string {
+	var out []string
+	for _, d := range api.dispatched {
+		if !strings.HasSuffix(d, "@main") {
+			out = append(out, d)
+		}
+	}
+	return out
+}
+
+// Since 2026-06-11 GitHub holds the pull_request runs of a PR the job
+// token opened at action_required: the lane approves them, and they are
+// the PR's checks; nothing is dispatched on the PR's branch.
+func TestDeliverApprovesTheHeldRunsAndDispatchesNothingOnTheBranch(t *testing.T) {
+	no := false
+	ci := map[string]bool{"test.yml": true, CIWorkflow: true}
+	approvedRun := Run{ID: 11, Name: "test", Event: "pull_request", Status: "queued"}
+	api := &fakeAPI{files: []WorkflowFile{{"test.yml", prCI}}, dispatchOK: ci, protected: &no, rules: []string{"deletion"},
+		runs: [][]Run{nil, {held(11, "test")}, {approvedRun}, {done("success", "test")}}}
+	l, logs := lane(api)
+	got := l.Deliver(pr, "main", AutoMerge, "", nil)
+	if !got.Merged || got.Action != ActLand {
+		t.Fatalf("%+v %v", got, *logs)
+	}
+	if !reflect.DeepEqual(api.approved, []int64{11}) || len(onBranch(api)) != 0 {
+		t.Errorf("approved %v, dispatched on the branch %v", api.approved, onBranch(api))
+	}
+	if !strings.Contains(strings.Join(*logs, "\n"), "approved") {
+		t.Errorf("which path ran is not logged: %v", *logs)
+	}
+}
+
+// A run that started without approval (a PR a person's credential
+// opened) needs nothing: no approval, no dispatch.
+func TestDeliverLeavesARunThatStartedOnItsOwn(t *testing.T) {
+	no := false
+	api := &fakeAPI{files: []WorkflowFile{{"test.yml", prCI}}, dispatchOK: map[string]bool{"test.yml": true, CIWorkflow: true}, protected: &no,
+		runs: [][]Run{{{ID: 12, Name: "test", Event: "pull_request", Status: "in_progress"}}, {done("success", "test")}}}
+	l, _ := lane(api)
+	if got := l.Deliver(pr, "main", AutoMerge, "", nil); !got.Merged {
+		t.Fatalf("%+v", got)
+	}
+	if len(api.approved) != 0 || len(onBranch(api)) != 0 {
+		t.Errorf("approved %v, dispatched %v", api.approved, onBranch(api))
+	}
+}
+
+// Only when no pull_request run appears within the bound does the lane
+// dispatch, and it says so.
+func TestDeliverDispatchesOnlyWhenNoPullRequestRunAppears(t *testing.T) {
+	no := false
+	api := &fakeAPI{files: []WorkflowFile{{"test.yml", prCI}}, dispatchOK: map[string]bool{"test.yml": true, CIWorkflow: true}, protected: &no,
+		runs: [][]Run{nil}}
+	l, logs := lane(api)
+	l.Deliver(pr, "main", AutoMerge, "", nil)
+	if !reflect.DeepEqual(onBranch(api), []string{"test.yml@" + pr.HeadRef}) || len(api.approved) != 0 {
+		t.Errorf("dispatched %v approved %v", onBranch(api), api.approved)
+	}
+	if !strings.Contains(strings.Join(*logs, "\n"), "no pull_request run") {
+		t.Errorf("the fallback is not logged: %v", *logs)
+	}
+}
+
+// An approval GitHub refuses names the permission it needs and dispatches
+// nothing in its place.
+func TestADeniedApprovalNamesActionsWrite(t *testing.T) {
+	no := false
+	api := &fakeAPI{files: []WorkflowFile{{"test.yml", prCI}}, dispatchOK: map[string]bool{"test.yml": true, CIWorkflow: true}, protected: &no,
+		runs: [][]Run{{held(13, "test")}}, approveErr: &StatusError{Status: 403, Message: "Resource not accessible by integration"}}
+	l, logs := lane(api)
+	if got := l.Deliver(pr, "main", AutoMerge, "", nil); got.Merged {
+		t.Fatalf("%+v", got)
+	}
+	if !strings.Contains(strings.Join(*logs, "\n"), "actions: write") || len(onBranch(api)) != 0 {
+		t.Errorf("%v dispatched %v", *logs, onBranch(api))
 	}
 }

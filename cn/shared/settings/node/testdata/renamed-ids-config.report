@@ -1,9 +1,0 @@
-mapped packs[0] "basics" → packs.declared "basics"
-mapped packs[0].config → packs.declared "basics" config
-mapped packs[0].rules → packs.declared "basics" rules
-mapped packs[1] "barriers" → packs.declared "basics": renamed or absorbed into basics (record row 80); merged into the entry declared before it, whose own values win
-mapped packs[1].config → packs.declared "basics" config.barriers: an absorbed pack's parameters nest under its old id
-dropped packs[1].answers.goals: its question was retired with the absorbed pack
-carried packs[1].answers
-carried packs[1].via
-mapped packs[2] "claudinite-lifecycle" → packs.declared "claudinite-lifecycle"

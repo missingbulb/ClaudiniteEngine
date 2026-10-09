@@ -51,9 +51,6 @@ type Manifest struct {
 	// Engine is true when the pack's tasks are the engine's own; absent is
 	// false.
 	Engine bool
-	// Retired are the retired keys a local or temp pack's manifest still
-	// carries, in RetiredKeys order; the reader ignores them.
-	Retired []string
 	// Questions are the adoption questions the pack asks.
 	Questions []Question
 	// SeedOps are the files adoption writes once, when absent.
@@ -79,16 +76,6 @@ type SeedOp struct {
 type HandoverStep struct {
 	Step, Breaks, Done string
 }
-
-// RetiredKeys are the Node manifest fields cn does not read, which a local
-// or temp pack's manifest may still carry: the fingerprint relevanceDetector
-// replaced (#2374), the pack contributions (#2395), and the coded rule
-// lists, whose only JSON value Node could run was empty and which cn has
-// no runner for. Nothing reads them; a canon manifest carrying one fails
-// as an unknown key.
-//
-// @legacy-tolerance advisory:local-pack-shape retire:#51
-var RetiredKeys = []string{"detect", "marker", "contributes", "contributedRules", "worldRules", "workRules"}
 
 // ManifestName is the manifest's descriptor name.
 const ManifestName = "pack"
@@ -148,7 +135,7 @@ func IsManifestFile(name string) bool {
 // ReadManifest reads dir's one manifest. A version is required: a canon
 // pack's tree always has one, and Load waives it for a local or temp pack.
 func ReadManifest(dir string) (Manifest, error) {
-	m, err := readManifestAny(dir, false)
+	m, err := readManifestAny(dir)
 	if err == nil && m.Version == "" {
 		return Manifest{}, fmt.Errorf("%s has no version", m.File)
 	}
@@ -156,10 +143,10 @@ func ReadManifest(dir string) (Manifest, error) {
 }
 
 // ReadOwnManifest reads a local or temp pack's manifest: no version is
-// required, and the retired keys are read and listed in Retired.
-func ReadOwnManifest(dir string) (Manifest, error) { return readManifestAny(dir, true) }
+// required.
+func ReadOwnManifest(dir string) (Manifest, error) { return readManifestAny(dir) }
 
-func readManifestAny(dir string, own bool) (Manifest, error) {
+func readManifestAny(dir string) (Manifest, error) {
 	path, _, err := descriptor.Find(dir, ManifestName)
 	if errors.Is(err, descriptor.ErrAbsent) {
 		if st, e := os.Stat(filepath.Join(dir, ModuleManifest)); e == nil && st.Mode().IsRegular() {
@@ -174,7 +161,7 @@ func readManifestAny(dir string, own bool) (Manifest, error) {
 	if err != nil {
 		return Manifest{}, err
 	}
-	return parseManifestOf(filepath.Base(path), raw, own)
+	return parseManifest(filepath.Base(path), raw)
 }
 
 // ParseManifestFile reads a manifest's bytes, its format named by its file
@@ -191,10 +178,6 @@ func ParseManifestFile(name string, raw []byte) (Manifest, error) {
 func ParseManifest(raw []byte) (Manifest, error) { return ParseManifestFile("pack.json", raw) }
 
 func parseManifest(name string, raw []byte) (Manifest, error) {
-	return parseManifestOf(name, raw, false)
-}
-
-func parseManifestOf(name string, raw []byte, own bool) (Manifest, error) {
 	f := descriptor.FormatOf(name)
 	if f == "" {
 		return Manifest{}, fmt.Errorf("%s is not a manifest spelling", name)
@@ -207,15 +190,6 @@ func parseManifestOf(name string, raw []byte, own bool) (Manifest, error) {
 	if !ok {
 		return Manifest{}, fmt.Errorf("%s must hold an object", name)
 	}
-	var retired []string
-	if own {
-		for _, k := range RetiredKeys {
-			if _, ok := obj[k]; ok {
-				retired = append(retired, k)
-				delete(obj, k)
-			}
-		}
-	}
 	if errs := ManifestSchema.Validate(obj); len(errs) > 0 {
 		var s []string
 		for _, e := range errs {
@@ -223,7 +197,7 @@ func parseManifestOf(name string, raw []byte, own bool) (Manifest, error) {
 		}
 		return Manifest{}, fmt.Errorf("%s: %s", name, strings.Join(s, "; "))
 	}
-	m := Manifest{File: name, Retired: retired}
+	m := Manifest{File: name}
 	m.ID, _ = obj["id"].(string)
 	m.Version, _ = obj["version"].(string)
 	m.MinEngineVersion, _ = obj["minEngineVersion"].(string)

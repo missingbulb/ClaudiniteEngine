@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 
@@ -29,8 +28,8 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/packset"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/provenance"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/settings"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/settings/node"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/version"
+	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/config"
 )
 
 // Input is what verify reads besides the repo: the launcher this binary
@@ -78,7 +77,6 @@ var rules = []rule{
 	{"bin-ignore", checkBinIgnore},
 	{"pack-declared", checkPackDeclared},
 	{"pack-min-engine", checkPackMinEngine},
-	{"license-plan", checkLicensePlan},
 	{"engine-package", checkEnginePackage},
 	{"descriptor-format", checkDescriptorFormat},
 	{"descriptor-duplicate", checkDescriptorDuplicate},
@@ -86,8 +84,7 @@ var rules = []rule{
 	{"rules-index-current", checkRulesIndex},
 	{"skills-index-current", checkSkillsIndex},
 	{"claude-md-import", checkClaudeMDImport},
-	{"local-pack-shape", checkLocalPackShape},
-	{"node-leftovers", checkNodeLeftovers},
+	{"tasks-settings", checkTasksSettings},
 }
 
 // Verify's rules are claudinite-lifecycle's checks, folded into the
@@ -148,9 +145,6 @@ func anySettings(in Input) bool {
 
 func checkSettingsFile(in Input) []findings.Finding {
 	if _, _, err := settings.Find(in.Repo); err != nil && !anySettings(in) {
-		if _, ok := read(in, node.File); ok {
-			return []findings.Finding{brk("settings-file", node.File, "this repo is on the Node engine; `cn settings import` reads its declaration once the pin is written")}
-		}
 		return []findings.Finding{brk("settings-file", ".claudinite", err.Error())}
 	}
 	return nil
@@ -168,23 +162,6 @@ func checkEnginePin(in Input) []findings.Finding {
 	}
 	if _, err := settings.ReadEngine(raw, f); err != nil {
 		return []findings.Finding{brk("engine-pin", rel, err.Error()+"; the launcher refuses to run until the engine block holds a quoted version, manifest and, if any, package")}
-	}
-	return nil
-}
-
-// checkLicensePlan names a license block as a retired shape: nothing reads
-// it, and the next engine update PR drops it.
-func checkLicensePlan(in Input) []findings.Finding {
-	p, f, err := settings.Find(in.Repo)
-	if err != nil {
-		return nil
-	}
-	raw, err := os.ReadFile(p)
-	if err != nil {
-		return nil
-	}
-	if settings.HasRetiredLicense(raw, f) {
-		return []findings.Finding{dep("license-plan", settings.RelPath(f), "the license block is a retired shape: a single repo needs no license and nothing reads it; the next engine update PR drops it, or delete it by hand")}
 	}
 	return nil
 }
@@ -239,10 +216,6 @@ var Hooks = []HookWiring{
 	{"SessionEnd", ".claudinite/bin/cn hook session-end"},
 }
 
-// NodeHook matches a command that runs the Node engine's hooks, in a
-// member (under .claudinite/shared/) or in the canon (from its root).
-var NodeHook = regexp.MustCompile(`(^|[^\w.-])(\.claudinite/shared/)?engine/hooks/`)
-
 func checkHooks(in Input) []findings.Finding {
 	var cfg struct {
 		Hooks map[string][]struct {
@@ -256,20 +229,6 @@ func checkHooks(in Input) []findings.Finding {
 		_ = json.Unmarshal(raw, &cfg)
 	}
 	var out []findings.Finding
-	events := make([]string, 0, len(cfg.Hooks))
-	for e := range cfg.Hooks {
-		events = append(events, e)
-	}
-	sort.Strings(events)
-	for _, event := range events {
-		for _, group := range cfg.Hooks[event] {
-			for _, c := range group.Hooks {
-				if NodeHook.MatchString(c.Command) {
-					return []findings.Finding{brk("hooks", ".claude/settings.json", event+" runs the Node engine's hooks (engine/hooks/), which the move removes; the move skill wires every hook to cn")}
-				}
-			}
-		}
-	}
 	for _, h := range Hooks {
 		wired := false
 		for _, group := range cfg.Hooks[h.Event] {
@@ -391,10 +350,6 @@ func checkPackDeclared(in Input) []findings.Finding {
 	for _, id := range declared {
 		isDeclared[id] = true
 		if _, err := packset.ReadManifest(packset.Tree(in.Repo, id)); errors.Is(err, packset.ErrNoManifest) {
-			if today, ok := node.Renamed[id]; ok {
-				out = append(out, brk("pack-declared", packset.TreeRel(id), "the settings declare "+id+", which was renamed to or absorbed into "+today+"; declare "+today+" instead"))
-				continue
-			}
 			out = append(out, brk("pack-declared", packset.TreeRel(id), "the settings declare "+id+" but the repo does not hold it; vendor it with `cn adopt "+id+"`, or remove it from packs.declared"))
 		}
 	}
@@ -447,15 +402,10 @@ func checkPackMinEngine(in Input) []findings.Finding {
 	return out
 }
 
-// PackManifest checks a declared pack's minEngineVersion. A two-part one
-// names a Node engine version, which a pack vendored before the shelf
-// moved to the cn floor still carries: the update replaces it.
+// PackManifest checks a declared pack's minEngineVersion reads as
+// <major>.<day>.<n>.
 func PackManifest(path, minEngineVersion string) []findings.Finding {
-	_, err := version.ParseMinEngineVersion(minEngineVersion)
-	switch {
-	case errors.Is(err, version.ErrNodeEngine):
-		return []findings.Finding{dep("pack-min-engine", path, err.Error()+"; `cn update packs` moves the pack to a version naming the cn floor")}
-	case err != nil:
+	if _, err := version.ParseMinEngineVersion(minEngineVersion); err != nil {
 		return []findings.Finding{brk("pack-min-engine", path, err.Error())}
 	}
 	return nil
@@ -577,16 +527,6 @@ func checkSettingsChecks(in Input) []findings.Finding {
 		if strings.TrimSpace(a.Reason) == "" {
 			out = append(out, brk("settings-checks", rel, fmt.Sprintf("the acceptance of %s%s has no reason; an acceptance is reviewable only by its reason", a.Rule, onPath(a.Path))))
 		}
-	}
-	retired := append([]settings.RetiredOverride{}, parsed.Retired...)
-	sort.Slice(retired, func(i, k int) bool {
-		return retired[i].Where+retired[i].Rule < retired[k].Where+retired[k].Rule
-	})
-	for _, r := range retired {
-		out = append(out, dep("settings-checks", rel, fmt.Sprintf("rules.%s on %s is %q, the retired spelling; write %q", r.Rule, r.Where, r.Value, r.OnFail)))
-	}
-	if parsed.LegacySharedConstants {
-		out = append(out, dep("settings-checks", rel, "carries a top-level sharedConstants; move it to the basics entry's config (packs.declared: - id: basics, config: {sharedConstants: …}), where basics/shared-constants reads it"))
 	}
 	if dc := declaredOf(in); dc != nil && !dc.Partial {
 		known := map[string]bool{}
@@ -725,4 +665,28 @@ func checkClaudeMDImport(in Input) []findings.Finding {
 		return nil
 	}
 	return []findings.Finding{dep("claude-md-import", rulesindex.ClaudeMD, "does not import "+rulesindex.File+" on a line of its own, so sessions never read the declared packs' rules; add the line `"+rulesindex.Import+"`")}
+}
+
+// checkTasksSettings reads the settings' tasks block as the queue does: a
+// value it refuses fails every queue run, and a config still on the
+// retired claudinite-tasks entry is named for its move.
+func checkTasksSettings(in Input) []findings.Finding {
+	_, f, err := settings.Find(in.Repo)
+	if err != nil {
+		return nil
+	}
+	rel := settings.RelPath(f)
+	if raw, ok := read(in, rel); !ok {
+		return nil
+	} else if _, err := settings.ParseFile(raw, f); err != nil {
+		return nil
+	}
+	c, err := config.Read(in.Repo)
+	if err != nil {
+		return []findings.Finding{brk("tasks-settings", rel, err.Error()+"; every scheduler and executor run fails until it is fixed")}
+	}
+	if c.Legacy {
+		return []findings.Finding{dep("tasks-settings", rel, "packs.declared still names "+settings.RetiredTasksPack+", whose config is now the top-level tasks block: move agenticTaskInvocationEndpoints to tasks.routines, dailyClaudiniteUpdatesRequirePrReview: true to tasks.delivery: review, disabledTasks to tasks.disabled, and dormant and actionsMinuteRate under the same names, then remove the entry")}
+	}
+	return nil
 }

@@ -42,13 +42,13 @@ func TestInitAsksSeedsStampsAndHandsOver(t *testing.T) {
 		"stamped HELLO_TOKEN into .github/workflows/claudinite-executor.yml\n",
 		"\nQUESTIONS — 1 adoption question(s) unanswered; ask them in one AskUserQuestion pass and record each with cn settings answer:\n  asks/goals: What is the project for?\n    distill: one line\n",
 		"  [ ] (asks) Add the HELLO_TOKEN secret\n        while off: the greeting task parks\n        done when: a greeting lands\n",
-		"HANDOVER — 2 step(s)",
+		"HANDOVER — 3 step(s)",
 	} {
 		if !strings.Contains(s, want) {
 			t.Errorf("output lacks %q:\n%s", want, s)
 		}
 	}
-	if !strings.HasSuffix(s, "NEXT: commit everything above and open one pull request, which a person merges; then file the HANDOVER block as one issue.\n") {
+	if !strings.HasSuffix(s, "and record its endpoint under the settings' tasks.routines; then commit everything above and open one pull request, which a person merges; then file the HANDOVER block as one issue.\n") {
 		t.Errorf("NEXT is not the last line:\n%s", s)
 	}
 	if b, _ := os.ReadFile(filepath.Join(repo, ".github/seeded.yml")); string(b) != "# seeded\nkey: value\n" {
@@ -168,15 +168,14 @@ func TestAnswerRefuses(t *testing.T) {
 func TestHandoverGolden(t *testing.T) {
 	two := packOf("two", `{"adoptionHandover": [{"step": "A", "breaks": "b", "done": "c"}, {"step": "D", "breaks": "e", "done": "f"}]}`)
 	none := packOf("none", `{"id": "none"}`)
-	tasks := packOf("claudinite-tasks", `{"id": "claudinite-tasks"}`)
 	var buf bytes.Buffer
-	writeHandover(&buf, Handover(HandoverInput{Core: true, Tasks: true, Newly: []packset.Pack{two, none, tasks}}))
+	writeHandover(&buf, Handover(HandoverInput{Core: true, Newly: []packset.Pack{two, none}}))
 	want := `
 HANDOVER — 4 step(s) only a human can do; file them as ONE issue, a checkbox each, never a note in the PR body:
   [ ] (cn) In the repository's Settings > Actions > General, allow GitHub Actions to create and approve pull requests
         while off: the nightly update and every task that opens a pull request fail at the open
         done when: the first engine/update item's pull request exists
-  [ ] (claudinite-tasks) Mint the executor routine's bearer token and add it as the Actions secret CCR_ROUTINE_TOKEN
+  [ ] (cn) Mint the executor routine's bearer token and add it as the Actions secret CCR_ROUTINE_TOKEN
         while off: every item with an agentic phase parks needs-human-action naming the secret
         done when: an executor run fires a routine
   [ ] (two) A
@@ -191,12 +190,12 @@ HANDOVER — 4 step(s) only a human can do; file them as ONE issue, a checkbox e
 	}
 	buf.Reset()
 	writeHandover(&buf, Handover(HandoverInput{Core: true, Newly: []packset.Pack{none}}))
-	if strings.Count(buf.String(), "[ ]") != 1 {
-		t.Errorf("one core row:\n%s", buf.String())
+	if strings.Count(buf.String(), "[ ]") != 2 {
+		t.Errorf("the two core rows:\n%s", buf.String())
 	}
 	buf.Reset()
-	writeNext(&buf, NextInput{First: []string{"git rm .claudinite-settings.json"}, Routine: true, Handover: true})
-	if buf.String() != "\nNEXT: git rm .claudinite-settings.json; then create the executor routine with create_trigger and record its endpoint on the claudinite-tasks entry's config.agenticTaskInvocationEndpoints; then commit everything above and open one pull request, which a person merges; then file the HANDOVER block as one issue.\n" {
+	writeNext(&buf, NextInput{First: []string{"git rm old-config.json"}, Routine: true, Handover: true})
+	if buf.String() != "\nNEXT: git rm old-config.json; then create the executor routine with create_trigger, its stored prompt \"Read `.claudinite/cache/instructions.md` and follow it.\", and record its endpoint under the settings' tasks.routines; then commit everything above and open one pull request, which a person merges; then file the HANDOVER block as one issue.\n" {
 		t.Errorf("next %q", buf.String())
 	}
 }

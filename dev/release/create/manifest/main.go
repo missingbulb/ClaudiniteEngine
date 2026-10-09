@@ -138,7 +138,11 @@ func write(dist, ver, commit, source string, platforms []string) error {
 	if err != nil {
 		return err
 	}
-	m := releasefiles.Manifest{V: 1, Version: ver, BuiltAt: builtAt(), Commit: commit, GoVersion: runtime.Version(), UpdaterDigest: digest, Binaries: bins}
+	launcher, _, err := releasefiles.HashFile(filepath.Join(source, "cn", "launcher", "launch"))
+	if err != nil {
+		return err
+	}
+	m := releasefiles.Manifest{V: 1, Version: ver, BuiltAt: builtAt(), Commit: commit, GoVersion: runtime.Version(), UpdaterDigest: digest, Binaries: bins, Launcher: launcher}
 	return os.WriteFile(filepath.Join(dist, "manifest.json"), releasefiles.Format(m), 0o644)
 }
 
@@ -195,6 +199,9 @@ func verify(dist, rootsDir string, platforms []string, stdout io.Writer) error {
 			return fmt.Errorf("%s: %w", n, err)
 		}
 		roots = append(roots, p)
+	}
+	if len(roots) == 0 {
+		return fmt.Errorf("no trusted roots in %s (no *.pub there)", rootsDir)
 	}
 	manifest, err := os.ReadFile(filepath.Join(dist, "manifest.json"))
 	if err != nil {

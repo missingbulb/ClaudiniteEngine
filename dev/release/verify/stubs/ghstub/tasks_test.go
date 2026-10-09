@@ -96,7 +96,7 @@ func TestThePortsIssueCallsAgainstTheStub(t *testing.T) {
 func TestThePortsRepoAndLaneCallsAgainstTheStub(t *testing.T) {
 	t.Parallel()
 	bare, sha := fixture(t)
-	c, srv := start(t, bare)
+	c, _ := start(t, bare)
 	g := ghport.New(c)
 	branches, err := g.BranchesPage(1)
 	if err != nil || len(branches) != 2 {
@@ -142,7 +142,13 @@ func TestThePortsRepoAndLaneCallsAgainstTheStub(t *testing.T) {
 	if err := g.EnableAutoMerge(p.NodeID); err != nil {
 		t.Error(err)
 	}
-	control(t, srv, "/_stub/run", map[string]string{"sha": sha, "event": "workflow_dispatch", "conclusion": "success"})
+	runs, err := g.RunsForSHA(sha)
+	if err != nil || len(runs) != 1 || runs[0].Event != "pull_request" || runs[0].Conclusion != "action_required" {
+		t.Fatal("the job token's PR got no held run:", runs, err)
+	}
+	if err := g.ApproveRun(runs[0].ID); err != nil {
+		t.Error(err)
+	}
 	if runs, err := g.RunsForSHA(sha); err != nil || len(runs) != 1 || runs[0].Conclusion != "success" {
 		t.Error(runs, err)
 	}
