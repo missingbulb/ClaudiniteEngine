@@ -8,6 +8,7 @@ import (
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem"
 	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/packset"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/update"
 )
 
 // Step is one HANDOVER row: a step only a person can do, who it is for,
@@ -19,8 +20,8 @@ type Step struct {
 
 // HandoverInput is what the block is built from.
 type HandoverInput struct {
-	// Core adds the rows every first adoption owes: the Actions setting
-	// and the executor routine's token.
+	// Core adds the rows every first adoption owes: the Actions setting,
+	// the executor routine's token and the web environment's setup script.
 	Core bool
 	// Newly are the packs this run vendored, whose adoptionHandover steps
 	// follow the core rows in order.
@@ -39,6 +40,10 @@ func Handover(in HandoverInput) []Step {
 			"Mint the executor routine's bearer token and add it as the Actions secret " + workitem.RoutineTokenSecret,
 			"every item with an agentic phase parks needs-human-action naming the secret",
 			"an executor run fires a routine"})
+		out = append(out, Step{"cn",
+			"In every Claude Code web environment this repo's sessions and executor routine use, set the Setup script to exactly this line: `" + update.EnvSetupScript + "`",
+			"a bare sh .claudinite/launch env install fails every session with exit 2, since the script starts above the checkout; with no script, each session downloads the engine at SessionStart",
+			`an executor routine's session starts without "Setup script failed"`})
 	}
 	for _, p := range in.Newly {
 		for _, h := range p.Manifest.Handover {

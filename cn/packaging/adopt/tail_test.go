@@ -10,6 +10,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/workflows"
 	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/packset"
 	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/settings"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/update"
 )
 
 // asksManifest is a pack that asks two questions, seeds a file, hands a
@@ -42,7 +43,7 @@ func TestInitAsksSeedsStampsAndHandsOver(t *testing.T) {
 		"stamped HELLO_TOKEN into .github/workflows/claudinite-executor.yml\n",
 		"\nQUESTIONS — 1 adoption question(s) unanswered; ask them in one AskUserQuestion pass and record each with cn settings answer:\n  asks/goals: What is the project for?\n    distill: one line\n",
 		"  [ ] (asks) Add the HELLO_TOKEN secret\n        while off: the greeting task parks\n        done when: a greeting lands\n",
-		"HANDOVER — 3 step(s)",
+		"HANDOVER — 4 step(s)",
 	} {
 		if !strings.Contains(s, want) {
 			t.Errorf("output lacks %q:\n%s", want, s)
@@ -171,13 +172,16 @@ func TestHandoverGolden(t *testing.T) {
 	var buf bytes.Buffer
 	writeHandover(&buf, Handover(HandoverInput{Core: true, Newly: []packset.Pack{two, none}}))
 	want := `
-HANDOVER — 4 step(s) only a human can do; file them as ONE issue, a checkbox each, never a note in the PR body:
+HANDOVER — 5 step(s) only a human can do; file them as ONE issue, a checkbox each, never a note in the PR body:
   [ ] (cn) In the repository's Settings > Actions > General, allow GitHub Actions to create and approve pull requests
         while off: the nightly update and every task that opens a pull request fail at the open
         done when: the first engine/update item's pull request exists
   [ ] (cn) Mint the executor routine's bearer token and add it as the Actions secret CCR_ROUTINE_TOKEN
         while off: every item with an agentic phase parks needs-human-action naming the secret
         done when: an executor run fires a routine
+  [ ] (cn) In every Claude Code web environment this repo's sessions and executor routine use, set the Setup script to exactly this line: ` + "`" + update.EnvSetupScript + "`" + `
+        while off: a bare sh .claudinite/launch env install fails every session with exit 2, since the script starts above the checkout; with no script, each session downloads the engine at SessionStart
+        done when: an executor routine's session starts without "Setup script failed"
   [ ] (two) A
         while off: b
         done when: c
@@ -190,8 +194,8 @@ HANDOVER — 4 step(s) only a human can do; file them as ONE issue, a checkbox e
 	}
 	buf.Reset()
 	writeHandover(&buf, Handover(HandoverInput{Core: true, Newly: []packset.Pack{none}}))
-	if strings.Count(buf.String(), "[ ]") != 2 {
-		t.Errorf("the two core rows:\n%s", buf.String())
+	if strings.Count(buf.String(), "[ ]") != 3 {
+		t.Errorf("the three core rows:\n%s", buf.String())
 	}
 	buf.Reset()
 	writeNext(&buf, NextInput{First: []string{"git rm old-config.json"}, Routine: true, Handover: true})
