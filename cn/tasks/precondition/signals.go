@@ -15,8 +15,8 @@ type Signals struct {
 	Request          *Request   `json:"request,omitempty"`
 	UsageFold        *UsageFold `json:"usageFold,omitempty"`
 	// Extra are the signals no built-in term reads, collected for a
-	// task-local term (branches, release, localPacks, stamp and
-	// queue), each under its own name in the bundle.
+	// task-local term (branches, release, localPacks, stamp, queue,
+	// fleet), each under its own name in the bundle.
 	Extra map[string]any `json:"-"`
 }
 

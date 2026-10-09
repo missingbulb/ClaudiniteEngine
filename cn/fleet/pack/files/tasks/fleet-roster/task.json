@@ -1,0 +1,17 @@
+{
+  "id": "fleet-roster",
+  "description": "Walks every repository under the owner over the fleet token, builds the roster of members and non-members, files an issue per uncovered repository, and lands the roster artifact .claudinite/fleet/roster.GENERATED.json, one verdict per repository, on one accumulating pull request.",
+  "trigger": "schedule",
+  "preconditions": [
+    "schedule:at-most-daily"
+  ],
+  "expected_outcome": "amend_existing_or_create_new_pr",
+  "automerge": [
+    "fleet-roster-artifact"
+  ],
+  "code_work": "cn fleet roster",
+  "code_work_timeout": 900,
+  "code_work_required_secrets": [
+    "FLEET_GITHUB_TOKEN"
+  ]
+}

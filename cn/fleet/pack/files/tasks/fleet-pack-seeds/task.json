@@ -1,0 +1,14 @@
+{
+  "id": "fleet-pack-seeds",
+  "description": "Checks that every member declares the packs this fleet standardises on, carrying the fleet-level parameters no member can derive for itself, and seeds what is missing.",
+  "trigger": "schedule",
+  "preconditions": [
+    "schedule:at-most-daily"
+  ],
+  "expected_outcome": "no_code_changes",
+  "code_work": "cn fleet pack-seeds",
+  "code_work_timeout": 900,
+  "code_work_required_secrets": [
+    "FLEET_GITHUB_TOKEN"
+  ]
+}

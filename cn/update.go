@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -312,22 +311,4 @@ func cmdWorkflows(args []string, stdout io.Writer) error {
 	}
 	fmt.Fprint(stdout, d)
 	return nil
-}
-
-// repoFullName is the checkout's owner/name: GITHUB_REPOSITORY, else the
-// executor's CLAUDINITE_REPO, else the checkout's origin remote; "" when
-// none names one.
-func repoFullName(root string) string {
-	for _, k := range []string{"GITHUB_REPOSITORY", "CLAUDINITE_REPO"} {
-		if r := os.Getenv(k); strings.Contains(r, "/") {
-			return r
-		}
-	}
-	out, err := exec.Command("git", "-C", root, "remote", "get-url", "origin").Output()
-	if err == nil {
-		if r, ok := githubapi.ParseRemote(strings.TrimSpace(string(out))); ok {
-			return r
-		}
-	}
-	return ""
 }

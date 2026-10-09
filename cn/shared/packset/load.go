@@ -27,6 +27,11 @@ const (
 	CurrentUser = "current_user"
 )
 
+// FleetPack is the engine's own fleet pack: its rules, skills, tasks and
+// checks are carried in the binary and active wherever the settings hold
+// a fleet block.
+const FleetPack = "fleet"
+
 // ProseFile is the prose a pack carries by convention.
 const ProseFile = "RULES.md"
 
@@ -63,6 +68,8 @@ func (p Pack) Token() string {
 		return settings.LocalPrefix + p.ID
 	case Temp:
 		return "temp/" + p.ID
+	case Engine:
+		return string(Engine) + "/" + p.ID
 	}
 	return p.ID
 }
@@ -97,8 +104,9 @@ type Set struct {
 
 // Load reads the repo's declaration and returns its active packs in the
 // order the Node engine's registry gives them: the declared canon packs by
-// directory name, then the declared local packs by directory name, then,
-// when session is true, every temp pack present, by directory name. A
+// directory name, then the declared local packs by directory name, then
+// the engine's own packs the settings turn on, written out first, then,
+// when session is true, every other temp pack present, by directory name. A
 // pack whose requires names an undeclared pack loads, and is recorded in
 // Unmet. A development engine (0.0.0) skips the minEngineVersion check.
 // It returns an error only when the declaration cannot be read. Under
@@ -112,10 +120,11 @@ func Load(repo, engine string, session bool) (Set, error) {
 }
 
 func load(repo, engine string, session bool) (Set, error) {
-	declared, err := Declared(repo)
+	parsed, err := parsedSettings(repo)
 	if err != nil {
 		return Set{}, err
 	}
+	declared := parsed.Packs
 	s := Set{Declared: declared}
 	canon := append([]string{}, declared.Declared...)
 	sort.Strings(canon)
@@ -151,6 +160,23 @@ func load(repo, engine string, session bool) (Set, error) {
 		}
 		candidates = append(candidates, p)
 	}
+	for _, e := range activeEmbedded(parsed) {
+		token := string(Engine) + "/" + e.ID
+		if isDeclared[e.ID] {
+			s.NotLoaded = append(s.NotLoaded, NotLoaded{token, "its id is a declared pack's; the engine's own pack may not be shadowed"})
+			continue
+		}
+		if err := materialize(repo, e); err != nil {
+			s.NotLoaded = append(s.NotLoaded, NotLoaded{token, "could not be written under " + TempDir + ": " + err.Error()})
+			continue
+		}
+		p, why := loadOne(repo, Engine, e.ID, TempDir+"/"+e.ID, engine)
+		if why != "" {
+			s.NotLoaded = append(s.NotLoaded, NotLoaded{token, why})
+			continue
+		}
+		candidates = append(candidates, p)
+	}
 	if session {
 		taken := map[string]bool{}
 		for _, p := range candidates {
@@ -162,7 +188,9 @@ func load(repo, engine string, session bool) (Set, error) {
 				continue
 			}
 			if taken[name] {
-				s.NotLoaded = append(s.NotLoaded, NotLoaded{"temp/" + name, "its id is a tracked pack's; a copied pack may not shadow one"})
+				if !engineWrote(candidates, name) {
+					s.NotLoaded = append(s.NotLoaded, NotLoaded{"temp/" + name, "its id is a tracked pack's; a copied pack may not shadow one"})
+				}
 				continue
 			}
 			p, why := loadOne(repo, Temp, name, rel, engine)
@@ -187,6 +215,17 @@ func load(repo, engine string, session bool) (Set, error) {
 		s.Packs = append(s.Packs, p)
 	}
 	return s, nil
+}
+
+// engineWrote reports whether TempDir/name is the engine's own pack this
+// load wrote.
+func engineWrote(candidates []Pack, name string) bool {
+	for _, p := range candidates {
+		if p.Kind == Engine && p.ID == name {
+			return true
+		}
+	}
+	return false
 }
 
 // LoadLocal loads the local pack name as Load would, or says why it

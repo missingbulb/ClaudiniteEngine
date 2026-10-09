@@ -9,7 +9,8 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/version"
 )
 
-// The engine candidate is shared/npmreg's.
+// The engine candidate is shared/npmreg's, where the fleet's freshness
+// reads it too.
 type (
 	States = npmreg.States
 	Skip   = npmreg.Skip

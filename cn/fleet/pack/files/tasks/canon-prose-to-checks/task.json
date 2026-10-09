@@ -1,0 +1,16 @@
+{
+  "id": "canon-prose-to-checks",
+  "description": "Mines the shelf's own pack prose for always-testable rules the conversion missed and converts the strongest ones, so a rule every member pays context for becomes a check instead.",
+  "trigger": "schedule",
+  "preconditions": [
+    "schedule:at-most-weekly",
+    "repo-active"
+  ],
+  "expected_outcome": "amend_existing_or_create_new_pr",
+  "automerge": [
+    "under:packs"
+  ],
+  "agent_model": "opus",
+  "agent_instructions": "task.md",
+  "agent_execution_timeout": 2700
+}

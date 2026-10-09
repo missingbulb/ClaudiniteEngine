@@ -1,0 +1,42 @@
+# The fleet dashboard, built by cn fleet create-dashboard-artifact from this
+# manager's fleet block and deployed to GitHub Pages. The page reads the
+# fleet live, as its viewer, so a rebuild is needed only when the engine or
+# the fleet block changes. The sign-in pair are repository variables.
+name: claudinite-fleet-dashboard
+
+on:
+  push:
+    branches: [main]
+    paths: [".claudinite/**"]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: claudinite-fleet-dashboard
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: cn fleet create-dashboard-artifact
+        env:
+          CLAUDINITE_DASHBOARD_CLIENT_ID: ${{ vars.CLAUDINITE_DASHBOARD_CLIENT_ID }}
+          CLAUDINITE_DASHBOARD_EXCHANGE_URL: ${{ vars.CLAUDINITE_DASHBOARD_EXCHANGE_URL }}
+        run: sh .claudinite/launch fleet create-dashboard-artifact --out _site
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4

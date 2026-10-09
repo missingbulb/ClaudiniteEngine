@@ -113,10 +113,13 @@ func TestTemplates(t *testing.T) {
 	}
 	sched := string(tpl["claudinite-scheduler.yml"])
 	for _, w := range []string{"schedule:", "cron: \"" + CronPlaceholder + "\"", "wake:", "group: claudinite-scheduler-run", "cn schedule run", "cn schedule drain", "cn schedule report-failure",
-		"CLAUDINITE_WAKE: ${{ inputs.wake }}", "CLAUDINITE_VARS: ${{ toJSON(vars) }}", "pickable"} {
+		"CLAUDINITE_WAKE: ${{ inputs.wake }}", "CLAUDINITE_VARS: ${{ toJSON(vars) }}", "pickable", fleetToken} {
 		if !strings.Contains(sched, w) {
 			t.Errorf("claudinite-scheduler.yml lacks %q", w)
 		}
+	}
+	if run := sched[strings.Index(sched, "name: cn schedule run"):strings.Index(sched, "drain:")]; !strings.Contains(run, fleetToken) {
+		t.Error("cn schedule run, which collects the fleet signal, is not given FLEET_GITHUB_TOKEN")
 	}
 	exe := string(tpl["claudinite-executor.yml"])
 	for _, w := range []string{"types: [labeled]", "continuation_depth:", "timeout-minutes: 350", "CLAUDINITE_VARS: ${{ toJSON(vars) }}",
@@ -131,10 +134,18 @@ func TestTemplates(t *testing.T) {
 	}
 }
 
+const fleetToken = "FLEET_GITHUB_TOKEN: ${{ secrets.FLEET_GITHUB_TOKEN }}"
+
 // A template reads only the secret its own steps need: the executor its
-// routine token.
+// routine token, the scheduler run the fleet token its signal collects with.
 func readsItsSecret(name, line string) bool {
-	return name == "claudinite-executor.yml" && strings.Contains(line, "CCR_ROUTINE_TOKEN: ${{ secrets.CCR_ROUTINE_TOKEN }}")
+	switch name {
+	case "claudinite-executor.yml":
+		return strings.Contains(line, "CCR_ROUTINE_TOKEN: ${{ secrets.CCR_ROUTINE_TOKEN }}")
+	case "claudinite-scheduler.yml":
+		return strings.Contains(line, fleetToken)
+	}
+	return false
 }
 
 // The task discovery reads the superseded workflow's path to let the

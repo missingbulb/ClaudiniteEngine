@@ -1,0 +1,20 @@
+[
+  {
+    "name": "fleet-roster-artifact",
+    "pathMatching": "/^\\.claudinite\\/fleet\\/roster\\.GENERATED\\.json$/",
+    "changeKinds": [
+      "added",
+      "modified"
+    ],
+    "editShape": "any"
+  },
+  {
+    "name": "pack-version-history",
+    "pathMatching": "/^packs\\/[^/]+\\/provenance\\/VERSIONS\\.md$/",
+    "changeKinds": [
+      "added",
+      "modified"
+    ],
+    "editShape": "any"
+  }
+]

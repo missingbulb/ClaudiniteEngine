@@ -46,6 +46,10 @@
 //     every other task, then fails, naming each such task and its error,
 //     so the workflow's failure report files its issue.
 //     schedule.TestTermsThatCannotBeAskedFileNothingAndFailTheRun
+//   - A task over the fleet signal fails open on Node's sentence when the
+//     run holds no FLEET_GITHUB_TOKEN, and asks the reader when it does.
+//     schedule.TestAFleetTaskWithoutTheTokenFailsOpenOnNodesSentence,
+//     schedule.TestAFleetTaskWithTheTokenAsksTheReader
 //   - A second live unqualified item of one task is closed obsolete, the
 //     oldest kept. schedule.TestADuplicateStandingItemSelfHeals
 //   - Readiness has one site, the scheduler run: a blocked item is readied
@@ -56,7 +60,7 @@
 //     Woken, and the wake reports what matched nothing.
 //     schedule.TestAWakeMintsTheMissingStandingItemAndReportsWhatMatchedNothing
 //   - The engine's own update is filed at most once a UTC day, at the
-//     engine's path, and a bare force id reaches it; it closes on
+//     engine's path, and the fleet's bare force id reaches it; it closes on
 //     its verdicts. schedule.TestTheEnginesUpdateIsFiledOnceADay,
 //     execute.TestTheEnginesUpdateRunsAndClosesOnItsVerdicts
 //   - The engine's own usage fold is filed on every repo the queue runs

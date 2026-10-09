@@ -63,6 +63,9 @@ type Config struct {
 	Accept       []Acceptance
 	// PackConfig is each declared entry's config, by pack id.
 	PackConfig map[string]map[string]any
+	// Fleet is the settings' fleet block, nil on a repo that manages no
+	// fleet.
+	Fleet map[string]any
 	// Errors are faults in the settings that change what runs.
 	Errors []string
 	// Packs are the active packs, in the pack set's order.

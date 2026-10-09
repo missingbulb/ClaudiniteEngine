@@ -1,0 +1,93 @@
+[
+  {
+    "id": "pack-independence",
+    "on_fail": "block",
+    "failureMessage": "the vendor set ships a pack only when declared, so a cross-pack import crashes every consumer that vendors one pack without the other",
+    "fix": "declare the dependency (requires) and pass configuration, move the shared helper into engine/checks/helpers, or accept the import with a reason under checks.accept in .claudinite/settings.yaml",
+    "relevantWhen": {
+      "pathExists": "packs"
+    },
+    "forbidReferences": [
+      {
+        "siblings": "packs",
+        "to": "*",
+        "scope": "imports",
+        "allow": [
+          "engine",
+          "packs/claudinite-tasks/public"
+        ],
+        "reason": "a pack imports only its own files, the engine surface, and the tasks pack's published public/ — abilities otherwise cross pack boundaries through declaration and configuration, never imports"
+      }
+    ]
+  },
+  {
+    "id": "pack-directory-kebab-case",
+    "on_fail": "block",
+    "since": "2026-09-06",
+    "failureMessage": "the directory name is the public id every member declares, so another casing costs a fleet-wide rename",
+    "forbidTrackedPathsMatching": [
+      {
+        "match": "/^(\\.claudinite\\/shared\\/)?packs\\/[^/]*[^a-z0-9/-][^/]*\\//",
+        "what": "a pack directory that is not kebab-case: {path}",
+        "fix": "rename the directory to lowercase kebab-case before anyone declares it"
+      }
+    ]
+  },
+  {
+    "id": "corpus-count-in-prose",
+    "on_fail": "advise",
+    "since": "2026-09-06",
+    "failureMessage": "a quoted count of checks or rules is stale at the next change; name what to count instead",
+    "scanFiles": "/(^|\\/)packs\\/.*\\.md$/",
+    "excludeFiles": "/GENERATED|VERSIONS\\.md$/",
+    "scanIgnoringMarkdownFences": true,
+    "matchLines": [
+      {
+        "match": "/\\b\\d+ (checks|rules)\\b/",
+        "what": "states a corpus count: \"{match}\"",
+        "fix": "say how to count them instead of quoting the number"
+      }
+    ]
+  },
+  {
+    "id": "home-only-path-in-canon-prose",
+    "on_fail": "block",
+    "since": "2026-09-06",
+    "failureMessage": ".claudinite/local/packs/<pack>/ exists only in the canon home, so the name dangles everywhere else the prose mounts",
+    "scanFiles": "/^(\\.claudinite\\/shared\\/)?packs\\/.*\\.md$/",
+    "excludeFiles": "/^\\.claudinite\\/local\\//",
+    "matchLines": [
+      {
+        "match": "/\\.claudinite\\/local\\/packs\\/[a-z0-9-]+\\//",
+        "what": "names a home-only local pack path: {match}",
+        "fix": "point at the canon pack that owns the artifact, or describe it without its home path"
+      }
+    ]
+  },
+  {
+    "id": "named-import-of-new-engine-export",
+    "on_fail": "block",
+    "scope": "work",
+    "since": "2026-09-06",
+    "failureMessage": "the pack and engine lanes deliver on separate cadences, so a named import of an export the member's engine lacks is a link-time SyntaxError faulting the whole pack",
+    "extractValueSets": [
+      {
+        "setName": "newEngineExports",
+        "whenSetEmpty": "assertNothing",
+        "fromAddedLinesMatching": "/^export\\s+(async\\s+)?(function|const|let|class)\\s+(?<value>\\w+)/",
+        "inFilesMatching": "/^engine\\/.*\\.mjs$/"
+      }
+    ],
+    "checkSetValues": [
+      {
+        "setName": "newEngineExports",
+        "forbidEveryFileMatching": {
+          "pathMatching": "/^packs\\/.*\\.mjs$/",
+          "text": "/import\\s*\\{[^}]*\\b{value}\\b[^}]*\\}\\s*from\\s*['\"][^'\"]*\\/engine\\//"
+        },
+        "what": "a pack imports the engine export {value} by name in the change that adds it",
+        "fix": "import the engine module as a namespace and guard the call with a typeof capability check"
+      }
+    ]
+  }
+]

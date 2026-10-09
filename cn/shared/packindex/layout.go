@@ -1,7 +1,7 @@
 package packindex
 
 // The published layout, the same on the CDN, on ClaudinitePacks' vendored
-// branch and on any repo mirroring it.
+// branch and on a fleet manager's mirror of it.
 const (
 	VendoredBranch = "vendored"
 	CatalogFile    = "catalog.json"

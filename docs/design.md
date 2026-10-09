@@ -8,7 +8,7 @@ Claudinite's engine is one closed Go binary per platform, published on npm and p
 
 ## Architecture and repositories
 
-We build four repositories and run one service, the license server (a key Worker and a sync Worker); npm, GitHub, Cloudflare and Anthropic host the rest. The binary runs in two kinds of place, a Claude Code session (web VM or desktop) and a GitHub Actions job, and the engine asks a license of nothing: a fleet's sweeps, and any license check they make, are the fleet manager's own code (record row 145). Only Actions reaches R2 for a cloud member.
+We build four repositories and run one service, the license server (a key Worker and a sync Worker); npm, GitHub, Cloudflare and Anthropic host the rest. The binary runs in two kinds of place, a Claude Code session (web VM or desktop) and a GitHub Actions job, and the engine asks a license only of `cn fleet`, the fleet manager's sweeps, which run in Actions (record row 160). Only Actions reaches R2 for a cloud member.
 
 ```mermaid
 flowchart LR
@@ -45,7 +45,7 @@ Each arrow is one actor delivering one thing. The engine update verifies the rel
 | ClaudiniteWebsite | Private | The commercial website, the single-repo dashboard and other lower-criticality website work | Cloudflare Pages |
 | ClaudiniteLicenses | Private | The license server: the key Worker, which only reads D1 and KV, and the sync Worker, the only writer, which handles Polar and the queue; their deploys | Cloudflare (Workers, D1, KV) |
 | Member repo | The customer's | The engine pin, the launcher, and the vendored packs; the scheduler, executor and CI workflows | Nothing; receives update PRs |
-| Fleet manager | Private, one per customer account | Fleet-wide tasks across the organization's member repos, in its own code: `cn` carries no fleet command (record row 145) | Fleet PRs |
+| Fleet manager | Private, one per customer account | Fleet-wide tasks across the organization's member repos: a `fleet` settings block turns on `cn fleet` and the fleet pack the binary carries (record row 160) | Fleet PRs |
 
 ## Technology selections
 
@@ -98,7 +98,7 @@ A task is a `task.json` the binary executes. Its optional `worker.mjs`, and a pr
 
 Nothing else touches them: not the pack update, the task runner, growth, or any hook.
 
-**License gating inside the engine.** None: every surface runs, public or private, and `cn` has no fleet run to check (see Licensing).
+**License gating inside the engine.** Only `cn fleet`: every other surface runs, public or private, unchecked (see Licensing).
 
 **Health breadcrumbs.** The engine judges its own health from what it leaves in the conversation log. The conversation is Claude Code's, not ours, so each capability can only leave breadcrumbs: one short, fixed-format line in its hook output, which Claude Code records in the transcript. A breadcrumb carries a marker, the capability, the event, an outcome code and a duration, never error text; the details stay in the conversation where they happened.
 
@@ -217,7 +217,7 @@ The same hooks run the same launcher, which picks the macOS, Linux or Windows bi
 
 A single repository, public or private, is free, and the engine asks it for nothing: no session, hook, `cn init`, task item or update checks a license, and nothing about a license is committed (record row 131). Only a fleet is paid. The Personal fleet plan is $9 per personal GitHub account; the Organization fleet plan is $99 per user. The license server's own design (plans, billing, the signing chain) lives with ClaudiniteLicenses; this section says only where the engine stands.
 
-The engine meets it nowhere: `cn` checks no license, and a fleet run's owner check left with `cn fleet` (record row 145). A fleet manager that sells or checks a plan does so in its own code.
+The engine meets it at one place: every `cn fleet` command first trades the run's Actions OIDC token for a key naming the manager repo's owner, and refuses without one (record row 160). Sessions never call `cn fleet`, so nothing a session or a member's task runs checks a license.
 
 A `license` block in a member's settings is an unknown key, as any other: the settings do not parse until it is deleted (record row 152).
 
@@ -265,7 +265,7 @@ Every flow runs the engine version pinned in the commit it started from, reads t
 4. `init` takes each declared pack's newest published archive from the CDN or, where the CDN is out of reach, from ClaudinitePacks' `vendored` branch, verified against the signed index either way. It checks that the pinned engine meets its `minEngineVersion` (if not, init stops and says so), and vendors it into `.claudinite/shared/packs/`.
 5. The session runs each pack's adoption: the binary runs the pack's adoption steps, and the session does the parts that need Claude, such as adapting repo files or asking the person. Adoption is a free surface, since no key exists yet.
 6. The session commits everything and opens the adoption PR, which a person merges because it adds workflow files.
-7. The merge triggers a first executor run in Actions, which runs the nightly update task once. Adoption asks for no plan, key or App install, public repo or private; a plan is bought only for a fleet, whose manager handles it in its own code (see Licensing).
+7. The merge triggers a first executor run in Actions, which runs the nightly update task once. Adoption asks for no plan, key or App install, public repo or private; a plan is bought only for a fleet, which `cn fleet` checks (see Licensing).
 
 ```mermaid
 sequenceDiagram
@@ -485,7 +485,7 @@ sequenceDiagram
 
 ## Security design
 
-The design protects two boundaries in the engine: what binary runs and what pack JavaScript can reach. Which fleet holds a valid key is the license server's and the fleet manager's, outside `cn` (record row 145).
+The design protects two boundaries in the engine: what binary runs and what pack JavaScript can reach. Which fleet holds a valid key is the license server's to say; `cn fleet` only verifies the key it is handed (record row 160).
 
 | Boundary | Controls |
 | --- | --- |

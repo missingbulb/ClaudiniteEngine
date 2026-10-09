@@ -1,0 +1,11 @@
+{
+  "id": "fleet-update",
+  "description": "The operator's lever to force every member, or a named few, to update to the published engine and pack versions now rather than on its own schedule.",
+  "trigger": "request",
+  "expected_outcome": "no_code_changes",
+  "code_work": "cn fleet update",
+  "code_work_timeout": 1800,
+  "code_work_required_secrets": [
+    "FLEET_GITHUB_TOKEN"
+  ]
+}
