@@ -950,6 +950,10 @@ func WithSection(body, heading string, lines []string) string {
 	return strings.Join(out, "\n") + "\n"
 }
 
+// IsAdopted reports an item that is a person's own issue rather than one
+// the queue filed.
+func (i Issue) IsAdopted() bool { return !strings.HasPrefix(i.Title, WorkPrefix) }
+
 // IsQueueItem reports an issue that is an item: a filed work item, an
 // adopted issue's machine block, or the ad-hoc mark beside a status.
 func (i Issue) IsQueueItem() bool {

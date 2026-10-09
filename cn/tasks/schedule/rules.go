@@ -260,6 +260,14 @@ func OrphanedParkComment(id, headPath string) string {
 		"waiting for an answer that would change nothing."
 }
 
+// ReleasedComment explains a person's own issue let go of by the queue: it
+// was theirs before it was adopted, so it stays open as it was.
+func ReleasedComment(id string) string {
+	return fmt.Sprintf("`%s` is not a task this repo carries at HEAD — the pack may be undeclared, or the task retired — so the queue can never run this issue. ", id) +
+		"It was yours before the queue adopted it, so it stays open: the queue's labels and its machine block are removed and nothing else is changed. " +
+		"Mark it `" + workitem.OriginAdHoc + "` again to ask a task this repo carries."
+}
+
 // EndedParkItems are parks whose Ends-when target resolved.
 func EndedParkItems(open []workitem.Issue, resolutionOf func(int) string) []workitem.Issue {
 	var out []workitem.Issue
