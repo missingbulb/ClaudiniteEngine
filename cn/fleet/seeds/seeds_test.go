@@ -6,7 +6,7 @@ import (
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/fleet"
 	"github.com/missingbulb/ClaudiniteEngine/cn/fleet/seeds"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/settings"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/settings"
 )
 
 const member = `# kept: the member's own words

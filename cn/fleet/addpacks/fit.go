@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/fleet"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/packindex"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/workitem"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/packindex"
 )
 
 // DefaultReadBudget is how many file contents one pack's fingerprint may

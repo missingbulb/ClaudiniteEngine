@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/fleet"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/packindex"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/packindex"
 )
 
 // The scan: the question nothing else asks after adoption, whether a

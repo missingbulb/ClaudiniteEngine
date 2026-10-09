@@ -27,7 +27,7 @@ for f in "$tarballs"/claudinite-*.tgz; do
 done
 ls -l "$tarballs"
 
-out=$(go run ./dev/release/publish/promote check --version "$version" --tarballs "$tarballs" --roots cn/shared/trust/roots --source "$source")
+out=$(go run ./dev/release/publish/promote check --version "$version" --tarballs "$tarballs" --roots cn/packaging/trust/roots --source "$source")
 printf '%s\n' "$out"
 [ -z "${GITHUB_OUTPUT:-}" ] || printf '%s\n' "$out" >> "$GITHUB_OUTPUT"
 if [ "$(printf '%s\n' "$out" | sed -n 's/^check=//p')" != pass ]; then

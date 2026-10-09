@@ -30,14 +30,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/lifecycle/adopt"
-	"github.com/missingbulb/ClaudiniteEngine/cn/lifecycle/packs"
-	"github.com/missingbulb/ClaudiniteEngine/cn/lifecycle/update"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/findings"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/npmreg"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/paths"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/trust"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/version"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/findings"
+	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/paths"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/adopt"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/fetch"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/npmreg"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/trust"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/update"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/version"
 )
 
 // errUsage marks a usage error, exit 2.
@@ -117,12 +117,12 @@ func cmdMove(args []string, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
-	srcs, closeSources := packs.SourcesFor(nil, &http.Client{Timeout: time.Minute})
+	srcs, closeSources := fetch.SourcesFor(nil, &http.Client{Timeout: time.Minute})
 	defer closeSources()
 	in := adopt.Input{
 		Repo: *repo, FullName: fullName(*repo), Channel: *channel,
 		Fetch:  update.FetchInput{Registry: reg, Roots: roots, CacheRoot: paths.CacheRoot(), Platform: version.Platform(), Now: time.Now()},
-		Reader: &packs.Reader{Sources: srcs, Roots: roots, Now: time.Now, Log: stdout}, Timeout: 2 * time.Minute, Out: stdout, Answers: answers,
+		Reader: &fetch.Reader{Sources: srcs, Roots: roots, Now: time.Now, Log: stdout}, Timeout: 2 * time.Minute, Out: stdout, Answers: answers,
 	}
 	if err := move(in); err != nil {
 		return err

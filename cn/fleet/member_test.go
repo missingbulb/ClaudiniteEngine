@@ -8,9 +8,9 @@ import (
 	"testing"
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/fleet"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/npmreg"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/packindex"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/settings"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/npmreg"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/packindex"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/settings"
 )
 
 // world is a fake GitHub: a GET answers a file's contents, a directory's

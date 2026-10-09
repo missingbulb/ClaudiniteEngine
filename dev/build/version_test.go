@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/version"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/version"
 )
 
 // gitRepo makes a repository with one commit and the given tags.
@@ -155,7 +155,7 @@ func TestVersionRefusesAShallowClone(t *testing.T) {
 }
 
 // The day is computed twice: by version.sh day, so the release job's first
-// step compiles no Go, and by cn/shared/version's Today, which cn and the
+// step compiles no Go, and by cn/packaging/version's Today, which cn and the
 // updater read. This holds the two equal, on today and on dates whose month
 // or day carries a leading zero.
 func TestVersionDayIsToday(t *testing.T) {

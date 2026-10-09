@@ -12,7 +12,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/settings"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/settings"
 )
 
 // File is the Node engine's declaration, relative to the repo root.

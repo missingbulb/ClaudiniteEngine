@@ -17,7 +17,7 @@ import (
 // <case>.json holding:
 //
 //	nodeFiles   the Node member's files, {path: text}
-//	cnShape     a fixture under lifecycle/verify/testdata/shapes, the cn
+//	cnShape     a fixture under packaging/verify/testdata/shapes, the cn
 //	            member's base
 //	cnFiles     files laid over that base, {path: text}, null deleting one
 //	answeredBy  the verify rule that answers the Node rule
@@ -72,7 +72,7 @@ func LoadAnswered(root string) ([]AnsweredCase, error) {
 
 // cnMember lays the case's cn member out under dir.
 func (c AnsweredCase) cnMember(dir string) error {
-	src := filepath.Join("../..", "cn", "lifecycle", "verify", "testdata", "shapes", c.CnShape)
+	src := filepath.Join("../..", "cn", "packaging", "verify", "testdata", "shapes", c.CnShape)
 	if err := copyDir(src, dir); err != nil {
 		return err
 	}

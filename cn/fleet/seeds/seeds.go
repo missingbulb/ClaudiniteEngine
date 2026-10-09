@@ -21,9 +21,9 @@ import (
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/fleet"
 	"github.com/missingbulb/ClaudiniteEngine/cn/fleet/mirror"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/packset"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/settings"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/version"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/packset"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/settings"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/version"
 )
 
 // SourcesSince is the first engine that reads packs.sources: the first

@@ -85,7 +85,7 @@ func crashFileFrom(t *testing.T, stderr, wantCrumb string) string {
 
 func TestSelftestPanicWritesCrashFile(t *testing.T) {
 	t.Parallel()
-	bin := buildCN(t, "-X github.com/missingbulb/ClaudiniteEngine/cn/shared/version.version=1.1.0")
+	bin := buildCN(t, "-X github.com/missingbulb/ClaudiniteEngine/cn/packaging/version.version=1.1.0")
 	cache := t.TempDir()
 	_, errOut, code := runCN(t, bin, []string{"XDG_CACHE_HOME=" + cache, "CN_TEST_SECRET=hunter2-env"}, "stdin-secret-xyz", "selftest", "--panic")
 	if code != 1 {

@@ -49,9 +49,9 @@ func TestSandboxPinWritesTheRehearsalFixture(t *testing.T) {
 	}
 	for _, name := range []string{"claudinite-ci.yml", "claudinite-scheduler.yml", "claudinite-executor.yml"} {
 		got, err := os.ReadFile(filepath.Join(sandbox, ".github", "workflows", name))
-		dir := "../../../cn/tasks/workflows/templates"
+		dir := "../../../cn/capabilities/tasks/workflows/templates"
 		if name == "claudinite-ci.yml" {
-			dir = "../../../cn/lifecycle/workflows/templates"
+			dir = "../../../cn/integrations/workflows/templates"
 		}
 		want, _ := os.ReadFile(filepath.Join(dir, name))
 		if err != nil || string(got) != string(want) {
@@ -63,7 +63,7 @@ func TestSandboxPinWritesTheRehearsalFixture(t *testing.T) {
 		t.Errorf("verify of the pinned sandbox: %v\n%s", err, verifyOut)
 	}
 	launch, _ := os.ReadFile(filepath.Join(sandbox, ".claudinite", "launch"))
-	src, _ := os.ReadFile("../../../cn/launcher/launch")
+	src, _ := os.ReadFile("../../../cn/packaging/launcher/launch")
 	if string(launch) != string(src) {
 		t.Error(".claudinite/launch is not the launcher verbatim")
 	}

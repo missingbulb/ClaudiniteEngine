@@ -56,7 +56,7 @@ jobs:
         env:
           RELEASE_KEY: dev/release/keys/testkeys/release.key
           RELEASE_CERT: dev/release/keys/testkeys/release.cert.json
-          ROOTS: cn/shared/trust/devroots
+          ROOTS: cn/packaging/trust/devroots
       - run: dev/release/verify/sums.sh
       - run: dev/release/verify/smoke.sh
       - run: dev/release/verify/repro.sh

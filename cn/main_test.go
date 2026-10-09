@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/checksdk"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/checksdk"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/version"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/version"
 )
 
 var buildRoot string
@@ -96,7 +96,7 @@ func runCN(t *testing.T, bin string, env []string, stdin string, args ...string)
 
 func TestVersionPrintsInjectedVersion(t *testing.T) {
 	t.Parallel()
-	bin := buildCN(t, "-X github.com/missingbulb/ClaudiniteEngine/cn/shared/version.version=1.60928.3 -X github.com/missingbulb/ClaudiniteEngine/cn/shared/version.commit=abc1234")
+	bin := buildCN(t, "-X github.com/missingbulb/ClaudiniteEngine/cn/packaging/version.version=1.60928.3 -X github.com/missingbulb/ClaudiniteEngine/cn/packaging/version.commit=abc1234")
 	out, _, code := runCN(t, bin, nil, "", "version")
 	if code != 0 {
 		t.Fatalf("exit %d", code)

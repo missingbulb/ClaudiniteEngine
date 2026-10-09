@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/lifecycle/packs"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/fetch"
 )
 
 func writeSettings(t *testing.T, body string) string {
@@ -22,7 +22,7 @@ func writeSettings(t *testing.T, body string) string {
 	return repo
 }
 
-func readerNames(r *packs.Reader) string {
+func readerNames(r *fetch.Reader) string {
 	var names []string
 	for _, s := range r.Sources {
 		names = append(names, s.Name())

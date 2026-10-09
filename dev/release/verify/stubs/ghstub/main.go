@@ -1,5 +1,5 @@
 // Command ghstub stands in for the GitHub REST calls the updater makes
-// (shared/githubapi), over HTTPS on loopback, for the rehearsal's update
+// (integrations/github/githubapi), over HTTPS on loopback, for the rehearsal's update
 // mode and the release workflow's hop job. Pull requests read their head
 // from --origin, a bare repository, and a merge squashes onto its main
 // there, as GitHub would. cn reaches it through CLAUDINITE_GITHUB_API.
@@ -52,8 +52,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/workitem"
-	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/sim"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/sim"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem"
 	"github.com/missingbulb/ClaudiniteEngine/dev/release/verify/stubs/stubtls"
 )
 

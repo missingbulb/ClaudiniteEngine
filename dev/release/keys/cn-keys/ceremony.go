@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/sign"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/sign"
 )
 
 // workingKey is one key a workflow signs with, and the secrets that hold it.
@@ -49,7 +49,7 @@ var rootsToSwap = strings.ReplaceAll(`### Roots to swap
 Until these land, every Engine release, Packs publish and Licenses deploy fails verification:
 the working keys are certified by roots nothing trusts yet.
 
-- ClaudiniteEngine 'cn/shared/trust/roots/root.pub' and 'cn/shared/trust/roots/standby.pub', and the key ids 'cn/shared/trust/roots_real_test.go' pins.
+- ClaudiniteEngine 'cn/packaging/trust/roots/root.pub' and 'cn/packaging/trust/roots/standby.pub', and the key ids 'cn/packaging/trust/roots_real_test.go' pins.
 - ClaudinitePacks 'keys/roots/', the directory 'release-packs.yml' passes to '--roots'.
 - ClaudiniteLicenses 'packages/signing/roots/', the key Worker's 'TRUST_ROOTS'.
 `, "'", "`")
@@ -222,9 +222,9 @@ func ceremony(gh secretStore, passphrase string, now time.Time, summary, log io.
 
 	var b bytes.Buffer
 	fmt.Fprintf(&b, "## Root key ceremony\n\nNothing below is secret: the standby root is sealed under your passphrase.\n\n")
-	fmt.Fprintf(&b, "Root, for `cn/shared/trust/roots/root.pub`, key id `%s`, stored as `%s` in %s environment `%s`:\n\n```\n%s```\n\n",
+	fmt.Fprintf(&b, "Root, for `cn/packaging/trust/roots/root.pub`, key id `%s`, stored as `%s` in %s environment `%s`:\n\n```\n%s```\n\n",
 		sign.KeyID(rootPub), rootSecret, rootRepo, rootEnv, sign.FormatPublicKey(rootPub))
-	fmt.Fprintf(&b, "Standby root, for `cn/shared/trust/roots/standby.pub`, key id `%s`:\n\n```\n%s```\n\n",
+	fmt.Fprintf(&b, "Standby root, for `cn/packaging/trust/roots/standby.pub`, key id `%s`:\n\n```\n%s```\n\n",
 		sign.KeyID(standbyPub), sign.FormatPublicKey(standbyPub))
 	writeIssued(&b, issued)
 	fmt.Fprintf(&b, "### Sealed standby root\n\nSave this whole block in your password manager, beside the passphrase. "+

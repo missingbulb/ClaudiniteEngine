@@ -50,17 +50,17 @@ func TestUpdaterDigestFollowsTheUpdaterSource(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	write("cn/launcher/launch", "#!/bin/sh\n")
-	write("cn/lifecycle/update/a.go", "package update\n")
-	write("cn/lifecycle/update/sub/b.go", "package sub\n")
-	write("cn/lifecycle/workflows/templates/w.yml", "on: push\n")
-	write("cn/tasks/workflows/templates/q.yml", "on: schedule\n")
-	write("cn/lifecycle/verify/v.go", "package verify\n")
-	write("cn/shared/npmreg/n.go", "package npmreg\n")
-	write("cn/shared/githubapi/g.go", "package githubapi\n")
-	write("cn/shared/gitcmd/c.go", "package gitcmd\n")
-	write("cn/shared/settings/s.go", "package settings\n")
-	write("cn/hooks/x.go", "package hooks\n")
+	write("cn/packaging/launcher/launch", "#!/bin/sh\n")
+	write("cn/packaging/update/a.go", "package update\n")
+	write("cn/packaging/update/sub/b.go", "package sub\n")
+	write("cn/integrations/workflows/templates/w.yml", "on: push\n")
+	write("cn/capabilities/tasks/workflows/templates/q.yml", "on: schedule\n")
+	write("cn/packaging/verify/v.go", "package verify\n")
+	write("cn/packaging/npmreg/n.go", "package npmreg\n")
+	write("cn/integrations/github/githubapi/g.go", "package githubapi\n")
+	write("cn/integrations/github/gitcmd/c.go", "package gitcmd\n")
+	write("cn/packaging/settings/s.go", "package settings\n")
+	write("cn/integrations/hooks/x.go", "package hooks\n")
 	first, err := UpdaterDigest(root)
 	if err != nil {
 		t.Fatal(err)
@@ -71,24 +71,24 @@ func TestUpdaterDigestFollowsTheUpdaterSource(t *testing.T) {
 	if again, _ := UpdaterDigest(root); again != first {
 		t.Fatal("digest is not deterministic")
 	}
-	write("cn/hooks/x.go", "package hooks // changed\n")
-	write("cn/lifecycle/verify/v.go", "package verify // changed\n")
+	write("cn/integrations/hooks/x.go", "package hooks // changed\n")
+	write("cn/packaging/verify/v.go", "package verify // changed\n")
 	if d, _ := UpdaterDigest(root); d != first {
 		t.Error("a change outside the updater moved the digest")
 	}
 	for _, change := range []func(){
-		func() { write("cn/lifecycle/update/sub/b.go", "package sub // changed\n") },
-		func() { write("cn/lifecycle/update/c.go", "package update\n") },
-		func() { write("cn/launcher/launch", "#!/bin/sh\n# changed\n") },
+		func() { write("cn/packaging/update/sub/b.go", "package sub // changed\n") },
+		func() { write("cn/packaging/update/c.go", "package update\n") },
+		func() { write("cn/packaging/launcher/launch", "#!/bin/sh\n# changed\n") },
 		func() {
-			_ = os.Rename(filepath.Join(root, "cn/lifecycle/update/c.go"), filepath.Join(root, "cn/lifecycle/update/d.go"))
+			_ = os.Rename(filepath.Join(root, "cn/packaging/update/c.go"), filepath.Join(root, "cn/packaging/update/d.go"))
 		},
-		func() { write("cn/lifecycle/workflows/templates/w.yml", "on: pull_request\n") },
-		func() { write("cn/tasks/workflows/templates/q.yml", "on: workflow_dispatch\n") },
-		func() { write("cn/shared/npmreg/n.go", "package npmreg // changed\n") },
-		func() { write("cn/shared/githubapi/g.go", "package githubapi // changed\n") },
-		func() { write("cn/shared/gitcmd/c.go", "package gitcmd // changed\n") },
-		func() { write("cn/shared/settings/s.go", "package settings // changed\n") },
+		func() { write("cn/integrations/workflows/templates/w.yml", "on: pull_request\n") },
+		func() { write("cn/capabilities/tasks/workflows/templates/q.yml", "on: workflow_dispatch\n") },
+		func() { write("cn/packaging/npmreg/n.go", "package npmreg // changed\n") },
+		func() { write("cn/integrations/github/githubapi/g.go", "package githubapi // changed\n") },
+		func() { write("cn/integrations/github/gitcmd/c.go", "package gitcmd // changed\n") },
+		func() { write("cn/packaging/settings/s.go", "package settings // changed\n") },
 	} {
 		before, _ := UpdaterDigest(root)
 		change()
@@ -96,11 +96,11 @@ func TestUpdaterDigestFollowsTheUpdaterSource(t *testing.T) {
 			t.Error("an updater change left the digest as it was")
 		}
 	}
-	if err := os.RemoveAll(filepath.Join(root, "cn/lifecycle")); err != nil {
+	if err := os.RemoveAll(filepath.Join(root, "cn/packaging/update")); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := UpdaterDigest(root); err == nil {
-		t.Error("digest of a tree without lifecycle/")
+		t.Error("digest of a tree without packaging/update/")
 	}
 }
 

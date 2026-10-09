@@ -15,9 +15,9 @@ trap 'rm -rf "$out"' EXIT
 golangci-lint run > "$out/golangci" 2>&1 &
 gl=$!
 # shellcheck disable=SC2046 # one word per script path, none with spaces
-shellcheck -s sh cn/launcher/launch $(find dev rewrite-temp/probe -name '*.sh' -not -path '*/testdata/*' | sort) > "$out/shellcheck" 2>&1 &
+shellcheck -s sh cn/packaging/launcher/launch $(find dev rewrite-temp/probe -name '*.sh' -not -path '*/testdata/*' | sort) > "$out/shellcheck" 2>&1 &
 sc=$!
-go run github.com/rhysd/actionlint/cmd/actionlint@393031adb9afb225ee52ae2ccd7a5af5525e03e8 .github/workflows/*.yml cn/lifecycle/workflows/templates/*.yml cn/tasks/workflows/templates/*.yml > "$out/actionlint" 2>&1 &
+go run github.com/rhysd/actionlint/cmd/actionlint@393031adb9afb225ee52ae2ccd7a5af5525e03e8 .github/workflows/*.yml cn/integrations/workflows/templates/*.yml cn/capabilities/tasks/workflows/templates/*.yml > "$out/actionlint" 2>&1 &
 al=$!
 
 rc=0

@@ -8,7 +8,7 @@ import (
 
 	"github.com/missingbulb/ClaudiniteEngine/dev/release"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/version"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/version"
 )
 
 // DeprecateInput is a hold, revoke or release dispatch of promote.yml and what npm

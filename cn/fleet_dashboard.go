@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/fleet/dashboard"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/report"
+	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/report"
 )
 
 // fleetCreateDashboardArtifact is `cn fleet create-dashboard-artifact`:

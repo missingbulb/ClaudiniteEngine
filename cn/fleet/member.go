@@ -6,9 +6,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/descriptor"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/packset"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/settings"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/descriptor"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/packset"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/settings"
 )
 
 // Shape is which engine a repository's tree is shaped for.

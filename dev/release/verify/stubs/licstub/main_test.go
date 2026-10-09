@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/fleet/entitlement"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/licenseapi"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/sign"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/licenseapi"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/sign"
 )
 
 func devRoot(t *testing.T) ed25519.PrivateKey {

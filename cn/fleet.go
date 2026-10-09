@@ -15,22 +15,22 @@ import (
 	"strings"
 	"time"
 
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/execute"
 	"github.com/missingbulb/ClaudiniteEngine/cn/fleet"
 	"github.com/missingbulb/ClaudiniteEngine/cn/fleet/entitlement"
 	"github.com/missingbulb/ClaudiniteEngine/cn/fleet/roster"
 	"github.com/missingbulb/ClaudiniteEngine/cn/fleet/update"
-	"github.com/missingbulb/ClaudiniteEngine/cn/lifecycle/packs"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/gitcmd"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/githubapi"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/licenseapi"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/npmreg"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/packindex"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/report"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/settings"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/trust"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/version"
-	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/execute"
-	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/world"
+	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/report"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/gitcmd"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/githubapi"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/world"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/licenseapi"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/fetch"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/npmreg"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/packindex"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/settings"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/trust"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/version"
 )
 
 // fleetVerbs are every `cn fleet` command. Each runs only after the
@@ -146,7 +146,7 @@ type sweep struct {
 	root     string
 	cfg      fleet.Config
 	shelf    fleet.Shelf
-	packs    *packs.Reader
+	packs    *fetch.Reader
 	stderr   io.Writer
 	start    time.Time
 	closer   func()
@@ -280,7 +280,7 @@ func fleetConfig(root, home string) (fleet.Config, error) {
 // pack indexes.
 type shelfReader struct {
 	npm   npmreg.Client
-	packs *packs.Reader
+	packs *fetch.Reader
 }
 
 func (s shelfReader) Packument(pkg string) (*npmreg.Packument, error) { return s.npm.Packument(pkg) }
@@ -293,7 +293,7 @@ func (s shelfReader) Index(id string) (packindex.Index, bool, error) {
 	return v.Index, true, nil
 }
 
-func fleetShelf(root string, log io.Writer) (fleet.Shelf, *packs.Reader, func(), error) {
+func fleetShelf(root string, log io.Writer) (fleet.Shelf, *fetch.Reader, func(), error) {
 	reg, err := npmreg.FromEnv()
 	if err != nil {
 		return nil, nil, nil, err

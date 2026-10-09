@@ -11,14 +11,14 @@ import (
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/growth/capture"
 	"github.com/missingbulb/ClaudiniteEngine/cn/growth/prune"
-	"github.com/missingbulb/ClaudiniteEngine/cn/hooks"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/breadcrumb"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/gitcmd"
-	sharedgrowth "github.com/missingbulb/ClaudiniteEngine/cn/shared/growth"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/jsjson"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/report"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/settings"
-	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/world"
+	"github.com/missingbulb/ClaudiniteEngine/cn/growth/retention"
+	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/breadcrumb"
+	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/jsjson"
+	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/report"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/gitcmd"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/world"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/hooks"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/settings"
 )
 
 // hookGrowth is the session-end capture over the real git.
@@ -103,9 +103,9 @@ func growthPrune(args []string, stdout io.Writer) error {
 		fmt.Fprintln(stdout, "this repo's claudinite-growth declaration could not be read for a retention — deleting nothing")
 		return nil
 	}
-	days := sharedgrowth.ResolveRetentionDays(declared, present)
+	days := retention.ResolveRetentionDays(declared, present)
 	if days == nil {
-		if n, ok := sharedgrowth.Number(declared); ok {
+		if n, ok := retention.Number(declared); ok {
 			fmt.Fprintf(stdout, "retention_days is %s — capture-only by this repo's own choice, deleting nothing\n", jsjson.FormatNumber(n))
 		} else {
 			fmt.Fprintf(stdout, "retention_days is unreadable (%v, not a number) — deleting nothing\n", declared)
@@ -173,7 +173,7 @@ func retentionDeclared(root string) (value any, present, readable bool) {
 		if !ok {
 			return nil, false, true
 		}
-		if _, num := sharedgrowth.Number(v); !num {
+		if _, num := retention.Number(v); !num {
 			return v, true, false
 		}
 		return v, true, true

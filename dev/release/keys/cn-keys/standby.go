@@ -15,7 +15,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/sign"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/sign"
 )
 
 // The standby root leaves the ceremony only sealed under the owner's

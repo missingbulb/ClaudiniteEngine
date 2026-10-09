@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/sim"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/sim"
 )
 
 // A fleet member is a repository the fleet token reaches beside the

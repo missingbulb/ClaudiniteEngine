@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/version"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/version"
 	"github.com/missingbulb/ClaudiniteEngine/dev/release"
 	"github.com/missingbulb/ClaudiniteEngine/dev/release/create/releasefiles"
 )

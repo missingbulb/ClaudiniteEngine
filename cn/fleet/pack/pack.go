@@ -7,8 +7,8 @@ import (
 	"embed"
 	"io/fs"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/packset"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/settings"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/packset"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/settings"
 )
 
 //go:embed all:files

@@ -11,7 +11,7 @@ import (
 
 	"github.com/missingbulb/ClaudiniteEngine/dev/test/scripttest"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/sign"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/sign"
 )
 
 func sumsCheck(dist string) (string, error) {
@@ -131,13 +131,13 @@ func TestSignKeySources(t *testing.T) {
 	// which a released cn does not trust: by default its signature fails.
 	dev := []string{"RELEASE_KEY=" + scripttest.Path(t, "dev/release/keys/testkeys/release.key"), "RELEASE_CERT=" + scripttest.Path(t, "dev/release/keys/testkeys/release.cert.json"), "ROOTS=", "DIST=" + dist}
 	if out, err := scripttest.Run(t, dev, "dev/release/create/sign.sh"); err == nil {
-		t.Fatalf("sign.sh accepted the development key against cn/shared/trust/roots\n%s", out)
+		t.Fatalf("sign.sh accepted the development key against cn/packaging/trust/roots\n%s", out)
 	} else if !strings.Contains(out, "not signed by a trusted root") || strings.Contains(out, "no trusted roots in") {
-		t.Errorf("sign.sh did not refuse the development key on cn/shared/trust/roots' own roots:\n%s", out)
+		t.Errorf("sign.sh did not refuse the development key on cn/packaging/trust/roots' own roots:\n%s", out)
 	}
 	dist, _ = scripttest.UnsignedDist(t)
 	if out, err := scripttest.Run(t, append(scripttest.DevKeyEnv(t), "DIST="+dist), "dev/release/create/sign.sh"); err != nil {
-		t.Fatalf("sign.sh with the development key against cn/shared/trust/devroots: %v\n%s", err, out)
+		t.Fatalf("sign.sh with the development key against cn/packaging/trust/devroots: %v\n%s", err, out)
 	}
 }
 
@@ -162,7 +162,7 @@ func TestSignRefusesAnExpiringCertificate(t *testing.T) {
 	certPath := filepath.Join(t.TempDir(), "release.cert.json")
 	raw, _ := json.Marshal(cert)
 	_ = os.WriteFile(certPath, raw, 0o644)
-	out, err := scripttest.Run(t, []string{"RELEASE_KEY=" + scripttest.Path(t, "dev/release/keys/testkeys/release.key"), "RELEASE_CERT=" + certPath, "ROOTS=" + scripttest.Path(t, "cn/shared/trust/devroots"), "DIST=" + dist}, "dev/release/create/sign.sh")
+	out, err := scripttest.Run(t, []string{"RELEASE_KEY=" + scripttest.Path(t, "dev/release/keys/testkeys/release.key"), "RELEASE_CERT=" + certPath, "ROOTS=" + scripttest.Path(t, "cn/packaging/trust/devroots"), "DIST=" + dist}, "dev/release/create/sign.sh")
 	if err == nil {
 		t.Fatalf("sign.sh signed with a certificate expiring in 10 days\n%s", out)
 	}

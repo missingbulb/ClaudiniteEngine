@@ -2,8 +2,8 @@ package addpacks
 
 import (
 	"github.com/missingbulb/ClaudiniteEngine/cn/fleet"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/packindex"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/settings"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/packindex"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/settings"
 )
 
 // Corpus is the catalog a sweep reads. A member is fingerprinted against

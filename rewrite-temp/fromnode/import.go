@@ -8,7 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/settings"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/settings"
 	"github.com/missingbulb/ClaudiniteEngine/rewrite-temp/fromnode/node"
 )
 

@@ -15,7 +15,7 @@
 # is real is derived every run (dev/release/publishmode.go): the dry_run input
 # or a package npm does not hold yet make it a dry run that tags nothing.
 # The publish job signs only with the release key of the environment
-# release, certified by the root cn/shared/trust/roots holds.
+# release, certified by the root cn/packaging/trust/roots holds.
 name: release
 
 on:

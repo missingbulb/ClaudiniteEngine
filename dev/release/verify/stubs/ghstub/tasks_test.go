@@ -11,13 +11,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/githubapi"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/taskspec"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/workitem"
-	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/execute"
-	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/ghport"
-	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/land"
-	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/world"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/execute"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/taskspec"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/ghport"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/githubapi"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/land"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/world"
 )
 
 // The task runner's port, driven against the stub: every call the

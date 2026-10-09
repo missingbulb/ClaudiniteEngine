@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/lifecycle/packs"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/packindex"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/sign"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/fetch"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/packindex"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/sign"
 )
 
 const src = "../../testdata/hello"
@@ -82,7 +82,7 @@ func TestAnotherPackPublishesItsSource(t *testing.T) {
 		t.Fatalf("%+v", ix)
 	}
 	a, _ := os.ReadFile(filepath.Join(tree, "hello-asks", "1.0.tar.gz"))
-	files, err := packs.ReadArchive(a)
+	files, err := fetch.ReadArchive(a)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,10 +113,10 @@ func TestTheFixtureIndexVerifiesAndNamesItsArchives(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err := packs.VerifyArchive(a, e); err != nil {
+		if err := fetch.VerifyArchive(a, e); err != nil {
 			t.Errorf("%s: %v", e.Version, err)
 		}
-		files, err := packs.ReadArchive(a)
+		files, err := fetch.ReadArchive(a)
 		if err != nil {
 			t.Fatalf("%s: %v", e.Version, err)
 		}
@@ -214,7 +214,7 @@ func TestTheSourceIsThePublishedHelloPack(t *testing.T) {
 		t.Skip("CLAUDINITE_PACKS_REPO is not set")
 	}
 	dir := t.TempDir()
-	if out, err := exec.Command("git", "clone", "-q", "--depth", "1", "--branch", packs.VendoredRef, repo, dir).CombinedOutput(); err != nil {
+	if out, err := exec.Command("git", "clone", "-q", "--depth", "1", "--branch", fetch.VendoredRef, repo, dir).CombinedOutput(); err != nil {
 		t.Fatalf("%v: %s", err, out)
 	}
 	var pj struct{ Version string }
@@ -228,14 +228,14 @@ func TestTheSourceIsThePublishedHelloPack(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	conv := map[string]packs.File{}
+	conv := map[string]fetch.File{}
 	var names []string
 	for n, f := range have {
-		conv[n] = packs.File{Data: f.Data, Executable: f.Executable}
+		conv[n] = fetch.File{Data: f.Data, Executable: f.Executable}
 		names = append(names, n)
 	}
 	sort.Strings(names)
-	diff, err := packs.FilesEqual(conv, archive)
+	diff, err := fetch.FilesEqual(conv, archive)
 	if err != nil || diff != "" {
 		t.Errorf("dev/release/verify/testdata/hello (%v) is not the published hello %s: %v\n%s", names, pj.Version, err, diff)
 	}

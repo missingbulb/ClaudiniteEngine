@@ -7,10 +7,10 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/growth/scaffold"
-	"github.com/missingbulb/ClaudiniteEngine/cn/lifecycle/rulesindex"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/report"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/version"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/rules/rulesindex"
+	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/report"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/scaffold"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/version"
 )
 
 const packUsage = "pack takes new <name> [--belongs TEXT] [--excludes TEXT] [--repo DIR]"

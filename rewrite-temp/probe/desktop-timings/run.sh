@@ -91,7 +91,7 @@ if [ -n "$exe" ] && [ "${GITHUB_ACTIONS:-}" = true ]; then
 fi
 member=$work/member
 mkdir -p "$member/.claudinite" "$work/home"
-cp cn/launcher/launch "$member/.claudinite/launch"
+cp cn/packaging/launcher/launch "$member/.claudinite/launch"
 printf 'engine:\n  version: "1.61001.1"\n  manifest: "%s"\n' "$pin" > "$member/.claudinite/settings.yaml"
 (
   unset GITHUB_ACTIONS

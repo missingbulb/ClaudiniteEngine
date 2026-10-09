@@ -13,10 +13,10 @@
 #                                 default today, UTC)
 #
 # <major> is dev/build/major, the one number a person raises by hand. <day>
-# is (year - 2020)*10000 + month*100 + day, as cn/shared/version's Today
+# is (year - 2020)*10000 + month*100 + day, as cn/packaging/version's Today
 # computes it; TestVersionDayIsToday holds the two equal. <n> counts today's
 # builds of this major from 1. Nothing here runs Go: the floor is
-# cn/checksdk/engine_floor.txt, the file the SDK's EngineFloor is held equal to
+# cn/capabilities/checks/checksdk/engine_floor.txt, the file the SDK's EngineFloor is held equal to
 # (`cn version --floor` prints the same).
 set -eu
 here=$(cd "$(dirname "$0")/../.." && pwd)
@@ -69,8 +69,8 @@ case ${1:-} in
   check)
     [ $# -eq 2 ] || fail "usage: dev/build/version.sh check VERSION"
     shaped "$2" || fail "$2 is not a <major>.<day>.<n> version"
-    floor=$(cat "$here/cn/checksdk/engine_floor.txt")
-    shaped "$floor" || fail "cn/checksdk/engine_floor.txt holds $floor"
+    floor=$(cat "$here/cn/capabilities/checks/checksdk/engine_floor.txt")
+    shaped "$floor" || fail "cn/capabilities/checks/checksdk/engine_floor.txt holds $floor"
     below=false
     for i in 1 2 3; do
       if [ "$(part "$2" $i)" -ne "$(part "$floor" $i)" ]; then

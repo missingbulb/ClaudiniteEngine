@@ -22,5 +22,5 @@ trap 'rm -rf "$keys"' EXIT
   printf '%s\n' "$CN_RELEASE_CERT" > "$keys/release.cert.json" )
 RELEASE_KEY=$keys/release.key RELEASE_CERT=$keys/release.cert.json sh dev/release/create/sign.sh
 rm -rf "$keys"
-go run ./dev/release/create/manifest verify --dist "${DIST:-dist}" --roots cn/shared/trust/roots --platforms "${PLATFORMS:?PLATFORMS names the platforms the manifest must list}"
+go run ./dev/release/create/manifest verify --dist "${DIST:-dist}" --roots cn/packaging/trust/roots --platforms "${PLATFORMS:?PLATFORMS names the platforms the manifest must list}"
 [ -z "${GITHUB_OUTPUT:-}" ] || echo "signing=release" >> "$GITHUB_OUTPUT"

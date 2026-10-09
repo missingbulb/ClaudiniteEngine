@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/workitem"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem"
 )
 
 // LocalPackRoot is where a member's own packs live; a window commit

@@ -6,11 +6,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/findings"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/findings"
 )
 
 // cleanMember is a current cn member, holding nothing of the Node engine.
-const cleanMember = "../../cn/lifecycle/verify/testdata/shapes/v12-member-own-hook"
+const cleanMember = "../../cn/packaging/verify/testdata/shapes/v12-member-own-hook"
 
 func leftoverIDs(fs []findings.Finding, class findings.Class) []string {
 	var out []string

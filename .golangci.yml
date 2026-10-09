@@ -1,7 +1,10 @@
 # Capability boundaries (docs/design.md, "Code structure"): each capability
-# folder imports only the standard library and shared/. Tool folders (cmd/,
-# release/, launcher/, probe/) may import capabilities. Every exception is a
-# commented entry here.
+# imports only the standard library and the common packages listed under
+# "common" below. Tool folders (cn's own command files, the launcher, dev/)
+# may import capabilities. Every exception is a commented entry here.
+#
+# The common packages are the ones the engine's former shared/ folder held,
+# now each living in its segment; each rule names them in full.
 version: "2"
 
 linters:
@@ -19,53 +22,186 @@ linters:
     depguard:
       rules:
         # A capability may also import its own sub-packages (checks/build
-        # from checks, lifecycle/packs from lifecycle/update): code grows
+        # from checks, packaging/fetch from packaging/update): code grows
         # inside its capability, never across.
-        capabilities:
+        common:
           list-mode: strict
           files:
-            - "**/hooks/**"
+            - "**/integrations/hooks/**"
             - "**/sdkserver/**"
-            - "**/shared/**"
-            - "!**/shared/descriptor/**"
-            - "!**/shared/jsregex/**"
-            - "!**/shared/mergepolicy/**"
-            - "!**/shared/taskspec/**"
+            - "**/packaging/packset/**"
+            - "**/packaging/settings/**"
+            - "**/packaging/descriptor/**"
+            - "**/packaging/packindex/**"
+            - "**/packaging/version/**"
+            - "**/packaging/sign/**"
+            - "**/packaging/trust/**"
+            - "**/packaging/npmreg/**"
+            - "**/packaging/ghrelease/**"
+            - "**/packaging/interview/**"
+            - "**/packaging/flatdecl/**"
+            - "**/capabilities/skills/skillfm/**"
+            - "**/capabilities/skills/skilltriggers/**"
+            - "**/capabilities/checks/findings/**"
+            - "**/capabilities/tasks/taskspec/**"
+            - "**/capabilities/tasks/mergepolicy/**"
+            - "**/growth/retention/**"
+            - "**/growth/provenance/**"
+            - "**/integrations/transcript/**"
+            - "**/integrations/licenseapi/**"
+            - "**/integrations/github/githubapi/**"
+            - "**/integrations/github/gitcmd/**"
+            - "**/integrations/github/workitem/**"
+            - "**/fleet/curation/**"
+            - "**/fleet/packseed/**"
+            - "**/helpers/**"
+            - "!**/packaging/descriptor/**"
+            - "!**/helpers/jsregex/**"
+            - "!**/capabilities/tasks/mergepolicy/**"
+            - "!**/capabilities/tasks/taskspec/**"
+            - "!**/growth/provenance/verbs/**"
           allow:
             - $gostd
-            - github.com/missingbulb/ClaudiniteEngine/cn/shared
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/packset
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/settings
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/descriptor
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/packindex
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/version
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/sign
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/trust
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/npmreg
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/ghrelease
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/interview
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/flatdecl
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/skills/skillfm
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/skills/skilltriggers
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/findings
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/taskspec
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/mergepolicy
+            - github.com/missingbulb/ClaudiniteEngine/cn/growth/retention
+            - github.com/missingbulb/ClaudiniteEngine/cn/growth/provenance
+            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/transcript
+            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/licenseapi
+            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/githubapi
+            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/gitcmd
+            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem
+            - github.com/missingbulb/ClaudiniteEngine/cn/fleet/curation
+            - github.com/missingbulb/ClaudiniteEngine/cn/fleet/packseed
+            - github.com/missingbulb/ClaudiniteEngine/cn/helpers
         growth:
           list-mode: strict
           files:
             - "**/growth/**"
-            - "!**/shared/growth/**"
+            - "**/packaging/userpack/**"
+            - "**/packaging/scaffold/**"
           allow:
             - $gostd
-            - github.com/missingbulb/ClaudiniteEngine/cn/shared
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/packset
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/settings
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/descriptor
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/packindex
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/version
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/sign
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/trust
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/npmreg
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/ghrelease
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/interview
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/flatdecl
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/skills/skillfm
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/skills/skilltriggers
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/findings
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/taskspec
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/mergepolicy
+            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/transcript
+            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/licenseapi
+            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/githubapi
+            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/gitcmd
+            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem
+            - github.com/missingbulb/ClaudiniteEngine/cn/fleet/curation
+            - github.com/missingbulb/ClaudiniteEngine/cn/fleet/packseed
+            - github.com/missingbulb/ClaudiniteEngine/cn/helpers
             - github.com/missingbulb/ClaudiniteEngine/cn/growth
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/userpack
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/scaffold
         fleet:
           list-mode: strict
           files:
             - "**/fleet/**"
           allow:
             - $gostd
-            - github.com/missingbulb/ClaudiniteEngine/cn/shared
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/packset
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/settings
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/descriptor
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/packindex
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/version
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/sign
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/trust
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/npmreg
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/ghrelease
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/interview
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/flatdecl
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/skills/skillfm
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/skills/skilltriggers
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/findings
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/taskspec
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/mergepolicy
+            - github.com/missingbulb/ClaudiniteEngine/cn/growth/retention
+            - github.com/missingbulb/ClaudiniteEngine/cn/growth/provenance
+            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/transcript
+            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/licenseapi
+            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/githubapi
+            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/gitcmd
+            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem
+            - github.com/missingbulb/ClaudiniteEngine/cn/helpers
             - github.com/missingbulb/ClaudiniteEngine/cn/fleet
         tasks:
           list-mode: strict
           files:
-            - "**/tasks/**"
+            - "**/capabilities/tasks/**"
+            - "**/integrations/github/ghport/**"
+            - "**/integrations/github/queue/**"
+            - "**/integrations/github/land/**"
+            - "**/integrations/github/world/**"
+            - "!**/capabilities/tasks/mergepolicy/**"
+            - "!**/capabilities/tasks/taskspec/**"
           allow:
             - $gostd
-            - github.com/missingbulb/ClaudiniteEngine/cn/shared
-            - github.com/missingbulb/ClaudiniteEngine/cn/tasks
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/packset
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/settings
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/descriptor
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/packindex
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/version
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/sign
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/trust
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/npmreg
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/ghrelease
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/interview
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/flatdecl
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/skills/skillfm
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/skills/skilltriggers
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/findings
+            - github.com/missingbulb/ClaudiniteEngine/cn/growth/retention
+            - github.com/missingbulb/ClaudiniteEngine/cn/growth/provenance
+            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/transcript
+            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/licenseapi
+            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/githubapi
+            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/gitcmd
+            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem
+            - github.com/missingbulb/ClaudiniteEngine/cn/fleet/curation
+            - github.com/missingbulb/ClaudiniteEngine/cn/fleet/packseed
+            - github.com/missingbulb/ClaudiniteEngine/cn/helpers
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks
+            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/ghport
+            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/queue
+            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/land
+            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/world
         jsregex:
           # Pack data writes its patterns for the ECMAScript regex engine
           # (a skill's force-load triggers, a pack's merge rules), as the
           # declared checks' are, so the one reader of them takes regexp2.
           list-mode: strict
           files:
-            - "**/shared/jsregex/**"
+            - "**/helpers/jsregex/**"
           allow:
             - $gostd
             - github.com/dlclark/regexp2
@@ -75,57 +211,145 @@ linters:
           # landing lane read a file the same way.
           list-mode: strict
           files:
-            - "**/shared/mergepolicy/**"
+            - "**/capabilities/tasks/mergepolicy/**"
             # The task contract reads a task-local preconditions.mjs as
             # text, comments stripped the way a check strips them.
-            - "**/shared/taskspec/**"
+            - "**/capabilities/tasks/taskspec/**"
           allow:
             - $gostd
-            - github.com/missingbulb/ClaudiniteEngine/cn/shared
-            - github.com/missingbulb/ClaudiniteEngine/cn/checksdk
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/packset
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/settings
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/descriptor
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/packindex
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/version
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/sign
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/trust
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/npmreg
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/ghrelease
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/interview
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/flatdecl
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/skills/skillfm
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/skills/skilltriggers
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/findings
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/taskspec
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/mergepolicy
+            - github.com/missingbulb/ClaudiniteEngine/cn/growth/retention
+            - github.com/missingbulb/ClaudiniteEngine/cn/growth/provenance
+            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/transcript
+            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/licenseapi
+            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/githubapi
+            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/gitcmd
+            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem
+            - github.com/missingbulb/ClaudiniteEngine/cn/fleet/curation
+            - github.com/missingbulb/ClaudiniteEngine/cn/fleet/packseed
+            - github.com/missingbulb/ClaudiniteEngine/cn/helpers
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/checksdk
         descriptor:
           # The one place the descriptor formats' parsers are imported
           # (pack, declared-checks and settings in JSON, YAML or TOML);
           # every other package reads descriptors through it.
           list-mode: strict
           files:
-            - "**/shared/descriptor/**"
+            - "**/packaging/descriptor/**"
           allow:
             - $gostd
             - go.yaml.in/yaml/v3
             - github.com/BurntSushi/toml
         lifecycle:
+          # The engine's own lifecycle: adoption, fetching packs, the
+          # update, the self-test, verify, the rules index and the member's
+          # workflows.
           list-mode: strict
           files:
-            - "**/lifecycle/**"
+            - "**/packaging/adopt/**"
+            - "**/packaging/fetch/**"
+            - "**/packaging/update/**"
+            - "**/packaging/selftest/**"
+            - "**/packaging/verify/**"
+            - "**/capabilities/rules/rulesindex/**"
+            - "**/integrations/workflows/**"
           allow:
             - $gostd
-            - github.com/missingbulb/ClaudiniteEngine/cn/shared
-            - github.com/missingbulb/ClaudiniteEngine/cn/lifecycle
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/packset
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/settings
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/descriptor
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/packindex
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/version
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/sign
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/trust
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/npmreg
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/ghrelease
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/interview
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/flatdecl
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/skills/skillfm
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/skills/skilltriggers
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/findings
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/taskspec
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/mergepolicy
+            - github.com/missingbulb/ClaudiniteEngine/cn/growth/retention
+            - github.com/missingbulb/ClaudiniteEngine/cn/growth/provenance
+            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/transcript
+            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/licenseapi
+            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/githubapi
+            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/gitcmd
+            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem
+            - github.com/missingbulb/ClaudiniteEngine/cn/fleet/curation
+            - github.com/missingbulb/ClaudiniteEngine/cn/fleet/packseed
+            - github.com/missingbulb/ClaudiniteEngine/cn/helpers
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/adopt
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/fetch
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/update
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/selftest
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/verify
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/rules/rulesindex
+            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/workflows
             # One landing lane for every pull request a run delivers: the
             # update's landing enters it at the pinned-sha merge, so the
             # update and a task cannot drift on how a PR lands.
-            - github.com/missingbulb/ClaudiniteEngine/cn/tasks/land
+            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/land
             # The queue's two workflow templates are the tasks capability's;
             # the member's workflows are written and diffed here with them.
-            - github.com/missingbulb/ClaudiniteEngine/cn/tasks/workflows
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/workflows
             # Verify reads the settings' tasks block as the queue does, so a
             # value the queue would refuse breaks before an update lands.
-            - github.com/missingbulb/ClaudiniteEngine/cn/tasks/config
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/config
         checks:
           list-mode: strict
           files:
             - "**/checks/**"
+            - "**/packaging/pinguard/**"
             - "!**/checks/declared/**"
           allow:
             - $gostd
-            - github.com/missingbulb/ClaudiniteEngine/cn/shared
-            - github.com/missingbulb/ClaudiniteEngine/cn/checks/
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/packset
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/settings
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/descriptor
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/packindex
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/version
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/sign
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/trust
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/npmreg
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/ghrelease
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/interview
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/flatdecl
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/skills/skillfm
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/skills/skilltriggers
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/taskspec
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/mergepolicy
+            - github.com/missingbulb/ClaudiniteEngine/cn/growth/retention
+            - github.com/missingbulb/ClaudiniteEngine/cn/growth/provenance
+            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/transcript
+            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/licenseapi
+            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/githubapi
+            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/gitcmd
+            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem
+            - github.com/missingbulb/ClaudiniteEngine/cn/fleet/curation
+            - github.com/missingbulb/ClaudiniteEngine/cn/fleet/packseed
+            - github.com/missingbulb/ClaudiniteEngine/cn/helpers
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/
             # The engine side of the coded checks' pipe: the run hands each
             # built checks binary a server answering its SDK calls.
-            - github.com/missingbulb/ClaudiniteEngine/cn/sdkserver
             # The SDK sources a pack's checks build compiles against.
-            - github.com/missingbulb/ClaudiniteEngine/cn/checksdk
         checks-declared:
           # The declarative check engine also takes the ECMAScript regex
           # engine the shelf's patterns are written for (lookaround,
@@ -135,13 +359,38 @@ linters:
             - "**/checks/declared/**"
           allow:
             - $gostd
-            - github.com/missingbulb/ClaudiniteEngine/cn/shared
-            - github.com/missingbulb/ClaudiniteEngine/cn/checks/declared
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/packset
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/settings
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/descriptor
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/packindex
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/version
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/sign
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/trust
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/npmreg
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/ghrelease
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/interview
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/flatdecl
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/skills/skillfm
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/skills/skilltriggers
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/findings
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/taskspec
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/mergepolicy
+            - github.com/missingbulb/ClaudiniteEngine/cn/growth/retention
+            - github.com/missingbulb/ClaudiniteEngine/cn/growth/provenance
+            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/transcript
+            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/licenseapi
+            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/githubapi
+            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/gitcmd
+            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem
+            - github.com/missingbulb/ClaudiniteEngine/cn/fleet/curation
+            - github.com/missingbulb/ClaudiniteEngine/cn/fleet/packseed
+            - github.com/missingbulb/ClaudiniteEngine/cn/helpers
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/declared
             - github.com/dlclark/regexp2
             # The scanning helpers the declared views share with coded
             # checks (comment stripping, fence blanking) live in the SDK,
             # so the two engines read a file the same way.
-            - github.com/missingbulb/ClaudiniteEngine/cn/checksdk
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/checksdk
         parity:
           # The two-engine harness drives both engines as black boxes: it
           # imports nothing of the engine, so a scenario cannot pass by
@@ -161,10 +410,11 @@ linters:
             - $gostd
         key-ceremony-tool:
           # The key-ceremony workflow builds cn-keys from this public tree
-          # with no module downloads: standard library and shared/ only.
+          # with no module downloads: the standard library and the signing
+          # package only.
           list-mode: strict
           files:
             - "**/release/keys/cn-keys/**"
           allow:
             - $gostd
-            - github.com/missingbulb/ClaudiniteEngine/cn/shared
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/sign

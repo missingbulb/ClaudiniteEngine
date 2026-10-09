@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/growth/capture"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/gitcmd"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/jsjson"
+	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/jsjson"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/gitcmd"
 )
 
 // Plan is one prune: the captures to delete, how many the branch holds,

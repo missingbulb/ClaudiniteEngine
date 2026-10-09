@@ -9,11 +9,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/flatdecl"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/packset"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/report"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/taskspec"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/version"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/taskspec"
+	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/report"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/flatdecl"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/packset"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/version"
 )
 
 // cmdTasksList prints every task the repo's active packs and the engine

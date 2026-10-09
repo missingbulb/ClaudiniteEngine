@@ -20,8 +20,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/sign"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/version"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/sign"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/version"
 	"github.com/missingbulb/ClaudiniteEngine/dev/release/create/releasefiles"
 )
 
@@ -138,7 +138,7 @@ func write(dist, ver, commit, source string, platforms []string) error {
 	if err != nil {
 		return err
 	}
-	launcher, _, err := releasefiles.HashFile(filepath.Join(source, "cn", "launcher", "launch"))
+	launcher, _, err := releasefiles.HashFile(filepath.Join(source, "cn", "packaging", "launcher", "launch"))
 	if err != nil {
 		return err
 	}

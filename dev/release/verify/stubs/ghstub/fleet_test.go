@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/githubapi"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/githubapi"
 )
 
 func startFleet(t *testing.T, members ...string) (*githubapi.Client, *httptest.Server) {

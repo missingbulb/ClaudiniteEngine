@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/lifecycle/rulesindex"
-	"github.com/missingbulb/ClaudiniteEngine/cn/lifecycle/verify"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/rules/rulesindex"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/verify"
 )
 
 // A local pack whose pack.json still carries the Node manifest's rule

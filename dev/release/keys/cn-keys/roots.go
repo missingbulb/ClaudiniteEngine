@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/sign"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/sign"
 )
 
 // The sealed standby block, as the owner pastes it into the root
@@ -46,7 +46,7 @@ func roots(rootSeed, sealed, passphrase string, summary, log io.Writer, mask mas
 
 	var b bytes.Buffer
 	fmt.Fprintf(&b, "## Root public keys\n\nNothing below is secret.\n\n")
-	fmt.Fprintf(&b, "Root, for `cn/shared/trust/roots/root.pub`, key id `%s`:\n\n```\n%s```\n\n",
+	fmt.Fprintf(&b, "Root, for `cn/packaging/trust/roots/root.pub`, key id `%s`:\n\n```\n%s```\n\n",
 		sign.KeyID(rootPub), sign.FormatPublicKey(rootPub))
 
 	var standbyErr error
@@ -59,18 +59,18 @@ func roots(rootSeed, sealed, passphrase string, summary, log io.Writer, mask mas
 		if passphrase == "" {
 			missing = append(missing, "`"+passphraseVar+"`")
 		}
-		fmt.Fprintf(&b, "Standby root, for `cn/shared/trust/roots/standby.pub`: missing. Add %s to the `%s` environment and run again.\n\n",
+		fmt.Fprintf(&b, "Standby root, for `cn/packaging/trust/roots/standby.pub`: missing. Add %s to the `%s` environment and run again.\n\n",
 			strings.Join(missing, " and "), rootEnv)
 	default:
 		standby, err := openStandby(sealed, passphrase)
 		if err != nil {
 			standbyErr = fmt.Errorf("standby root: %w", err)
-			fmt.Fprintf(&b, "Standby root, for `cn/shared/trust/roots/standby.pub`: not recovered: %v.\n\n", err)
+			fmt.Fprintf(&b, "Standby root, for `cn/packaging/trust/roots/standby.pub`: not recovered: %v.\n\n", err)
 			break
 		}
 		mask(strings.TrimSpace(sign.FormatPrivateKey(standby)))
 		standbyPub := standby.Public().(ed25519.PublicKey)
-		fmt.Fprintf(&b, "Standby root, for `cn/shared/trust/roots/standby.pub`, key id `%s`:\n\n```\n%s```\n\n",
+		fmt.Fprintf(&b, "Standby root, for `cn/packaging/trust/roots/standby.pub`, key id `%s`:\n\n```\n%s```\n\n",
 			sign.KeyID(standbyPub), sign.FormatPublicKey(standbyPub))
 	}
 	if _, err := summary.Write(b.Bytes()); err != nil {

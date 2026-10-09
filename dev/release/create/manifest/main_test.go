@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/sign"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/version"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/sign"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/version"
 	"github.com/missingbulb/ClaudiniteEngine/dev/release/create/releasefiles"
 )
 
@@ -79,12 +79,12 @@ func TestWriteListsExactlyTheFivePlatforms(t *testing.T) {
 	if len(m) != 9 {
 		t.Errorf("manifest has %d keys, want 9", len(m))
 	}
-	launcher, _, err := releasefiles.HashFile(filepath.Join(repoRoot(t), "cn", "launcher", "launch"))
+	launcher, _, err := releasefiles.HashFile(filepath.Join(repoRoot(t), "cn", "packaging", "launcher", "launch"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if got := string(m["launcher"]); got != `"`+launcher+`"` {
-		t.Errorf("launcher %s, want the hash of cn/launcher/launch, %s", got, launcher)
+		t.Errorf("launcher %s, want the hash of cn/packaging/launcher/launch, %s", got, launcher)
 	}
 	want, err := releasefiles.UpdaterDigest(repoRoot(t))
 	if err != nil {
@@ -138,7 +138,7 @@ func TestWriteRefusesAMissingPlatform(t *testing.T) {
 func TestVerify(t *testing.T) {
 	dist := fakeDist(t)
 	writeSign(t, dist)
-	roots := filepath.Join(repoRoot(t), "cn/shared/trust/devroots")
+	roots := filepath.Join(repoRoot(t), "cn/packaging/trust/devroots")
 	if out, e, c := tool(t, "verify", "--dist", dist, "--roots", roots); c != 0 {
 		t.Fatalf("verify: %s %s", out, e)
 	}
@@ -184,7 +184,7 @@ func TestVerify(t *testing.T) {
 func TestWriteAndVerifyANamedPlatformSet(t *testing.T) {
 	dist := fakeDist(t)
 	root := repoRoot(t)
-	roots := filepath.Join(root, "cn/shared/trust/devroots")
+	roots := filepath.Join(root, "cn/packaging/trust/devroots")
 	if _, e, c := tool(t, "write", "--dist", dist, "--version", "1.61001.1", "--commit", "abc1234", "--source", root, "--platforms", "linux-x64"); c != 0 {
 		t.Fatalf("write: %s", e)
 	}

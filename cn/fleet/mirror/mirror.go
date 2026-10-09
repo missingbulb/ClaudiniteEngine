@@ -25,7 +25,7 @@ import (
 	"time"
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/fleet"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/packindex"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/packindex"
 )
 
 // Branch is the manager's mirror branch, the layout ClaudinitePacks'

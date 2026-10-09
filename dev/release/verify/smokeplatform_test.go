@@ -10,7 +10,7 @@ import (
 
 	"github.com/missingbulb/ClaudiniteEngine/dev/test/scripttest"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/version"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/version"
 )
 
 // serveDist starts regstub over the given dist folders and returns its URL

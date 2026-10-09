@@ -152,7 +152,7 @@ func TestCIRunsActionlintPinnedBySHA(t *testing.T) {
 	}
 	// The member workflow templates ship inside the binary; CI lints them
 	// beside the engine's own.
-	if !regexp.MustCompile(`actionlint@[0-9a-f]{40} \.github/workflows/\*\.yml cn/lifecycle/workflows/templates/\*\.yml cn/tasks/workflows/templates/\*\.yml`).Match(raw) {
+	if !regexp.MustCompile(`actionlint@[0-9a-f]{40} \.github/workflows/\*\.yml cn/integrations/workflows/templates/\*\.yml cn/capabilities/tasks/workflows/templates/\*\.yml`).Match(raw) {
 		t.Error("check.sh's actionlint does not lint both .github/workflows and the member templates")
 	}
 	conf, err := os.ReadFile("../../.github/actionlint.yaml")
@@ -259,7 +259,7 @@ func TestReleaseGatesThePublish(t *testing.T) {
 		}
 	}
 	inOrder("the publish job", publish, "name: the files build hashed", "dev/release/create/sign-release.sh", "dev/release/publish/mode.sh", "dev/release/publish/tag.sh", "dev/release/publish/publish.sh", "pipeline npm-holds --dist dist")
-	inOrder("sign-release.sh", read(t, "dev/release/create/sign-release.sh"), "dev/release/create/sign.sh", `rm -rf "$keys"`, "go run ./dev/release/create/manifest verify --dist \"${DIST:-dist}\" --roots cn/shared/trust/roots")
+	inOrder("sign-release.sh", read(t, "dev/release/create/sign-release.sh"), "dev/release/create/sign.sh", `rm -rf "$keys"`, "go run ./dev/release/create/manifest verify --dist \"${DIST:-dist}\" --roots cn/packaging/trust/roots")
 	inOrder("tag.sh", read(t, "dev/release/publish/tag.sh"), `git tag "v$1"`, `git push origin "v$1"`)
 	if !strings.Contains(publish, "      - if: steps.mode.outputs.mode == 'real'\n        name: tag the commit\n") {
 		t.Errorf("the publish job does not tag only after a real publish:\n%s", publish)

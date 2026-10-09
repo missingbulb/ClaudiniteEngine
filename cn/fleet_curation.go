@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/curation"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/report"
+	"github.com/missingbulb/ClaudiniteEngine/cn/fleet/curation"
+	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/report"
 )
 
 // fleetPromoteScope is `cn fleet promote-scope --base REF`, the gate on a

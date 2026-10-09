@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/lifecycle/update"
-	"github.com/missingbulb/ClaudiniteEngine/cn/lifecycle/workflows"
-	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/execute"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/execute"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/workflows"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/update"
 )
 
 func TestUpdateCommandArguments(t *testing.T) {

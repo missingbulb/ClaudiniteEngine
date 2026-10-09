@@ -158,7 +158,7 @@ type CnSettingsAnswer struct {
 func cnImport(t *testing.T, c Cn, f SettingsFixture, nodeRoot string) CnSettingsAnswer {
 	t.Helper()
 	dir := memberDir(t)
-	if err := copyDir(filepath.Join("../..", "cn", "lifecycle", "verify", "testdata", "shapes", cnShape), dir); err != nil {
+	if err := copyDir(filepath.Join("../..", "cn", "packaging", "verify", "testdata", "shapes", cnShape), dir); err != nil {
 		t.Fatal(err)
 	}
 	for _, p := range []string{".claudinite/settings.yaml", ".claudinite/shared"} {

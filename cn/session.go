@@ -10,12 +10,12 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/growth/userpack"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/report"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/taskspec"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/workitem"
-	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/items"
-	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/world"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/items"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/taskspec"
+	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/report"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/world"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/userpack"
 )
 
 // The session commands run inside a routine session, whose GitHub access

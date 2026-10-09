@@ -24,9 +24,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/githubapi"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/licenseapi"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/sign"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/githubapi"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/licenseapi"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/sign"
 )
 
 // Audience is the OIDC audience the license server accepts.

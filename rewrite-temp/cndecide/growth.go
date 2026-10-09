@@ -9,7 +9,7 @@ import (
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/growth/capture"
 	"github.com/missingbulb/ClaudiniteEngine/cn/growth/prune"
-	sharedgrowth "github.com/missingbulb/ClaudiniteEngine/cn/shared/growth"
+	"github.com/missingbulb/ClaudiniteEngine/cn/growth/retention"
 )
 
 // growthCores are the decisions growthDecide answers.
@@ -159,7 +159,7 @@ func growthDecide(core string, raw []byte) (any, error) {
 			return nil, err
 		}
 		v, present := probe["declared"]
-		return map[string]any{"days": sharedgrowth.ResolveRetentionDays(v, present)}, nil
+		return map[string]any{"days": retention.ResolveRetentionDays(v, present)}, nil
 	}
 	return nil, fmt.Errorf("unknown growth core %q: one of %v", core, growthCores)
 }

@@ -14,8 +14,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/ghrelease"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/npmreg"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/ghrelease"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/npmreg"
 	"github.com/missingbulb/ClaudiniteEngine/dev/release"
 	"github.com/missingbulb/ClaudiniteEngine/dev/release/publish"
 	"github.com/missingbulb/ClaudiniteEngine/dev/release/verify"

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/packseed"
+	"github.com/missingbulb/ClaudiniteEngine/cn/fleet/packseed"
 )
 
 // Block names the settings block that makes a repo a fleet manager and

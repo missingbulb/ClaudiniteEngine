@@ -7,15 +7,15 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/mergepolicy"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/taskspec"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/workitem"
-	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/calendar"
-	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/execute"
-	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/land"
-	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/precondition"
-	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/queue"
-	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/world"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/calendar"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/execute"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/mergepolicy"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/precondition"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/taskspec"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/land"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/queue"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/world"
 )
 
 // tasksAnswers are the pure decision cores `cndecide tasks <kind> --world F`

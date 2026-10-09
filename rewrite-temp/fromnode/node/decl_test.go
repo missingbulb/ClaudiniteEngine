@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/settings"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/settings"
 )
 
 var update = flag.Bool("update", false, "rewrite testdata/<fixture>.report from the import")

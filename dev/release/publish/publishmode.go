@@ -10,7 +10,7 @@ import (
 // ModeInput is what a publish job knows when it decides whether to publish.
 type ModeInput struct {
 	Tag         string // the dist-tag the release publishes under: "rc" or "staging"
-	Signing     string // "release", once the signature verified against cn/shared/trust/roots
+	Signing     string // "release", once the signature verified against cn/packaging/trust/roots
 	DryRunInput bool   // the dispatch's dry_run input
 	// NpmVersions is the output of `npm view @claudinite/cli versions
 	// --json`, empty when the command failed.
