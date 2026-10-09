@@ -343,7 +343,7 @@ func MergeHooksInto(obj map[string]any) ([]byte, error) {
 			for _, c := range list {
 				cm, _ := c.(map[string]any)
 				cmd, _ := cm["command"].(string)
-				wired = wired || strings.TrimSpace(cmd) == h.Command
+				wired = wired || h.Wires(cmd)
 			}
 		}
 		if wired {

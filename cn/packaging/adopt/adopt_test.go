@@ -278,7 +278,7 @@ func TestInitMergesAnExistingClaudeSettings(t *testing.T) {
 	if err := json.Unmarshal(raw, &got); err != nil {
 		t.Fatal(err)
 	}
-	if len(got.Permissions.Allow) != 1 || got.Hooks["Stop"][0].Hooks[0].Command != "echo mine" || got.Hooks["Stop"][1].Hooks[0].Command != ".claudinite/bin/cn hook stop" {
+	if len(got.Permissions.Allow) != 1 || got.Hooks["Stop"][0].Hooks[0].Command != "echo mine" || got.Hooks["Stop"][1].Hooks[0].Command != `"$CLAUDE_PROJECT_DIR/.claudinite/bin/cn" hook stop` {
 		t.Errorf("%s", raw)
 	}
 	if len(got.Hooks) != 6 || got.Hooks["PreToolUse"][0].Matcher != "*" {
@@ -342,6 +342,34 @@ func TestTheRepoNameIsReadOffItsOrigin(t *testing.T) {
 	} {
 		if got := FullNameOf(url, "/x/fallback"); got != want {
 			t.Errorf("%q: %q, want %q", url, got, want)
+		}
+	}
+}
+
+// A member wired by an earlier engine keeps its relative guards: merging
+// adds no second wiring beside them.
+func TestMergeLeavesTheRelativeFormAlone(t *testing.T) {
+	hooks := map[string]any{}
+	for _, h := range verify.Hooks {
+		cmd := h.Command
+		if h.Relative != "" {
+			cmd = h.Relative
+		}
+		hooks[h.Event] = []any{map[string]any{"hooks": []any{map[string]any{"type": "command", "command": cmd}}}}
+	}
+	raw, err := MergeHooksInto(map[string]any{"hooks": hooks})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got struct {
+		Hooks map[string][]struct{ Hooks []struct{ Command string } }
+	}
+	if err := json.Unmarshal(raw, &got); err != nil {
+		t.Fatal(err)
+	}
+	for _, h := range verify.Hooks {
+		if n := len(got.Hooks[h.Event]); n != 1 {
+			t.Errorf("%s: %d wirings after the merge, want 1: %s", h.Event, n, raw)
 		}
 	}
 }

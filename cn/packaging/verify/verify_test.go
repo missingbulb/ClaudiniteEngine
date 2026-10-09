@@ -3,6 +3,7 @@ package verify
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"sort"
@@ -84,7 +85,18 @@ func newShape(t *testing.T) string {
 	write(t, dir, ".github/workflows/claudinite-ci.yml", "name: claudinite-ci\n")
 	write(t, dir, ".github/workflows/claudinite-scheduler.yml", "name: claudinite-scheduler\n")
 	write(t, dir, ".github/workflows/claudinite-executor.yml", "name: claudinite-executor\n")
+	write(t, dir, ".claude/settings.json", claudeSettings(func(h HookWiring) string { return h.Command }))
 	return dir
+}
+
+// claudeSettings wires every hook in Hooks to the command form picks.
+func claudeSettings(form func(HookWiring) string) string {
+	hooks := map[string]any{}
+	for _, h := range Hooks {
+		hooks[h.Event] = []any{map[string]any{"hooks": []any{map[string]any{"type": "command", "command": form(h)}}}}
+	}
+	raw, _ := json.Marshal(map[string]any{"hooks": hooks})
+	return string(raw)
 }
 
 func write(t *testing.T, dir, rel, body string) {
@@ -155,11 +167,19 @@ func TestRules(t *testing.T) {
 		{"no launcher", func(t *testing.T, d string) { _ = os.Remove(filepath.Join(d, ".claudinite/launch")) }, []string{"launcher"}, nil},
 		{"no SessionStart", func(t *testing.T, d string) {
 			write(t, d, ".claude/settings.json", `{"hooks": {"Stop": [{"hooks": [{"type": "command", "command": ".claudinite/bin/cn hook stop"}]}]}}`)
-		}, []string{"hooks"}, []string{"hooks", "hooks", "hooks", "hooks"}},
+		}, []string{"hooks"}, []string{"hooks", "hooks", "hooks", "hooks", "hooks"}},
+		{"the relative guard form an earlier engine wrote", func(t *testing.T, d string) {
+			write(t, d, ".claude/settings.json", claudeSettings(func(h HookWiring) string {
+				if h.Relative != "" {
+					return h.Relative
+				}
+				return h.Command
+			}))
+		}, nil, []string{"hooks"}},
 		{"no Claude settings", func(t *testing.T, d string) { _ = os.Remove(filepath.Join(d, ".claude/settings.json")) }, []string{"hooks"}, []string{"hooks", "hooks", "hooks", "hooks", "hooks"}},
 		{"one guard missing", func(t *testing.T, d string) {
 			raw, _ := os.ReadFile(filepath.Join(d, ".claude/settings.json"))
-			write(t, d, ".claude/settings.json", strings.Replace(string(raw), "cn hook pre-tool-use", "cn hook something-else", 1))
+			write(t, d, ".claude/settings.json", strings.Replace(string(raw), "hook pre-tool-use", "hook something-else", 1))
 		}, nil, []string{"hooks"}},
 		{"no workflows", func(t *testing.T, d string) { _ = os.RemoveAll(filepath.Join(d, ".github")) }, nil, []string{"member-workflows", "member-workflows", "member-workflows"}},
 		{"the superseded update workflow beside the queue", func(t *testing.T, d string) {

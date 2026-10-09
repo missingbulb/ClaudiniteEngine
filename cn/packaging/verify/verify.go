@@ -203,17 +203,35 @@ func checkLauncher(in Input) []findings.Finding {
 	return []findings.Finding{brk("launcher", ".claudinite/launch", "the launcher is not one a Claudinite release shipped; only the update and cn adopt write it, so restore it unchanged")}
 }
 
-// HookWiring is one hook event and the command a member wires to it.
-type HookWiring struct{ Event, Command string }
+// HookWiring is one hook event, the command a member wires to it, and the
+// relative form an earlier engine wrote, which the shell resolves against
+// Claude's current directory and so stops finding after a cd into a
+// subfolder.
+type HookWiring struct{ Event, Command, Relative string }
 
-// Hooks are the wirings the member fixture and cn adopt write.
+// Hooks are the wirings the member fixture and cn adopt write. Every one
+// reaches the repo through $CLAUDE_PROJECT_DIR, which Claude Code sets to
+// the project root whatever directory the hook runs in.
 var Hooks = []HookWiring{
-	{"SessionStart", `sh "$CLAUDE_PROJECT_DIR/.claudinite/launch" hook session-start`},
-	{"PreToolUse", ".claudinite/bin/cn hook pre-tool-use"},
-	{"PostToolUse", ".claudinite/bin/cn hook post-tool-use"},
-	{"UserPromptSubmit", ".claudinite/bin/cn hook user-prompt-submit"},
-	{"Stop", ".claudinite/bin/cn hook stop"},
-	{"SessionEnd", ".claudinite/bin/cn hook session-end"},
+	{"SessionStart", `sh "$CLAUDE_PROJECT_DIR/.claudinite/launch" hook session-start`, ""},
+	guard("pre-tool-use", "PreToolUse"),
+	guard("post-tool-use", "PostToolUse"),
+	guard("user-prompt-submit", "UserPromptSubmit"),
+	guard("stop", "Stop"),
+	guard("session-end", "SessionEnd"),
+}
+
+// guard is the wiring of event to cn hook name.
+//
+// @legacy-tolerance advisory:hooks retire:#174
+func guard(name, event string) HookWiring {
+	return HookWiring{event, `"$CLAUDE_PROJECT_DIR/.claudinite/bin/cn" hook ` + name, ".claudinite/bin/cn hook " + name}
+}
+
+// Wires says cmd is this wiring, in either form.
+func (h HookWiring) Wires(cmd string) bool {
+	cmd = strings.TrimSpace(cmd)
+	return cmd == h.Command || (h.Relative != "" && cmd == h.Relative)
 }
 
 func checkHooks(in Input) []findings.Finding {
@@ -229,14 +247,19 @@ func checkHooks(in Input) []findings.Finding {
 		_ = json.Unmarshal(raw, &cfg)
 	}
 	var out []findings.Finding
+	var relative []string
 	for _, h := range Hooks {
-		wired := false
+		wired, rooted := false, false
 		for _, group := range cfg.Hooks[h.Event] {
 			for _, c := range group.Hooks {
-				wired = wired || strings.TrimSpace(c.Command) == h.Command
+				wired = wired || h.Wires(c.Command)
+				rooted = rooted || strings.TrimSpace(c.Command) == h.Command
 			}
 		}
 		if wired {
+			if !rooted {
+				relative = append(relative, h.Event)
+			}
 			continue
 		}
 		if h.Event == "SessionStart" {
@@ -244,6 +267,9 @@ func checkHooks(in Input) []findings.Finding {
 		} else {
 			out = append(out, dep("hooks", ".claude/settings.json", h.Event+" does not run `"+h.Command+"`; Claude Code runs without it, but that hook's checks never run"))
 		}
+	}
+	if len(relative) > 0 {
+		out = append(out, dep("hooks", ".claude/settings.json", strings.Join(relative, ", ")+" run `.claudinite/bin/cn` by a relative path, which stops resolving once a session changes into a subfolder, so those hooks' checks stop running for the rest of it; replace `.claudinite/bin/cn` with `\"$CLAUDE_PROJECT_DIR/.claudinite/bin/cn\"` in each"))
 	}
 	return out
 }
