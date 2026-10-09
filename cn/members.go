@@ -16,6 +16,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/cn/lifecycle/workflows"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/descriptor"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/findings"
+	"github.com/missingbulb/ClaudiniteEngine/cn/shared/ghrelease"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/gitcmd"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/npmreg"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/paths"
@@ -107,7 +108,7 @@ func cmdCheckWorld(args []string, stdout, stderr io.Writer) error {
 	ran := allFindings(*repo, "world", declared.Selection{Tags: []string{"world"}}, false, stderr)
 	all := append(verifyFindings(*repo, stderr), ran...)
 	full := repoFullName(*repo)
-	in := world.Input{Repo: *repo, PRAuthor: *author, BaseRef: *base, Git: g, CheckPin: checkPin, Findings: all,
+	in := world.Input{Repo: *repo, PRAuthor: *author, BaseRef: *base, Git: g, CheckPin: checkPin, Findings: all, Launcher: launcher.Script,
 		Workflows: workflows.Names, ExpectedWorkflow: func(name string, base []byte) ([]byte, error) {
 			return workflows.Expected(name, base, full)
 		}}
@@ -136,5 +137,5 @@ func checkPin(e settings.Engine) error {
 	if err != nil {
 		return err
 	}
-	return update.CheckPin(update.Deps{Registry: reg, Roots: roots, CacheRoot: paths.CacheRoot(), Platform: version.Platform(), Now: time.Now}, e)
+	return update.CheckPin(update.Deps{Registry: reg, ReleasesHost: ghrelease.Host(), Roots: roots, CacheRoot: paths.CacheRoot(), Platform: version.Platform(), Now: time.Now}, e)
 }

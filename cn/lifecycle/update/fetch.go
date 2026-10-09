@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/missingbulb/ClaudiniteEngine/cn/shared/ghrelease"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/npmreg"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/paths"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/sign"
@@ -28,7 +29,11 @@ type FetchInput struct {
 	Package   string
 	Version   string
 	Packument *npmreg.Packument
-	Roots     []ed25519.PublicKey
+	// Releases, when set, is the GitHub repository whose releases serve
+	// the version in place of npm, read from ReleasesHost; no packument is
+	// read, and the manifest's signature alone vouches for the download.
+	Releases, ReleasesHost string
+	Roots                  []ed25519.PublicKey
 	// CacheRoot is the launcher's cache folder, .../claudinite.
 	CacheRoot string
 	Platform  string
@@ -45,8 +50,10 @@ type Fetched struct {
 	KeyID  string
 	Binary string
 	// Launcher is the release's launcher, package/launch in the channel
-	// tarball, or nil for a release that carries none.
-	Launcher []byte
+	// tarball, or nil for a release that carries none; SignedLauncher is
+	// whether the signed manifest hashes it.
+	Launcher       []byte
+	SignedLauncher bool
 }
 
 func binaryName(platform string) string {
@@ -58,6 +65,7 @@ func binaryName(platform string) string {
 
 type manifest struct {
 	Version  string `json:"version"`
+	Launcher string `json:"launcher"`
 	Binaries map[string]struct {
 		File   string `json:"file"`
 		SHA256 string `json:"sha256"`
@@ -67,23 +75,33 @@ type manifest struct {
 
 // Fetch downloads a version's manifest, signature and this platform's
 // binary by the launcher's tarball URLs, checks the channel tarball against
-// the packument's integrity, the signature against the roots and the binary
+// the packument's integrity when it comes from npm, the signature against the roots and the binary
 // against its manifest entry, and only then places manifest.json (0444) and
 // the binary (0555) in <cache>/<version>/ beside manifest.sig.json, where the launcher looks, so a
 // session on the merged pin downloads nothing. A refusal places nothing and
 // names the check that failed.
 func Fetch(in FetchInput) (Fetched, error) {
-	v, ok := in.Packument.Versions[in.Version]
-	if !ok {
-		return Fetched{}, fmt.Errorf("%s has no %s", in.Package, in.Version)
-	}
 	channelURL := npmreg.TarballURL(in.Registry.Registry, in.Package, in.Version)
+	binURL := npmreg.PlatformTarballURL(in.Registry.Registry, in.Package, in.Platform, in.Version)
+	integrity := ""
+	if in.Releases != "" {
+		channelURL = ghrelease.TarballURL(in.ReleasesHost, in.Releases, in.Package, in.Version)
+		binURL = ghrelease.PlatformTarballURL(in.ReleasesHost, in.Releases, in.Package, in.Platform, in.Version)
+	} else {
+		v, ok := in.Packument.Versions[in.Version]
+		if !ok {
+			return Fetched{}, fmt.Errorf("%s has no %s", in.Package, in.Version)
+		}
+		integrity = v.Dist.Integrity
+	}
 	channel, err := in.Registry.Download(channelURL)
 	if err != nil {
 		return Fetched{}, fmt.Errorf("download: %w", err)
 	}
-	if err := npmreg.CheckIntegrity(channel, v.Dist.Integrity); err != nil {
-		return Fetched{}, fmt.Errorf("tarball integrity: %s %s: %w", in.Package, in.Version, err)
+	if in.Releases == "" {
+		if err := npmreg.CheckIntegrity(channel, integrity); err != nil {
+			return Fetched{}, fmt.Errorf("tarball integrity: %s %s: %w", in.Package, in.Version, err)
+		}
 	}
 	rawManifest, err := tarFile(channel, "package/manifest.json")
 	if err != nil {
@@ -112,7 +130,6 @@ func Fetch(in FetchInput) (Fetched, error) {
 	if !ok || entry.File != binaryName(in.Platform) {
 		return Fetched{}, fmt.Errorf("%s %s lists no binary for %s", in.Package, in.Version, in.Platform)
 	}
-	binURL := npmreg.PlatformTarballURL(in.Registry.Registry, in.Package, in.Platform, in.Version)
 	platformTgz, err := in.Registry.Download(binURL)
 	if err != nil {
 		return Fetched{}, fmt.Errorf("download: %w", err)
@@ -124,6 +141,21 @@ func Fetch(in FetchInput) (Fetched, error) {
 	sum := sha256.Sum256(bin)
 	if hex.EncodeToString(sum[:]) != entry.SHA256 || int64(len(bin)) != entry.Size {
 		return Fetched{}, fmt.Errorf("binary hash: the %s binary of %s %s does not match its manifest entry", in.Platform, in.Package, in.Version)
+	}
+	// A launcher the signed manifest hashes is the release's own. One it
+	// does not is vouched for only by npm's integrity, which cn init may
+	// take and an update may not; from a releases repository it is not
+	// vouched for at all.
+	launcher, _ := tarFile(channel, "package/launch")
+	signedLauncher := false
+	if m.Launcher != "" {
+		ls := sha256.Sum256(launcher)
+		if hex.EncodeToString(ls[:]) != m.Launcher {
+			return Fetched{}, fmt.Errorf("launcher hash: the launcher of %s %s does not match its manifest", in.Package, in.Version)
+		}
+		signedLauncher = true
+	} else if in.Releases != "" {
+		launcher = nil
 	}
 	dir := filepath.Join(in.CacheRoot, in.Version)
 	if err := paths.EnsurePrivateDir(in.CacheRoot); err != nil {
@@ -141,15 +173,15 @@ func Fetch(in FetchInput) (Fetched, error) {
 	if err := paths.PlaceReadOnly(dir, "manifest.sig.json", rawSig, 0o444); err != nil {
 		return Fetched{}, fmt.Errorf("cache: %w", err)
 	}
-	launcher, _ := tarFile(channel, "package/launch")
 	ms := sha512.Sum512(rawManifest)
 	return Fetched{
-		Version:   in.Version,
-		Manifest:  rawManifest,
-		Integrity: "sha512-" + base64.StdEncoding.EncodeToString(ms[:]),
-		KeyID:     body.KeyID,
-		Binary:    filepath.Join(dir, entry.File),
-		Launcher:  launcher,
+		Version:        in.Version,
+		Manifest:       rawManifest,
+		Integrity:      "sha512-" + base64.StdEncoding.EncodeToString(ms[:]),
+		KeyID:          body.KeyID,
+		Binary:         filepath.Join(dir, entry.File),
+		Launcher:       launcher,
+		SignedLauncher: signedLauncher,
 	}, nil
 }
 

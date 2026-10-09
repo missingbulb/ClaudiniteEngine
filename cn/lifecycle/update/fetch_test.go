@@ -61,6 +61,18 @@ func TestFetchPlacesTheVerifiedBinaryWhereTheLauncherLooks(t *testing.T) {
 	}
 }
 
+// A release whose manifest hashes no launcher still hands cn init npm's,
+// marked unsigned so no update writes it.
+func TestFetchTakesNoLauncherTheManifestDoesNotHash(t *testing.T) {
+	t.Parallel()
+	r := newRegistry(t)
+	r.publish(t, pkg, "1.60930.2", relOpts{unhashedLauncher: true})
+	got, err := Fetch(fetchIn(t, r, "1.60930.2"))
+	if err != nil || got.SignedLauncher || string(got.Launcher) != "#!/bin/sh\n# launcher of 1.60930.2\n" {
+		t.Errorf("launcher %q signed %v, %v; want npm's, unsigned", got.Launcher, got.SignedLauncher, err)
+	}
+}
+
 func TestFetchRefuses(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
@@ -71,6 +83,7 @@ func TestFetchRefuses(t *testing.T) {
 	}{
 		{"flipped channel tarball", relOpts{flipChannel: true}, nil, "integrity"},
 		{"flipped binary byte", relOpts{flipBinary: true}, nil, "does not match its manifest entry"},
+		{"a launcher the manifest does not hash", relOpts{flipLauncher: true}, nil, "launcher hash"},
 		{"packs certificate", relOpts{use: sign.UsePacks}, nil, "use"},
 		{"expired certificate", relOpts{notBefore: t0.AddDate(0, 0, -60)}, nil, "expired"},
 		{"root the binary does not embed", relOpts{issuer: otherRoot}, nil, "trusted root"},

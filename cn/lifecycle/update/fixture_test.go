@@ -78,6 +78,11 @@ type relOpts struct {
 	deprecated  string
 	binary      []byte // the host binary's bytes
 	launcher    []byte // package/launch; default a stand-in naming ver
+	// unhashedLauncher leaves the launcher out of the manifest, as a
+	// release from before the manifest named it; flipLauncher serves a
+	// launcher that differs from the manifest's hash.
+	unhashedLauncher bool
+	flipLauncher     bool
 	tag         string // the dist-tag that moves to ver when it is newer; default latest
 }
 
@@ -164,16 +169,25 @@ func (r *registry) publish(t *testing.T, pkg, ver string, o relOpts) {
 		}
 		r.files[fmt.Sprintf("/%s-%s/-/%s-%s-%s.tgz", pkg, p, name, p, ver)] = tgz(t, map[string][]byte{"package.json": []byte("{}"), "bin/" + file: served})
 	}
-	manifest := []byte(fmt.Sprintf("{\n  \"v\": 1,\n  \"version\": %q,\n  \"builtAt\": \"2026-10-01T00:00:00Z\",\n  \"commit\": \"abc1234\",\n  \"goVersion\": \"go1.24\",\n  \"updaterDigest\": \"d\",\n  \"binaries\": {\n%s\n  },\n  \"testedPacks\": {}\n}\n", ver, strings.Join(lines, ",\n")))
+	if o.launcher == nil {
+		o.launcher = []byte("#!/bin/sh\n# launcher of " + ver + "\n")
+	}
+	launcherLine := ""
+	if !o.unhashedLauncher {
+		ls := sha256.Sum256(o.launcher)
+		launcherLine = fmt.Sprintf("  \"launcher\": %q,\n", hex.EncodeToString(ls[:]))
+	}
+	manifest := []byte(fmt.Sprintf("{\n  \"v\": 1,\n  \"version\": %q,\n  \"builtAt\": \"2026-10-01T00:00:00Z\",\n  \"commit\": \"abc1234\",\n  \"goVersion\": \"go1.24\",\n  \"updaterDigest\": \"d\",\n  \"binaries\": {\n%s\n  },\n%s  \"testedPacks\": {}\n}\n", ver, strings.Join(lines, ",\n"), launcherLine))
 	cert, err := sign.Issue(o.issuer, relKey.Public().(ed25519.PublicKey), o.use, o.notBefore, o.notBefore.AddDate(0, 0, 30))
 	if err != nil {
 		t.Fatal(err)
 	}
 	sig, _ := json.Marshal(sign.SignManifest(relKey, cert, manifest))
-	if o.launcher == nil {
-		o.launcher = []byte("#!/bin/sh\n# launcher of " + ver + "\n")
+	launch := o.launcher
+	if o.flipLauncher {
+		launch = append(append([]byte{}, launch...), '#')
 	}
-	channel := tgz(t, map[string][]byte{"package.json": []byte("{}"), "manifest.json": manifest, "manifest.sig.json": sig, "launch": o.launcher})
+	channel := tgz(t, map[string][]byte{"package.json": []byte("{}"), "manifest.json": manifest, "manifest.sig.json": sig, "launch": launch})
 	path := fmt.Sprintf("/%s/-/%s-%s.tgz", pkg, name, ver)
 	served := channel
 	if o.flipChannel {
@@ -198,4 +212,39 @@ func (r *registry) publish(t *testing.T, pkg, ver string, o relOpts) {
 	if c, err := version.Compare(ver, p.DistTags[o.tag]); p.DistTags[o.tag] == "" || (err == nil && c > 0) {
 		p.DistTags[o.tag] = ver
 	}
+}
+
+// toReleases moves pkg@ver off npm onto repo's GitHub release v<ver>, its
+// tarballs under the same names, and points the latest release.json at it.
+func (r *registry) toReleases(t *testing.T, repo, pkg, ver string) {
+	t.Helper()
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	name := strings.TrimPrefix(pkg, "@claudinite/")
+	move := func(from, file string) {
+		b, ok := r.files[from]
+		if !ok {
+			t.Fatalf("nothing published at %s", from)
+		}
+		delete(r.files, from)
+		r.files[fmt.Sprintf("/%s/releases/download/v%s/%s", repo, ver, file)] = b
+	}
+	channel := r.files[fmt.Sprintf("/%s/-/%s-%s.tgz", pkg, name, ver)]
+	manifest, err := tarFile(channel, "package/manifest.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	move(fmt.Sprintf("/%s/-/%s-%s.tgz", pkg, name, ver), fmt.Sprintf("%s-%s.tgz", name, ver))
+	for _, p := range version.Platforms {
+		move(fmt.Sprintf("/%s-%s/-/%s-%s-%s.tgz", pkg, p, name, p, ver), fmt.Sprintf("%s-%s-%s.tgz", name, p, ver))
+	}
+	if p := r.pkgs[pkg]; p != nil {
+		delete(p.Versions, ver)
+		for tag, v := range p.DistTags {
+			if v == ver {
+				delete(p.DistTags, tag)
+			}
+		}
+	}
+	r.files["/"+repo+"/releases/latest/download/release.json"] = []byte(fmt.Sprintf(`{"version": %q, "manifest": %q, "commit": %q}`, ver, integrity(manifest), strings.Repeat("c", 40)))
 }

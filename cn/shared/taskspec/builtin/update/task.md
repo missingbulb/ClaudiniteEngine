@@ -38,7 +38,7 @@ it to the branch.
 GitHub refuses a merge that changes `.github/workflows/` when the job token
 asks, so the engine never merges this pull request and the merge is yours. Two things authorize it, and you need both: this task's `automerge`,
 `engine-pin-move` and `engine-update-files`, which covers the pin moved, the
-member file and the three managed workflows and nothing else, and the
+member file, the launcher and the three managed workflows and nothing else, and the
 engine's gate, `cn update land --check`, at the head it passed. A diff the
 policy does not cover is not yours to merge.
 

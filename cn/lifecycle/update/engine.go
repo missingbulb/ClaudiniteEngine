@@ -59,6 +59,9 @@ type GitHub interface {
 type Deps struct {
 	GitHub   GitHub
 	Registry npmreg.Client
+	// ReleasesHost is where a pin's engine.releases repository is read
+	// from; empty is github.com.
+	ReleasesHost string
 	// Git is the member checkout, on main.
 	Git   gitcmd.Repo
 	Roots []ed25519.PublicKey
@@ -332,12 +335,15 @@ func engine(d Deps, o Options, res *EngineResult) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	p, err := d.Registry.Packument(pin.Package)
-	if err != nil {
-		return "", err
+	var p *npmreg.Packument
+	states := StatesFromPackument(nil)
+	if pin.Releases == "" {
+		if p, err = d.Registry.Packument(pin.Package); err != nil {
+			return "", err
+		}
+		states = StatesFromPackument(p)
 	}
-	states := StatesFromPackument(p)
-	if prev != nil {
+	if prev != nil && p != nil {
 		ver := strings.TrimPrefix(prev.HeadRef, BranchPrefix)
 		if why := pinRefusal(p, states, ver); why != "" {
 			if err := closeUpdatePR(d, *prev, fmt.Sprintf("Closed: %s is now %s, so this pin is never merged.", ver, why)); err != nil {
@@ -363,10 +369,9 @@ func engine(d Deps, o Options, res *EngineResult) (string, error) {
 // the 404 is an error.
 const servedEvery = 20 * time.Second
 
-func fetchServed(d Deps, pkg, ver string, p *npmreg.Packument) (Fetched, error) {
+func fetchServed(d Deps, pin settings.Engine, ver string, p *npmreg.Packument) (Fetched, error) {
 	for waited := time.Duration(0); ; waited += servedEvery {
-		got, err := Fetch(FetchInput{Registry: d.Registry, Package: pkg, Version: ver, Packument: p,
-			Roots: d.Roots, CacheRoot: d.CacheRoot, Platform: d.Platform, Now: d.Now()})
+		got, err := Fetch(fetchInput(d, pin, ver, p))
 		var ns *npmreg.NotServedError
 		if !errors.As(err, &ns) || waited >= npmreg.ServeWait {
 			return got, err
@@ -380,7 +385,10 @@ func fetchServed(d Deps, pkg, ver string, p *npmreg.Packument) (Fetched, error) 
 // or its verify breaks this repo, opens its update PR. It returns the
 // candidate, empty for none, and the verdict.
 func propose(d Deps, o Options, f settings.Format, raw []byte, pin settings.Engine, p *npmreg.Packument, states States, prev *githubapi.PR, prevState string, res *EngineResult) (string, string, error) {
-	c := Candidate(pin.Version, pin.Channel, p, states)
+	c, err := candidateOf(d, pin, p, states)
+	if err != nil {
+		return "", "", err
+	}
 	if c.Skipped != nil {
 		fmt.Fprintf(d.Out, "%s skipped: %s\n", c.Skipped.Version, c.Skipped.Reason)
 	}
@@ -413,7 +421,7 @@ func propose(d Deps, o Options, f settings.Format, raw []byte, pin settings.Engi
 		return c.Version, fmt.Sprintf("skipped: #%d for %s is open and %s", prev.Number, c.Version, why), nil
 	}
 
-	got, err := fetchServed(d, pin.Package, c.Version, p)
+	got, err := fetchServed(d, pin, c.Version, p)
 	if err != nil {
 		return "", "", err
 	}
@@ -524,6 +532,11 @@ func openPR(d Deps, f settings.Format, raw []byte, got Fetched, self, verifyOut 
 			return err
 		}
 		rels := []string{rel}
+		if launcher, err := writeLauncher(d.Repo, got); err != nil {
+			return err
+		} else if launcher {
+			rels = append(rels, LauncherPath)
+		}
 		member, err := writeMemberFile(d.Repo)
 		if err != nil {
 			return err
@@ -698,7 +711,8 @@ func CheckLand(d Deps, base, head string) (string, error) {
 // branch it merges into: it moves base's pin to a newer verified engine,
 // restates the member file at most, and changes under .github/workflows/
 // exactly what that engine expects (expectedWorkflows), with nothing left
-// staged. It returns the new version and the workflow files changed; who
+// staged, and replaces the launcher only with the one that engine ships.
+// It returns the new version and the workflow files changed; who
 // names the PR in a refusal.
 func engineGate(d Deps, who, base, sha string) (string, []string, error) {
 	all, err := d.Git.ChangedFiles(base, sha)
@@ -706,8 +720,11 @@ func engineGate(d Deps, who, base, sha string) (string, []string, error) {
 		return "", nil, err
 	}
 	var files, moved, staged []string
+	launcher := false
 	for _, file := range all {
 		switch {
+		case file == LauncherPath:
+			launcher = true
 		case strings.HasPrefix(file, workflows.StagingDir+"/"):
 			staged = append(staged, file)
 		case strings.HasPrefix(file, ".github/workflows/"):
@@ -775,6 +792,22 @@ func engineGate(d Deps, who, base, sha string) (string, []string, error) {
 	got, err := checkPin(d, e)
 	if err != nil {
 		return "", nil, fmt.Errorf("%s: %w", who, err)
+	}
+	if launcher {
+		have, present, err := d.Git.Show(sha, LauncherPath)
+		if err != nil {
+			return "", nil, err
+		}
+		_, held, err := d.Git.Show(mb, LauncherPath)
+		if err != nil {
+			return "", nil, err
+		}
+		if !held {
+			return "", nil, fmt.Errorf("%s adds %s, which only cn init writes", who, LauncherPath)
+		}
+		if !present || !got.SignedLauncher || !bytes.Equal(have, got.Launcher) {
+			return "", nil, fmt.Errorf("%s: %s is not the launcher %s ships", who, LauncherPath, e.Version)
+		}
 	}
 	if err := expectedWorkflows(d, got.Binary, mb, sha, moved); err != nil {
 		return "", nil, fmt.Errorf("%s: %w", who, err)
