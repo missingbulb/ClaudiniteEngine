@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/fleet"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/workitem"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem"
 )
 
 // markLabel is the queue's own definition of the mark, never a second

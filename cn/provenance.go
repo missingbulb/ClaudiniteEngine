@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/growth/provenance"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/report"
+	"github.com/missingbulb/ClaudiniteEngine/cn/growth/provenance/verbs"
+	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/report"
 )
 
 // cmdProvenance is `cn provenance`, the provenance verbs over the
@@ -30,7 +30,7 @@ func cmdProvenance(args []string, stdin io.Reader, stdout, stderr io.Writer) err
 	if err != nil {
 		return report.Wrap(report.IO, "provenance", err)
 	}
-	switch provenance.Main(args, abs, stdin, stdout, stderr) {
+	switch verbs.Main(args, abs, stdin, stdout, stderr) {
 	case 0:
 		return nil
 	case 2:

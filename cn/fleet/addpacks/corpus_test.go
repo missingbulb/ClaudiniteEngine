@@ -5,8 +5,8 @@ import (
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/fleet"
 	"github.com/missingbulb/ClaudiniteEngine/cn/fleet/addpacks"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/packindex"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/settings"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/packindex"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/settings"
 )
 
 func ids(packs []packindex.CatalogPack) []string {

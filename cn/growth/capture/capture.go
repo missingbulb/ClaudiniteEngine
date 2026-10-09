@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/gitcmd"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/gitcmd"
 )
 
 // Request is one capture: its key, and what discovery may be told.

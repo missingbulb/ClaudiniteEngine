@@ -13,7 +13,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/jsregex"
+	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/jsregex"
 )
 
 // AllMembers is the keyword a caller sends for every covered, awake

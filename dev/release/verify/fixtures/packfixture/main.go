@@ -41,7 +41,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/sign"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/sign"
 )
 
 // Pack is the fixture pack the labels describe.

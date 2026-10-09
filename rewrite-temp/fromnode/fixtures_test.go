@@ -19,13 +19,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/lifecycle/adopt"
-	"github.com/missingbulb/ClaudiniteEngine/cn/lifecycle/packs"
-	"github.com/missingbulb/ClaudiniteEngine/cn/lifecycle/update"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/npmreg"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/packindex"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/sign"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/version"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/adopt"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/fetch"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/npmreg"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/packindex"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/sign"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/update"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/version"
 )
 
 // The fake engine release and pack shelf the move reads, as cn's adopt
@@ -138,12 +138,12 @@ func (f *fakePacks) publishFiles(id, v, channel, extra string, files map[string]
 	f.entries[id] = append(f.entries[id], packindex.Entry{Version: v, SHA256: hex.EncodeToString(sum[:]), Size: int64(len(a)), MinEngineVersion: ver, Channel: channel, Requires: requires})
 }
 
-func (f *fakePacks) VerifiedIndex(id string) (packs.Verified, error) {
+func (f *fakePacks) VerifiedIndex(id string) (fetch.Verified, error) {
 	e, ok := f.entries[id]
 	if !ok {
-		return packs.Verified{}, fmt.Errorf("packs: %s: no source answered", id)
+		return fetch.Verified{}, fmt.Errorf("packs: %s: no source answered", id)
 	}
-	return packs.Verified{Index: packindex.Index{V: 1, Pack: id, Serial: 2, Versions: e}, From: "cdn"}, nil
+	return fetch.Verified{Index: packindex.Index{V: 1, Pack: id, Serial: 2, Versions: e}, From: "cdn"}, nil
 }
 
 func (f *fakePacks) Archive(id string, e packindex.Entry) ([]byte, error) {

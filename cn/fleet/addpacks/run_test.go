@@ -8,7 +8,7 @@ import (
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/fleet"
 	"github.com/missingbulb/ClaudiniteEngine/cn/fleet/addpacks"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/packindex"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/packindex"
 )
 
 var shelf = []packindex.CatalogPack{{ID: "acme-pack", Version: "1.0.0", Channel: packindex.Stable, Requires: []string{}}}

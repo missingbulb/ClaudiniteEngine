@@ -29,7 +29,7 @@ case $platform in
   windows-x64) goos=windows goarch=amd64 ;;
   *) echo "gobuild: unknown platform $platform" >&2; exit 2 ;;
 esac
-pkg=github.com/missingbulb/ClaudiniteEngine/cn/shared/version
+pkg=github.com/missingbulb/ClaudiniteEngine/cn/packaging/version
 CGO_ENABLED=0 GOOS=$goos GOARCH=$goarch GOFLAGS=-trimpath \
   go build -buildvcs=false ${tags:+-tags "$tags"} \
   -ldflags "-s -w -X $pkg.version=${VERSION:-0.0.0} -X $pkg.commit=${COMMIT:-unknown}${EXTRA_LDFLAGS:+ $EXTRA_LDFLAGS}" \

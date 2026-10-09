@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/fleet"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/jsregex"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/packindex"
+	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/jsregex"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/packindex"
 )
 
 // The force: a person named the packs, the repos and the configuration,

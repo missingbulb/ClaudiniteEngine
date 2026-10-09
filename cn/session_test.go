@@ -8,12 +8,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/lifecycle/workflows"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/report"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/taskspec"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/workitem"
-	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/execute"
-	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/world"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/execute"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/taskspec"
+	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/report"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/world"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/workflows"
 )
 
 func writeJSON(t *testing.T, dir, name string, v any) string {

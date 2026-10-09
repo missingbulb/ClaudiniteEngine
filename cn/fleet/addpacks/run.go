@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/fleet"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/packindex"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/packindex"
 )
 
 // Refusal is a force refused before any member was touched.

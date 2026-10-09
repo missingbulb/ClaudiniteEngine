@@ -10,7 +10,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/cn/fleet"
 	"github.com/missingbulb/ClaudiniteEngine/cn/fleet/mirror"
 	"github.com/missingbulb/ClaudiniteEngine/cn/fleet/seeds"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/settings"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/settings"
 )
 
 // tree fakes the contents API over each repo's files, recording every

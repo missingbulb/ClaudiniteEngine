@@ -11,8 +11,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/sign"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/version"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/sign"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/version"
 	"github.com/missingbulb/ClaudiniteEngine/dev/release/create/releasefiles"
 )
 
@@ -102,7 +102,7 @@ func TestCheck(t *testing.T) {
 	}
 	for _, c := range cases {
 		dir := cliTarballs(t, c.how)
-		got, reason, stable := Check(dir, ver, "../../../../cn/shared/trust/devroots", "abc1234ffffffffffffffffffffffffffffffff", c.stable)
+		got, reason, stable := Check(dir, ver, "../../../../cn/packaging/trust/devroots", "abc1234ffffffffffffffffffffffffffffffff", c.stable)
 		if got != c.want {
 			t.Errorf("%s: %s (%s), want %s", c.name, got, reason, c.want)
 		}
@@ -118,7 +118,7 @@ func TestCheck(t *testing.T) {
 func TestCheckRefusesAMissingPlatform(t *testing.T) {
 	dir := cliTarballs(t, tamper{})
 	_ = os.Remove(filepath.Join(dir, "cli-windows-x64-"+ver+".tgz"))
-	if got, reason, _ := Check(dir, ver, "../../../../cn/shared/trust/devroots", "abc1234ffffffffffffffffffffffffffffffff", passing); got != "refuse" || !strings.Contains(reason, "windows-x64") {
+	if got, reason, _ := Check(dir, ver, "../../../../cn/packaging/trust/devroots", "abc1234ffffffffffffffffffffffffffffffff", passing); got != "refuse" || !strings.Contains(reason, "windows-x64") {
 		t.Errorf("%s %s", got, reason)
 	}
 }
@@ -126,7 +126,7 @@ func TestCheckRefusesAMissingPlatform(t *testing.T) {
 // A staging build carries linux-x64 alone: latest never points at one.
 func TestCheckRefusesAStagingBuild(t *testing.T) {
 	dir := cliTarballs(t, tamper{platforms: []string{"linux-x64"}})
-	got, reason, stable := Check(dir, ver, "../../../../cn/shared/trust/devroots", "abc1234ffffffffffffffffffffffffffffffff", passing)
+	got, reason, stable := Check(dir, ver, "../../../../cn/packaging/trust/devroots", "abc1234ffffffffffffffffffffffffffffffff", passing)
 	if got != "refuse" || stable != "not-run" || !strings.Contains(reason, "staging build") || !strings.Contains(reason, "linux-arm64") {
 		t.Errorf("%s %s (stable test %s)", got, reason, stable)
 	}
@@ -137,7 +137,7 @@ func TestCheckRefusesAStagingBuild(t *testing.T) {
 func TestCheckCommandPrintsTheReason(t *testing.T) {
 	dir := cliTarballs(t, tamper{platforms: []string{"linux-x64"}})
 	var out, errb strings.Builder
-	code := run([]string{"check", "--version", ver, "--tarballs", dir, "--roots", "../../../../cn/shared/trust/devroots", "--source", "../../../.."}, &out, &errb)
+	code := run([]string{"check", "--version", ver, "--tarballs", dir, "--roots", "../../../../cn/packaging/trust/devroots", "--source", "../../../.."}, &out, &errb)
 	if code != 0 || !strings.Contains(out.String(), "check=refuse\n") || !strings.Contains(out.String(), "\nreason="+ver+" is a staging build") {
 		t.Errorf("exit %d\n%s%s", code, out.String(), errb.String())
 	}
@@ -148,7 +148,7 @@ func TestCheckCommandPrintsTheReason(t *testing.T) {
 func TestCheckRefusesACandidateCheckoutAtAnotherCommit(t *testing.T) {
 	dir := cliTarballs(t, tamper{})
 	head := "def5678000000000000000000000000000000000"
-	got, reason, _ := Check(dir, ver, "../../../../cn/shared/trust/devroots", head, passing)
+	got, reason, _ := Check(dir, ver, "../../../../cn/packaging/trust/devroots", head, passing)
 	if got != "refuse" || !strings.Contains(reason, head) || !strings.Contains(reason, "abc1234") {
 		t.Errorf("%s %s", got, reason)
 	}

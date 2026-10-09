@@ -126,7 +126,7 @@ The canaries do not try to cover every pack; each pack's own tests do that in th
 
 `dev/release/publish/canaries.json` registers three canaries: Lagging (`ClaudiniteCanaryLagging`), Fresh (`ClaudiniteCanaryFresh`) and Sandbox (`ClaudiniteSandbox`). Each names no workflow until the canary App (#21) can read their runs, and the gate counts only canaries that name one, so until then it answers `no-canaries` and promotion needs the dispatch's confirmation. The registration is there so a canary added later cannot be forgotten silently. The first jobs are fixed now:
 
-- **Lagging**: the `v1`–`v3` shapes of `cn/lifecycle/verify/testdata/shapes`. It is the only place old shapes run live; every release must update it to deprecations, never breaks, and `cn selftest --repo` must fail no probe on it.
+- **Lagging**: the `v1`–`v3` shapes of `cn/packaging/verify/testdata/shapes`. It is the only place old shapes run live; every release must update it to deprecations, never breaks, and `cn selftest --repo` must fail no probe on it.
 - **Fresh**: `cn init` on a scratch branch each release, then `cn verify` and `cn selftest --repo` over the result.
 - **Sandbox**: the scheduler files `engine/update` and the executor drains it, the path `rehearse.sh --mode update` steps 10 and 11 prove against stubs.
 

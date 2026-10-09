@@ -11,16 +11,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/checks"
-	"github.com/missingbulb/ClaudiniteEngine/cn/checks/build"
-	"github.com/missingbulb/ClaudiniteEngine/cn/checks/declared"
-	"github.com/missingbulb/ClaudiniteEngine/cn/checksdk"
-	"github.com/missingbulb/ClaudiniteEngine/cn/hooks"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/findings"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/paths"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/report"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/transcript"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/version"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/build"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/checksdk"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/declared"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/findings"
+	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/paths"
+	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/report"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/hooks"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/transcript"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/version"
 )
 
 // buildWait bounds a foreground wait for the checks binary, as in CI.

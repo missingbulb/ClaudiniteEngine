@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/ghrelease"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/ghrelease"
 	"github.com/missingbulb/ClaudiniteEngine/dev/test/scripttest"
 )
 

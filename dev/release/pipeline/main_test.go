@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/ghrelease"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/npmreg"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/ghrelease"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/npmreg"
 )
 
 func pipeline(t *testing.T, args ...string) (string, string, int) {

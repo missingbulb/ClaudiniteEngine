@@ -9,7 +9,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/version"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/version"
 )
 
 // CLI is the engine's one npm package: it carries the manifest and the

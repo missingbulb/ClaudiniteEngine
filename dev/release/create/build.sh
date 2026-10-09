@@ -56,7 +56,7 @@ pkgjson() {
 cli=$DIST/npm/$name/package
 mkdir -p "$cli"
 cp "$DIST/manifest.json" "$cli/"
-cp cn/launcher/launch "$cli/launch"
+cp cn/packaging/launcher/launch "$cli/launch"
 cp dev/build/THIRD_PARTY_LICENSES "$cli/"
 chmod 0755 "$cli/launch"
 pkgjson "$PACKAGE" "release manifest and launcher" ",

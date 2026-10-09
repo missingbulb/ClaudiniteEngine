@@ -8,19 +8,18 @@ import (
 	"runtime/debug"
 	"time"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/checksdk"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/checksdk"
 	_ "github.com/missingbulb/ClaudiniteEngine/cn/fleet/pack"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/hooks"
-	"github.com/missingbulb/ClaudiniteEngine/cn/lifecycle"
-	"github.com/missingbulb/ClaudiniteEngine/cn/lifecycle/selftest"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/breadcrumb"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/packset"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/paths"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/report"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/sign"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/trust"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/version"
+	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/breadcrumb"
+	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/paths"
+	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/report"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/hooks"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/packset"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/selftest"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/sign"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/trust"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/version"
 )
 
 const usage = `usage: cn <command> [arguments]
@@ -269,7 +268,7 @@ func dispatch(args []string, stdin io.Reader, stdout, stderr io.Writer, start ti
 		if len(args) != 1 {
 			return report.New(report.Usage, "version takes no arguments but --day or --floor")
 		}
-		lifecycle.PrintVersion(stdout)
+		version.Print(stdout)
 		if secretScanPlant != "" {
 			fmt.Fprintln(stdout, secretScanPlant)
 		}

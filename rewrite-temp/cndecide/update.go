@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/lifecycle/update"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/settings"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/settings"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/update"
 )
 
 // updateDecide answers one update-face fixture: core names the decision and raw

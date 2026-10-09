@@ -7,23 +7,23 @@ import (
 	"io"
 	"time"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/checks"
-	"github.com/missingbulb/ClaudiniteEngine/cn/checks/declared"
-	"github.com/missingbulb/ClaudiniteEngine/cn/checks/world"
-	"github.com/missingbulb/ClaudiniteEngine/cn/launcher"
-	"github.com/missingbulb/ClaudiniteEngine/cn/lifecycle/update"
-	"github.com/missingbulb/ClaudiniteEngine/cn/lifecycle/verify"
-	"github.com/missingbulb/ClaudiniteEngine/cn/lifecycle/workflows"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/descriptor"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/findings"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/ghrelease"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/gitcmd"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/npmreg"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/paths"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/report"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/settings"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/trust"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/version"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/declared"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/findings"
+	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/paths"
+	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/report"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/gitcmd"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/workflows"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/descriptor"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/ghrelease"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/launcher"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/npmreg"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/pinguard"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/settings"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/trust"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/update"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/verify"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/version"
 )
 
 // flags parses args against fs, mapping any problem to a usage error.
@@ -108,15 +108,15 @@ func cmdCheckWorld(args []string, stdout, stderr io.Writer) error {
 	ran := allFindings(*repo, "world", declared.Selection{Tags: []string{"world"}}, false, stderr)
 	all := append(verifyFindings(*repo, stderr), ran...)
 	full := repoFullName(*repo)
-	in := world.Input{Repo: *repo, PRAuthor: *author, BaseRef: *base, Git: g, CheckPin: checkPin, Findings: all, Launcher: launcher.Script,
+	in := pinguard.Input{Repo: *repo, PRAuthor: *author, BaseRef: *base, Git: g, CheckPin: checkPin, Findings: all, Launcher: launcher.Script,
 		Workflows: workflows.Names, ExpectedWorkflow: func(name string, base []byte) ([]byte, error) {
 			return workflows.Expected(name, base, full)
 		}}
 	var code int
 	if *author == "" || *base == "" {
-		code = world.Report(stdout, in)
+		code = pinguard.Report(stdout, in)
 	} else {
-		code = world.Run(stdout, in)
+		code = pinguard.Run(stdout, in)
 	}
 	if line := declared.Summary(all, "world"); line != "" {
 		fmt.Fprintln(stdout, line)

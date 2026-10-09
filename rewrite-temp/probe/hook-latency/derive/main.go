@@ -14,11 +14,11 @@ import (
 	"os"
 	"time"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/checks"
-	"github.com/missingbulb/ClaudiniteEngine/cn/checks/build"
-	"github.com/missingbulb/ClaudiniteEngine/cn/checks/declared"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/packset"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/skilltriggers"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/build"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/declared"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/skills/skilltriggers"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/packset"
 )
 
 // engine is the version the probe's member pins, which loads every pack.

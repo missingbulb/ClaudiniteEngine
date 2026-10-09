@@ -9,16 +9,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/gitcmd"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/githubapi"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/mergepolicy"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/report"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/taskspec"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/workitem"
-	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/calendar"
-	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/execute"
-	usagefold "github.com/missingbulb/ClaudiniteEngine/cn/tasks/usage"
-	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/world"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/calendar"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/execute"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/mergepolicy"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/taskspec"
+	usagefold "github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/usage"
+	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/report"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/gitcmd"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/githubapi"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/world"
 )
 
 // cmdUsage is `cn usage fold`, the engine/usage-fold task's code-work run

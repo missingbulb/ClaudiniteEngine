@@ -24,7 +24,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/version"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/version"
 )
 
 // Binary is one platform's entry.
@@ -151,14 +151,14 @@ func ScanBinaries(dist string, platforms []string) (map[string]Binary, error) {
 // runs from, and the shared packages it reaches npm, GitHub, git and the
 // pin through.
 var UpdaterSource = []string{
-	"cn/launcher/launch",
-	"cn/lifecycle/update",
-	"cn/lifecycle/workflows",
-	"cn/shared/githubapi",
-	"cn/shared/gitcmd",
-	"cn/shared/npmreg",
-	"cn/shared/settings",
-	"cn/tasks/workflows",
+	"cn/packaging/launcher/launch",
+	"cn/packaging/update",
+	"cn/integrations/workflows",
+	"cn/integrations/github/githubapi",
+	"cn/integrations/github/gitcmd",
+	"cn/packaging/npmreg",
+	"cn/packaging/settings",
+	"cn/capabilities/tasks/workflows",
 }
 
 // UpdaterDigest is the SHA-256, in hex, over every regular file of

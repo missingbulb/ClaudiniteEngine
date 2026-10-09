@@ -12,11 +12,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/lifecycle/verify"
-	"github.com/missingbulb/ClaudiniteEngine/cn/lifecycle/workflows"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/findings"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/packindex"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/settings"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/findings"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/workflows"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/packindex"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/settings"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/verify"
 )
 
 const launcherBody = "#!/bin/sh\n# the release's launcher\n"

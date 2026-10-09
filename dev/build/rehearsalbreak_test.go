@@ -33,7 +33,7 @@ func TestTheRehearsalBreakTagIsRehearsalOnly(t *testing.T) {
 	if o, err := gobuild(t, out, "REHEARSAL=1", "BUILD_TAGS=devroots,rehearsal_break"); err != nil {
 		t.Fatalf("%v\n%s", err, o)
 	}
-	corpus, _ := filepath.Abs("../../cn/lifecycle/verify/testdata/shapes/v1-yaml")
+	corpus, _ := filepath.Abs("../../cn/packaging/verify/testdata/shapes/v1-yaml")
 	got, err := exec.Command(out, "verify", "--repo", corpus).CombinedOutput()
 	if ee, ok := err.(*exec.ExitError); !ok || ee.ExitCode() != 1 || strings.Count("\n"+string(got), "\nbreak ") != 1 || !strings.Contains(string(got), "break rehearsal ") {
 		t.Errorf("rehearsal_break verify: %v\n%s", err, got)

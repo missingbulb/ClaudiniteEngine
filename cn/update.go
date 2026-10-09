@@ -14,20 +14,20 @@ import (
 	"strings"
 	"time"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/lifecycle/packs"
-	"github.com/missingbulb/ClaudiniteEngine/cn/lifecycle/update"
-	"github.com/missingbulb/ClaudiniteEngine/cn/lifecycle/workflows"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/ghrelease"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/gitcmd"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/githubapi"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/npmreg"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/paths"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/report"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/settings"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/trust"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/version"
-	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/calendar"
-	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/execute"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/calendar"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/execute"
+	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/paths"
+	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/report"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/gitcmd"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/githubapi"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/workflows"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/fetch"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/ghrelease"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/npmreg"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/settings"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/trust"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/update"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/version"
 )
 
 // childTimeout bounds each run of a candidate binary.
@@ -83,13 +83,13 @@ func localDeps(repo, token string, stdout io.Writer) (update.Deps, error) {
 
 // packReader reads the pack indexes from the pack sources repo's settings
 // name, logging which answered to out. close removes every branch's clone.
-func packReader(repo string, roots []ed25519.PublicKey, out io.Writer) (*packs.Reader, func(), error) {
+func packReader(repo string, roots []ed25519.PublicKey, out io.Writer) (*fetch.Reader, func(), error) {
 	list, err := repoSources(repo)
 	if err != nil {
 		return nil, nil, err
 	}
-	srcs, closer := packs.SourcesFor(list, &http.Client{Timeout: time.Minute})
-	return &packs.Reader{Sources: srcs, Roots: roots, Now: time.Now, Log: out}, closer, nil
+	srcs, closer := fetch.SourcesFor(list, &http.Client{Timeout: time.Minute})
+	return &fetch.Reader{Sources: srcs, Roots: roots, Now: time.Now, Log: out}, closer, nil
 }
 
 // repoSources is packs.sources from repo's settings: none where the repo

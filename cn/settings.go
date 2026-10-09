@@ -8,10 +8,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/lifecycle/adopt"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/report"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/settings"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/version"
+	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/report"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/adopt"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/settings"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/version"
 )
 
 func cmdSettings(args []string, stdout io.Writer) error {

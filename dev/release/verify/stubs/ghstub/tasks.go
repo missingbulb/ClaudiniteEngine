@@ -26,10 +26,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/workitem"
-	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/items"
-	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/sim"
-	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/world"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/items"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/sim"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/world"
 )
 
 // routineToken is the routine route's default bearer.

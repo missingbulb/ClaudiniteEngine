@@ -9,12 +9,12 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/lifecycle/adopt"
-	"github.com/missingbulb/ClaudiniteEngine/cn/lifecycle/packs"
-	"github.com/missingbulb/ClaudiniteEngine/cn/lifecycle/rulesindex"
-	"github.com/missingbulb/ClaudiniteEngine/cn/lifecycle/workflows"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/packset"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/settings"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/rules/rulesindex"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/workflows"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/adopt"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/fetch"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/packset"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/settings"
 	"github.com/missingbulb/ClaudiniteEngine/rewrite-temp/fromnode/node"
 )
 
@@ -168,7 +168,7 @@ func move(in adopt.Input) error {
 		return halfMoved(in.Repo, err)
 	}
 	for _, v := range chosen {
-		if err := packs.Unpack(v.Archive, packset.Tree(in.Repo, v.ID)); err != nil {
+		if err := fetch.Unpack(v.Archive, packset.Tree(in.Repo, v.ID)); err != nil {
 			return halfMoved(in.Repo, err)
 		}
 	}

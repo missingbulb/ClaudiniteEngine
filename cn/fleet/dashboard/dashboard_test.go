@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/descriptor"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/descriptor"
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/fleet/roster"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/flatdecl"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/flatdecl"
 )
 
 // The page spells the engine's paths and the build's variable names

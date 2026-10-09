@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/taskspec"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/taskspec"
 )
 
 // A code-work command runs in its task's folder, inside the checkout, so

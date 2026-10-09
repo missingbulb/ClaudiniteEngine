@@ -37,7 +37,7 @@ import (
 	"time"
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/fleet/entitlement"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/sign"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/sign"
 	"github.com/missingbulb/ClaudiniteEngine/dev/release/verify/stubs/stubtls"
 )
 

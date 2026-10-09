@@ -121,7 +121,7 @@ case $update_steps in 4|11) ;; *) fail "UPDATE_STEPS must be 4 or 11, not $updat
 [ -f "$DIST/manifest.integrity" ] || fail "no release in $DIST; run dev/release/create/build.sh first"
 # rehearsal_sign DIST: signs DIST with the development release key.
 rehearsal_sign() {
-  DIST=$1 RELEASE_KEY=$root/dev/release/keys/testkeys/release.key RELEASE_CERT=$root/dev/release/keys/testkeys/release.cert.json ROOTS=$root/cn/shared/trust/devroots \
+  DIST=$1 RELEASE_KEY=$root/dev/release/keys/testkeys/release.key RELEASE_CERT=$root/dev/release/keys/testkeys/release.cert.json ROOTS=$root/cn/packaging/trust/devroots \
     sh dev/release/create/sign.sh > "$work/sign.out" 2>&1 || fail "signing $1: $(cat "$work/sign.out")"
 }
 DIST=$DIST sh dev/release/verify/smoke.sh
@@ -161,9 +161,9 @@ trap 'exit 1' HUP INT TERM
 # chains: rehearse its source rebuilt at its version with the
 # development roots. The host's binary must first be byte for byte this
 # source's plain build, so the rebuild differs from the candidate only in
-# what the devroots tag changes, the embedded roots (cn/shared/trust/roots_dev.go;
+# what the devroots tag changes, the embedded roots (cn/packaging/trust/roots_dev.go;
 # TestOnlyTheRootsFilesReadTheDevrootsTag holds it to that).
-devroot=$(cat cn/shared/trust/devroots/root.pub)
+devroot=$(cat cn/packaging/trust/devroots/root.pub)
 for b in "$DIST"/bin/*/*; do
   grep -qF "$devroot" "$b" && continue
   case $(uname -s)-$(uname -m) in
@@ -568,7 +568,7 @@ for mode in $modes; do
 
       sched run > "$work/sched.out" 2>&1 || fail "update 11: schedule run: $(cat "$work/sched.out")"
       [ "$(gh_count 'st.issues.filter(i=>i.title==="'"$upd"'").length')" = 1 ] || fail "update 11: a second run the same day filed another: $(gh_state)"
-      cp "$root/cn/lifecycle/workflows/templates/claudinite-update.yml" "$member/.github/workflows/"
+      cp "$root/cn/integrations/workflows/templates/claudinite-update.yml" "$member/.github/workflows/"
       cn_member tasks list > "$work/list.out" 2>&1 || fail "update 11: tasks list: $(cat "$work/list.out")"
       if grep -q "^engine/update " "$work/list.out"; then fail "update 11: engine/update stands beside the update workflow: $(cat "$work/list.out")"; fi
       cn_member verify > "$work/verify.out" 2>&1 || fail "update 11: verify: $(cat "$work/verify.out")"

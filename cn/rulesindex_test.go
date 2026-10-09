@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/hooks"
-	"github.com/missingbulb/ClaudiniteEngine/cn/lifecycle/rulesindex"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/rules/rulesindex"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/hooks"
 )
 
 func TestRulesIndexCommand(t *testing.T) {

@@ -12,8 +12,8 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/sign"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/version"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/sign"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/version"
 )
 
 // CatalogPattern is a fingerprint pattern in the catalog's one form.

@@ -8,10 +8,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/findings"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/flatdecl"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/packset"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/settings"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/findings"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/flatdecl"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/packset"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/settings"
 	"github.com/missingbulb/ClaudiniteEngine/rewrite-temp/fromnode/node"
 )
 

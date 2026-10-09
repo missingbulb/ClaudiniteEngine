@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/githubapi"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/licenseapi"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/sign"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/githubapi"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/licenseapi"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/sign"
 )
 
 var testNow = time.Date(2026, 10, 5, 12, 0, 0, 0, time.UTC)

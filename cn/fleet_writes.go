@@ -14,9 +14,9 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/cn/fleet/addpacks"
 	"github.com/missingbulb/ClaudiniteEngine/cn/fleet/mirror"
 	"github.com/missingbulb/ClaudiniteEngine/cn/fleet/seeds"
-	"github.com/missingbulb/ClaudiniteEngine/cn/lifecycle/packs"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/packindex"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/report"
+	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/report"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/fetch"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/packindex"
 )
 
 // minPlausiblePacks is the smallest catalog a scan runs against: a
@@ -198,7 +198,7 @@ func fleetPackSeeds(args []string, stdout, stderr io.Writer, start time.Time) er
 
 // mirrorShelf is the shelf the manager's mirror copies, every answer
 // verified by the pack reader.
-type mirrorShelf struct{ r *packs.Reader }
+type mirrorShelf struct{ r *fetch.Reader }
 
 func (m mirrorShelf) Catalog() (mirror.Signed, []string, error) {
 	v, err := m.r.VerifiedCatalog()

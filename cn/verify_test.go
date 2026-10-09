@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/gitcmd"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/gitcmd"
 )
 
 func TestVerifyCommand(t *testing.T) {
@@ -18,7 +18,7 @@ func TestVerifyCommand(t *testing.T) {
 	if code != 1 || !strings.HasPrefix(out, "break settings-file .claudinite: ") || strings.Count(out, "break ") != 1 {
 		t.Errorf("empty repo: exit %d\n%s", code, out)
 	}
-	corpus, _ := filepath.Abs("lifecycle/verify/testdata/shapes/v1-yaml")
+	corpus, _ := filepath.Abs("packaging/verify/testdata/shapes/v1-yaml")
 	out, _, code = runCN(t, bin, nil, "", "verify", "--repo", corpus)
 	if code != 0 || !strings.Contains(out, "deprecation bin-ignore") || strings.Contains(out, "break") {
 		t.Errorf("v1 shape: exit %d\n%s", code, out)
@@ -31,7 +31,7 @@ func TestVerifyCommand(t *testing.T) {
 func TestCheckWorldCommand(t *testing.T) {
 	t.Parallel()
 	bin := buildCN(t, "")
-	src, _ := filepath.Abs("lifecycle/verify/testdata/shapes/v1-yaml")
+	src, _ := filepath.Abs("packaging/verify/testdata/shapes/v1-yaml")
 	dir := t.TempDir()
 	if out, err := exec.Command("cp", "-R", src+"/.", dir).CombinedOutput(); err != nil {
 		t.Fatalf("%v %s", err, out)
@@ -69,7 +69,7 @@ func TestCheckWorldCommand(t *testing.T) {
 func TestVerifyReadsTheDeclaredChecks(t *testing.T) {
 	t.Parallel()
 	bin := buildCN(t, "")
-	src, _ := filepath.Abs("lifecycle/verify/testdata/shapes/v5-settings-checks")
+	src, _ := filepath.Abs("packaging/verify/testdata/shapes/v5-settings-checks")
 	dir := t.TempDir()
 	if out, err := exec.Command("cp", "-R", src+"/.", dir).CombinedOutput(); err != nil {
 		t.Fatalf("%v %s", err, out)
@@ -120,7 +120,7 @@ func TestVerifyReadsTheDeclaredChecks(t *testing.T) {
 // After a git fault, cn check -v names every check the spent tree kept
 // from running.
 func TestCheckVerboseNamesChecksSkippedAfterAGitFault(t *testing.T) {
-	src, _ := filepath.Abs("lifecycle/verify/testdata/shapes/v1-yaml")
+	src, _ := filepath.Abs("packaging/verify/testdata/shapes/v1-yaml")
 	dir := t.TempDir()
 	if out, err := exec.Command("cp", "-R", src+"/.", dir).CombinedOutput(); err != nil {
 		t.Fatalf("%v %s", err, out)

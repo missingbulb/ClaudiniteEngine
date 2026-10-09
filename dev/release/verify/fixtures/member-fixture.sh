@@ -17,11 +17,11 @@ esac
 here=$(cd "$(dirname "$0")/../../../.." && pwd)
 dir=$1
 mkdir -p "$dir/.claudinite" "$dir/.claude" "$dir/.github/workflows"
-cp "$here/cn/launcher/launch" "$dir/.claudinite/launch"
+cp "$here/cn/packaging/launcher/launch" "$dir/.claudinite/launch"
 rm -f "$dir/.github/workflows/claudinite-update.yml"
-cp "$here/cn/lifecycle/workflows/templates/claudinite-ci.yml" "$dir/.github/workflows/"
+cp "$here/cn/integrations/workflows/templates/claudinite-ci.yml" "$dir/.github/workflows/"
 for w in scheduler executor; do
-  cp "$here/cn/tasks/workflows/templates/claudinite-$w.yml" "$dir/.github/workflows/"
+  cp "$here/cn/capabilities/tasks/workflows/templates/claudinite-$w.yml" "$dir/.github/workflows/"
 done
 printf 'bin/\n' > "$dir/.claudinite/.gitignore"
 cat > "$dir/.claudinite/settings.yaml" <<YAML

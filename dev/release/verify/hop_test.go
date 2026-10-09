@@ -7,7 +7,7 @@ import (
 
 	"github.com/missingbulb/ClaudiniteEngine/dev/test/scripttest"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/version"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/version"
 )
 
 // The hop job: the candidate's own updater moves a member off it to a

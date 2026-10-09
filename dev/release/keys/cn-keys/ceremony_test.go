@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/sign"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/sign"
 )
 
 const passphrase = "correct horse battery staple ceremony"
@@ -140,7 +140,7 @@ func TestCeremonyStoresEveryKey(t *testing.T) {
 	if strings.Join(got, "\n") != strings.Join(want, "\n") {
 		t.Fatalf("secrets set:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
-	for _, want := range []string{"cn/shared/trust/roots/root.pub", "ClaudinitePacks `keys/roots/`", "ClaudiniteLicenses `packages/signing/roots/`",
+	for _, want := range []string{"cn/packaging/trust/roots/root.pub", "ClaudinitePacks `keys/roots/`", "ClaudiniteLicenses `packages/signing/roots/`",
 		"fails verification"} {
 		if !strings.Contains(summary, want) {
 			t.Errorf("summary does not list the roots to swap: lacks %q", want)

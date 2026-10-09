@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/sign"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/sign"
 )
 
 func keys(t *testing.T, args ...string) (string, string, int) {
@@ -149,15 +149,15 @@ func TestUnknownCommandIsUsage(t *testing.T) {
 }
 
 // The key-ceremony workflow builds cn-keys from this public tree with no
-// module downloads: nothing beyond the standard library and shared/ may be
-// linked in.
-func TestDependsOnlyOnStdlibAndShared(t *testing.T) {
+// module downloads: nothing beyond the standard library and the signing
+// package may be linked in.
+func TestDependsOnlyOnStdlibAndSign(t *testing.T) {
 	out, err := exec.Command("go", "list", "-deps", "-f", "{{if not .Standard}}{{.ImportPath}}{{end}}", ".").Output()
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, p := range strings.Fields(string(out)) {
-		if p == "github.com/missingbulb/ClaudiniteEngine/dev/release/keys/cn-keys" || strings.HasPrefix(p, "github.com/missingbulb/ClaudiniteEngine/cn/shared/") {
+		if p == "github.com/missingbulb/ClaudiniteEngine/dev/release/keys/cn-keys" || p == "github.com/missingbulb/ClaudiniteEngine/cn/packaging/sign" {
 			continue
 		}
 		t.Errorf("cn-keys depends on %s", p)

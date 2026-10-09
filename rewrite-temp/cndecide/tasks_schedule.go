@@ -7,12 +7,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/taskspec"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/workitem"
-	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/calendar"
-	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/precondition"
-	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/queue"
-	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/schedule"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/calendar"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/precondition"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/schedule"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/taskspec"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/queue"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem"
 )
 
 type fixtureTask struct {
