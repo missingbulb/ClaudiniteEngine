@@ -1,11 +1,13 @@
 package builtin
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/checks/declared"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/findings"
+	"github.com/missingbulb/ClaudiniteEngine/cn/shared/jsjson"
 )
 
 // declaredRun runs the world-scoped declared check id over the repo and
@@ -86,6 +88,55 @@ func TestEveryEngineDeclaredCheckCompiles(t *testing.T) {
 		cs, err := declared.LoadEngine(p)
 		if err != nil || len(cs) == 0 {
 			t.Errorf("%s: %d checks, %v", p, len(cs), err)
+		}
+	}
+}
+
+// The queue's label guard passes a project's own labels and the queue's
+// vocabulary, and flags a label beside the queue mark or in its place.
+func TestTheQueueLabelGuard(t *testing.T) {
+	t.Parallel()
+	cs, err := declared.LoadEngine(declared.EnginePack)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var guard *declared.Check
+	for _, c := range cs {
+		if c.ID == "issue-label-outside-the-queue-vocabulary" {
+			guard = c
+		}
+	}
+	if guard == nil {
+		t.Fatal("the engine carries no label guard")
+	}
+	write := func(method string, names ...string) declared.Call {
+		raw, _ := json.Marshal(map[string]any{"method": method, "owner": "o", "repo": "r", "labels": names})
+		in, err := jsjson.Decode(raw)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return declared.Call{Tool: "mcp__github__issue_write", Input: in}
+	}
+	for _, c := range []struct {
+		name  string
+		calls []declared.Call
+		want  int
+	}{
+		{"a project's own labels", []declared.Call{write("update", "acme-request", "needs-human"), write("create", "bug")}, 0},
+		{"the queue's own vocabulary", []declared.Call{write("create", "task:origin:ad-hoc"), write("update", "task:status:done", "outcome:done")}, 0},
+		{"a label invented beside the queue mark", []declared.Call{write("create", "task:origin:ad-hoc", "acme-backlog")}, 1},
+		{"a queue-named label in place of the mark", []declared.Call{write("create", "claudinite-queue"), write("update", "acme-backlog"), write("create", "claude-queued")}, 2},
+	} {
+		n := 0
+		for i, call := range c.calls {
+			hs, err := declared.GuardFindings(guard, call, c.calls[:i])
+			if err != nil {
+				t.Fatalf("%s: %v", c.name, err)
+			}
+			n += len(hs)
+		}
+		if n != c.want {
+			t.Errorf("%s: %d findings, want %d", c.name, n, c.want)
 		}
 	}
 }
