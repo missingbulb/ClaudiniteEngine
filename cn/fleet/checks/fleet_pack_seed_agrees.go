@@ -1,7 +1,8 @@
-package builtin
+package checks
 
 import (
 	"fmt"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/builtin"
 	"regexp"
 	"strings"
 
@@ -30,7 +31,7 @@ var fleetPackSeedAgrees = declared.Builtin{
 	Why:    "the pack-seed sweep writes a seed into every member and never overrides an existing entry, so a seed that disagrees with what the enforcer runs reaches the whole fleet once and sticks",
 }
 
-func init() { register(&fleetPackSeedAgrees, runFleetPackSeedAgrees) }
+func init() { builtin.Register(&fleetPackSeedAgrees, runFleetPackSeedAgrees) }
 
 func runFleetPackSeedAgrees(ctx *declared.Ctx, _ *transcript.Session) []findings.Finding {
 	if ctx.Config.Fleet == nil {

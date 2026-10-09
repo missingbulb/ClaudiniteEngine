@@ -113,7 +113,7 @@ worlds from a seed (`CLAUDINITE_PARITY_FUZZ` worlds from
 `CLAUDINITE_PARITY_FUZZ_SEED`, 40 from 1 by default; a world the engines
 disagree on is written to the temporary directory, ready to be a fixture),
 and `CLAUDINITE_PARITY_USAGE_COVERDIR` builds `cndecide` with coverage of
-`cn/capabilities/tasks/usage` so `go tool covdata` reads which branches the worlds
+`cn/growth/usage` so `go tool covdata` reads which branches the worlds
 reached.
 
 Usage face divergences: 0 of 13 fixtures.
@@ -139,7 +139,7 @@ Node's mounted corpus never supplies; the run-mark reader is the
 precondition's, judged by `cn/capabilities/tasks/precondition` and `cn/capabilities/tasks/signals`
 rather than by the fold; and the counters' type errors are reachable only
 by a prior the decoder has not sanitized, so only a direct call to the
-fold reaches them (`cn/capabilities/tasks/usage`'s own tests do). Nor does any world
+fold reaches them (`cn/growth/usage`'s own tests do). Nor does any world
 make git itself fail partway through a run (a plumbing call in the
 delivery, the logs branch's fetch, the local history read): the member is
 always a working clone.

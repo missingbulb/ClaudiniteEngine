@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/usage"
+	"github.com/missingbulb/ClaudiniteEngine/cn/growth/usage"
 	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/gitcmd"
 )
 

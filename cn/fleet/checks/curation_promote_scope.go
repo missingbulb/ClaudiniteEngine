@@ -1,6 +1,7 @@
-package builtin
+package checks
 
 import (
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/builtin"
 	"strings"
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/declared"
@@ -25,7 +26,7 @@ var promoteScope = declared.Builtin{
 	Why:    "promote runs unattended with a fleet-wide token; a write outside the corpus roots escapes the review-by-blast-radius boundary the growth lifecycle is built on",
 }
 
-func init() { register(&promoteScope, runPromoteScope) }
+func init() { builtin.Register(&promoteScope, runPromoteScope) }
 
 func runPromoteScope(ctx *declared.Ctx, _ *transcript.Session) []findings.Finding {
 	if !strings.Contains(ctx.Branch(), curation.PromoteBranch) {

@@ -48,7 +48,7 @@ linters:
             - "**/growth/retention/**"
             - "**/growth/provenance/**"
             - "**/integrations/transcript/**"
-            - "**/integrations/licenseapi/**"
+            - "**/fleet/licenseapi/**"
             - "**/integrations/github/githubapi/**"
             - "**/integrations/github/gitcmd/**"
             - "**/integrations/github/workitem/**"
@@ -81,7 +81,6 @@ linters:
             - github.com/missingbulb/ClaudiniteEngine/cn/growth/retention
             - github.com/missingbulb/ClaudiniteEngine/cn/growth/provenance
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/transcript
-            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/licenseapi
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/githubapi
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/gitcmd
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem
@@ -113,7 +112,6 @@ linters:
             - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/taskspec
             - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/mergepolicy
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/transcript
-            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/licenseapi
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/githubapi
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/gitcmd
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem
@@ -123,6 +121,9 @@ linters:
             - github.com/missingbulb/ClaudiniteEngine/cn/growth
             - github.com/missingbulb/ClaudiniteEngine/cn/packaging/userpack
             - github.com/missingbulb/ClaudiniteEngine/cn/packaging/scaffold
+            # The usage fold counts task runs as well as sessions, so it reads
+            # the queue's run records and outcome vocabulary.
+            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/queue
         fleet:
           list-mode: strict
           files:
@@ -148,12 +149,15 @@ linters:
             - github.com/missingbulb/ClaudiniteEngine/cn/growth/retention
             - github.com/missingbulb/ClaudiniteEngine/cn/growth/provenance
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/transcript
-            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/licenseapi
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/githubapi
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/gitcmd
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem
             - github.com/missingbulb/ClaudiniteEngine/cn/helpers
             - github.com/missingbulb/ClaudiniteEngine/cn/fleet
+            # The fleet pack's built-in checks live with the fleet and
+            # register with the engine's built-ins.
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/builtin
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/declared
         tasks:
           list-mode: strict
           files:
@@ -183,7 +187,6 @@ linters:
             - github.com/missingbulb/ClaudiniteEngine/cn/growth/retention
             - github.com/missingbulb/ClaudiniteEngine/cn/growth/provenance
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/transcript
-            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/licenseapi
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/githubapi
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/gitcmd
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem
@@ -195,6 +198,9 @@ linters:
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/queue
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/land
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/world
+            # The usage-fold task's precondition reads how far the fold has
+            # read the runs, which the fold itself writes.
+            - github.com/missingbulb/ClaudiniteEngine/cn/growth/usage
         jsregex:
           # Pack data writes its patterns for the ECMAScript regex engine
           # (a skill's force-load triggers, a pack's merge rules), as the
@@ -236,7 +242,6 @@ linters:
             - github.com/missingbulb/ClaudiniteEngine/cn/growth/retention
             - github.com/missingbulb/ClaudiniteEngine/cn/growth/provenance
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/transcript
-            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/licenseapi
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/githubapi
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/gitcmd
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem
@@ -289,7 +294,6 @@ linters:
             - github.com/missingbulb/ClaudiniteEngine/cn/growth/retention
             - github.com/missingbulb/ClaudiniteEngine/cn/growth/provenance
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/transcript
-            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/licenseapi
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/githubapi
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/gitcmd
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem
@@ -342,7 +346,6 @@ linters:
             - github.com/missingbulb/ClaudiniteEngine/cn/growth/retention
             - github.com/missingbulb/ClaudiniteEngine/cn/growth/provenance
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/transcript
-            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/licenseapi
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/githubapi
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/gitcmd
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem
@@ -381,7 +384,6 @@ linters:
             - github.com/missingbulb/ClaudiniteEngine/cn/growth/retention
             - github.com/missingbulb/ClaudiniteEngine/cn/growth/provenance
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/transcript
-            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/licenseapi
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/githubapi
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/gitcmd
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem

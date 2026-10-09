@@ -8,7 +8,7 @@ import (
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/precondition"
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/taskspec"
-	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/usage"
+	"github.com/missingbulb/ClaudiniteEngine/cn/growth/usage"
 )
 
 func TestReadLocalTellsAnUnreadableRetentionFromAnAbsentOne(t *testing.T) {

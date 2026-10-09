@@ -528,7 +528,7 @@ func usageDecideBinary(t *testing.T) string {
 		return decideBinary(t)
 	}
 	bin := filepath.Join(t.TempDir(), "cndecide")
-	cmd := exec.Command("go", "build", "-cover", "-coverpkg=github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/usage,github.com/missingbulb/ClaudiniteEngine/rewrite-temp/cndecide", "-o", bin, "../cndecide")
+	cmd := exec.Command("go", "build", "-cover", "-coverpkg=github.com/missingbulb/ClaudiniteEngine/cn/growth/usage,github.com/missingbulb/ClaudiniteEngine/rewrite-temp/cndecide", "-o", bin, "../cndecide")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("go build cndecide: %v\n%s", err, out)
 	}

@@ -1,15 +1,13 @@
 package usage
 
 import (
+	captures "github.com/missingbulb/ClaudiniteEngine/cn/growth/capture"
 	"math"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 )
-
-// LogsBranch is the orphan branch the capture step writes sessions to.
-const LogsBranch = "conversation-logs"
 
 // MountedSkills is the skill names the declared packs' trees carry: each
 // directory under a pack's skills/ holding a SKILL.md.
@@ -78,11 +76,11 @@ func (f Fold) unchanged(path, text string) bool {
 // logFiles fetches the logs branch and answers its tip and capture file
 // names; ok is false where the branch does not exist.
 func (f Fold) logFiles() (tip string, names []string, ok bool, err error) {
-	heads, err := f.History.Remote("ls-remote", "--heads", "origin", LogsBranch)
+	heads, err := f.History.Remote("ls-remote", "--heads", "origin", captures.DefaultBranch)
 	if err != nil || strings.TrimSpace(heads) == "" {
 		return "", nil, false, err
 	}
-	if _, err := f.History.Remote("fetch", "--quiet", "origin", LogsBranch); err != nil {
+	if _, err := f.History.Remote("fetch", "--quiet", "origin", captures.DefaultBranch); err != nil {
 		return "", nil, false, err
 	}
 	if tip, err = f.History.Local("rev-parse", "FETCH_HEAD"); err != nil {
@@ -109,7 +107,7 @@ func (f Fold) FoldSessions() (Folded, error) {
 		return Folded{}, err
 	}
 	if !found {
-		f.Log("no " + LogsBranch + " branch — nothing captured yet; folding the run, queue and git sources only")
+		f.Log("no " + captures.DefaultBranch + " branch — nothing captured yet; folding the run, queue and git sources only")
 	}
 	corpus := Corpus{Mounted: f.Mounted}
 	files := []CaptureFile{}
