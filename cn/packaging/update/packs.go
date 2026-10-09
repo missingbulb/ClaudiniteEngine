@@ -493,7 +493,9 @@ func openPackPR(d Deps, res *EngineResult, o Options, moves []move, prev *github
 		return d.Git.Commit(title, slices.Compact(rels)...)
 	}()
 	checkOut, failed := "", false
-	if err == nil && !o.Force {
+	if err == nil && !o.Force && d.CheckWorld != nil {
+		failed, err = d.CheckWorld(d.Repo, d.Out)
+	} else if err == nil && !o.Force {
 		var errOut string
 		var code int
 		checkOut, errOut, code, err = child(d.Exe, d.Timeout, "check", "world", "--pr-author", gitcmd.BotName, "--base-ref", mainBranch, "--repo", d.Repo)

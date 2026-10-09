@@ -84,8 +84,12 @@ type Deps struct {
 	// Packs reads the pack indexes and archives (cn update packs, and
 	// landing a pack PR).
 	Packs PackReader
-	// Exe is this cn, which runs check world over a pack branch.
+	// Exe is this cn, which runs check world over a pack branch when
+	// CheckWorld is nil.
 	Exe string
+	// CheckWorld runs this cn's check world over repo in this process,
+	// writing what it says to out; failed is a refusal.
+	CheckWorld func(repo string, out io.Writer) (failed bool, err error)
 	// SelfRun is the workflow run this cn runs in (GITHUB_RUN_ID), 0
 	// outside one: a land job's own run on the PR's head counts green.
 	SelfRun int64
@@ -286,6 +290,14 @@ func mainGate(d Deps) (verdict string, pending bool, err error) {
 	default:
 		return "skipped: main is not green (" + s + ")", false, nil
 	}
+}
+
+// MainCI is main's CI on the checkout's head: "" when green, else the
+// skip verdict an update run would give, dispatching a run where there is
+// none.
+func MainCI(d Deps) (string, error) {
+	v, _, err := mainGate(d)
+	return v, err
 }
 
 func engine(d Deps, o Options, res *EngineResult) (string, error) {
