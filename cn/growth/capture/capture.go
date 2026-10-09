@@ -306,49 +306,48 @@ func must(git gitcmd.Repo, stdin string, args ...string) (string, error) {
 // configured one is read past the bot identity every git child is given
 // on its command line.
 func identity(git gitcmd.Repo) []string {
-	email := configured(git, "user.email")
+	name, email := configured(git)
 	if email == "" {
 		return []string{"-c", "user.name=claudinite-capture", "-c", "user.email=capture@claudinite"}
 	}
-	return []string{"-c", "user.name=" + configured(git, "user.name"), "-c", "user.email=" + email}
+	return []string{"-c", "user.name=" + name, "-c", "user.email=" + email}
 }
 
-// configured is key's value from the repository's own configuration
-// files, the last one read winning; "" for none.
-func configured(git gitcmd.Repo, key string) string {
-	r, err := git.Run("config", "--show-scope", "--get-all", key)
+// configured is user.name and user.email from the repository's own
+// configuration files, the last one read winning; "" for none.
+func configured(git gitcmd.Repo) (name, email string) {
+	r, err := git.Run("config", "--show-scope", "--get-regexp", `^user\.(name|email)$`)
 	if err != nil || r.Code != 0 {
-		return ""
+		return "", ""
 	}
-	v := ""
 	for _, l := range strings.Split(r.Stdout, "\n") {
-		scope, val, ok := strings.Cut(l, "\t")
-		if ok && scope != "command" {
-			v = val
+		scope, kv, ok := strings.Cut(l, "\t")
+		if !ok || scope == "command" {
+			continue
+		}
+		key, val, _ := strings.Cut(kv, " ")
+		switch strings.ToLower(key) {
+		case "user.name":
+			name = val
+		case "user.email":
+			email = val
 		}
 	}
-	return v
+	return name, email
 }
 
 // tip is the remote branch's tip, fetched: "" for a branch that does not
 // exist yet, and unreachable set when the remote did not answer, which
 // costs the attempt like a lost push.
 func tip(git gitcmd.Repo, branch string) (string, *gitcmd.Ran, error) {
-	ls, err := git.Run("ls-remote", "--heads", "origin", branch)
-	if err != nil {
-		return "", nil, err
-	}
-	if ls.Code != 0 {
-		return "", &ls, nil
-	}
-	if strings.TrimSpace(ls.Stdout) == "" {
-		return "", nil, nil
-	}
-	f, err := git.Run("fetch", "--quiet", "origin", branch)
+	f, err := git.Run("fetch", "--quiet", "origin", "refs/heads/"+branch)
 	if err != nil {
 		return "", nil, err
 	}
 	if f.Code != 0 {
+		if strings.Contains(f.Stderr, "couldn't find remote ref") {
+			return "", nil, nil
+		}
 		return "", &f, nil
 	}
 	out, err := must(git, "", "rev-parse", "FETCH_HEAD")
@@ -362,6 +361,7 @@ func tip(git gitcmd.Repo, branch string) (string, *gitcmd.Ran, error) {
 // touched.
 func Push(t Target, bundled []Bundled, now time.Time, redactions []Redaction) (Pushed, error) {
 	git := gitcmd.Repo{Dir: t.Root}
+	who := identity(git)
 	lastErr := ""
 	wait := func(attempt int) {
 		if attempt < Attempts {
@@ -397,15 +397,22 @@ func Push(t Target, bundled []Bundled, now time.Time, redactions []Redaction) (P
 			}
 		}
 		lastTs := ""
+		var mine []string
 		for _, n := range names {
-			if !strings.HasSuffix(n, "--"+t.Session+".jsonl") {
-				continue
+			if strings.HasSuffix(n, "--"+t.Session+".jsonl") {
+				mine = append(mine, n)
 			}
-			text, err := must(git, "", "show", head+":"+n)
-			if err != nil {
-				return Pushed{}, err
+		}
+		earlier, err := git.Files(head, mine)
+		if err != nil {
+			return Pushed{}, err
+		}
+		for _, n := range mine {
+			text, ok := earlier[n]
+			if !ok {
+				return Pushed{}, fmt.Errorf("git could not read %s at %s", n, head)
 			}
-			if m := MaxTimestamp(Bundle([][]Line{ParseLines(text)})); m != "" && m > lastTs {
+			if m := MaxTimestamp(Bundle([][]Line{ParseLines(string(text))})); m != "" && m > lastTs {
 				lastTs = m
 			}
 		}
@@ -441,7 +448,7 @@ func Push(t Target, bundled []Bundled, now time.Time, redactions []Redaction) (P
 		if err != nil {
 			return Pushed{}, err
 		}
-		args := append(identity(git), "commit-tree", strings.TrimSpace(tree))
+		args := append(append([]string{}, who...), "commit-tree", strings.TrimSpace(tree))
 		if head != "" {
 			args = append(args, "-p", head)
 		}
