@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/breadcrumb"
 	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/gitcmd"
 )
 
@@ -115,6 +116,17 @@ const (
 	Skip  Outcome = "skip"
 	Error Outcome = "error"
 )
+
+// Crumb is the outcome as the growth capture's breadcrumb reports it.
+func (o Outcome) Crumb() breadcrumb.Outcome {
+	switch o {
+	case OK:
+		return breadcrumb.OK
+	case Skip:
+		return breadcrumb.Skip
+	}
+	return breadcrumb.Error
+}
 
 // Result is a capture's outcome, its exit code and the sentences it said.
 type Result struct {

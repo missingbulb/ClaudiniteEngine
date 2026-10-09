@@ -58,7 +58,7 @@ func TestSandboxPinWritesTheRehearsalFixture(t *testing.T) {
 			t.Errorf(".github/workflows/%s is not the engine's template: %v", name, err)
 		}
 	}
-	verifyOut, err := exec.Command("go", "run", "../../../cn", "verify", "--repo", sandbox).CombinedOutput()
+	verifyOut, err := exec.Command("go", "run", "../../../cn/cli", "verify", "--repo", sandbox).CombinedOutput()
 	if err != nil || len(verifyOut) != 0 {
 		t.Errorf("verify of the pinned sandbox: %v\n%s", err, verifyOut)
 	}
