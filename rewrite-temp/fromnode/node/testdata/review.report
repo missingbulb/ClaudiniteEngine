@@ -1,3 +1,3 @@
 mapped packs[0] "claudinite-lifecycle" → packs.declared "claudinite-lifecycle"
-mapped packs[1] "claudinite-tasks" → packs.declared "claudinite-tasks"
-mapped dailyClaudiniteUpdatesRequirePrReview → packs.declared "claudinite-tasks" config.dailyClaudiniteUpdatesRequirePrReview
+dropped packs[1] "claudinite-tasks": the task queue is the engine's (#146), so nothing declares it; its settings are the tasks block
+mapped dailyClaudiniteUpdatesRequirePrReview → tasks.delivery

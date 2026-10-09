@@ -534,6 +534,19 @@ func applyRepair(gh world.Issues, op Op, in RunIn, agentComments map[int][]world
 			return fail(err)
 		}
 	}
+	if op.Kind == KindRelease {
+		// The labels go before the block: a block left without a status is
+		// a stateless park, which comes back to this rule, while a status
+		// left without a block names no task and nothing would ever free it.
+		for _, l := range op.Labels {
+			if err := gh.RemoveLabel(op.Issue, l); err != nil && !errors.Is(err, world.ErrGone) {
+				return fail(err)
+			}
+		}
+		if err := gh.SetIssueBody(op.Issue, op.IssueBody); err != nil {
+			return fail(err)
+		}
+	}
 	if op.To != "" {
 		if err := gh.AddLabel(op.Issue, op.To); err != nil {
 			return fail(err)
@@ -558,6 +571,9 @@ func applyRepair(gh world.Issues, op Op, in RunIn, agentComments map[int][]world
 		}
 		if op.Close != "" {
 			line += " - closed " + op.Close
+		}
+		if op.Kind == KindRelease {
+			line += " - released from the queue, left open"
 		}
 		in.Log(line)
 	}

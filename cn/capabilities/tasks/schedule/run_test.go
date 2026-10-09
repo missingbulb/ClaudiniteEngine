@@ -462,3 +462,38 @@ func TestTheEnginesUpdateIsFiledOnceADay(t *testing.T) {
 		t.Fatal("the next day's update was not filed")
 	}
 }
+
+func TestAPersonsOwnIssueWhoseTaskIsGoneIsReleasedNotClosed(t *testing.T) {
+	h := newHarness(t, daily(), requestTask())
+	h.gh.Roles["owner"] = "admin"
+	human := "Blocked-by: #9\nModel: opus\n\nQuote the totals people pay."
+	block := ".claudinite/shared/packs/claudinite-tasks/queue/tasks/implement-request/task.md\n\nRequest: #1\nModel: opus\n\nExecute the Claudinite task above."
+	own := h.gh.Seed(sim.StoredIssue{Author: "owner", Issue: workitem.Issue{Title: "Quote fee-inclusive totals",
+		Body:   workitem.WithMachineBlock(human, block),
+		Labels: []string{"bug", workitem.OriginAdHoc, workitem.StatusNeedsHumanDecide, workitem.Urgent}}})
+	filed := h.gh.Seed(sim.StoredIssue{Issue: workitem.Issue{Title: "[claudinite-work] retired-pack/implement-request",
+		Body: ".claudinite/shared/packs/retired-pack/tasks/implement-request/task.md\n\nExecute the Claudinite task above.\n", Labels: []string{workitem.OriginPlanned, workitem.StatusNeedsHumanDecide}}})
+	h.run("")
+	got, _ := h.gh.Get(own)
+	if got.State != "open" {
+		t.Fatalf("closed the person's own issue: %+v", got)
+	}
+	if len(got.Labels) != 1 || got.Labels[0] != "bug" {
+		t.Fatalf("labels %v: only the person's own label may stay; log %v", got.Labels, h.logs)
+	}
+	if got.Body != human {
+		t.Fatalf("body %q: the machine block must go and the person's text stay", got.Body)
+	}
+	if len(got.Comments) != 1 || !strings.Contains(got.Comments[0].Body, "engine/implement-request") {
+		t.Fatalf("comments %v", got.Comments)
+	}
+	if f, _ := h.gh.Get(filed); f.State != "closed" || !f.HasLabel(workitem.StatusRejected) {
+		t.Fatalf("a filed item whose task is gone still closes: %+v", f)
+	}
+	h.gh.Clock.Advance(time.Hour)
+	h.run("")
+	again, _ := h.gh.Get(own)
+	if again.State != "open" || len(again.Labels) != 1 || len(again.Comments) != 1 || again.Body != human {
+		t.Fatalf("a second run touched the released issue: %+v", again)
+	}
+}

@@ -55,6 +55,7 @@ type Op struct {
 	Task          string   `json:"task,omitempty"`
 	Title         string   `json:"title,omitempty"`
 	Labels        []string `json:"labels,omitempty"`
+	IssueBody     string   `json:"issueBody,omitempty"`
 	Request       int      `json:"request,omitempty"`
 	Status        string   `json:"status,omitempty"`
 	Model         string   `json:"model,omitempty"`

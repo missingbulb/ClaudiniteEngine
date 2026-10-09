@@ -93,7 +93,10 @@ func move(in adopt.Input) error {
 	if err != nil {
 		return err
 	}
-	chosen, err := adopt.Resolve(in.Reader, declared.Declared, nil, adopt.PacksChannel(in.Channel), got.Version, in.Out)
+	// The queue is the engine's: a pack still requiring the retired tasks
+	// pack does not pull it back in.
+	retired := map[string]bool{settings.RetiredTasksPack: true}
+	chosen, err := adopt.Resolve(in.Reader, declared.Declared, retired, adopt.PacksChannel(in.Channel), got.Version, in.Out)
 	if err != nil {
 		return err
 	}

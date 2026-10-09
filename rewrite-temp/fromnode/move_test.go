@@ -402,3 +402,38 @@ func TestMoveKeepsAnOwnerChosenSingleTick(t *testing.T) {
 		t.Errorf("the owner's single tick did not survive:\n%s", sched)
 	}
 }
+
+// The task queue is the engine's: a pack that still requires the retired
+// claudinite-tasks pack does not pull it back in, and a member that
+// declared it moves without it.
+func TestMoveLeavesTheRetiredTasksPackOut(t *testing.T) {
+	repo := nodeMember(t)
+	write(t, repo, ".claudinite-settings.json", `{"packs": ["hello", "local/mine", "claudinite-tasks"], "taskScheduler": {"agenticTaskInvocationEndpoints": {"default": {"url": "https://example.test/fire", "tokenSecret": "CCR_ROUTINE_TOKEN"}}}}`+"\n")
+	in, out := input(t, repo)
+	r := newPacks(t)
+	r.entries = map[string][]packindex.Entry{}
+	r.publish("hello", "1.0", "canary", "base", "claudinite-tasks")
+	r.publish("base", "2.0", "stable")
+	r.publish("claudinite-tasks", "3.0", "canary")
+	in.Reader = r
+	if err := move(in); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	if strings.Contains(out.String(), "claudinite-tasks 3.0") {
+		t.Errorf("the move vendored claudinite-tasks:\n%s", out)
+	}
+	if _, err := os.Stat(filepath.Join(repo, ".claudinite/shared/packs/claudinite-tasks")); err == nil {
+		t.Error("claudinite-tasks was vendored")
+	}
+	raw, _ := os.ReadFile(filepath.Join(repo, ".claudinite/settings.yaml"))
+	p, err := settings.ReadPacks(raw, settings.YAML)
+	if err != nil || strings.Join(p.Declared, ",") != "hello,base" {
+		t.Errorf("packs %+v %v\n%s", p, err, raw)
+	}
+	if !strings.Contains(string(raw), "tasks:\n  routines:\n") {
+		t.Errorf("no tasks block:\n%s", raw)
+	}
+	for _, f := range verify.Verify(verify.Input{Repo: repo, Launcher: []byte(launcherBody)}) {
+		t.Errorf("verify: %s", f)
+	}
+}

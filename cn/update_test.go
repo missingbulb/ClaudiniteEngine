@@ -198,3 +198,96 @@ func TestWorkflowsDiffRefusesWithoutTheRepoName(t *testing.T) {
 		t.Errorf("exit %d %s\n%s", code, errOut, out)
 	}
 }
+
+// fakeSteps are an update run's steps answering from scripts, one verdict
+// per call, the clock moving by each sleep.
+type fakeSteps struct {
+	engine, packs, child []update.EngineResult
+	calls                []string
+	now                  time.Time
+}
+
+func (f *fakeSteps) steps() updateSteps {
+	next := func(name string, script *[]update.EngineResult) func() (update.EngineResult, error) {
+		return func() (update.EngineResult, error) {
+			f.calls = append(f.calls, name)
+			if len(*script) == 0 {
+				return update.EngineResult{Verdict: "up to date"}, nil
+			}
+			r := (*script)[0]
+			if len(*script) > 1 {
+				*script = (*script)[1:]
+			}
+			return r, nil
+		}
+	}
+	child := next("child", &f.child)
+	return updateSteps{
+		Engine: next("engine", &f.engine), Packs: next("packs", &f.packs),
+		Sync:             func() error { f.calls = append(f.calls, "sync"); return nil },
+		PacksOnNewEngine: func() (string, error) { r, err := child(); return r.Verdict, err },
+		Now:              func() time.Time { return f.now },
+		Sleep:            func(d time.Duration) { f.calls = append(f.calls, "sleep"); f.now = f.now.Add(d) },
+	}
+}
+
+func dispatched() update.EngineResult {
+	return update.EngineResult{Verdict: update.MainCIDispatched, MainPending: true}
+}
+
+// One run lands an engine and the packs after it: main's CI is waited on
+// in the run, and the packs update runs on the engine the landing pinned,
+// so the item closes instead of requeuing for the next scheduler run.
+func TestTheUpdateTaskFinishesInOneRun(t *testing.T) {
+	t.Parallel()
+	now := time.Date(2026, 10, 9, 6, 0, 0, 0, time.UTC)
+	f := &fakeSteps{now: now,
+		engine: []update.EngineResult{dispatched(), {Verdict: "skipped: main is not green (in_progress)", MainPending: true}, {Verdict: "landed 1.61009.2", MainPending: true}},
+		child:  []update.EngineResult{{Verdict: "skipped: main is not green (queued)"}, {Verdict: "landed packs basics 1.61009.1"}}}
+	var out strings.Builder
+	said, eng, failed := f.steps().run(&out)
+	r := updateTaskResult(said, eng, now)
+	want := []string{"engine", "sleep", "engine", "sleep", "engine", "sync", "child", "sleep", "child"}
+	if failed != nil || !reflect.DeepEqual(f.calls, want) || r.Requeue != nil || !r.OK ||
+		!reflect.DeepEqual(said, []string{"cn update engine: landed 1.61009.2", "cn update packs: landed packs basics 1.61009.1"}) {
+		t.Errorf("calls %v said %v failed %+v requeue %+v", f.calls, said, failed, r.Requeue)
+	}
+
+	// The packs landing in this process ends the run too.
+	f = &fakeSteps{now: now, engine: []update.EngineResult{{Verdict: "up to date"}},
+		packs: []update.EngineResult{dispatched(), {Verdict: "landed packs basics 1.61009.1", MainPending: true}}}
+	said, eng, _ = f.steps().run(&out)
+	if r := updateTaskResult(said, eng, now); r.Requeue != nil || !reflect.DeepEqual(f.calls, []string{"engine", "packs", "sleep", "packs"}) {
+		t.Errorf("a packs landing requeued, or the run did not wait: %v %+v", f.calls, r.Requeue)
+	}
+}
+
+// A CI verdict still missing at the wait's bound requeues: main's before
+// the engine step, main's after an engine landing, and an update PR's.
+func TestTheUpdateTaskRequeuesOnlyAtTheWaitsBound(t *testing.T) {
+	t.Parallel()
+	now := time.Date(2026, 10, 9, 6, 0, 0, 0, time.UTC)
+	var out strings.Builder
+	f := &fakeSteps{now: now, engine: []update.EngineResult{dispatched()}}
+	said, eng, _ := f.steps().run(&out)
+	if r := updateTaskResult(said, eng, now); r.Requeue == nil || len(f.calls) != int(mainCIWait/mainCIPoll)*2+1 {
+		t.Errorf("main never green: %d calls, %+v", len(f.calls), r.Requeue)
+	}
+	f = &fakeSteps{now: now, engine: []update.EngineResult{{Verdict: "landed 1.61009.2", MainPending: true}},
+		child: []update.EngineResult{{Verdict: "skipped: main is not green (in_progress)"}}}
+	said, eng, _ = f.steps().run(&out)
+	if r := updateTaskResult(said, eng, now); r.Requeue == nil || f.calls[0] != "engine" || f.calls[1] != "sync" {
+		t.Errorf("main never green after the landing: %v %+v", f.calls, r.Requeue)
+	}
+	f = &fakeSteps{now: now, engine: []update.EngineResult{{Verdict: "up to date"}},
+		packs: []update.EngineResult{{Verdict: "opened #7 for packs basics 1.61009.1", PRPending: true}}}
+	said, eng, _ = f.steps().run(&out)
+	if r := updateTaskResult(said, eng, now); r.Requeue == nil {
+		t.Errorf("a pack PR whose CI was still running did not requeue")
+	}
+	f = &fakeSteps{now: now, engine: []update.EngineResult{{Verdict: "skipped: main is not green (failure)"}}}
+	said, eng, _ = f.steps().run(&out)
+	if r := updateTaskResult(said, eng, now); r.Requeue != nil || !reflect.DeepEqual(f.calls, []string{"engine", "packs"}) {
+		t.Errorf("a red main waited or requeued: %v %+v", f.calls, r.Requeue)
+	}
+}

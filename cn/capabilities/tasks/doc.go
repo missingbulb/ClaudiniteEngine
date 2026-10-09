@@ -202,6 +202,10 @@
 //     settled before the write is left alone.
 //     schedule.TestAnAbandonedFailureParkCloses,
 //     schedule.TestATornItemSettledBeforeTheWriteIsLeftAlone
+//   - A parked person's own issue whose task is gone stays open: the
+//     queue's labels and machine block come off and nothing else changes,
+//     while a filed item for a gone task closes rejected.
+//     schedule.TestAPersonsOwnIssueWhoseTaskIsGoneIsReleasedNotClosed
 //
 // # Requests
 //

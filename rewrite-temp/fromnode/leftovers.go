@@ -39,9 +39,20 @@ func leftovers(repo string) []findings.Finding {
 	if declared, err := packset.Declared(repo); err == nil {
 		for _, name := range declared.Local {
 			rel := packset.LocalDir + "/" + name
-			for _, js := range jsRules(filepath.Join(repo, filepath.FromSlash(rel))) {
+			rules := jsRules(filepath.Join(repo, filepath.FromSlash(rel)))
+			for _, js := range rules {
 				out = append(out, findings.Finding{Class: findings.Break, ID: "node-leftovers", Path: rel + "/" + js,
 					Sentence: "a JavaScript check the Node engine ran, and cn runs none, so it no longer runs; port it to a declared check or a checks/*.go one, or delete it"})
+			}
+			broken := brokenImports(filepath.Join(repo, filepath.FromSlash(rel)), rules)
+			names := make([]string, 0, len(broken))
+			for f := range broken {
+				names = append(names, f)
+			}
+			sort.Strings(names)
+			for _, f := range names {
+				out = append(out, findings.Finding{Class: findings.Break, ID: "node-leftovers", Path: rel + "/" + f,
+					Sentence: "imports " + broken[f] + ", which is not there: the Node engine's mount it came from is gone; port it to @claudinite/sdk or the pack's own code"})
 			}
 		}
 	}

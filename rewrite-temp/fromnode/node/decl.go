@@ -1,6 +1,6 @@
 // Package node reads the Node engine's declaration, .claudinite-settings.json,
 // into cn's settings blocks: the packs block, the checks block and the
-// claudinite-tasks entry's config. Every key of the Node file is mapped,
+// tasks block. Every key of the Node file is mapped,
 // carried, dropped with a reason or refused, and the report says which,
 // one line per top-level key and per pack-entry key. It is pure: bytes in,
 // blocks and a report out; `cn settings import` writes them.
@@ -18,9 +18,17 @@ import (
 // File is the Node engine's declaration, relative to the repo root.
 const File = ".claudinite-settings.json"
 
-// TasksPack is the pack whose entry config holds the scheduler's and the
-// landing lane's member settings.
-const TasksPack = "claudinite-tasks"
+// TasksPack is the Node pack that ran the task queue. A member declaring it
+// has the queue; the queue is the engine's, so the entry itself is not
+// carried, and its settings become the tasks block.
+const TasksPack = settings.RetiredTasksPack
+
+// tasksKeys names each Node queue setting in the tasks block.
+var tasksKeys = map[string]string{
+	"agenticTaskInvocationEndpoints": "routines",
+	"disabledTasks":                  "disabled",
+	"dormant":                        "dormant",
+}
 
 // Renamed is the Node engine's map of a retired canon pack id to today's
 // (engine/pack_loader/renamed-packs.mjs at the freeze): absorbed packs and
@@ -114,11 +122,13 @@ func (r Report) String() string {
 }
 
 // Decl is cn's reading of the declaration: the packs block (declared
-// entries in order, the claudinite-tasks config on its entry) and the
-// checks block, nil when the Node file had neither rules nor accept.
+// entries in order), the checks block, nil when the Node file had neither
+// rules nor accept, and the tasks block, nil when no queue setting says
+// anything.
 type Decl struct {
 	Packs  *settings.Ordered
 	Checks *settings.Ordered
+	Tasks  *settings.Ordered
 }
 
 // Blocks are the blocks the import writes.
@@ -126,6 +136,9 @@ func (d Decl) Blocks() []settings.Block {
 	out := []settings.Block{{Name: "packs", Value: d.Packs}}
 	if d.Checks != nil {
 		out = append(out, settings.Block{Name: "checks", Value: d.Checks})
+	}
+	if d.Tasks != nil {
+		out = append(out, settings.Block{Name: "tasks", Value: d.Tasks})
 	}
 	return out
 }
@@ -149,6 +162,8 @@ type importer struct {
 	report  Report
 	entries []*entry
 	byToken map[string]*entry
+	tasks   *settings.Ordered
+	queue   bool
 }
 
 type entry struct {
@@ -242,7 +257,7 @@ func Read(raw []byte, tree Tree) (Decl, Report, error) {
 		declared = append(declared, e.value())
 	}
 	packs.Set("declared", declared)
-	return Decl{Packs: packs, Checks: checks}, im.report, nil
+	return Decl{Packs: packs, Checks: checks, Tasks: im.tasks}, im.report, nil
 }
 
 func (im *importer) packs(v any) {
@@ -299,6 +314,10 @@ func (im *importer) declare(key, id string, obj *settings.Ordered) {
 			reason = "the local_packs/ prefix is retired (#1640) and the Node engine activates nothing for it; write local/<name>"
 		}
 		im.add(Refused, key, "", fmt.Sprintf("%q is %s", id, reason))
+		return
+	}
+	if tok == TasksPack {
+		im.declareQueue(key, id, obj)
 		return
 	}
 	have, dup := im.byToken[tok]
@@ -483,11 +502,40 @@ func configOf(e *entry) *settings.Ordered {
 	return c
 }
 
-// toTasks moves a scheduler or delivery setting onto the claudinite-tasks
-// entry's config, where cn reads it; empty says the value carries nothing.
-func (im *importer) toTasks(key, cfgKey string, v any, empty bool) {
-	t := im.entry(TasksPack)
-	if t == nil {
+// declareQueue reads a claudinite-tasks entry: the member has the queue,
+// which needs no declaration, and the entry's config moves onto the tasks
+// block.
+func (im *importer) declareQueue(key, id string, obj *settings.Ordered) {
+	im.queue = true
+	im.add(Dropped, fmt.Sprintf("%s %q", key, id), "", "the task queue is the engine's (#146), so nothing declares it; its settings are the tasks block")
+	if obj == nil {
+		return
+	}
+	for _, k := range obj.Keys() {
+		val, _ := obj.Get(k)
+		sub := key + "." + k
+		switch k {
+		case "id":
+		case "config":
+			cfg, ok := val.(*settings.Ordered)
+			if !ok {
+				im.add(Refused, sub, "", "must be an object of the queue's settings")
+				continue
+			}
+			for _, ck := range cfg.Keys() {
+				cv, _ := cfg.Get(ck)
+				im.toTasks(sub+"."+ck, ck, cv, false)
+			}
+		default:
+			im.add(Dropped, sub, "", "the task queue is not a pack, so no entry carries it")
+		}
+	}
+}
+
+// toTasks moves a queue setting onto the tasks block, under the block's
+// name for it; empty says the value carries nothing.
+func (im *importer) toTasks(key, nodeKey string, v any, empty bool) {
+	if !im.queue {
 		if empty {
 			im.add(Dropped, key, "", TasksPack+" is not declared, and the value says nothing")
 			return
@@ -495,13 +543,30 @@ func (im *importer) toTasks(key, cfgKey string, v any, empty bool) {
 		im.add(Refused, key, "", TasksPack+" is not declared, so nothing would read it; declare "+TasksPack+" or delete the key")
 		return
 	}
-	cfg := configOf(t)
-	if _, ok := cfg.Get(cfgKey); ok {
-		im.add(Dropped, key, "", "the "+TasksPack+" entry's config already says "+cfgKey+", which wins")
+	blockKey, ok := tasksKeys[nodeKey]
+	switch {
+	case nodeKey == "dailyClaudiniteUpdatesRequirePrReview":
+		if v != true {
+			im.add(Dropped, key, "", "auto-merge is the tasks block's default delivery")
+			return
+		}
+		blockKey, v = "delivery", "review"
+	case !ok:
+		blockKey = nodeKey
+	}
+	if empty {
+		im.add(Dropped, key, "", "the value says nothing")
 		return
 	}
-	cfg.Set(cfgKey, v)
-	im.add(Mapped, key, fmt.Sprintf("packs.declared %q config.%s", TasksPack, cfgKey), "")
+	if im.tasks == nil {
+		im.tasks = settings.NewOrdered()
+	}
+	if _, ok := im.tasks.Get(blockKey); ok {
+		im.add(Dropped, key, "", "the tasks block already says "+blockKey+", which wins")
+		return
+	}
+	im.tasks.Set(blockKey, v)
+	im.add(Mapped, key, "tasks."+blockKey, "")
 }
 
 func (im *importer) tasksFlag(key string, v any) {
