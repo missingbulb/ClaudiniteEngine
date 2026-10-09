@@ -243,7 +243,20 @@ func (s Service) List(repo string, timeout time.Duration) ([]run.Listed, error) 
 	if err != nil || key == "" {
 		return nil, err
 	}
-	return run.Runner{Binary: s.Build.Binary(key), Engine: s.Build.Engine}.List()
+	return s.listed(key, s.Build.Binary(key))
+}
+
+// listed is the key's checks from the list its build recorded, else from
+// the binary, recording them for the next listing.
+func (s Service) listed(key, binary string) ([]run.Listed, error) {
+	if l, ok := build.List(s.Build, key); ok {
+		return l, nil
+	}
+	l, err := run.Runner{Binary: binary, Engine: s.Build.Engine}.List()
+	if err == nil {
+		_ = build.WriteList(s.Build, key, l)
+	}
+	return l, err
 }
 
 // ErrNotBuilt is a listing that would have had to build the checks
@@ -261,7 +274,7 @@ func (s Service) ListBuilt(repo string) ([]run.Listed, error) {
 	if err != nil {
 		return nil, ErrNotBuilt
 	}
-	return run.Runner{Binary: binary, Engine: s.Build.Engine}.List()
+	return s.listed(key, binary)
 }
 
 // LoadSet reads the repo's declared checks with the engine's own

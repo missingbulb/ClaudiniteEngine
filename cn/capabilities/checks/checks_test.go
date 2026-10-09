@@ -14,6 +14,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/checksdk"
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/declared"
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/findings"
+	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/proc"
 )
 
 func service(t *testing.T) Service {
@@ -393,7 +394,11 @@ func TestListBuiltNeverBuilds(t *testing.T) {
 	if _, err := s.List(repo, time.Minute); err != nil {
 		t.Fatal(err)
 	}
+	proc.Reset()
 	if listed, err := s.ListBuilt(repo); err != nil || len(listed) == 0 {
 		t.Errorf("after a build: %v %v", listed, err)
+	}
+	if c := proc.Counts(); c["checks"] != 0 {
+		t.Errorf("listing a built binary's checks started it: %s", proc.Format(c))
 	}
 }
