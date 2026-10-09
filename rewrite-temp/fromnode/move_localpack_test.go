@@ -58,6 +58,49 @@ func TestMoveRewritesALocalPacksNodeShapes(t *testing.T) {
 	}
 }
 
+// A local pack whose only manifest is pack.mjs moves with the member: the
+// move writes pack.json from its default export, removes pack.mjs, and
+// moves each coded rule it listed under worldRules/, where leftovers names
+// it for porting.
+func TestMoveWritesPackJSONFromAModuleManifest(t *testing.T) {
+	repo := nodeMember(t)
+	pack := ".claudinite/local/packs/mine/"
+	if err := os.Remove(filepath.Join(repo, pack+"pack.json")); err != nil {
+		t.Fatal(err)
+	}
+	write(t, repo, pack+"rule.mjs", "export default { id: 'mine/rule', check: () => [] };\n")
+	write(t, repo, pack+"pack.mjs", "import rule from './rule.mjs';\n"+
+		"export default {\n  id: 'mine',\n  ruleRoutingGuidance: { belongs: 'b' + 'c' },\n  detect: null,\n  worldRules: [rule, { id: 'inline' }],\n};\n")
+	in, out := input(t, repo)
+	if err := move(in); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	if got, _ := os.ReadFile(filepath.Join(repo, pack+"pack.json")); string(got) != "{\n  \"id\": \"mine\",\n  \"ruleRoutingGuidance\": {\n    \"belongs\": \"bc\"\n  }\n}\n" {
+		t.Errorf("pack.json:\n%s", got)
+	}
+	for _, gone := range []string{"pack.mjs", "rule.mjs"} {
+		if _, err := os.Stat(filepath.Join(repo, pack+gone)); err == nil {
+			t.Errorf("%s is still there", gone)
+		}
+	}
+	for _, want := range []string{
+		"own pack: " + pack + "pack.json: written from pack.mjs",
+		"own pack: " + pack + "pack.json: 1 coded rule(s) pack.mjs listed came from no module it imports",
+		"own pack: " + pack + "worldRules/rule.mjs: moved from rule.mjs",
+	} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("the report lacks %q:\n%s", want, out)
+		}
+	}
+	found := false
+	for _, f := range leftovers(repo) {
+		found = found || f.Path == pack+"worldRules/rule.mjs"
+	}
+	if !found {
+		t.Errorf("leftovers does not name the moved rule: %v", leftovers(repo))
+	}
+}
+
 // A declared local pack cn would not load stops the move before it writes
 // anything, naming the pack and why, rather than leaving it out of the
 // rules index.
@@ -68,7 +111,7 @@ func TestMoveRefusesALocalPackItCannotLoad(t *testing.T) {
 		},
 		"module manifest": func(r string) {
 			_ = os.Remove(filepath.Join(r, ".claudinite/local/packs/mine/pack.json"))
-			_ = os.WriteFile(filepath.Join(r, ".claudinite/local/packs/mine/pack.mjs"), []byte("export default {};\n"), 0o644)
+			_ = os.WriteFile(filepath.Join(r, ".claudinite/local/packs/mine/pack.mjs"), []byte("export default { bogus: true };\n"), 0o644)
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
