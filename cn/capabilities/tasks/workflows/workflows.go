@@ -11,11 +11,11 @@ var files embed.FS
 // Names are the templates' file names under .github/workflows/.
 var Names = []string{"claudinite-scheduler.yml", "claudinite-executor.yml"}
 
-// CronPlaceholder is the scheduler template's cron, which cn init rewrites
+// CronPlaceholder is the scheduler template's cron, which cn adopt rewrites
 // to the repo's hashed minute.
 const CronPlaceholder = "10 4,16 * * *"
 
-// SecretsMarker is the executor template's line beneath which cn init
+// SecretsMarker is the executor template's line beneath which cn adopt
 // writes each declared task secret.
 const SecretsMarker = "# claudinite:secrets"
 

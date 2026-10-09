@@ -32,7 +32,7 @@ func RenderCoverage(owner, home string, c Coverage) string {
 	uncovered := "**Outside the fleet:** none 🎉"
 	if len(c.Uncovered) > 0 {
 		uncovered = "**Outside the fleet:** " + strings.Join(c.Uncovered, ", ") +
-			". To bring one in, run `cn init` in a session on it (the `adopt-claudinite` skill); to leave one out, add it to `exclude` in this repo's fleet block."
+			". To bring one in, run `cn adopt` in a session on it (the `adopt-claudinite` skill); to leave one out, add it to `exclude` in this repo's fleet block."
 	}
 	return join([]string{
 		"# Fleet coverage census — " + owner,

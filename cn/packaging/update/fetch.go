@@ -143,7 +143,7 @@ func Fetch(in FetchInput) (Fetched, error) {
 		return Fetched{}, fmt.Errorf("binary hash: the %s binary of %s %s does not match its manifest entry", in.Platform, in.Package, in.Version)
 	}
 	// A launcher the signed manifest hashes is the release's own. One it
-	// does not is vouched for only by npm's integrity, which cn init may
+	// does not is vouched for only by npm's integrity, which cn adopt may
 	// take and an update may not; from a releases repository it is not
 	// vouched for at all.
 	launcher, _ := tarFile(channel, "package/launch")

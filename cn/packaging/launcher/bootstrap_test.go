@@ -76,11 +76,11 @@ func runBin(t *testing.T, m *member, bin string, args ...string) (string, string
 	return out.String(), errb.String(), code
 }
 
-// The npx line reaches cn init from the signed manifest npx unpacked: the
+// The npx line reaches cn adopt from the signed manifest npx unpacked: the
 // launcher fetches and checks the binary, caches it with the manifest and
-// its signature, and cn init runs (here it stops at the pack sources,
+// its signature, and cn adopt runs (here it stops at the pack sources,
 // which are unreachable, before writing anything).
-func TestBootstrapRunsCnInitFromTheNpxPackage(t *testing.T) {
+func TestBootstrapRunsCnAdoptFromTheNpxPackage(t *testing.T) {
 	const pkg = "@claudinite/cli"
 	r := makeRelease(t, releaseOpts{pkg: pkg})
 	sig := releaseSig(t, r.manifest)
@@ -99,7 +99,7 @@ func TestBootstrapRunsCnInitFromTheNpxPackage(t *testing.T) {
 	_ = os.RemoveAll(filepath.Join(m.dir, ".claudinite"))
 	bin := npxLayout(t, pkg, map[string][]byte{"manifest.json": r.manifest, "manifest.sig.json": sig})
 
-	out, errOut, code := runBin(t, m, bin, "init", "--packs", "hello", "--channel", "canary", "--repo", m.dir)
+	out, errOut, code := runBin(t, m, bin, "adopt", "hello", "--channel", "canary", "--repo", m.dir)
 	if code != 1 || !strings.Contains(errOut, "hello") || !strings.Contains(errOut, "no source answered") {
 		t.Fatalf("exit %d\n%s\n%s", code, out, errOut)
 	}
@@ -112,10 +112,10 @@ func TestBootstrapRunsCnInitFromTheNpxPackage(t *testing.T) {
 		}
 	}
 	if entries, _ := os.ReadDir(m.dir); len(entries) != 0 {
-		t.Errorf("init wrote into the repo before every read succeeded: %v", entries)
+		t.Errorf("adopt wrote into the repo before every read succeeded: %v", entries)
 	}
 
-	// An unsigned package never reaches cn.
+	// An unsigned package never reaches cn, through the retired init too.
 	m2 := newMember(t, s)
 	_ = os.RemoveAll(filepath.Join(m2.dir, ".claudinite"))
 	bin = npxLayout(t, pkg, map[string][]byte{"manifest.json": r.manifest})
@@ -124,12 +124,12 @@ func TestBootstrapRunsCnInitFromTheNpxPackage(t *testing.T) {
 	}
 	m2.cachedNothing(t)
 
-	// A signature that does not verify stops cn init itself.
+	// A signature that does not verify stops cn adopt itself.
 	m3 := newMember(t, s)
 	_ = os.RemoveAll(filepath.Join(m3.dir, ".claudinite"))
 	bad := bytes.Replace(sig, []byte(`"signature":"`), []byte(`"signature":"A`), 1)
 	bin = npxLayout(t, pkg, map[string][]byte{"manifest.json": r.manifest, "manifest.sig.json": bad})
-	if _, errOut, code := runBin(t, m3, bin, "init", "--packs", "hello", "--repo", m3.dir); code != 1 || !strings.Contains(errOut, "manifest signature") {
+	if _, errOut, code := runBin(t, m3, bin, "adopt", "hello", "--repo", m3.dir); code != 1 || !strings.Contains(errOut, "manifest signature") {
 		t.Errorf("bad signature: exit %d %s", code, errOut)
 	}
 }

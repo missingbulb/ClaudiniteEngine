@@ -1083,7 +1083,7 @@ func TestAnUpdatePRCarriesTheShippedLauncher(t *testing.T) {
 	gitRun(t, w.repo, "push", "-q", "-f", "origin", "HEAD:refs/heads/"+branch)
 	w.hub.pulls[0].HeadSHA = w.head(t)
 	gitRun(t, w.repo, "checkout", "-q", "main")
-	if _, err := Land(w.deps(t), 1, w.hub.pulls[0].HeadSHA); err == nil || !strings.Contains(err.Error(), "only cn init writes") {
+	if _, err := Land(w.deps(t), 1, w.hub.pulls[0].HeadSHA); err == nil || !strings.Contains(err.Error(), "only cn adopt writes") {
 		t.Errorf("an added launcher landed: %v", err)
 	}
 

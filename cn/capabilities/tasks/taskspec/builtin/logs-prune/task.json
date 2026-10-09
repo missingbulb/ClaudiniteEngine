@@ -1,0 +1,11 @@
+{
+  "id": "logs-prune",
+  "description": "Retention on the conversation-logs branch: deletes capture files older than the configured window so the branch stays bounded.",
+  "trigger": "request",
+  "preconditions": [
+    "log-past-retention"
+  ],
+  "expected_outcome": "no_code_changes",
+  "code_work": "in-process: logs prune",
+  "code_work_timeout": 60
+}

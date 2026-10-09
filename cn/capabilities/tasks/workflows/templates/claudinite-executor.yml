@@ -69,8 +69,8 @@ jobs:
           persist-credentials: false
       - name: download the pinned engine
         run: sh .claudinite/launch version
-      - name: cn execute continue
+      - name: cn execute dispatch --continue
         env:
           GITHUB_TOKEN: ${{ github.token }}
           CLAUDINITE_CONTINUATION_DEPTH: ${{ inputs.continuation_depth }}
-        run: .claudinite/bin/cn execute continue
+        run: .claudinite/bin/cn execute dispatch --continue

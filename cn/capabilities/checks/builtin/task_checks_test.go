@@ -165,13 +165,13 @@ func TestFlatDeclarationsCurrent(t *testing.T) {
 	// No task anywhere: nothing to demand but the member file.
 	expect(t, repo{base: map[string]string{"a.txt": "a\n", ".claudinite/cache/member.GENERATED.json": memberFlat}}.run(t, "flat-declarations-current"))
 	expect(t, repo{base: map[string]string{"a.txt": "a\n"}}.run(t, "flat-declarations-current"),
-		want{path: ".claudinite/cache/member.GENERATED.json", what: "is missing or unreadable$", fix: "cn tasks flat --write"})
+		want{path: ".claudinite/cache/member.GENERATED.json", what: "is missing or unreadable$", fix: "cn adopt"})
 	stale := strings.Replace(memberFlat, `"claudinite-growth": "1"`, `"claudinite-growth": "0.9"`, 1)
 	expect(t, repo{base: map[string]string{"a.txt": "a\n", ".claudinite/cache/member.GENERATED.json": stale}}.run(t, "flat-declarations-current"),
-		want{path: ".claudinite/cache/member.GENERATED.json", what: "no longer states what .claudinite/settings.yaml and the vendored pack manifests say$", fix: "cn tasks flat --write"})
+		want{path: ".claudinite/cache/member.GENERATED.json", what: "no longer states what .claudinite/settings.yaml and the vendored pack manifests say$", fix: "cn adopt"})
 
 	expect(t, repo{base: map[string]string{taskDir + "task.json": goodTask, ".claudinite/cache/member.GENERATED.json": memberFlat}}.run(t, "flat-declarations-current"),
-		want{path: ".claudinite/cache/tasks.GENERATED.json", what: "is missing or unreadable$", fix: "cn tasks flat --write"})
+		want{path: ".claudinite/cache/tasks.GENERATED.json", what: "is missing or unreadable$", fix: "cn adopt"})
 
 	flat := "{\n  \"version\": 1,\n  \"tasks\": {\n    \"local/mypack/nightly\": {\n      \"path\": \"" + taskDir + "task.json\",\n      \"declaration\": {\"id\": \"nightly\"}\n    },\n    \"gone/x\": {\"path\": \"packs/gone/tasks/x/task.json\"}\n  }\n}\n"
 	expect(t, repo{base: map[string]string{taskDir + "task.json": goodTask, ".claudinite/cache/tasks.GENERATED.json": flat, ".claudinite/cache/member.GENERATED.json": memberFlat}}.run(t, "flat-declarations-current"),

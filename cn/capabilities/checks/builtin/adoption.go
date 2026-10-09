@@ -100,7 +100,7 @@ func runAdoptionAnswersPending(ctx *declared.Ctx, _ *transcript.Session) []findi
 			continue
 		}
 		for _, q := range p.Questions {
-			fix := "ask the owner and record it with `cn settings answer " + p.Pack.ID + "/" + q.ID + " <answer>` (\"n/a — none wanted\" is an answer)"
+			fix := "ask the owner and record it with `cn adopt --answer " + p.Pack.ID + "/" + q.ID + "=<answer>` (\"n/a — none wanted\" is an answer)"
 			if q.Distill != "" {
 				fix += " — " + strings.Join(strings.Fields(q.Distill), " ")
 			}

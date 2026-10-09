@@ -61,7 +61,7 @@ func TestFetchPlacesTheVerifiedBinaryWhereTheLauncherLooks(t *testing.T) {
 	}
 }
 
-// A release whose manifest hashes no launcher still hands cn init npm's,
+// A release whose manifest hashes no launcher still hands cn adopt npm's,
 // marked unsigned so no update writes it.
 func TestFetchTakesNoLauncherTheManifestDoesNotHash(t *testing.T) {
 	t.Parallel()

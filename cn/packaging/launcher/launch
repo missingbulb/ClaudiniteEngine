@@ -19,11 +19,11 @@
 # blocks the stop, and the next stop attempt hits it again, in a loop.
 #
 # Bootstrap: the @claudinite/cli packages carry this file as their bin, so
-# `npx --yes @claudinite/cli init --packs ...` runs it from the package
-# npx unpacked, through a symlink. Run with init and no settings file beside
-# it, it takes the version and the binary's hash from the package's own
-# manifest.json, fetches and checks the binary as above, caches it with the
-# manifest and manifest.sig.json, and execs cn init, which verifies that
+# `npx --yes @claudinite/cli adopt <packs>` runs it from the package
+# npx unpacked, through a symlink. Run with adopt in a repository holding no
+# settings file (or with the retired init), it takes the version and the
+# binary's hash from the package's own manifest.json, fetches and checks the binary as above, caches it with the
+# manifest and manifest.sig.json, and execs cn adopt, which verifies that
 # signature before it writes anything. Windows is not covered: npm's shim
 # for a sh script there is the desktop work.
 # Any other command run through that bin runs the member's own pin, the
@@ -131,6 +131,9 @@ if [ -f "$pkgdir/manifest.json" ] && [ -f "$pkgdir/package.json" ]; then
       esac
     done
     here=$(cd "$repo" && pwd)/.claudinite || refuse "cannot locate the repository $repo"
+    if [ "${1:-}" = adopt ] && [ ! -f "$here/settings.yaml" ] && [ ! -f "$here/settings.toml" ] && [ ! -f "$here/settings.json" ]; then
+      bootstrap=1
+    fi
   fi
 fi
 
@@ -145,7 +148,7 @@ done
 
 if [ -n "$bootstrap" ]; then
   settings=$pkgdir/manifest.json
-  [ -f "$pkgdir/manifest.sig.json" ] || refuse "$pkgdir holds no manifest.sig.json, and cn init never runs from an unsigned manifest"
+  [ -f "$pkgdir/manifest.sig.json" ] || refuse "$pkgdir holds no manifest.sig.json, and cn adopt never runs from an unsigned manifest"
 else
   [ "$count" -eq 1 ] || refuse "exactly one of .claudinite/settings.yaml, .claudinite/settings.toml or .claudinite/settings.json must exist, found $count in ${here%/.claudinite}"
   settings=$here/settings.$format

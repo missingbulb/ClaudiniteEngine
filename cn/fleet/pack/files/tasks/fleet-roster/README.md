@@ -10,7 +10,7 @@ That one roster then answers two questions, each in its own section of the run s
 
 | question | module | finding | where the answer goes |
 |---|---|---|---|
-| is this repo a **member**? | adoption | an uncovered repo under the owner | the run report's coverage section, which names it and how to bring it in (`cn init`) or leave it out (`exclude`) |
+| is this repo a **member**? | adoption | an uncovered repo under the owner | the run report's coverage section, which names it and how to bring it in (`cn adopt`) or leave it out (`exclude`) |
 | is that membership still **meaning** anything? | freshness | a covered member whose mount has fallen behind | the run report's freshness section |
 | what does every repository read as? | the roster artifact | one `fleet.Verdict` per enumerated repository, the manager's own row with `scope: home` | `.claudinite/fleet/roster.GENERATED.json` in this repo, which a fleet dashboard reads |
 
@@ -30,9 +30,9 @@ For each measured member, by **root cause**, in this precedence:
 
 | state | meaning | what fixes it |
 |---|---|---|
-| `node` | a root `.claudinite-settings.json`: a Node engine member, covered and not compared | moving it to `cn` (`cn init --from-node`); until then its versions are the Node engine's, which nothing here reads |
-| `no-stamp` | declares packs but carries no readable engine pin and no declared pack holds a manifest version — never vendored | run the adoption flow (the `adopt-claudinite` skill, which runs `cn init`). Until then the declaration names packs whose code is not present. |
-| `no-scheduler` | no `claudinite-scheduler.yml`, so no cron, so it will never update itself; every other symptom is downstream of this | `cn init` writes the scheduler; confirm the workflow is enabled in the Actions tab. |
+| `node` | a root `.claudinite-settings.json`: a Node engine member, covered and not compared | moving it to `cn` (the move-member-off-node skill); until then its versions are the Node engine's, which nothing here reads |
+| `no-stamp` | declares packs but carries no readable engine pin and no declared pack holds a manifest version — never vendored | run the adoption flow (the `adopt-claudinite` skill, which runs `cn adopt`). Until then the declaration names packs whose code is not present. |
+| `no-scheduler` | no `claudinite-scheduler.yml`, so no cron, so it will never update itself; every other symptom is downstream of this | `cn adopt` writes the scheduler; confirm the workflow is enabled in the Actions tab. |
 | `behind` | its own update would move it: npm offers a newer engine than its pin, or a pack index offers a newer version of a pack it holds | read the member's recent `Claudinite scheduler` runs: a disabled workflow (GitHub disables cron after 60 days of no activity), a failing update task, or an update PR that never merges all look like this. The gap closes only when its update lands. |
 | `fresh` | its own update would move nothing | — |
 

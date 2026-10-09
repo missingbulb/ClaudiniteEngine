@@ -51,7 +51,7 @@ type PackEntry struct {
 	Rules  map[string]string
 	Accept []Acceptance
 	// Answers are the adoption questions' answers, verbatim, by question
-	// id; cn settings answer is their one writer.
+	// id; cn adopt --answer is their one writer.
 	Answers map[string]string
 }
 

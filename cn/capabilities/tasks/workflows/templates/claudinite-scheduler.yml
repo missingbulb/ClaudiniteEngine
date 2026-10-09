@@ -63,11 +63,11 @@ jobs:
           persist-credentials: false
       - name: download the pinned engine
         run: sh .claudinite/launch version
-      - name: cn schedule drain
+      - name: cn execute dispatch
         env:
           GITHUB_TOKEN: ${{ github.token }}
           CLAUDINITE_VARS: ${{ toJSON(vars) }}
-        run: .claudinite/bin/cn schedule drain
+        run: .claudinite/bin/cn execute dispatch
 
   report-failure:
     needs: [scheduler-run, drain]

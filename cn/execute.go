@@ -33,14 +33,14 @@ import (
 
 func cmdExecute(args []string, stdout io.Writer) error {
 	if len(args) == 0 {
-		return report.New(report.Usage, "execute takes loop or continue")
+		return report.New(report.Usage, "execute takes loop or dispatch")
 	}
 	env := world.Env(os.Getenv)
 	switch args[0] {
 	case "loop":
 		return cmdExecuteLoop(args[1:], stdout, env)
-	case "continue":
-		return cmdExecuteContinue(args[1:], stdout, env)
+	case "dispatch":
+		return cmdExecuteDispatch(args[1:], stdout, env)
 	}
 	return report.New(report.Usage, fmt.Sprintf("unknown execute command %q", args[0]))
 }
@@ -224,6 +224,9 @@ func cmdExecuteLoop(args []string, stdout io.Writer, env world.Env) (err error) 
 			if t.Pack == taskspec.BuiltinPack && t.ID == taskspec.UsageFoldTask {
 				return runUsageFold(r, client, token, branch, w.Target, stdout)
 			}
+			if t.Pack == taskspec.BuiltinPack && t.ID == taskspec.LogsPruneTask {
+				return runLogsPrune(r.root, token, stdout)
+			}
 			return worker.Run(t, w)
 		},
 		Land: func(t taskspec.Task, pr int) execute.Landed {
@@ -256,16 +259,32 @@ func cmdExecuteLoop(args []string, stdout io.Writer, env world.Env) (err error) 
 	return nil
 }
 
-func cmdExecuteContinue(args []string, stdout io.Writer, env world.Env) error {
-	fs := flag.NewFlagSet("execute continue", flag.ContinueOnError)
+// cmdExecuteDispatch is `cn execute dispatch [--continue]`: the executor
+// workflow dispatched on the default branch, to drain what a scheduler run
+// readied; with --continue, the next link of an executor chain that died,
+// or past the chain's depth its report.
+func cmdExecuteDispatch(args []string, stdout io.Writer, env world.Env) error {
+	fs := flag.NewFlagSet("execute dispatch", flag.ContinueOnError)
+	cont := fs.Bool("continue", false, "")
 	if err := flags(fs, args); err != nil {
 		return err
+	}
+	if !*cont && env.Suspended() {
+		fmt.Fprintln(stdout, world.SuspendedNotice())
+		return nil
 	}
 	client, err := jobClient(env)
 	if err != nil {
 		return err
 	}
 	branch := env.DefaultBranch()
+	if !*cont {
+		if err := client.Dispatch(workitem.ExecutorWorkflowFile, branch, nil); err != nil {
+			return report.New(report.IO, fmt.Sprintf("could not dispatch %s on %s: %v", workitem.ExecutorWorkflowFile, branch, err))
+		}
+		fmt.Fprintf(stdout, "- dispatched the executor on %s to drain whatever this scheduler run created\n", branch)
+		return nil
+	}
 	err = recover.Continue(recover.In{
 		Issues: ghport.New(client), Branch: branch, RunURL: env.RunURL(),
 		Depth: recover.NextDepth(env("CLAUDINITE_CONTINUATION_DEPTH")),

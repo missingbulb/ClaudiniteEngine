@@ -122,15 +122,22 @@ func SecretNames(decls []Decl) []string {
 	return out
 }
 
-// The engine's own tasks: the nightly update and the usage fold. They are
-// no pack's and declare nothing; wherever the queue runs they are active.
-// The update stands aside while the repo still holds the update workflow
-// it supersedes, so it never runs twice.
+// The engine's own tasks: the nightly update, the usage fold and the
+// conversation logs' retention. They are no pack's and declare nothing;
+// wherever the queue runs the first two are active, and the retention
+// wherever the repo declares the pack that captures the logs. The update
+// stands aside while the repo still holds the update workflow it
+// supersedes, so it never runs twice.
 const (
 	BuiltinPack   = "engine"
 	UpdateTask    = "update"
 	UsageFoldTask = "usage-fold"
+	LogsPruneTask = "logs-prune"
 )
+
+// CapturePack is the pack whose declaration turns the session capture,
+// and so the logs' retention, on.
+const CapturePack = "claudinite-growth"
 
 // UpdateWorkflow is the nightly update workflow the update task supersedes.
 const UpdateWorkflow = ".github/workflows/claudinite-update.yml"
@@ -148,6 +155,8 @@ var (
 	updateDeclaration []byte
 	//go:embed builtin/usage-fold/task.json
 	usageFoldDeclaration []byte
+	//go:embed builtin/logs-prune/task.json
+	logsPruneDeclaration []byte
 	//go:embed builtin/update/task.md
 	updateInstructions string
 )
@@ -195,7 +204,9 @@ func Discover(repo string, packs []packset.Pack) ([]Task, []DiscoveryError) {
 	var tasks []Task
 	var active []packset.Pack
 	engine := map[string]bool{}
+	captures := false
 	for _, p := range packs {
+		captures = captures || (p.Kind == packset.Canon && p.ID == CapturePack)
 		if p.Kind != packset.Temp {
 			active = append(active, p)
 		}
@@ -213,6 +224,11 @@ func Discover(repo string, packs []packset.Pack) ([]Task, []DiscoveryError) {
 		// The retired pack's fold gives way to the engine's own.
 		// @legacy-tolerance advisory:tasks-settings retire:#144
 		if f.Pack == settings.RetiredTasksPack && f.Name == UsageFoldTask {
+			continue
+		}
+		// The capturing pack's prune gives way to the engine's own.
+		// @legacy-tolerance advisory:none retire:#167
+		if f.Pack == CapturePack && f.Name == LogsPruneTask {
 			continue
 		}
 		terms := Terms(nil)
@@ -249,6 +265,12 @@ func Discover(repo string, packs []packset.Pack) ([]Task, []DiscoveryError) {
 		id   string
 		decl []byte
 	}{UsageFoldTask, usageFoldDeclaration})
+	if captures {
+		builtins = append(builtins, struct {
+			id   string
+			decl []byte
+		}{LogsPruneTask, logsPruneDeclaration})
+	}
 	for _, b := range builtins {
 		d, err := ParseText("task.json", b.decl)
 		if err != nil {

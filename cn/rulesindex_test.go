@@ -10,7 +10,9 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/hooks"
 )
 
-func TestRulesIndexCommand(t *testing.T) {
+// cn adopt with no pack writes the index; the retired cn rules-index still
+// does, saying what it ran instead.
+func TestAdoptWritesTheRulesIndex(t *testing.T) {
 	t.Parallel()
 	bin := buildCN(t, "")
 	repo := t.TempDir()
@@ -25,17 +27,14 @@ func TestRulesIndexCommand(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if out, _, code := runCN(t, bin, nil, "", "rules-index", "--check", "--repo", repo); code != 1 || !strings.Contains(out, "absent") {
-		t.Errorf("absent: exit %d %s", code, out)
-	}
-	if out, _, code := runCN(t, bin, nil, "", "rules-index", "--repo", repo); code != 0 || !strings.Contains(out, "wrote") {
+	if out, _, code := runCN(t, bin, nil, "", "adopt", "--repo", repo); code != 0 || !strings.Contains(out, "wrote") {
 		t.Errorf("write: exit %d %s", code, out)
 	}
 	raw, _ := os.ReadFile(filepath.Join(repo, ".claudinite/cache/claudinite-rules.GENERATED.md"))
 	if string(raw) != "@../shared/packs/hello/RULES.md\n" {
 		t.Errorf("%q", raw)
 	}
-	if out, _, code := runCN(t, bin, nil, "", "rules-index", "--check", "--repo", repo); code != 0 || !strings.Contains(out, "current") {
+	if out, _, code := runCN(t, bin, nil, "", "adopt", "--repo", repo); code != 0 || !strings.Contains(out, "already current") {
 		t.Errorf("current: exit %d %s", code, out)
 	}
 
@@ -44,7 +43,10 @@ func TestRulesIndexCommand(t *testing.T) {
 	if err := os.Rename(filepath.Join(repo, ".claudinite/cache"), filepath.Join(repo, ".claudinite/flat")); err != nil {
 		t.Fatal(err)
 	}
-	out, _, code := runCN(t, bin, nil, "", "rules-index", "--repo", repo)
+	out, errOut, code := runCN(t, bin, nil, "", "rules-index", "--repo", repo)
+	if !strings.Contains(errOut, "`rules-index` is retired; ran `cn adopt --repo") {
+		t.Errorf("no retirement notice: %s", errOut)
+	}
 	if code != 0 || !strings.Contains(out, "removed .claudinite/flat/claudinite-rules.GENERATED.md\nwrote .claudinite/cache/claudinite-rules.GENERATED.md\n") {
 		t.Errorf("move: exit %d %s", code, out)
 	}

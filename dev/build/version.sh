@@ -16,8 +16,7 @@
 # is (year - 2020)*10000 + month*100 + day, as cn/packaging/version's Today
 # computes it; TestVersionDayIsToday holds the two equal. <n> counts today's
 # builds of this major from 1. Nothing here runs Go: the floor is
-# cn/capabilities/checks/checksdk/engine_floor.txt, the file the SDK's EngineFloor is held equal to
-# (`cn version --floor` prints the same).
+# cn/capabilities/checks/checksdk/engine_floor.txt, the file the SDK's EngineFloor is held equal to.
 set -eu
 here=$(cd "$(dirname "$0")/../.." && pwd)
 fail() { echo "version: $*" >&2; exit 2; }

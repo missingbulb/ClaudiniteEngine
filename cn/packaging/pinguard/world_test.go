@@ -299,7 +299,7 @@ func symlinkSettings(t *testing.T, engine string) func(string) {
 	}
 }
 
-// Only cn init writes the first launcher: the bot's update PR may replace
+// Only cn adopt writes the first launcher: the bot's update PR may replace
 // one, never add it, even the one this engine ships.
 func TestPinGuardRefusesTheBotAddingALauncher(t *testing.T) {
 	t.Parallel()

@@ -146,7 +146,7 @@ func guard(in Input) error {
 		if _, held, err := in.Git.Show(base, p); err != nil {
 			return err
 		} else if !held {
-			return fmt.Errorf("the PR adds the launcher, .claudinite/launch, which only cn init writes")
+			return fmt.Errorf("the PR adds the launcher, .claudinite/launch, which only cn adopt writes")
 		}
 		if len(in.Launcher) == 0 || !bytes.Equal(have, in.Launcher) {
 			return fmt.Errorf("the PR changes the launcher, .claudinite/launch, to one this engine does not ship")
