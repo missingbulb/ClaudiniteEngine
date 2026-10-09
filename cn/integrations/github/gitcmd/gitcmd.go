@@ -246,14 +246,10 @@ func (r Repo) Push(remote, branch string) error {
 // DeleteRemoteBranch deletes branch on remote; an already absent branch is
 // not an error.
 func (r Repo) DeleteRemoteBranch(remote, branch string) error {
-	out, err := r.remote("ls-remote", "--heads", remote, "refs/heads/"+branch)
-	if err != nil {
-		return err
-	}
-	if strings.TrimSpace(string(out)) == "" {
+	_, err := r.remote("push", "-q", remote, "--delete", "refs/heads/"+branch)
+	if err != nil && strings.Contains(err.Error(), "remote ref does not exist") {
 		return nil
 	}
-	_, err = r.remote("push", "-q", remote, "--delete", "refs/heads/"+branch)
 	return err
 }
 
@@ -283,13 +279,29 @@ func (r Repo) Show(ref, path string) ([]byte, bool, error) {
 // Regular reports whether path at ref is a regular file, and false when ref
 // has no such path. Show reads a symlink as its target's text.
 func (r Repo) Regular(ref, path string) (bool, error) {
-	out, err := r.run("ls-tree", "-z", ref, "--", path)
-	if err != nil {
-		return false, err
+	regular, err := r.RegularFiles(ref, path)
+	return regular[path], err
+}
+
+// RegularFiles is which of paths are regular files at ref, in one git
+// process.
+func (r Repo) RegularFiles(ref string, paths ...string) (map[string]bool, error) {
+	regular := map[string]bool{}
+	if len(paths) == 0 {
+		return regular, nil
 	}
-	meta, _, ok := strings.Cut(strings.TrimSuffix(string(out), "\x00"), "\t")
-	f := strings.Fields(meta)
-	return ok && len(f) == 3 && f[1] == "blob" && (f[0] == "100644" || f[0] == "100755"), nil
+	out, err := r.run(append([]string{"ls-tree", "-z", ref, "--"}, paths...)...)
+	if err != nil {
+		return nil, err
+	}
+	for _, rec := range strings.Split(string(out), "\x00") {
+		meta, p, ok := strings.Cut(rec, "\t")
+		f := strings.Fields(meta)
+		if ok && len(f) == 3 && f[1] == "blob" && (f[0] == "100644" || f[0] == "100755") {
+			regular[p] = true
+		}
+	}
+	return regular, nil
 }
 
 // MergeBase is the best common ancestor of a and b.
@@ -341,10 +353,10 @@ type File struct {
 	Executable bool
 }
 
-// Tree reads every file under prefix at ref, by repo-relative path. A
-// symlink or submodule under prefix is refused.
-func (r Repo) Tree(ref, prefix string) (map[string]File, error) {
-	out, err := r.run("ls-tree", "-r", "-z", ref, "--", prefix)
+// Tree reads every file under the prefixes at ref, by repo-relative path.
+// A symlink or submodule under them is refused.
+func (r Repo) Tree(ref string, prefixes ...string) (map[string]File, error) {
+	out, err := r.run(append([]string{"ls-tree", "-r", "-z", ref, "--"}, prefixes...)...)
 	if err != nil {
 		return nil, err
 	}

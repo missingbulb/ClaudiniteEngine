@@ -81,6 +81,9 @@ func TestBranchCommitPushDelete(t *testing.T) {
 	if out := git(t, bare, "branch", "--list", "claudinite/*"); out != "" {
 		t.Errorf("branch still on the remote: %s", out)
 	}
+	if err := r.DeleteRemoteBranch("origin", "claudinite/engine-1.2.0"); err != nil {
+		t.Errorf("deleting an absent branch: %v", err)
+	}
 }
 
 // The job token stays in the engine's memory: no git child sees it.
