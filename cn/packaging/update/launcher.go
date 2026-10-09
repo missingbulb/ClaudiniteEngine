@@ -7,7 +7,7 @@ import (
 )
 
 // LauncherPath is the member's launcher, which only an engine update PR
-// and cn init write.
+// and cn adopt write.
 const LauncherPath = ".claudinite/launch"
 
 // EnvSetupScript is the line a Claude Code web environment's Setup script

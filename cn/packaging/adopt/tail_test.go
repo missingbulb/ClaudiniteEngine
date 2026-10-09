@@ -41,7 +41,7 @@ func TestInitAsksSeedsStampsAndHandsOver(t *testing.T) {
 		"answered asks/tone\n",
 		"seeded .github/seeded.yml\n",
 		"stamped HELLO_TOKEN into .github/workflows/claudinite-executor.yml\n",
-		"\nQUESTIONS — 1 adoption question(s) unanswered; ask them in one AskUserQuestion pass and record each with cn settings answer:\n  asks/goals: What is the project for?\n    distill: one line\n",
+		"\nQUESTIONS — 1 adoption question(s) unanswered; ask them in one AskUserQuestion pass and record each with cn adopt --answer <pack>/<question>=<answer>:\n  asks/goals: What is the project for?\n    distill: one line\n",
 		"  [ ] (asks) Add the HELLO_TOKEN secret\n        while off: the greeting task parks\n        done when: a greeting lands\n",
 		"HANDOVER — 4 step(s)",
 	} {

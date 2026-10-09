@@ -1,6 +1,6 @@
 // Package workflows holds the three member workflows this engine version
 // expects, embedded so the updater can tell when a member's copies differ
-// from what a new release needs; the member fixture and cn init write them.
+// from what a new release needs; the member fixture and cn adopt write them.
 // The queue's two are the tasks capability's, served here beside the CI
 // workflow.
 // The nightly update workflow they superseded (the engine/update task runs
@@ -35,11 +35,11 @@ func SupersededTemplate() []byte {
 	return raw
 }
 
-// CronPlaceholder is the scheduler template's cron, which cn init rewrites
+// CronPlaceholder is the scheduler template's cron, which cn adopt rewrites
 // to the repo's hashed minute.
 const CronPlaceholder = queue.CronPlaceholder
 
-// SecretsMarker is the executor template's line beneath which cn init
+// SecretsMarker is the executor template's line beneath which cn adopt
 // writes each declared task secret.
 const SecretsMarker = queue.SecretsMarker
 

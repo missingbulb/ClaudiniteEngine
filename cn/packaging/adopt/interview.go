@@ -13,8 +13,7 @@ import (
 
 // The interview's writes: an answer the session asked a person for,
 // recorded verbatim on the pack's entry. The settings file is the one
-// place an answer lives; cn settings answer and init's and adopt's
-// --answer are its one writer.
+// place an answer lives; cn adopt's --answer is its one writer.
 
 // AnswerFlag is one --answer <pack>/<question>=<text>.
 type AnswerFlag struct{ Address, Text string }
@@ -127,7 +126,7 @@ func writeQuestions(out io.Writer, pending []interview.Pending) {
 	if n == 0 {
 		return
 	}
-	fmt.Fprintf(out, "\nQUESTIONS — %d adoption question(s) unanswered; ask them in one AskUserQuestion pass and record each with cn settings answer:\n", n)
+	fmt.Fprintf(out, "\nQUESTIONS — %d adoption question(s) unanswered; ask them in one AskUserQuestion pass and record each with cn adopt --answer <pack>/<question>=<answer>:\n", n)
 	for _, p := range pending {
 		for _, q := range p.Questions {
 			fmt.Fprintf(out, "  %s/%s: %s\n", p.Pack.Token(), q.ID, oneLine(q.Prompt))

@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strconv"
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/items"
@@ -41,8 +40,22 @@ func cmdWorkConverge(args []string, stdout io.Writer) error {
 	pr := fs.Int("pr", 0, "")
 	repo := fs.String("repo", "", "")
 	itemFile := fs.String("item-file", "", "")
+	recordFailed := fs.String("record-failed", "", "")
 	if err := flags(fs, args); err != nil {
 		return err
+	}
+	if *recordFailed != "" {
+		if *issue <= 0 {
+			return report.New(report.Usage, "--record-failed needs --issue N, the item it records")
+		}
+		// A convergence refused or never run still owes the census its
+		// record.
+		line, err := items.ExecRecord(*recordFailed, "#"+strconv.Itoa(*issue), "failed")
+		if err != nil {
+			return report.New(report.Usage, err.Error())
+		}
+		fmt.Fprintln(stdout, line)
+		return nil
 	}
 	plan := items.Plan{Issue: *issue, Outcome: *outcome, Summary: *summary, PR: *pr}
 	if err := items.CheckPlan(plan); err != nil {
@@ -61,18 +74,6 @@ func cmdWorkConverge(args []string, stdout io.Writer) error {
 	fmt.Fprintln(stdout, "the transition below is yours to execute.\nMake these calls with your GitHub tools, in this order, changing nothing. Then stop.")
 	fmt.Fprintln(stdout)
 	fmt.Fprintln(stdout, items.SessionScript(item, plan, *repo))
-	return nil
-}
-
-func cmdWorkRecordExec(args []string, stdout io.Writer) error {
-	if len(args) != 3 {
-		return report.New(report.Usage, "work record-exec <pack>/<task> <slot> <success|failed>")
-	}
-	line, err := items.ExecRecord(args[0], args[1], args[2])
-	if err != nil {
-		return report.New(report.Usage, err.Error())
-	}
-	fmt.Fprintln(stdout, line)
 	return nil
 }
 
@@ -144,26 +145,4 @@ func (hookUserPack) Prepare(repo string) string {
 		return ""
 	}
 	return r.Line()
-}
-
-// cmdSession is `cn session user-pack`, the SessionStart step by hand.
-func cmdSession(args []string, stdout io.Writer) error {
-	if len(args) == 0 || args[0] != "user-pack" {
-		return report.New(report.Usage, "session takes user-pack [--repo DIR]")
-	}
-	fs := flag.NewFlagSet("session user-pack", flag.ContinueOnError)
-	repo := fs.String("repo", ".", "")
-	if err := flags(fs, args[1:]); err != nil {
-		return err
-	}
-	root, err := filepath.Abs(*repo)
-	if err != nil {
-		return report.Wrap(report.IO, "session user-pack", err)
-	}
-	r, ok := userpack.Prepare(root, userpack.Env{Getenv: os.Getenv, Client: http.DefaultClient})
-	if !ok {
-		return report.New(report.Verify, "session user-pack: this repo does not declare "+userpack.Pack)
-	}
-	fmt.Fprintln(stdout, r.Line())
-	return nil
 }

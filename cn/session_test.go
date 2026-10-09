@@ -60,13 +60,16 @@ func TestConvergePrintsTheTransitionAndRefusesAnItemItDoesNotHold(t *testing.T) 
 	}
 }
 
-func TestRecordExecPrintsTheLineOrNamesTheBadArgument(t *testing.T) {
+func TestRecordFailedPrintsTheLineOrNamesTheBadArgument(t *testing.T) {
 	t.Parallel()
 	var out bytes.Buffer
-	if err := cmdWork([]string{"record-exec", "acme-pack/a", "#7", "success"}, &out); err != nil || out.String() != "claudinite-task-exec v1 acme-pack/a [#7] success\n" {
+	if err := cmdWork([]string{"converge", "--issue", "7", "--record-failed", "acme-pack/a"}, &out); err != nil || out.String() != "claudinite-task-exec v1 acme-pack/a [#7] failed\n" {
 		t.Error(out.String(), err)
 	}
-	if err := cmdWork([]string{"record-exec", "acme-pack/a", "#7"}, &out); report.CodeOf(err) != report.Usage {
+	if err := cmdWork([]string{"converge", "--record-failed", "acme-pack/a"}, &out); report.CodeOf(err) != report.Usage {
+		t.Error(err)
+	}
+	if err := cmdWork([]string{"converge", "--issue", "7", "--record-failed", "acme-pack"}, &out); report.CodeOf(err) != report.Usage {
 		t.Error(err)
 	}
 }

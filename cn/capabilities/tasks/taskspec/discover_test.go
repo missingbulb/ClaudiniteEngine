@@ -161,7 +161,7 @@ func TestTheUsageFoldTask(t *testing.T) {
 	if got := mergepolicy.Expression(u.Decl["automerge"]); got != "rolling-usage-files;rolling-usage-file-moves" {
 		t.Errorf("automerge %q", got)
 	}
-	if u.Decl["code_work"] != "cn usage fold" || u.Decl["code_work_timeout"] != 600.0 {
+	if u.Decl["code_work"] != "in-process: usage fold" || u.Decl["code_work_timeout"] != 600.0 {
 		t.Errorf("code-work %v in %v", u.Decl["code_work"], u.Decl["code_work_timeout"])
 	}
 	if u.TaskPath() != "engine/scheduler/queue/tasks/usage-fold/task.json" {

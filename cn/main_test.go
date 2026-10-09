@@ -6,15 +6,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/checksdk"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/version"
 )
 
 var buildRoot string
@@ -107,28 +103,6 @@ func TestVersionPrintsInjectedVersion(t *testing.T) {
 	}
 	if len(lines) < 2 || !strings.Contains(lines[1], "abc1234") {
 		t.Fatalf("second line must carry the commit: %q", out)
-	}
-}
-
-func TestVersionDayPrintsTodaysDayNumber(t *testing.T) {
-	t.Parallel()
-	before := version.Today(time.Now())
-	out, errOut, code := runInProc([]string{"version", "--day"}, "")
-	after := version.Today(time.Now())
-	if code != 0 {
-		t.Fatalf("exit %d: %s", code, errOut)
-	}
-	got := strings.TrimSpace(out)
-	if got != strconv.Itoa(before) && got != strconv.Itoa(after) {
-		t.Fatalf("version --day printed %q, want %d", out, before)
-	}
-}
-
-func TestVersionFloorPrintsTheSDKsEngineFloor(t *testing.T) {
-	t.Parallel()
-	out, errOut, code := runInProc([]string{"version", "--floor"}, "")
-	if code != 0 || out != checksdk.EngineFloor+"\n" {
-		t.Fatalf("exit %d, %q %s", code, out, errOut)
 	}
 }
 

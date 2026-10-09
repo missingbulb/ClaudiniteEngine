@@ -1,4 +1,4 @@
-// Package adopt is cn init and cn adopt: the member files, the pack
+// Package adopt is cn adopt: the member files, the pack
 // declaration and the first vendoring. Init adopts a repo from nothing:
 // it picks the newest allowed engine version, fetches and verifies it and
 // runs its selftest, reads and verifies every declared pack (plus what
@@ -32,7 +32,7 @@ import (
 // DefaultPackage is the engine package a pin names when it names none.
 const DefaultPackage = "@claudinite/cli"
 
-// Input is one cn init.
+// Input is one cn adopt in a repo it has not adopted yet.
 type Input struct {
 	Repo string
 	// FullName is the repo's "owner/name", which the scheduler's cron is

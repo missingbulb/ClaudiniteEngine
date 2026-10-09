@@ -1,11 +1,8 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"io"
-	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -14,46 +11,10 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/mergepolicy"
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/taskspec"
 	usagefold "github.com/missingbulb/ClaudiniteEngine/cn/growth/usage"
-	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/report"
 	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/gitcmd"
 	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/githubapi"
 	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/world"
 )
-
-// cmdUsage is `cn usage fold`, the engine/usage-fold task's code-work run
-// by hand: the target comes from the variables the executor sets.
-func cmdUsage(args []string, stdout io.Writer) error {
-	if len(args) == 0 || args[0] != "fold" {
-		return report.New(report.Usage, "usage takes fold")
-	}
-	fs := flag.NewFlagSet("usage fold", flag.ContinueOnError)
-	repo := fs.String("repo", "", "")
-	if err := flags(fs, args[1:]); err != nil {
-		return err
-	}
-	root, err := codeWorkRoot(*repo)
-	if err != nil {
-		return report.Wrap(report.IO, "usage fold", err)
-	}
-	r, err := loadTaskRepo(root)
-	if err != nil {
-		return err
-	}
-	env := world.Env(os.Getenv)
-	token := env("GITHUB_TOKEN")
-	client, err := jobClient(env)
-	if err != nil {
-		return err
-	}
-	pr, _ := strconv.Atoi(env("CLAUDINITE_TARGET_PR"))
-	target := execute.Target{Mode: env("CLAUDINITE_TARGET_MODE"), Branch: env("CLAUDINITE_TARGET_BRANCH"), PR: pr}
-	res := runUsageFold(r, client, token, env.DefaultBranch(), target, stdout)
-	if !res.OK {
-		return report.New(report.IO, res.Why)
-	}
-	return nil
-}
 
 // runUsageFold is the usage fold run in process: both halves folded over
 // the checkout and delivered on the target the executor resolved.

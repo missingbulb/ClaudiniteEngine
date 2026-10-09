@@ -142,7 +142,7 @@ stray (a single rule joins the nearest existing pack, or waits as a handoff note
   pack; never where it was distilled from - that is the pack's provenance.
 - **`provenance/`** - `_pack.md` with a `born` entry whose `Source` is the evidence set (the
   project, the documents, the dates), and one file per rule with its `born` entry, each ending its
-  rule with the marker that names it: `provenance.mjs mark` creates the files and proposes the
+  rule with the marker that names it: `cn provenance mark` creates the files and proposes the
   slugs, `append` writes the entries (the growth pack's changing-pack-elements skill has the
   grammar).
 - **Index entries** — a row in packs/README.md and, for a new pack kind, the

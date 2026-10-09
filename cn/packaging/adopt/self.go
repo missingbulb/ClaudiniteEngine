@@ -29,7 +29,7 @@ func CheckOwnManifest(exe string, roots []ed25519.PublicKey, platform string, no
 	}
 	rawSig, err := os.ReadFile(filepath.Join(dir, "manifest.sig.json"))
 	if err != nil {
-		return fmt.Errorf("manifest signature: %s holds no readable manifest.sig.json, and cn init never runs from an unsigned manifest", dir)
+		return fmt.Errorf("manifest signature: %s holds no readable manifest.sig.json, and cn adopt never runs from an unsigned manifest", dir)
 	}
 	var s sign.SignedManifest
 	if err := json.Unmarshal(rawSig, &s); err != nil {

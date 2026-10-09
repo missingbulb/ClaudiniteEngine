@@ -55,7 +55,7 @@ func (h *heldSources) set(name, path string) {
 	h.path[name] = path
 }
 
-const regenerate = "run `cn tasks flat --write` and commit the result"
+const regenerate = "run `cn adopt` and commit the result"
 
 // memberFileCurrent judges the member file of a repo keeping a
 // .claudinite/settings.*: it must state what the settings file and the
