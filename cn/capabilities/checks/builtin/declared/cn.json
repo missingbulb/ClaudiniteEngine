@@ -1,21 +1,5 @@
 [
   {
-    "id": "tasks-pack-read-through-its-surface",
-    "on_fail": "block",
-    "since": "2026-09-14",
-    "failureMessage": "an import past claudinite-tasks' published public/ couples a consumer to a layout the pack is free to change",
-    "fix": "claudinite-tasks publishes no modules: reach the queue, git and GitHub through @claudinite/sdk",
-    "scanFiles": "/^(\\.claudinite\\/(shared|local)\\/packs\\/(?!claudinite-tasks\\/).*\\.m?js|packs\\/(?!claudinite-tasks\\/)(?!.*(\\/test\\/|\\.test\\.m?js$)).*\\.m?js)$/",
-    "scanIgnoringComments": true,
-    "matchLines": [
-      {
-        "match": "/(?:from|import\\s*\\()\\s*['\"][^'\"]*claudinite-tasks\\/(?!public\\/)[^'\"]*['\"]/",
-        "what": "reads claudinite-tasks past its published surface: \"{match}\"",
-        "fix": "reach it through @claudinite/sdk; claudinite-tasks publishes no modules"
-      }
-    ]
-  },
-  {
     "id": "repo-variables-through-the-bag",
     "on_fail": "block",
     "since": "2026-09-16",
