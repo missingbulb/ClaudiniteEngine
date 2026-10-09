@@ -76,7 +76,7 @@ func render(mods []module) ([]byte, error) {
 }
 
 func main() {
-	mods, err := linked(".", "./cn")
+	mods, err := linked(".", "./cn/cli")
 	if err == nil {
 		var out []byte
 		if out, err = render(mods); err == nil {

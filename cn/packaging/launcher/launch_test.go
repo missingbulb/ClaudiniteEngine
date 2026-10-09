@@ -49,7 +49,7 @@ func setup(m *testing.M) (int, error) {
 	defer func() { _ = os.RemoveAll(tools) }()
 	pkg := "github.com/missingbulb/ClaudiniteEngine/cn/packaging/version"
 	builds := []struct{ out, pkg, ldflags string }{
-		{filepath.Join(tools, hostBin), "./cn", "-X " + pkg + ".version=" + testVersion},
+		{filepath.Join(tools, hostBin), "./cn/cli", "-X " + pkg + ".version=" + testVersion},
 		{filepath.Join(tools, "regstub"), "./dev/release/verify/stubs/regstub", ""},
 	}
 	errs := make(chan error, len(builds))

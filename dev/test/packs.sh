@@ -15,7 +15,7 @@ packs=$(cd "$1" && pwd)
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 
-go build -o "$work/cn" ./cn
+go build -o "$work/cn" ./cn/cli
 (cd "$packs" && CLAUDINITE_CN=$work/cn sh tools/checks/test.sh)
 (cd "$packs" && CLAUDINITE_CN=$work/cn node --test 'packs/claudinite-single-repo-dashboard/test/**/*.test.mjs')
 

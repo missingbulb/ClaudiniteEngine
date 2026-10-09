@@ -9,7 +9,7 @@ import (
 
 // The committed notices are what the modules linked into cn ship today.
 func TestTheNoticesMatchTheModulesLinkedIntoCn(t *testing.T) {
-	mods, err := linked("../../..", "./cn")
+	mods, err := linked("../../..", "./cn/cli")
 	if err != nil {
 		t.Fatal(err)
 	}

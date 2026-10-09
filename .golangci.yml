@@ -1,7 +1,7 @@
 # Capability boundaries (docs/design.md, "Code structure"): each capability
 # imports only the standard library and the common packages listed under
-# "common" below. Tool folders (cn's own command files, the launcher, dev/)
-# may import capabilities. Every exception is a commented entry here.
+# "common" below. Tool folders (cn/cli, the launcher, dev/) may import
+# capabilities. Every exception is a commented entry here.
 #
 # The common packages are the ones the engine's former shared/ folder held,
 # now each living in its segment; each rule names them in full.
@@ -158,6 +158,13 @@ linters:
             # register with the engine's built-ins.
             - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/builtin
             - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/declared
+            # A fleet sweep is a task's code-work: it reads its token from the
+            # executor's secrets bag and the run's clock as any code-work does.
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/execute
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/world
+            # The fleet reads packs off the shelf through the same verified
+            # reader adoption and the update use.
+            - github.com/missingbulb/ClaudiniteEngine/cn/packaging/fetch
         tasks:
           list-mode: strict
           files:
@@ -345,7 +352,7 @@ linters:
             - github.com/missingbulb/ClaudiniteEngine/cn/fleet/curation
             - github.com/missingbulb/ClaudiniteEngine/cn/fleet/packseed
             - github.com/missingbulb/ClaudiniteEngine/cn/helpers
-            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks
             # The engine side of the coded checks' pipe: the run hands each
             # built checks binary a server answering its SDK calls.
             # The SDK sources a pack's checks build compiles against.
