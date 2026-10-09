@@ -171,7 +171,8 @@ func Key(c Config, srcs []Source) string {
 }
 
 // lock takes the key's build lock, a file created exclusively and holding
-// the pid; one older than staleLock is taken over.
+// the pid; one older than staleLock, or whose holder has exited, is taken
+// over.
 func lock(c Config, key string) (func(), error) {
 	p := c.lockPath(key)
 	for attempt := 0; attempt < 2; attempt++ {
@@ -184,8 +185,7 @@ func lock(c Config, key string) (func(), error) {
 		if !errors.Is(err, os.ErrExist) {
 			return nil, err
 		}
-		st, serr := os.Stat(p)
-		if serr != nil || time.Since(st.ModTime()) < staleLock {
+		if held(p) {
 			return nil, ErrBuilding
 		}
 		_ = os.Remove(p)
@@ -193,9 +193,34 @@ func lock(c Config, key string) (func(), error) {
 	return nil, ErrBuilding
 }
 
-func locked(c Config, key string) bool {
-	st, err := os.Stat(c.lockPath(key))
-	return err == nil && time.Since(st.ModTime()) < staleLock
+// held says the lock at p is a build under way: younger than staleLock,
+// its holder alive. A lock being written, its pid not yet in it, is held.
+func held(p string) bool {
+	st, err := os.Stat(p)
+	if err != nil {
+		return false
+	}
+	if time.Since(st.ModTime()) >= staleLock {
+		return false
+	}
+	raw, err := os.ReadFile(p)
+	if err != nil {
+		return true
+	}
+	pid, err := strconv.Atoi(strings.TrimSpace(string(raw)))
+	if err != nil {
+		return true
+	}
+	return alive(pid)
+}
+
+// Building says a build of key is under way.
+func Building(c Config, key string) bool { return held(c.lockPath(key)) }
+
+// Failed says the last build of key failed and none is retrying it.
+func Failed(c Config, key string) bool {
+	_, err := os.Stat(c.failedPath(key))
+	return err == nil && !Building(c, key)
 }
 
 // sdkFiles are the SDK's files as one module: its sources and a go.mod
@@ -511,7 +536,7 @@ func Wait(c Config, key string, timeout time.Duration) (string, error) {
 		if _, err := os.Stat(c.Binary(key)); err == nil {
 			return c.Binary(key), nil
 		}
-		if st, err := os.Stat(c.failedPath(key)); err == nil && !locked(c, key) &&
+		if st, err := os.Stat(c.failedPath(key)); err == nil && !Building(c, key) &&
 			(st.ModTime().After(start) || time.Since(start) > time.Second) {
 			return "", fmt.Errorf("the checks build failed; see %s", filepath.Join(c.Dir(key), "build.log"))
 		}

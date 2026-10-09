@@ -2,6 +2,7 @@ package checks
 
 import (
 	"fmt"
+	"path/filepath"
 	"time"
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/build"
@@ -80,7 +81,7 @@ func (s Service) coded(repo, event string, call Call, config func() declared.Con
 	}
 	binary, err := build.Wait(s.Build, key, 0)
 	if err != nil {
-		v.Errors = append(v.Errors, "the coded judges did not run: the checks binary is not built yet")
+		v.Errors = append(v.Errors, s.notBuilt(repo, key))
 		return
 	}
 	judges, err := build.Judges(s.Build, key)
@@ -128,4 +129,20 @@ func (s Service) coded(repo, event string, call Call, config func() declared.Con
 			v.Advice = append(v.Advice, fmt.Sprintf("[claudinite %s] %s", id, f.Sentence))
 		}
 	}
+}
+
+// notBuilt is the error line of a judge that found no binary for key. A
+// build nobody is running, one a session killed or none ever started, is
+// started here, so the next call finds it.
+func (s Service) notBuilt(repo, key string) string {
+	switch {
+	case build.Failed(s.Build, key):
+		return "the coded judges did not run: the checks build failed; see " + filepath.Join(s.Build.Dir(key), "build.log")
+	case build.Building(s.Build, key):
+		return "the coded judges did not run: the checks binary is not built yet"
+	}
+	if err := build.Start(s.Exe, repo, key); err != nil {
+		return "the coded judges did not run: the checks binary is not built yet, and starting its build failed: " + err.Error()
+	}
+	return "the coded judges did not run: the checks binary is not built yet; its build started"
 }

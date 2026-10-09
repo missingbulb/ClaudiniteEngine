@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -364,4 +365,59 @@ func TestBuildRecordsItsTimingAndOutcome(t *testing.T) {
 	if !ok || rec.OK || rec.Took < 0 {
 		t.Errorf("record of a failed build: %+v %v", rec, ok)
 	}
+}
+
+// A lock whose holder has exited is a build nobody is running: a session
+// can kill a detached build, and the next one must not wait out staleLock
+// behind it.
+func TestADeadBuildersLockIsTakenOver(t *testing.T) {
+	c := cfg(t)
+	if err := os.MkdirAll(c.checksRoot(), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	gone := exec.Command("true")
+	if err := gone.Run(); err != nil {
+		t.Skip("no true on PATH")
+	}
+	if err := os.WriteFile(c.lockPath("k"), []byte(strconv.Itoa(gone.Process.Pid)+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if Building(c, "k") {
+		t.Error("a dead holder's lock reads as a build under way")
+	}
+	r, err := lock(c, "k")
+	if err != nil {
+		t.Fatalf("a dead holder's lock was not taken over: %v", err)
+	}
+	if !Building(c, "k") {
+		t.Error("a live holder's lock does not read as a build under way")
+	}
+	if _, err := lock(c, "k"); err != ErrBuilding {
+		t.Errorf("a live holder's lock: %v", err)
+	}
+	r()
+}
+
+func TestFailedNamesAFailedBuildNobodyRetries(t *testing.T) {
+	c := cfg(t)
+	if err := os.MkdirAll(c.Dir("k"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if Failed(c, "k") {
+		t.Error("a key with no build reads as failed")
+	}
+	if err := os.WriteFile(c.failedPath("k"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if !Failed(c, "k") {
+		t.Error("a failed build does not read as failed")
+	}
+	r, err := lock(c, "k")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if Failed(c, "k") {
+		t.Error("a failed build being retried reads as failed")
+	}
+	r()
 }
