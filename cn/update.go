@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -54,6 +55,7 @@ func updateDepsWith(repo, token string, stdout io.Writer) (update.Deps, error) {
 		return update.Deps{}, err
 	}
 	d.GitHub, d.FullName = gh, gh.Repo
+	d.SelfRun, _ = strconv.ParseInt(os.Getenv("GITHUB_RUN_ID"), 10, 64)
 	return d, nil
 }
 
