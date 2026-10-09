@@ -1,5 +1,5 @@
 mapped packs[0] "claudinite-lifecycle" → packs.declared "claudinite-lifecycle"
-mapped packs[1] "claudinite-tasks" → packs.declared "claudinite-tasks"
+dropped packs[1] "claudinite-tasks": the task queue is the engine's (#146), so nothing declares it; its settings are the tasks block
 mapped packs[2] "basics" → packs.declared "basics"
 mapped packs[2].config → packs.declared "basics" config
 mapped packs[3] "git-github" → packs.declared "git-github"
@@ -12,5 +12,5 @@ mapped packs[7].config → packs.declared "claude-code-web-users-support" config
 carried packs[7].answers
 mapped rules → checks.rules
 mapped accept → checks.accept
-mapped taskScheduler.agenticTaskInvocationEndpoints → packs.declared "claudinite-tasks" config.agenticTaskInvocationEndpoints
-mapped taskScheduler.disabledTasks → packs.declared "claudinite-tasks" config.disabledTasks
+mapped taskScheduler.agenticTaskInvocationEndpoints → tasks.routines
+mapped taskScheduler.disabledTasks → tasks.disabled

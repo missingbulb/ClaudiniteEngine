@@ -16,8 +16,8 @@ mapped packs[6] "local/claudinite-website" → packs.declared "local/claudinite-
 mapped packs[7] "claude-code-web-users-support" → packs.declared "claude-code-web-users-support"
 dropped packs[7].version: the installed version is the vendored pack.json's
 mapped packs[7].config → packs.declared "claude-code-web-users-support" config
-mapped packs[8] "claudinite-tasks" → packs.declared "claudinite-tasks"
-dropped packs[8].version: the installed version is the vendored pack.json's
+dropped packs[8] "claudinite-tasks": the task queue is the engine's (#146), so nothing declares it; its settings are the tasks block
+dropped packs[8].version: the task queue is not a pack, so no entry carries it
 mapped packs[9] "cloudflare-site" → packs.declared "cloudflare-site"
 dropped packs[9].version: the installed version is the vendored pack.json's
 mapped packs[10] "node" → packs.declared "node"
@@ -26,6 +26,6 @@ mapped packs[11] "headless-browser" → packs.declared "headless-browser"
 dropped packs[11].version: the installed version is the vendored pack.json's
 mapped packs[12] "public-website" → packs.declared "public-website"
 dropped packs[12].version: the installed version is the vendored pack.json's
-mapped taskScheduler.agenticTaskInvocationEndpoints → packs.declared "claudinite-tasks" config.agenticTaskInvocationEndpoints
+mapped taskScheduler.agenticTaskInvocationEndpoints → tasks.routines
 dropped engineVersion: the pin is engine.version in .claudinite/settings.*
 mapped accept → checks.accept
