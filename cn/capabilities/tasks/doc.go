@@ -91,6 +91,11 @@
 //     execute.TestAnItemThisRunRevertedIsNeverRePickedByIt
 //   - A human re-queue is a label edit any executor may claim from at once.
 //     execute.TestASecondExecutorWinsAParkedItemAHumanReQueued
+//   - A hand-off closes the executor's episode, so an item requeued from
+//     its agent is claimed afresh, while the agent-held item keeps its
+//     claim's standing against a later twin.
+//     execute.TestAnItemRequeuedFromItsAgentIsPickedAfresh,
+//     execute.TestAnAgentHeldTwinStillHoldsItsEarlierClaim
 //   - An executor run drains every pickable item, one at a time; a hand-off
 //     ends its occupancy and the run keeps draining.
 //     execute.TestARunDrainsEveryPickableItemOneAtATime,
