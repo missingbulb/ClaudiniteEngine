@@ -40,7 +40,7 @@ func TestOnlyTheRootsFilesReadTheDevrootsTag(t *testing.T) {
 		t.Fatal(err)
 	}
 	sort.Strings(got)
-	want := "cn/integrations/licenseapi/override_dev.go cn/integrations/licenseapi/override_dev_test.go cn/integrations/licenseapi/override_real.go cn/integrations/licenseapi/override_test.go cn/packaging/trust/roots_dev.go cn/packaging/trust/roots_dev_test.go cn/packaging/trust/roots_real.go cn/packaging/trust/roots_real_test.go"
+	want := "cn/fleet/licenseapi/override_dev.go cn/fleet/licenseapi/override_dev_test.go cn/fleet/licenseapi/override_real.go cn/fleet/licenseapi/override_test.go cn/packaging/trust/roots_dev.go cn/packaging/trust/roots_dev_test.go cn/packaging/trust/roots_real.go cn/packaging/trust/roots_real_test.go"
 	if strings.Join(got, " ") != want {
 		t.Fatalf("files reading the devroots tag: %v, want %s", got, want)
 	}

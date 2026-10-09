@@ -1,4 +1,4 @@
-package builtin
+package checks
 
 import (
 	"testing"

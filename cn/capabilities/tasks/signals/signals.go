@@ -23,7 +23,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/calendar"
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/precondition"
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/taskspec"
-	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/usage"
+	"github.com/missingbulb/ClaudiniteEngine/cn/growth/usage"
 	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/jsregex"
 	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem"
 	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/world"
