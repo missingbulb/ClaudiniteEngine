@@ -38,6 +38,8 @@ type Ctx struct {
 	git gitcmd.Repo
 
 	allOnce, filesOnce, mbOnce, diffOnce sync.Once
+	baseOnce, branchOnce                 sync.Once
+	branch                               string
 	allFiles, files                      []string
 	mergeBase                            string
 	vsBase, deleted                      []string
@@ -255,13 +257,28 @@ func (c *Ctx) ReadBase(path string) (string, bool) {
 		}
 		return *t, true
 	}
-	s, ok := c.git.ShowText(mb, path)
-	if !ok {
+	paths := []string{path}
+	c.baseOnce.Do(func() {
+		c.diff()
+		paths = append(append(paths, c.vsBase...), c.deleted...)
+	})
+	files, err := c.git.Files(mb, paths)
+	if err != nil {
 		c.baseReads[path] = nil
 		return "", false
 	}
-	c.baseReads[path] = &s
-	return s, true
+	for _, p := range paths {
+		if d, ok := files[p]; ok {
+			s := string(d)
+			c.baseReads[p] = &s
+		} else {
+			c.baseReads[p] = nil
+		}
+	}
+	if t := c.baseReads[path]; t != nil {
+		return *t, true
+	}
+	return "", false
 }
 
 // Commits are the change's commit messages.
@@ -273,7 +290,10 @@ func (c *Ctx) Commits() []string {
 }
 
 // Branch is the checked-out branch.
-func (c *Ctx) Branch() string { return c.git.AbbrevHead() }
+func (c *Ctx) Branch() string {
+	c.branchOnce.Do(func() { c.branch = c.git.AbbrevHead() })
+	return c.branch
+}
 
 // IntroducedMerges are the change's merge commits not on the base branch.
 func (c *Ctx) IntroducedMerges() []gitcmd.Merge {
