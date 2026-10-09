@@ -47,7 +47,7 @@ say() { echo "run.sh: $*" >&2; }
 
 go build -o "$work/timeit$exe" ./rewrite-temp/probe/desktop-timings/timeit
 go build -o "$work/derive$exe" ./rewrite-temp/probe/hook-latency/derive
-CGO_ENABLED=0 go build -trimpath -buildvcs=false -ldflags "-s -w" -o "$work/cn$exe" ./cn
+CGO_ENABLED=0 go build -trimpath -buildvcs=false -ldflags "-s -w" -o "$work/cn$exe" ./cn/cli
 timeit=$work/timeit$exe
 cn=$work/cn$exe
 
