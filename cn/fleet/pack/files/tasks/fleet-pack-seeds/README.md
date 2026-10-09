@@ -53,7 +53,7 @@ One PUT to the member's default branch, guarded by the blob sha the read returne
 
 ## A dormant member is not written to
 
-The run covers every member, and a member declaring `dormant` on its `claudinite-tasks` entry ([the scheduler's gate](../../../claudinite-growth/skills/writing-tasks/SKILL.md)) is one the sweep writes nothing to — it is read, classified `dormant`, and named in the summary under that state. It declared itself out of the recurring work, and a commit landed in it from the outside is exactly the upkeep it opted out of; its frozen mount would leave it un-writable indefinitely anyway.
+The run covers every member, and a member declaring `tasks.dormant` ([the scheduler's gate](../../../claudinite-growth/skills/writing-tasks/SKILL.md)) is one the sweep writes nothing to — it is read, classified `dormant`, and named in the summary under that state. It declared itself out of the recurring work, and a commit landed in it from the outside is exactly the upkeep it opted out of; its frozen mount would leave it un-writable indefinitely anyway.
 
 ## Not a fleet mechanism
 

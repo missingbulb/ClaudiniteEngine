@@ -56,7 +56,7 @@ Strip the member (names, paths, and product concepts stay in the origin repo —
 
 ### 5. Open the PR
 
-Deliver on the branch your item names — push to `Target-branch:` and open the PR against `main` on it, the way [deliver-pr.md](../../../claudinite-tasks/public/deliver-pr.md) says. Never a direct push, never a search for an open pull request, never a branch of your own. Write surface is **`packs/` only**: the new pack's files and the `packs/README.md` index row. Don't "improve" unrelated packs while you're in there. Keep every commit and PR terse, and **put the issue reference in the commit message** (`Refs #<n>` for the tracker below), in the commit itself and not only the PR body.
+Deliver on the branch your item names — push to `Target-branch:` and open the PR against `main` on it, the way your instructions say to deliver a pull request. Never a direct push, never a search for an open pull request, never a branch of your own. Write surface is **`packs/` only**: the new pack's files and the `packs/README.md` index row. Don't "improve" unrelated packs while you're in there. Keep every commit and PR terse, and **put the issue reference in the commit message** (`Refs #<n>` for the tracker below), in the commit itself and not only the PR body.
 
 ### 6. Tell the members that evidenced the pack
 

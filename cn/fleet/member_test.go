@@ -55,7 +55,7 @@ const manifest = "sha512-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 
 var declarations = map[settings.Format]string{
 	settings.YAML: "engine:\n  version: \"1.61001.1\"\n  manifest: \"" + manifest + "\"\npacks:\n  declared:\n    - basics\n    - id: claudinite-tasks\n      config:\n        dormant: true\n",
-	settings.TOML: "[engine]\nversion = \"1.61001.1\"\nmanifest = \"" + manifest + "\"\n\n[packs]\ndeclared = [\"basics\"]\n",
+	settings.TOML: "[engine]\nversion = \"1.61001.1\"\nmanifest = \"" + manifest + "\"\n\n[packs]\ndeclared = [\"basics\"]\n\n[tasks]\ndormant = true\n",
 	settings.JSON: "{\"engine\": {\"version\": \"1.61001.1\", \"manifest\": \"" + manifest + "\"}, \"packs\": {\"declared\": [\"basics\"]}}\n",
 }
 
@@ -75,7 +75,9 @@ func TestReadMemberReadsEachFormat(t *testing.T) {
 		if m.SettingsPath() != ".claudinite/settings."+string(f) {
 			t.Errorf("%s: path %s", f, m.SettingsPath())
 		}
-		if dormant := f == settings.YAML; m.Dormant != dormant {
+		// The YAML member is dormant through the retired claudinite-tasks entry,
+		// the TOML one through the tasks block.
+		if dormant := f != settings.JSON; m.Dormant != dormant {
 			t.Errorf("%s: dormant %v", f, m.Dormant)
 		}
 	}

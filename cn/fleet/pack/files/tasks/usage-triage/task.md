@@ -23,6 +23,6 @@ and its possible causes.
 Never merge what you open, and file no issue. Where you settle no cause, say in the
 run's summary what you read and what would settle it, and open nothing for it.
 
-Deliver the pull request through the [shared procedure](../../../claudinite-tasks/public/deliver-pr.md).
+Deliver the pull request as your instructions say to deliver a pull request.
 Its body names the cause you settled on and what settled it, the provenance fields
 you read, the window the finding was written from, and the finding's rule and subject.

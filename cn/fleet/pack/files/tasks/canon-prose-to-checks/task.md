@@ -7,8 +7,8 @@ A canon rule is the most expensive prose there is: every session in every declar
 it on every turn, whether or not it ever applies. Converting one to a check moves that cost to the
 moment the rule is actually broken.
 
-**The corpus is the roots this repo curates** — the `packs/` shelf, plus any root this pack's
-`write_paths` config names (the `promote-scope` check resolves them). Work the
+**The corpus is the roots this repo curates** — the `packs/` shelf, plus any root the settings'
+`fleet.writePaths` names (the `promote-scope` check resolves them). Work the
 *backlog*: prose a promotion run just wrote is that run's own upgrade pass, not this sweep's.
 
 ## The method lives in the skill
@@ -26,8 +26,7 @@ don't re-derive it here. This worker frames the unattended run around it and nam
 2. **Convert per the skill** - author the check in its owning pack - a `declared-checks.json`
    entry, or a Go check under `checks/` on the check SDK - and add the fixture test that fires on a violating input and stays quiet on a clean
    one. Then apply the skill's **deletion test** to the prose the check now stands beside.
-3. **Deliver by the shared procedure —
-   [deliver-pr.md](../../../claudinite-tasks/public/deliver-pr.md)**, under the title
+3. **Deliver as your instructions say to deliver a pull request**, under the title
    `Claudinite canon: prose to checks`. The commit references the tracking issue so the
    `task-lifecycle` gate passes, and the whole suite is green before you push.
 4. **Say what converted in the PR body** — the prose converted and the check id it became, per

@@ -3,6 +3,7 @@ package pack
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/taskspec"
@@ -39,6 +40,10 @@ func TestAFleetManagerRunsTheFleetPack(t *testing.T) {
 	}
 	if fleet == nil || fleet.Kind != packset.Engine || fleet.ProsePath() == "" || len(fleet.Skills) == 0 {
 		t.Fatalf("fleet pack: %+v", fleet)
+	}
+	// pack-version-history's worker opens its own pull request.
+	if !slices.Contains(fleet.Manifest.GitHubActions, "openPr") {
+		t.Errorf("fleet pack grants %v, want openPr", fleet.Manifest.GitHubActions)
 	}
 	tasks, errs := taskspec.Discover(repo, s.Packs)
 	if len(errs) > 0 {
