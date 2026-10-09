@@ -10,6 +10,12 @@ import (
 // and cn init write.
 const LauncherPath = ".claudinite/launch"
 
+// EnvSetupScript is the line a Claude Code web environment's Setup script
+// holds. The script starts above the checkout, one checkout or several, so
+// it pre-warms the engine cache in each checkout holding a launcher and
+// never fails the session.
+const EnvSetupScript = `for d in . *; do [ -f "$d/.claudinite/launch" ] && (cd "$d" && sh .claudinite/launch env install); done; true`
+
 // writeLauncher replaces the member's launcher with the launcher of got,
 // the engine the update moves to, and reports whether it changed. A
 // release whose signed manifest hashes no launcher, or a repo holding
