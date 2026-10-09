@@ -7,7 +7,7 @@
 // decline nobody sees is permanent silence. The same verdict is taken at
 // the scheduler's tick and at the executor's pick. Terms, reasons and the
 // partial mode are string-identical with the Node engine's
-// precondition-policy.mjs at missingbulb/Claudinite@057841ac; the grammar
+// precondition-policy.mjs; the grammar
 // and the term vocabulary's static half are capabilities/tasks/taskspec's.
 package precondition
 

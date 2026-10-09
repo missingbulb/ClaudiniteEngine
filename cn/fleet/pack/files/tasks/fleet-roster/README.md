@@ -22,7 +22,7 @@ These were two — a daily `fleet-census` and a weekly `fleet-freshness` — and
 
 That produced divergence in the classification itself. `exclude` was applied at different points, so an excluded repo that still carried a declaration read **covered** to one sweep and **out of scope** to the other. And each half's `unknown` failed its own run knowing nothing of the other's, so one green run beside one red one told a reader nothing about which half of the fleet picture to trust.
 
-One walk means one membership verdict per repo, one report, and one failure boundary. See [#788](https://github.com/missingbulb/Claudinite/issues/788).
+One walk means one membership verdict per repo, one report, and one failure boundary.
 
 ## The freshness classification
 

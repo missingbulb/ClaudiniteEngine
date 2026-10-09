@@ -8,7 +8,7 @@ import (
 )
 
 // The cases are the Node engine's own, from test/items/work-item.test.mjs
-// and vocabulary.test.mjs at missingbulb/Claudinite@057841ac.
+// and vocabulary.test.mjs.
 
 func TestTitleRoundTrips(t *testing.T) {
 	if got := (Title{Pack: "acme-pack-b", Task: "acme-task-c"}).String(); got != "[claudinite-work] acme-pack-b/acme-task-c" {

@@ -4,7 +4,7 @@
 // engine's own built-in root. The runtime and the author-time check
 // validate against the one function here, so the accepted shape cannot
 // drift between them. Rules and messages are string-identical with the
-// Node engine's task-contract.mjs at missingbulb/Claudinite@057841ac; the
+// Node engine's task-contract.mjs; the
 // precondition grammar's static half lives here too, and tasks/precondition
 // holds how each term judges.
 package taskspec

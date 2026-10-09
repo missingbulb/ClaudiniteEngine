@@ -6,7 +6,7 @@ import (
 )
 
 // The cases are the growth pack's own work half, from test/provenance-
-// integrity.test.mjs at missingbulb/Claudinite@057841ac; the member's
+// integrity.test.mjs; the member's
 // manifest here is a pack.json where the Node fixture's was a pack.mjs.
 
 func changeRecorded(t *testing.T, base, change map[string]string) []want {

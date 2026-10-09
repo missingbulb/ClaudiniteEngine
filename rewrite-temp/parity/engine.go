@@ -1,9 +1,9 @@
 // Package parity runs one scenario against two engines, the frozen Node
-// engine (missingbulb/Claudinite at a pinned commit, named by
-// CLAUDINITE_NODE_ENGINE) and cn, and asserts they behave the same: which
-// rules reach a session, which skills are mounted, which checks fire on
-// which path and line. Both engines are driven as black boxes, through
-// their command lines; this package imports nothing of cn.
+// engine (the checkout CLAUDINITE_NODE_ENGINE names) and cn, and asserts
+// they behave the same: which rules reach a session, which skills are
+// mounted, which checks fire on which path and line. Both engines are
+// driven as black boxes, through their command lines; this package imports
+// nothing of cn.
 package parity
 
 import (

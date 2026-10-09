@@ -1,7 +1,7 @@
 # parity
 
-The harness that runs the frozen Node engine (missingbulb/Claudinite at the
-commit `CLAUDINITE_NODE_ENGINE` checks out) and `cn` over the same input and
+The harness that runs the frozen Node engine (the checkout
+`CLAUDINITE_NODE_ENGINE` names) and `cn` over the same input and
 asserts they agree. The decision faces (tasks, update and growth) are answered by `../cndecide`, built beside `cn`, so the shipped binary carries none of them. Package documentation is in `engine.go`; each face's
 fixture format is at the top of its test file.
 

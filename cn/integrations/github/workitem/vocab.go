@@ -4,9 +4,9 @@
 // line is the task path, and whose few body fields are the only facts it
 // carries beyond that. The vocabulary here (labels, markers, fields,
 // leases, trailers) is the compatibility surface across engine versions,
-// string-identical with the Node engine's task-constants.mjs at
-// missingbulb/Claudinite@057841ac; the grammar beside it reads every
-// spelling any engine ever wrote and writes only today's.
+// string-identical with the Node engine's task-constants.mjs; the grammar
+// beside it reads every spelling any engine ever wrote and writes only
+// today's.
 package workitem
 
 import (
