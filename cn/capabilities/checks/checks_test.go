@@ -397,3 +397,42 @@ func TestListBuiltNeverBuilds(t *testing.T) {
 		t.Errorf("after a build: %v %v", listed, err)
 	}
 }
+
+// A judge that finds no binary and no build under way starts one, so a
+// build a session killed is not waited on until a Stop; a build that
+// failed says so.
+func TestJudgeStartsABuildNobodyIsRunning(t *testing.T) {
+	s := service(t)
+	repo := helloRepo(t)
+	marker := filepath.Join(t.TempDir(), "started")
+	exe := filepath.Join(t.TempDir(), "cn")
+	if err := os.WriteFile(exe, []byte("#!/bin/sh\necho \"$@\" > "+marker+"\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	s.Exe = exe
+	call := Call{Tool: "Bash", Input: []byte(`{"command":"ls"}`)}
+	v := s.Judge(repo, "pre-tool-use", call, nil, time.Now().Add(5*time.Second))
+	if len(v.Errors) != 1 || !strings.Contains(v.Errors[0], "not built yet") || !strings.Contains(v.Errors[0], "started") {
+		t.Errorf("no binary, no build: %+v", v)
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		if raw, err := os.ReadFile(marker); err == nil && strings.HasPrefix(string(raw), "check build --repo "+repo) {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("the judge started no build")
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	key, _, err := s.Key(repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = os.MkdirAll(s.Build.Dir(key), 0o755)
+	_ = os.WriteFile(filepath.Join(s.Build.Dir(key), "build.failed"), nil, 0o644)
+	v = s.Judge(repo, "pre-tool-use", call, nil, time.Now().Add(5*time.Second))
+	if len(v.Errors) != 1 || !strings.Contains(v.Errors[0], "the checks build failed") || !strings.Contains(v.Errors[0], "build.log") {
+		t.Errorf("a failed build: %+v", v)
+	}
+}

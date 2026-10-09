@@ -1,8 +1,9 @@
 #!/bin/sh
 # The fast check every pull request and every push to main waits on (ci.yml):
 # golangci-lint, shellcheck and actionlint in the background while the short
-# tests take the cores. Each linter's output is printed whole after the tests;
-# the exit is non-zero when any of the four failed.
+# tests take the cores, then the checks build budget alone. Each linter's
+# output is printed whole after the tests; the exit is non-zero when any of
+# the five failed.
 #
 # golangci-lint's standard linters include govet. actionlint v1.7.11, the last
 # release that builds on Go 1.24, covers the engine's workflows and the member
@@ -31,4 +32,7 @@ wait "$sc" || rc=1
 cat "$out/shellcheck"
 wait "$al" || rc=1
 cat "$out/actionlint"
+# The checks binary's compile held to its budgets once the cores are free,
+# since it times a cold compile.
+CN_BUILD_BUDGET=1 go test -run TestChecksBuildBudget -count=1 -v ./cn/capabilities/checks/build/ || rc=1
 exit "$rc"
