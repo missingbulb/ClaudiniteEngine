@@ -383,7 +383,7 @@ func fleetRoster(args []string, stdout, stderr io.Writer, start time.Time) error
 	repos, err := fleet.Enumerate(s.gh, s.cfg.Owner)
 	if err != nil {
 		if errors.Is(err, fleet.ErrNoOwnedRepos) {
-			err = fmt.Errorf("%w; refusing to run a sweep that would close every adoption issue as stale", err)
+			err = fmt.Errorf("%w; refusing to report every member gone", err)
 		}
 		s.crumb("roster", "error", 0, 0)
 		return s.failed(err)
@@ -395,12 +395,7 @@ func fleetRoster(args []string, stdout, stderr io.Writer, start time.Time) error
 	r := roster.Build(s.gh, repos, s.home, s.cfg, s.shelf)
 	cov, fresh := roster.CoverageView(r), roster.FreshnessView(r)
 	covered, total := len(cov.Covered)+len(cov.Dormant), len(r)
-	actions, err := roster.ConvergeAdoption(s.gh, s.home, cov.Uncovered, append(append([]string{}, cov.Covered...), cov.Dormant...), cov.Ignored)
-	if err != nil {
-		s.crumb("roster", "error", covered, total)
-		return s.failed(err)
-	}
-	emit(stdout, roster.RenderCoverage(s.cfg.Owner, s.home, cov, actions)+"\n\n"+roster.RenderFreshness(s.cfg.Owner, s.home, fresh))
+	emit(stdout, roster.RenderCoverage(s.cfg.Owner, s.home, cov)+"\n\n"+roster.RenderFreshness(s.cfg.Owner, s.home, fresh))
 	clock, err := world.Env(os.Getenv).Clock()
 	if err != nil {
 		s.crumb("roster", "error", covered, total)

@@ -6,21 +6,15 @@
 
 Daily, over the `FLEET_GITHUB_TOKEN` PAT: read this repo's `fleet` settings block (`owner`, `exclude`) out of its own checkout, enumerate every repo that owner owns, and walk it **once** — one read of each repo's `.claudinite/` and its declaration, the manifest of each pack a member declares, and one scheduler-workflow read for each member the freshness question actually measures. What a member would move to is read once per sweep from npm and the pack indexes, the same reads that member's own `cn update` makes.
 
-That one roster then answers two questions, each with its own issue family and its own section of the run summary:
+That one roster then answers two questions, each in its own section of the run summary:
 
 | question | module | finding | where the answer goes |
 |---|---|---|---|
-| is this repo a **member**? | adoption | an uncovered repo under the owner | an `Adopt <repo> into the Claudinite fleet` issue asking for `cn init` |
+| is this repo a **member**? | adoption | an uncovered repo under the owner | the run report's coverage section, which names it and how to bring it in (`cn init`) or leave it out (`exclude`) |
 | is that membership still **meaning** anything? | freshness | a covered member whose mount has fallen behind | the run report's freshness section |
 | what does every repository read as? | the roster artifact | one `fleet.Verdict` per enumerated repository, the manager's own row with `scope: home` | `.claudinite/fleet/roster.GENERATED.json` in this repo, which a fleet dashboard reads |
 
-It **reports; it does not repair** a member. Adoption issues open while a repo is uncovered, close `completed` once covered and `not planned` once excluded. The one file it writes is its own artifact, in this repo: `cn fleet roster` rewrites `.claudinite/fleet/roster.GENERATED.json` when any verdict moved (a recompute that differs only in its `generated` stamp writes nothing), and the executor lands it under `expected_outcome: amend_existing_or_create_new_pr` with the `fleet-roster-artifact` automerge policy, which names that one path, so one pull request accumulates the day's changes and merges without a person.
-
-### Why freshness files no issue
-
-A per-member drift issue would be a second surface for a fact the roster artifact already publishes for the dashboard, and an issue would need closing when the member caught up, which the artifact simply restates on the next sweep. A member that fell behind hours after a sweep would go unreported while open issues named members that had already caught up.
-
-Coverage still files, because nothing else answers coverage.
+It **reports; it files nothing and repairs nothing.** A repo outside the fleet is shown, never nagged. The one file it writes is its own artifact, in this repo: `cn fleet roster` rewrites `.claudinite/fleet/roster.GENERATED.json` when any verdict moved (a recompute that differs only in its `generated` stamp writes nothing), and the executor lands it under `expected_outcome: amend_existing_or_create_new_pr` with the `fleet-roster-artifact` automerge policy, which names that one path, so one pull request accumulates the day's changes and merges without a person.
 
 ## Why one task
 
@@ -73,7 +67,7 @@ Its *implementation* scans every repo under the owner, but its declaration, sche
 
 A repo whose **declaration** cannot be read or parsed is `unknown` to **both** questions — it is the input they share. A repo whose **freshness read** fails (the scheduler read, npm, a pack index) is `unknown` to the **freshness** question alone: the coverage question already read that declaration successfully and keeps its verdict.
 
-Either kind fails the run: no issue is opened for an unknown repo, no open issue is closed on its behalf, and the sweep exits non-zero with both halves' unknowns named together. The executor treats a non-zero code-work subprocess as a failed task and parks the item; a 403 the token's grant explains prints `claudinite-needs-human: action`; the executor parks the item `needs-human-failure` and names the `action` kind in the park comment, so an unusable token or scope escalates rather than silently shrinking the fleet. When the fleet check finds the owner on no fleet plan, or the job has no Actions OIDC token to ask with, the command reads no member, says why and parks the same way; a license server that does not answer leaves the run unverified rather than parked.
+Either kind fails the run: the sweep exits non-zero with both halves' unknowns named together. The executor treats a non-zero code-work subprocess as a failed task and parks the item; a 403 the token's grant explains prints `claudinite-needs-human: action`; the executor parks the item `needs-human-failure` and names the `action` kind in the park comment, so an unusable token or scope escalates rather than silently shrinking the fleet. When the fleet check finds the owner on no fleet plan, or the job has no Actions OIDC token to ask with, the command reads no member, says why and parks the same way; a license server that does not answer leaves the run unverified rather than parked.
 
 ## Why the declaration reads as it does
 
