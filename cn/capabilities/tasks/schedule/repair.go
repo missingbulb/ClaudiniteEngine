@@ -103,14 +103,7 @@ func PlanRepair(in RepairIn) (ops []Op, closed map[int]bool) {
 		}
 		t, _ := taskOf(i)
 		if i.IsAdopted() {
-			var marks []string
-			for _, l := range i.Labels {
-				if workitem.IsQueueLabel(l) {
-					marks = append(marks, l)
-				}
-			}
-			ops = append(ops, Op{Kind: KindRelease, Rule: "orphaned", Issue: i.Number, Labels: marks,
-				IssueBody: workitem.HumanTextOf(i.Body), Body: ReleasedComment(t.ID())})
+			ops = append(ops, release(i, "orphaned", ReleasedComment(t.ID())))
 			continue
 		}
 		ops = append(ops, Op{Kind: KindRetire, Rule: "orphaned", Issue: i.Number, From: i.Status(), To: workitem.StatusRejected,
@@ -122,6 +115,10 @@ func PlanRepair(in RepairIn) (ops []Op, closed map[int]bool) {
 		}
 		b := workitem.ParseBody(i.Body)
 		resolution := in.ResolutionOf(b.EndsWhen)
+		if resolution != "merged" && i.IsAdopted() {
+			ops = append(ops, release(i, "ended", EndedReleasedComment(b.EndsWhen)))
+			continue
+		}
 		op := Op{Kind: KindRetire, Rule: "ended", Issue: i.Number, From: i.Status(), To: workitem.StatusRejected,
 			Close: "not_planned", At: at, Body: EndedParkComment(b.EndsWhen, resolution)}
 		if resolution == "merged" {
@@ -202,6 +199,19 @@ func PlanRepair(in RepairIn) (ops []Op, closed map[int]bool) {
 		}
 	}
 	return ops, closed
+}
+
+// release frees a person's own issue from the queue: its queue labels and
+// machine block come off and it stays open.
+func release(i workitem.Issue, rule, comment string) Op {
+	var marks []string
+	for _, l := range i.Labels {
+		if workitem.IsQueueLabel(l) {
+			marks = append(marks, l)
+		}
+	}
+	return Op{Kind: KindRelease, Rule: rule, Issue: i.Number, Labels: marks,
+		IssueBody: workitem.HumanTextOf(i.Body), Body: comment}
 }
 
 // threadEffect mirrors on the in-memory item exactly what the shell

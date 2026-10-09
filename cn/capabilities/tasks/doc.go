@@ -211,6 +211,10 @@
 //     queue's labels and machine block come off and nothing else changes,
 //     while a filed item for a gone task closes rejected.
 //     schedule.TestAPersonsOwnIssueWhoseTaskIsGoneIsReleasedNotClosed
+//   - A parked person's own issue whose awaited pull request closed
+//     without merging is released the same way and stays open, while one
+//     whose pull request merged closes done and a filed item closes
+//     rejected. schedule.TestAPersonsOwnIssueWhosePRClosedUnmergedIsReleasedNotClosed
 //
 // # Requests
 //

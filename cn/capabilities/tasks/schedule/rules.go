@@ -296,6 +296,14 @@ func EndedParkComment(target int, resolution string) string {
 		fmt.Sprintf("Closing it `%s` — nothing landed, so if the work is still wanted, re-queue it (%s).", workitem.StatusRejected, workitem.RequeueHint)
 }
 
+// EndedReleasedComment explains releasing a person's own issue whose
+// awaited pull request closed without merging.
+func EndedReleasedComment(target int) string {
+	return fmt.Sprintf("#%d was closed without merging, which ends what this issue was parked waiting for. ", target) +
+		"It was yours before the queue adopted it, so it stays open: the queue's labels and its machine block are removed and nothing else is changed. " +
+		"Mark it `" + workitem.OriginAdHoc + "` again if the work is still wanted."
+}
+
 // PeriodForTasks is a task's period from its cadence term at HEAD.
 func PeriodForTasks(tasks []taskspec.Task) func(id string) (time.Duration, bool) {
 	byID := index(tasks)

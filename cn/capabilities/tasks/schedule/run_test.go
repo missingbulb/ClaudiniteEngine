@@ -2,6 +2,7 @@ package schedule_test
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -489,6 +490,50 @@ func TestAPersonsOwnIssueWhoseTaskIsGoneIsReleasedNotClosed(t *testing.T) {
 	}
 	if f, _ := h.gh.Get(filed); f.State != "closed" || !f.HasLabel(workitem.StatusRejected) {
 		t.Fatalf("a filed item whose task is gone still closes: %+v", f)
+	}
+	h.gh.Clock.Advance(time.Hour)
+	h.run("")
+	again, _ := h.gh.Get(own)
+	if again.State != "open" || len(again.Labels) != 1 || len(again.Comments) != 1 || again.Body != human {
+		t.Fatalf("a second run touched the released issue: %+v", again)
+	}
+}
+
+func TestAPersonsOwnIssueWhosePRClosedUnmergedIsReleasedNotClosed(t *testing.T) {
+	h := newHarness(t, requestTask())
+	h.gh.Roles["owner"] = "admin"
+	unmerged := h.gh.Seed(sim.StoredIssue{Issue: workitem.Issue{Title: "Quote totals", State: "closed"}, PullRequest: true})
+	merged := h.gh.Seed(sim.StoredIssue{Issue: workitem.Issue{Title: "Show fees", State: "closed"}, PullRequest: true, MergedAt: calendar.ISO(t0)})
+	path := ".claudinite/shared/packs/acme-pack/tasks/acme-task/task.md"
+	human := "Quote the totals people pay."
+	adopted := func(target int) string {
+		return workitem.WithMachineBlock(human, workitem.WithEndsWhen(path+"\n\nModel: opus\n\nExecute the Claudinite task above.", target))
+	}
+	own := h.gh.Seed(sim.StoredIssue{Author: "owner", Issue: workitem.Issue{Title: "Quote fee-inclusive totals",
+		Body: adopted(unmerged), Labels: []string{"bug", workitem.OriginAdHoc, workitem.StatusNeedsHumanApprove}}})
+	landed := h.gh.Seed(sim.StoredIssue{Author: "owner", Issue: workitem.Issue{Title: "Show fees up front",
+		Body: adopted(merged), Labels: []string{workitem.OriginAdHoc, workitem.StatusNeedsHumanApprove}}})
+	filed := h.gh.Seed(sim.StoredIssue{Issue: workitem.Issue{Title: "[claudinite-work] acme-pack/acme-task",
+		Body: workitem.WithEndsWhen(path+"\n\nExecute the Claudinite task above.\n", unmerged), Labels: []string{workitem.OriginPlanned, workitem.StatusNeedsHumanApprove}}})
+	h.run("")
+	got, _ := h.gh.Get(own)
+	if got.State != "open" {
+		t.Fatalf("closed the person's own issue: %+v; log %v", got, h.logs)
+	}
+	if len(got.Labels) != 1 || got.Labels[0] != "bug" {
+		t.Fatalf("labels %v: only the person's own label may stay; log %v", got.Labels, h.logs)
+	}
+	if got.Body != human {
+		t.Fatalf("body %q: the machine block must go and the person's text stay", got.Body)
+	}
+	if len(got.Comments) != 1 || !strings.Contains(got.Comments[0].Body, fmt.Sprintf("#%d", unmerged)) || !strings.Contains(got.Comments[0].Body, workitem.OriginAdHoc) {
+		t.Fatalf("comments %v", got.Comments)
+	}
+	if l, _ := h.gh.Get(landed); l.State != "closed" || !l.HasLabel(workitem.StatusDone) {
+		t.Fatalf("a person's own issue whose PR merged still closes done: %+v", l)
+	}
+	if f, _ := h.gh.Get(filed); f.State != "closed" || !f.HasLabel(workitem.StatusRejected) {
+		t.Fatalf("a filed item whose PR closed unmerged still closes rejected: %+v", f)
 	}
 	h.gh.Clock.Advance(time.Hour)
 	h.run("")
