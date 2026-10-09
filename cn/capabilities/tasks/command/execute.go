@@ -96,21 +96,24 @@ func pullDiff(git gitcmd.Repo, base string) func(land.PR) ([]mergepolicy.Entry, 
 		if err != nil {
 			return nil, err
 		}
+		before, err := git.Files(mb, files)
+		if err != nil {
+			return nil, err
+		}
+		after, err := git.Files(pr.HeadSHA, files)
+		if err != nil {
+			return nil, err
+		}
 		entries := make([]mergepolicy.Entry, 0, len(files))
 		for _, f := range files {
 			e := mergepolicy.Entry{File: f}
-			for _, side := range []struct {
-				ref string
-				to  **string
-			}{{mb, &e.Before}, {pr.HeadSHA, &e.After}} {
-				b, ok, err := git.Show(side.ref, f)
-				if err != nil {
-					return nil, err
-				}
-				if ok {
-					s := string(b)
-					*side.to = &s
-				}
+			if b, ok := before[f]; ok {
+				s := string(b)
+				e.Before = &s
+			}
+			if b, ok := after[f]; ok {
+				s := string(b)
+				e.After = &s
 			}
 			entries = append(entries, e)
 		}

@@ -205,24 +205,25 @@ func deliverTree(sdk *SDK, root, base string, target Target, t taskspec.Task, it
 	if _, err := gitOK(sdk.Git, "-C", tree, "commit", "--quiet", "-m", TreeCommitMessage(t, item, paths)); err != nil {
 		return 0, err
 	}
-	head, err := gitOK(sdk.Git, "-C", tree, "rev-parse", "HEAD")
+	shas, err := gitOK(sdk.Git, "-C", tree, "rev-parse", "HEAD", "HEAD^{tree}")
 	if err != nil {
 		return 0, err
 	}
-	built, err := gitOK(sdk.Git, "-C", tree, "rev-parse", "HEAD^{tree}")
-	if err != nil {
-		return 0, err
+	f := strings.Fields(shas)
+	if len(f) != 2 {
+		return 0, fmt.Errorf("git rev-parse answered %q for the commit and its tree", shas)
 	}
+	head, built := f[0], f[1]
 	// A recompute that builds the tree the branch already holds pushes
 	// nothing: a new head would discard every check already run on it.
 	if target.PR != 0 {
 		if _, err := gitOK(sdk.Git, "fetch", "--quiet", "origin", target.Branch); err == nil {
-			if there, err := gitOK(sdk.Git, "rev-parse", "FETCH_HEAD^{tree}"); err == nil && there == built {
+			if there, err := gitOK(sdk.Git, "rev-parse", "FETCH_HEAD^{tree}"); err == nil && strings.TrimSpace(there) == built {
 				return target.PR, nil
 			}
 		}
 	}
-	push := []string{"push", "--quiet", "--force", "origin", strings.TrimSpace(head) + ":refs/heads/" + target.Branch}
+	push := []string{"push", "--quiet", "--force", "origin", head + ":refs/heads/" + target.Branch}
 	if why := pushRefusal(push, base); why != "" {
 		return 0, errors.New("the push is refused: " + why)
 	}
@@ -251,11 +252,26 @@ func summaryOf(paths []string) string {
 // restorePaths puts paths in the checkout back as HEAD has them, removing
 // those HEAD lacks.
 func restorePaths(git func(args ...string) (gitcmd.Ran, error), root string, paths []string) {
+	if len(paths) == 0 {
+		return
+	}
+	ran, err := git(append([]string{"ls-tree", "-z", "--name-only", "HEAD", "--"}, paths...)...)
+	if err != nil || ran.Code != 0 {
+		return
+	}
+	held := map[string]bool{}
+	for _, p := range strings.Split(ran.Stdout, "\x00") {
+		held[p] = true
+	}
+	var back []string
 	for _, p := range paths {
-		if ran, err := git("cat-file", "-e", "HEAD:"+p); err == nil && ran.Code == 0 {
-			_, _ = git("checkout", "HEAD", "--", p)
+		if held[p] {
+			back = append(back, p)
 			continue
 		}
 		_ = os.Remove(filepath.Join(root, filepath.FromSlash(p)))
+	}
+	if len(back) > 0 {
+		_, _ = git(append([]string{"checkout", "HEAD", "--"}, back...)...)
 	}
 }
