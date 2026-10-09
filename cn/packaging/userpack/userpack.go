@@ -407,7 +407,8 @@ func treeFiles(dir string) []string {
 
 // checkout is the store's default branch with only dir checked out, in a
 // directory the caller removes: a clone, since a private store is
-// reachable only through the credentials git already carries.
+// reachable only through the credentials git already carries. The clone
+// fetches no file, and checking dir out fetches only dir's.
 // CLAUDINITE_USER_PACKS_CLONE_URL replaces the address.
 func checkout(store *Store, dir string, getenv func(string) string) (string, error) {
 	clone, err := os.MkdirTemp("", "claudinite-personal-pack-")
@@ -418,16 +419,20 @@ func checkout(store *Store, dir string, getenv func(string) string) (string, err
 	if url == "" {
 		url = "https://github.com/" + store.Repo
 	}
-	if err := git("", "clone", "--depth", "1", "--filter=blob:none", "--sparse", url, clone); err != nil {
+	if err := git("", "clone", "--quiet", "--depth", "1", "--filter=blob:none", "--no-checkout", url, clone); err != nil {
 		return clone, err
 	}
-	return clone, git(clone, "sparse-checkout", "set", "--no-cone", dir)
+	err = git(clone, "checkout", "--quiet", "HEAD", "--", dir)
+	if err != nil && strings.Contains(err.Error(), "did not match any file") {
+		return clone, nil
+	}
+	return clone, err
 }
 
 func git(dir string, args ...string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), cloneTimeout)
 	defer cancel()
-	cmd := proc.CommandContext(ctx, "git", args...)
+	cmd := proc.CommandContext(ctx, "git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)...)
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
 	out, err := cmd.CombinedOutput()
