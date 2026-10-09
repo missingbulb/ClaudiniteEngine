@@ -3,8 +3,8 @@ package update
 import (
 	"fmt"
 
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/land"
 	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/githubapi"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/land"
 )
 
 // updateMerger is the landing lane's merge over the updater's clients.

@@ -10,9 +10,9 @@ import (
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/execute"
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/taskspec"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/workitem"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/world"
 	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/report"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/world"
 	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/workflows"
 )
 

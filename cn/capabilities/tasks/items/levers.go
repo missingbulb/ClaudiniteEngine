@@ -15,9 +15,9 @@ import (
 	"time"
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/calendar"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/queue"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/world"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/queue"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/workitem"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/world"
 )
 
 // ForcedContext is the Context a hand-created item carries when the

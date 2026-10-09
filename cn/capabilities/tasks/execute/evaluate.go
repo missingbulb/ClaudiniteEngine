@@ -8,7 +8,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/runner"
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/signals"
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/taskspec"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/workitem"
 )
 
 // Picker asks a task's precondition again at the pick, for one

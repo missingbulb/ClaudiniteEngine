@@ -14,8 +14,8 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/signals"
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/sim"
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/taskspec"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/world"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/workitem"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/world"
 )
 
 func gatedTask(t *testing.T, preconditions []any, module string) taskspec.Task {

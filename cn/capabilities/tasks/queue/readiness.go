@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/calendar"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/workitem"
 )
 
 // IsReleasable reports whether a blocked item's wait is over: every

@@ -6,8 +6,8 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/workitem"
 	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/jsregex"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem"
 )
 
 // The work-list protocol between this sweep, which writes the issues,

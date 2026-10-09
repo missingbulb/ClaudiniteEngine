@@ -9,9 +9,9 @@ import (
 	"strings"
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/items"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/world"
 	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/report"
 	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/ghport"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/world"
 )
 
 func cmdWork(args []string, stdout io.Writer) error {

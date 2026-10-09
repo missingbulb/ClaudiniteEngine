@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/world"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/world"
 )
 
 func envOf(m map[string]string) world.Env { return func(k string) string { return m[k] } }

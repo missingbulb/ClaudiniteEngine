@@ -6,8 +6,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/land"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/world"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/land"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/world"
 )
 
 // Repo is the in-memory repository history the signals read: commits on

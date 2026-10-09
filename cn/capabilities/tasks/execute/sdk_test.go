@@ -7,9 +7,9 @@ import (
 	"testing"
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/sim"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/workitem"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/world"
 	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/gitcmd"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/world"
 )
 
 // sdkWorld is the simulated repository under the job's token.

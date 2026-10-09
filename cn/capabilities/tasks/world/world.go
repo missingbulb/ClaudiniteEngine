@@ -11,7 +11,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/workitem"
 )
 
 // ErrGone is a read of an object the repository no longer has (404, 410):

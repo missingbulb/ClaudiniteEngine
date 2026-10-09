@@ -4,9 +4,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/queue"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/world"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/queue"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/workitem"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/world"
 )
 
 // ClaimComment is the lease's comment: who claimed, when, and the run.

@@ -10,7 +10,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem"
 	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/descriptor"
 	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/settings"
 )
@@ -25,7 +24,7 @@ const (
 	// DisabledKey lists the pack/task ids the scheduler never files.
 	DisabledKey = "disabled"
 	// DormantKey stops the repo's recurring work while true.
-	DormantKey = workitem.DormantConfigKey
+	DormantKey = settings.DormantTasksKey
 	// MinuteRateKey is what a minute of Actions costs, which the usage
 	// fold prices each run's billed minutes at; absent prices none.
 	MinuteRateKey = "actionsMinuteRate"

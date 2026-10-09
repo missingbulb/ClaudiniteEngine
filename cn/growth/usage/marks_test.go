@@ -3,7 +3,7 @@ package usage
 import (
 	"testing"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/workitem"
 )
 
 // A mark a file holds as something other than text is compared the way

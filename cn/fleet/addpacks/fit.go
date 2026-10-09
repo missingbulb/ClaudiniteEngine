@@ -7,8 +7,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/workitem"
 	"github.com/missingbulb/ClaudiniteEngine/cn/fleet"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem"
 	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/packindex"
 )
 

@@ -7,11 +7,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/land"
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/mergepolicy"
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/sim"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/land"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/world"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/workitem"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/world"
 )
 
 const targetTask = "acme-pack-b/acme-task-c"

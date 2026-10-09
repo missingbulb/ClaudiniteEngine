@@ -8,9 +8,9 @@ import (
 	"strings"
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/execute"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/land"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/world"
 	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/githubapi"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/land"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/world"
 )
 
 var (

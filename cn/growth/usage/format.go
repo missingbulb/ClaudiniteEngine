@@ -4,8 +4,8 @@ import (
 	"strings"
 	"unicode/utf16"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/queue"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/queue"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/workitem"
 )
 
 // UsagePath is the session half's rolling file, and LegacyUsagePath where

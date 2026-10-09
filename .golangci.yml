@@ -51,7 +51,7 @@ linters:
             - "**/fleet/licenseapi/**"
             - "**/integrations/github/githubapi/**"
             - "**/integrations/github/gitcmd/**"
-            - "**/integrations/github/workitem/**"
+            - "**/capabilities/tasks/workitem/**"
             - "**/fleet/curation/**"
             - "**/fleet/packseed/**"
             - "**/helpers/**"
@@ -83,7 +83,7 @@ linters:
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/transcript
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/githubapi
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/gitcmd
-            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/workitem
             - github.com/missingbulb/ClaudiniteEngine/cn/fleet/curation
             - github.com/missingbulb/ClaudiniteEngine/cn/fleet/packseed
             - github.com/missingbulb/ClaudiniteEngine/cn/helpers
@@ -114,7 +114,7 @@ linters:
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/transcript
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/githubapi
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/gitcmd
-            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/workitem
             - github.com/missingbulb/ClaudiniteEngine/cn/fleet/curation
             - github.com/missingbulb/ClaudiniteEngine/cn/fleet/packseed
             - github.com/missingbulb/ClaudiniteEngine/cn/helpers
@@ -123,7 +123,7 @@ linters:
             - github.com/missingbulb/ClaudiniteEngine/cn/packaging/scaffold
             # The usage fold counts task runs as well as sessions, so it reads
             # the queue's run records and outcome vocabulary.
-            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/queue
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/queue
         fleet:
           list-mode: strict
           files:
@@ -151,7 +151,7 @@ linters:
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/transcript
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/githubapi
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/gitcmd
-            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/workitem
             - github.com/missingbulb/ClaudiniteEngine/cn/helpers
             - github.com/missingbulb/ClaudiniteEngine/cn/fleet
             # The fleet pack's built-in checks live with the fleet and
@@ -163,9 +163,6 @@ linters:
           files:
             - "**/capabilities/tasks/**"
             - "**/integrations/github/ghport/**"
-            - "**/integrations/github/queue/**"
-            - "**/integrations/github/land/**"
-            - "**/integrations/github/world/**"
             - "!**/capabilities/tasks/mergepolicy/**"
             - "!**/capabilities/tasks/taskspec/**"
           allow:
@@ -189,15 +186,11 @@ linters:
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/transcript
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/githubapi
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/gitcmd
-            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem
             - github.com/missingbulb/ClaudiniteEngine/cn/fleet/curation
             - github.com/missingbulb/ClaudiniteEngine/cn/fleet/packseed
             - github.com/missingbulb/ClaudiniteEngine/cn/helpers
             - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/ghport
-            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/queue
-            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/land
-            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/world
             # The usage-fold task's precondition reads how far the fold has
             # read the runs, which the fold itself writes.
             - github.com/missingbulb/ClaudiniteEngine/cn/growth/usage
@@ -244,7 +237,7 @@ linters:
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/transcript
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/githubapi
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/gitcmd
-            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/workitem
             - github.com/missingbulb/ClaudiniteEngine/cn/fleet/curation
             - github.com/missingbulb/ClaudiniteEngine/cn/fleet/packseed
             - github.com/missingbulb/ClaudiniteEngine/cn/helpers
@@ -296,7 +289,7 @@ linters:
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/transcript
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/githubapi
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/gitcmd
-            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/workitem
             - github.com/missingbulb/ClaudiniteEngine/cn/fleet/curation
             - github.com/missingbulb/ClaudiniteEngine/cn/fleet/packseed
             - github.com/missingbulb/ClaudiniteEngine/cn/helpers
@@ -310,7 +303,7 @@ linters:
             # One landing lane for every pull request a run delivers: the
             # update's landing enters it at the pinned-sha merge, so the
             # update and a task cannot drift on how a PR lands.
-            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/land
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/land
             # The queue's two workflow templates are the tasks capability's;
             # the member's workflows are written and diffed here with them.
             - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/workflows
@@ -348,7 +341,7 @@ linters:
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/transcript
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/githubapi
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/gitcmd
-            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/workitem
             - github.com/missingbulb/ClaudiniteEngine/cn/fleet/curation
             - github.com/missingbulb/ClaudiniteEngine/cn/fleet/packseed
             - github.com/missingbulb/ClaudiniteEngine/cn/helpers
@@ -386,7 +379,7 @@ linters:
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/transcript
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/githubapi
             - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/gitcmd
-            - github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/workitem
             - github.com/missingbulb/ClaudiniteEngine/cn/fleet/curation
             - github.com/missingbulb/ClaudiniteEngine/cn/fleet/packseed
             - github.com/missingbulb/ClaudiniteEngine/cn/helpers

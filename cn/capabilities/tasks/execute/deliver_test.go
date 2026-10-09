@@ -10,8 +10,8 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/mergepolicy"
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/runner"
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/taskspec"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/workitem"
 	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/gitcmd"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem"
 )
 
 const reportPath = ".claudinite/acme/report.GENERATED.json"

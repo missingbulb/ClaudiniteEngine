@@ -41,4 +41,6 @@ func TestFleetPackSeedAgrees(t *testing.T) {
 	}
 }
 
-func loadSet(dir string) (*declared.Set, error) { return declared.LoadSet(dir, "0.0.0", builtin.All()...) }
+func loadSet(dir string) (*declared.Set, error) {
+	return declared.LoadSet(dir, "0.0.0", builtin.All()...)
+}

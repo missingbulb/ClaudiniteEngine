@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/land"
 	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/gitcmd"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/land"
 )
 
 func TestOnlyAPolicyThatAuthorizesALandingEntersTheLane(t *testing.T) {

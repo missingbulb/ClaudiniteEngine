@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/taskspec"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/world"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/workitem"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/world"
 )
 
 func held(over func(*workitem.Issue)) workitem.Issue {
