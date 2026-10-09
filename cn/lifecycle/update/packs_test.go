@@ -224,7 +224,7 @@ func TestPacksAddTheImportToAnExistingClaudeMD(t *testing.T) {
 		if _, err := gateAt(t, w.repo, w.deps(t), pr); err == nil || !strings.Contains(err.Error(), "not only the settings file") {
 			t.Errorf("%s: the gate took a pack PR: %v", name, err)
 		}
-		if v, err := Land(w.deps(t), pr.Number, pr.HeadSHA); err != nil || v != "landed packs hello 1.1" {
+		if v, err := Land(landJob(w.hub, w.deps(t), pr.HeadSHA), pr.Number, pr.HeadSHA); err != nil || v != "landed packs hello 1.1" {
 			t.Errorf("%s: %q %v", name, v, err)
 		}
 	}
@@ -506,7 +506,7 @@ func TestLandRefusesAPackPRThatIsNotThePublishedSet(t *testing.T) {
 	}
 	w := newPackWorld(t)
 	pr := w.openPackPR(t, "")
-	if v, err := Land(w.deps(t), pr.Number, pr.HeadSHA); err != nil || v != "landed packs hello 1.1" {
+	if v, err := Land(landJob(w.hub, w.deps(t), pr.HeadSHA), pr.Number, pr.HeadSHA); err != nil || v != "landed packs hello 1.1" {
 		t.Errorf("the published set: %q %v", v, err)
 	}
 }

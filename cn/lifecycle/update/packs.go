@@ -112,11 +112,9 @@ func packsRun(d Deps, o Options, res *EngineResult) (string, error) {
 	prevState := ""
 	if len(open) == 1 {
 		prev = &open[0]
-		runs, err := d.GitHub.WorkflowRuns(CIWorkflow, prev.HeadSHA)
-		if err != nil {
+		if prevState, err = prevCI(d, prev.HeadSHA); err != nil {
 			return "", err
 		}
-		prevState = runState(latest(runs, ciEvents...))
 		if prevState == "success" {
 			v, err := Land(d, prev.Number, prev.HeadSHA)
 			return landed(res, v, err)
@@ -739,8 +737,10 @@ func landPacks(d Deps, pr githubapi.PR, sha string) (string, error) {
 		}
 		landed = append(landed, id+" "+m.Version)
 	}
-	if err := landPinned(d, pr, sha, pr.Title); err != nil {
+	if why, err := landPinned(d, pr, sha, pr.Title); err != nil {
 		return "", err
+	} else if why != "" {
+		return notLanded(pr.Number, why), nil
 	}
 	if err := d.GitHub.Dispatch(CIWorkflow, mainBranch, map[string]string{}); err != nil {
 		return "", err

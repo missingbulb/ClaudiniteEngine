@@ -3,6 +3,7 @@ package update
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/githubapi"
@@ -82,24 +83,23 @@ func startPRCI(d Deps, n int, branch, sha string, wait time.Duration) (land.Held
 }
 
 // landOnCI waits, within the landing lane's bounds (land.LandAttempt), for
-// update PR n's CI on sha and lands it on that evidence through Land, as
-// the lane lands a delivered PR. Unlanded, verdict is "" and pending says
-// whether a verdict is still to come.
+// update PR n's checks on sha, every workflow's (headEvidence), and lands
+// it on that evidence through Land, as the lane lands a delivered PR. No
+// verdict comes before a claudinite-ci.yml run is visible. Unlanded,
+// verdict is "" and pending says whether a verdict is still to come.
 func landOnCI(d Deps, n int, sha string) (verdict string, pending bool, err error) {
 	for waited := time.Duration(0); ; waited += land.PollEvery {
-		all, err := d.GitHub.WorkflowRuns(CIWorkflow, sha)
+		ci, err := d.GitHub.WorkflowRuns(CIWorkflow, sha)
 		if err != nil {
 			return "", false, err
 		}
 		var runs []land.Run
-		visible := 0
-		for _, r := range all {
-			if !has(ciEvents, r.Event) {
-				continue
-			}
-			runs = append(runs, landRun(r))
-			if r.Conclusion != "action_required" {
-				visible++
+		for _, r := range ci {
+			if has(ciEvents, r.Event) && r.Conclusion != "action_required" {
+				if runs, err = headEvidence(d, sha); err != nil {
+					return "", false, err
+				}
+				break
 			}
 		}
 		switch land.LandAttempt(land.AutoMerge, runs, 1, waited) {
@@ -108,11 +108,103 @@ func landOnCI(d Deps, n int, sha string) (verdict string, pending bool, err erro
 			continue
 		case land.AttemptGiveUp:
 			fmt.Fprintf(d.Out, "#%d not landed in this run: %s\n", n, land.FailureSummary(runs))
-			return "", visible == 0 || land.PullDisposition(land.AutoMerge, runs) == land.DispWait, nil
+			return "", len(runs) == 0 || land.PullDisposition(land.AutoMerge, runs) == land.DispWait, nil
 		}
 		v, err := Land(d, n, sha)
 		return v, false, err
 	}
+}
+
+// headEvidence is what a landing of the update PR at sha stands on: each
+// workflow's newest pull_request or workflow_dispatch run on that head
+// (ciEvents), a run still held at action_required never counted. This
+// cn's own run (d.SelfRun) counts green: it is a land job, which runs
+// only once its run's check passed.
+func headEvidence(d Deps, sha string) ([]land.Run, error) {
+	all, err := d.GitHub.HeadRuns(sha)
+	if err != nil {
+		return nil, err
+	}
+	newest := map[string]githubapi.Run{}
+	var order []string
+	for _, r := range all {
+		if !has(ciEvents, r.Event) || r.Conclusion == "action_required" {
+			continue
+		}
+		if d.SelfRun != 0 && r.ID == d.SelfRun {
+			r.Status, r.Conclusion = "completed", "success"
+		}
+		prev, seen := newest[r.Name]
+		if !seen {
+			order = append(order, r.Name)
+		}
+		if !seen || r.CreatedAt > prev.CreatedAt {
+			newest[r.Name] = r
+		}
+	}
+	out := make([]land.Run, 0, len(order))
+	for _, name := range order {
+		out = append(out, landRun(newest[name]))
+	}
+	return out, nil
+}
+
+// awaitHead polls the evidence on sha within the landing lane's bounds
+// until it lands (""), else says why not: a workflow failed, or one is
+// still running at the bound.
+func awaitHead(d Deps, sha string) (why string, err error) {
+	for waited := time.Duration(0); ; waited += land.PollEvery {
+		runs, err := headEvidence(d, sha)
+		if err != nil {
+			return "", err
+		}
+		switch land.LandAttempt(land.AutoMerge, runs, 1, waited) {
+		case land.AttemptMerge:
+			return "", nil
+		case land.AttemptGiveUp:
+			return land.FailureSummary(runs), nil
+		}
+		d.sleep(land.PollEvery)
+	}
+}
+
+// prevCI is the open update PR's CI state on sha: claudinite-ci.yml's
+// newest run's, and, once that is green, what every other workflow on the
+// head says (headEvidence): the status of one still running, or the
+// conclusion and name of each that failed.
+func prevCI(d Deps, sha string) (string, error) {
+	runs, err := d.GitHub.WorkflowRuns(CIWorkflow, sha)
+	if err != nil {
+		return "", err
+	}
+	state := runState(latest(runs, ciEvents...))
+	if state != "success" {
+		return state, nil
+	}
+	ev, err := headEvidence(d, sha)
+	if err != nil {
+		return "", err
+	}
+	switch land.PullDisposition(land.AutoMerge, ev) {
+	case land.DispMerge:
+		return state, nil
+	case land.DispWait:
+		for _, r := range ev {
+			if r.Status != "completed" {
+				return r.Status, nil
+			}
+		}
+	}
+	var failed []string
+	for _, r := range ev {
+		if has(land.RealFailures, r.Conclusion) {
+			failed = append(failed, r.Conclusion+" in "+r.Name)
+		}
+	}
+	if len(failed) == 0 {
+		return "failure", nil
+	}
+	return strings.Join(failed, ", "), nil
 }
 
 func has(list []string, s string) bool {
