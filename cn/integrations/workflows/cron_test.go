@@ -43,6 +43,29 @@ func TestExpectedGivesACronlessSchedulerTheReposOwn(t *testing.T) {
 	}
 }
 
+// A scheduler whose owner took its schedule trigger out runs only on
+// dispatch, and an update keeps it that way: TLDR#658 turned its cron off
+// and TLDR#671's update put the hash back. The rest still follows the
+// template, and no name is needed.
+func TestExpectedKeepsAMembersScheduleOff(t *testing.T) {
+	off := func(s string) string {
+		return strings.Replace(s, "  schedule:\n    - cron: \""+CronPlaceholder+"\"\n", "", 1)
+	}
+	want := off(string(Templates()["claudinite-scheduler.yml"]))
+	if strings.Contains(want, "schedule:") {
+		t.Fatal("the template's schedule trigger is not where this test removes it")
+	}
+	stale := strings.Replace(want, "name: claudinite-scheduler", "name: Claudinite scheduler", 1)
+	for _, name := range []string{"missingbulb/TLDR", ""} {
+		for _, have := range []string{want, stale} {
+			got, err := Expected("claudinite-scheduler.yml", []byte(have), name)
+			if err != nil || string(got) != want {
+				t.Errorf("name %q: %v\n%s", name, err, got)
+			}
+		}
+	}
+}
+
 // The values the Node engine's hashedCron gives at 057841ac.
 func TestTheSchedulerCronIsTheRepoNamesHash(t *testing.T) {
 	for name, want := range map[string]string{"missingbulb/hello": "39 6,18 * * *", "Acme/Widgets": "34 10,22 * * *", "o/r": "20 5,17 * * *"} {
