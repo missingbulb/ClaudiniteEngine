@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/checksdk"
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/rules/rulesindex"
 	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/report"
 	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/workflows"
@@ -172,8 +173,6 @@ func hooks(in Input) Probe {
 	return Probe{"hooks", OK, fmt.Sprintf("%d wired, each an event this binary answers", n)}
 }
 
-var mdLink = regexp.MustCompile(`\]\(([^)\s]+)\)`)
-
 func skills(in Input) Probe {
 	s, err := packset.Load(in.Repo, in.Version, false)
 	if err != nil {
@@ -189,9 +188,9 @@ func skills(in Input) Probe {
 				continue
 			}
 			n++
-			for _, m := range mdLink.FindAllStringSubmatch(string(raw), -1) {
-				target, _, _ := strings.Cut(m[1], "#")
-				if target == "" || strings.Contains(target, ":") || strings.HasPrefix(target, "/") {
+			for _, l := range checksdk.ExtractLinks(string(raw)) {
+				target := l.Target
+				if strings.HasPrefix(target, "/") {
 					continue
 				}
 				if _, err := os.Stat(filepath.Join(filepath.Dir(file), filepath.FromSlash(target))); err != nil {

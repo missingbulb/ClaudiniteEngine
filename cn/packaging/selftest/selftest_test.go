@@ -235,6 +235,21 @@ func TestEachMemberProbeFails(t *testing.T) {
 	}
 }
 
+// A skill showing link syntax as an example, in an inline code span or a
+// fenced block, links to nothing; a real link beside it still does.
+func TestTheSkillsProbeSkipsLinksInCode(t *testing.T) {
+	repo := copyShape(t, "v7-update-as-task")
+	file := filepath.Join(repo, ".claudinite/shared/packs/basics/skills/probe/SKILL.md")
+	write(t, file, "Write `![Figure 1](fig1.png)` for an image.\n\n```md\n[the report](report.md)\n```\n")
+	if p := probe(t, repo, "skills"); p.Status != OK {
+		t.Fatalf("example links: %s %q", p.Status, p.Detail)
+	}
+	write(t, file, "Write `![Figure 1](fig1.png)` for an image, or see [the guide](guide.md).\n")
+	if p := probe(t, repo, "skills"); p.Status != Fail || !strings.Contains(p.Detail, "basics/probe: link → guide.md missing") || strings.Contains(p.Detail, "fig1") {
+		t.Fatalf("a real link beside an example: %s %q", p.Status, p.Detail)
+	}
+}
+
 func TestTheSchedulerProbeNotesThePlaceholderCron(t *testing.T) {
 	repo := copyShape(t, "v7-update-as-task")
 	if p := probe(t, repo, "scheduler"); p.Status != OK || strings.Contains(p.Detail, "placeholder") {
