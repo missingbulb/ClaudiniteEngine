@@ -83,7 +83,7 @@ func TestDiscover(t *testing.T) {
 	for _, t := range tasks {
 		got = append(got, t.Path())
 	}
-	if want := []string{"acme-pack/gated", "acme-pack/nightly", "acme-pack/weekly", "engine/update"}; !reflect.DeepEqual(got, want) {
+	if want := []string{"acme-pack/gated", "acme-pack/nightly", "acme-pack/weekly", "engine/update", "engine/usage-fold"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("tasks %v, want %v", got, want)
 	}
 	signals := Signals(tasks[0].Decl.Preconditions(), tasks[0].Terms)
@@ -129,12 +129,69 @@ func TestTheUpdateTaskStandsAsideForTheUpdateWorkflow(t *testing.T) {
 		}
 		return out
 	}
-	if got := paths(); !reflect.DeepEqual(got, []string{"engine/update"}) {
+	if got := paths(); !reflect.DeepEqual(got, []string{"engine/update", "engine/usage-fold"}) {
 		t.Errorf("no update workflow: %v", got)
 	}
 	put(t, repo, map[string]string{UpdateWorkflow: "name: claudinite-update\n"})
-	if got := paths(); len(got) != 0 {
+	if got := paths(); !reflect.DeepEqual(got, []string{"engine/usage-fold"}) {
 		t.Errorf("the update workflow present: %v", got)
+	}
+}
+
+// The usage fold is the engine's own wherever the queue runs: no pack
+// declares it and nothing stands it aside.
+func TestTheUsageFoldTask(t *testing.T) {
+	tasks, errs := Discover(t.TempDir(), nil)
+	if len(errs) > 0 {
+		t.Fatal(errs)
+	}
+	var u Task
+	for _, task := range tasks {
+		if task.ID == UsageFoldTask {
+			u = task
+		}
+	}
+	if u.Pack != BuiltinPack || !u.Engine || u.Decl.AgentModel() != "none" || EngineInstructions(u) != "" {
+		t.Fatalf("%+v", u)
+	}
+	if !reflect.DeepEqual(u.Decl.Preconditions(), []any{"schedule:at-most-daily", "any-commit || session-captured || runs-since-fold"}) ||
+		u.Decl.Outcome() != "amend_existing_or_create_new_pr" {
+		t.Errorf("%v", u.Decl)
+	}
+	if got := mergepolicy.Expression(u.Decl["automerge"]); got != "rolling-usage-files;rolling-usage-file-moves" {
+		t.Errorf("automerge %q", got)
+	}
+	if u.Decl["code_work"] != "cn usage fold" || u.Decl["code_work_timeout"] != 600.0 {
+		t.Errorf("code-work %v in %v", u.Decl["code_work"], u.Decl["code_work_timeout"])
+	}
+	if u.TaskPath() != "engine/scheduler/queue/tasks/usage-fold/task.json" {
+		t.Errorf("path %s", u.TaskPath())
+	}
+	if id, ok := workitem.TaskIDFromPath(u.TaskPath()); !ok || id.Pack+"/"+id.Task != "engine/usage-fold" {
+		t.Errorf("an item's path %s names %+v", u.TaskPath(), id)
+	}
+}
+
+// The retired claudinite-tasks pack's own fold gives way to the engine's,
+// while a task of another name in it still loads.
+func TestTheRetiredPacksUsageFoldGivesWay(t *testing.T) {
+	repo := t.TempDir()
+	put(t, repo, map[string]string{
+		".claudinite/shared/packs/claudinite-tasks/tasks/usage-fold/task.json": decl("usage-fold"),
+		".claudinite/shared/packs/claudinite-tasks/tasks/nightly/task.json":    decl("nightly"),
+	})
+	packs := []packset.Pack{{ID: "claudinite-tasks", Kind: packset.Canon, Dir: filepath.Join(repo, ".claudinite/shared/packs/claudinite-tasks"), Rel: ".claudinite/shared/packs/claudinite-tasks"}} // @real-entity the retired pack the tolerance names
+	tasks, errs := Discover(repo, packs)
+	if len(errs) > 0 {
+		t.Fatal(errs)
+	}
+	var got []string
+	for _, task := range tasks {
+		got = append(got, task.Pack+"/"+task.ID)
+	}
+	sort.Strings(got)
+	if strings.Join(got, ",") != "claudinite-tasks/nightly,engine/update,engine/usage-fold" { // @real-entity the retired pack the tolerance names
+		t.Errorf("tasks %v", got)
 	}
 }
 

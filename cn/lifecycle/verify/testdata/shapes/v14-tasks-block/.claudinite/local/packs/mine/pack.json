@@ -1,0 +1,6 @@
+{
+  "ruleRoutingGuidance": {
+    "belongs": "this project's own rules",
+    "excludes": "portable practices, which live in the canon"
+  }
+}

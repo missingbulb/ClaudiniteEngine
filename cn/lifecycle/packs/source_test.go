@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/missingbulb/ClaudiniteEngine/cn/shared/packindex"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/sign"
 )
 
@@ -69,8 +70,10 @@ type fakeSource struct {
 	name     string
 	pairs    []pair
 	err      error
+	indexErr error
 	calls    int
 	archives map[string][]byte
+	order    *[]string
 }
 
 func (f *fakeSource) Name() string { return f.name }
@@ -80,6 +83,9 @@ func (f *fakeSource) Index(id string) ([]byte, []byte, error) {
 	if f.err != nil {
 		return nil, nil, f.err
 	}
+	if f.indexErr != nil {
+		return nil, nil, f.indexErr
+	}
 	p := f.pairs[len(f.pairs)-1]
 	if f.calls <= len(f.pairs) {
 		p = f.pairs[f.calls-1]
@@ -88,6 +94,9 @@ func (f *fakeSource) Index(id string) ([]byte, []byte, error) {
 }
 
 func (f *fakeSource) Archive(id, version string) ([]byte, error) {
+	if f.order != nil {
+		*f.order = append(*f.order, f.name+" "+id)
+	}
 	if f.err != nil {
 		return nil, f.err
 	}
@@ -118,22 +127,46 @@ func TestVerifiedIndexFromTheFirstSourceThatAnswers(t *testing.T) {
 	}
 }
 
-func TestVerifiedIndexReadsBothSourcesAndNamesADisagreement(t *testing.T) {
-	newer, older := indexJSON(4, "1.0", "1.1"), indexJSON(1, "1.0", "1.1")
-	cdn := &fakeSource{name: "cdn", pairs: []pair{{newer, signed(t, newer)}}}
-	branch := &fakeSource{name: "branch", pairs: []pair{{older, signed(t, older)}}}
-	_, err := newReader(&bytes.Buffer{}, cdn, branch).VerifiedIndex("hello")
-	var dis *SourcesDisagree
-	if !errors.As(err, &dis) || dis.Error() != "pack index sources disagree (cdn serial 4, branch serial 1)" {
-		t.Errorf("%v", err)
+// The CDN is the shelf's own: while it answers, the branch is not read,
+// so a branch already naming a release the CDN does not serve yet is never
+// what a member acts on.
+func TestVerifiedIndexTakesTheCDNWhileItAnswers(t *testing.T) {
+	older, newer := indexJSON(1, "1.0"), indexJSON(4, "1.0", "1.1")
+	for name, c := range map[string]struct{ cdn, branch []byte }{
+		"branch ahead":  {older, newer},
+		"branch behind": {newer, older},
+	} {
+		cdn := &fakeSource{name: "cdn", pairs: []pair{{c.cdn, signed(t, c.cdn)}}}
+		branch := &fakeSource{name: "branch", pairs: []pair{{c.branch, signed(t, c.branch)}}}
+		var log bytes.Buffer
+		got, err := newReader(&log, cdn, branch).VerifiedIndex("hello")
+		want, _ := packindex.Decode(c.cdn)
+		if err != nil || got.From != "cdn" || got.Index.Serial != want.Serial || branch.calls != 0 {
+			t.Errorf("%s: %+v %v branch calls %d", name, got, err, branch.calls)
+		}
+		if !strings.Contains(log.String(), fmt.Sprintf("hello: index serial %d from cdn\n", want.Serial)) {
+			t.Errorf("%s: log %q", name, log.String())
+		}
 	}
-	// A branch ahead of the CDN (the upload trails the branch) is the
-	// newer index, and is the one used.
-	cdn.pairs, branch.pairs = []pair{{older, signed(t, older)}}, []pair{{newer, signed(t, newer)}}
-	cdn.calls, branch.calls = 0, 0
-	got, err := newReader(&bytes.Buffer{}, cdn, branch).VerifiedIndex("hello")
-	if err != nil || got.Index.Serial != 4 || got.From != "branch" {
-		t.Errorf("%+v %v", got, err)
+}
+
+// An archive is asked of the source its index came from first, so a pack
+// the CDN does not hold yet is never asked of the CDN.
+func TestArchiveAsksTheIndexSourceFirst(t *testing.T) {
+	ix := indexJSON(2, "1.0")
+	e, _ := packindex.Decode(ix)
+	var order []string
+	cdn := &fakeSource{name: "cdn", indexErr: errors.New("404"), order: &order}
+	branch := &fakeSource{name: "branch", pairs: []pair{{ix, signed(t, ix)}}, order: &order}
+	r := newReader(&bytes.Buffer{}, cdn, branch)
+	if v, err := r.VerifiedIndex("hello"); err != nil || v.From != "branch" {
+		t.Fatalf("%+v %v", v, err)
+	}
+	_, _ = r.Archive("hello", e.Versions[0])
+	// A pack whose index this run never read keeps the sources' order.
+	_, _ = r.Archive("other", e.Versions[0])
+	if got := strings.Join(order, ", "); got != "branch hello, cdn hello, cdn other, branch other" {
+		t.Errorf("asked %s", got)
 	}
 }
 

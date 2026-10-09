@@ -182,15 +182,17 @@ const (
 	DefaultAgentModel = "none"
 )
 
-// The tasks pack's id and its dormancy key.
-const (
-	TasksPackID      = "claudinite-tasks"
-	DormantConfigKey = "dormant"
-)
+// RoutineTokenSecret is the Actions secret holding the executor
+// routine's token where the member's routines name none.
+const RoutineTokenSecret = "CCR_ROUTINE_TOKEN"
 
-// InstructionsFile is where SessionStart writes RoutineInstructions in a
-// repo declaring the tasks pack; the file ignores itself, so it is always
-// the pinned engine's copy.
+// DormantConfigKey is the tasks block's key that stops a repo's
+// recurring work.
+const DormantConfigKey = "dormant"
+
+// InstructionsFile is where SessionStart writes RoutineInstructions in
+// every member; the file ignores itself, so it is always the pinned
+// engine's copy.
 const InstructionsFile = ".claudinite/cache/instructions.md"
 
 // RoutinePrompt is the executor routine's whole stored prompt: the

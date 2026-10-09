@@ -16,8 +16,7 @@ import (
 // ExecutorWorkflow is the member's executor workflow.
 const ExecutorWorkflow = ".github/workflows/" + workitem.ExecutorWorkflowFile
 
-// packSecrets are the secrets the tasks of the packs in ids declare, plus
-// the routine token where claudinite-tasks is among them.
+// packSecrets are the secrets the tasks of the packs in ids declare.
 func packSecrets(set packset.Set, ids map[string]bool) []string {
 	var packs []packset.Pack
 	for _, p := range set.Packs {
@@ -36,11 +35,7 @@ func packSecrets(set packset.Set, ids map[string]bool) []string {
 			decls = append(decls, d)
 		}
 	}
-	out := taskspec.SecretNames(decls)
-	if ids[workitem.TasksPackID] {
-		out = append(out, "CCR_ROUTINE_TOKEN")
-	}
-	return out
+	return taskspec.SecretNames(decls)
 }
 
 // stampExecutor adds secrets to the executor's stamped lines, keeping the

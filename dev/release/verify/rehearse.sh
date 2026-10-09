@@ -62,15 +62,15 @@
 # One more mode reads the real shelf and is never in the default set:
 #
 #   live-packs  a member declaring basics, git-github, claudinite-lifecycle,
-#            claudinite-tasks, claudinite-growth, node, python and aws-sam on
+#            claudinite-growth, node, python and aws-sam on
 #            the canary channel adopts them through the npx bootstrap from
 #            the real pack CDN and ClaudinitePacks' vendored branch, each
 #            index verified against the roots this release embeds (a
 #            devroots build trusts the ceremony's and the development roots); its session loads them, check world runs their declared
 #            and Go checks silent and a planted aws-sam violation fires; cn
-#            update packs is up to date from both sources, from the branch
-#            alone with the CDN unreachable, and skips naming both serials
-#            when a local mirror of the branch is one release behind. Built
+#            update packs is up to date from the CDN, from the branch
+#            alone with the CDN unreachable, and from the CDN still when a
+#            local mirror of the branch is one release behind. Built
 #            at today's version when the release is older than the shelf's
 #            floor. CLAUDINITE_OFFLINE=1 skips it with a notice.
 #
@@ -814,13 +814,14 @@ for mode in $modes; do
 
       fixture --serial 1 --mirror-only
       update_packs
-      case $verdict in "skipped: pack index sources disagree (cdn serial "*", branch serial 1)") ;; *) fail "packs 11: a branch behind the CDN: verdict '$verdict'" ;; esac
+      expect_verdict "up to date"
+      grep -q '^packs: hello: index serial [0-9]* from cdn$' "$work/update.out" "$work/update.err" || fail "packs 11: a branch behind the CDN: the read is not the CDN's: $(cat "$work/update.out" "$work/update.err")"
       fixture --flip-sig
       if cn_member update packs > "$work/update.out" 2>&1; then fail "packs 11: a flipped signature was read: $(cat "$work/update.out")"; fi
       grep -qi 'signature\|certificate' "$work/update.out" || fail "packs 11: the refusal names no signature check: $(cat "$work/update.out")"
       [ -z "$(cd "$member" && git status --porcelain)" ] || fail "packs 11: the checkout changed: $(cd "$member" && git status --porcelain)"
       [ -z "$(git --git-dir "$origin" branch --list 'claudinite/packs-*')" ] || fail "packs 11: a branch was pushed"
-      step "packs 11: a branch behind the CDN is a skip naming both serials; a flipped signature is refused; nothing changed"
+      step "packs 11: a branch behind the CDN is not read while the CDN answers; a flipped signature is refused; nothing changed"
 
       echo hello > "$member/HELLO_DECLARED"
       if cn_member check --tag world > "$work/check.out" 2>&1; then fail "packs 12: check --tag world passed with HELLO_DECLARED"; fi
@@ -1102,19 +1103,16 @@ GO
       (cd "$member" && "$npx/.bin/cn" init --packs hello --channel canary --repo "$member") > "$work/init.out" 2>&1 \
         || fail "tasks: init: $(cat "$work/init.out")"
       grep -q '"version": "1.4"' "$member/.claudinite/shared/packs/hello/pack.json" || fail "tasks: init did not vendor hello 1.4"
-      # The two engine packs whose checks the steps run, claudinite-tasks
-      # carrying the routine the hand-off fires; each stands in as its
-      # manifest alone, as nothing here publishes them.
-      for p in claudinite-tasks claudinite-lifecycle; do
-        mkdir -p "$member/.claudinite/shared/packs/$p"
-        printf '{\n  "version": "1.0",\n  "minEngineVersion": "%s"\n}\n' "$version" > "$member/.claudinite/shared/packs/$p/pack.json"
-      done
-      awk -v url="$gh/routines/trig_hello" '{ print } /^    - hello$/ {
-        print "    - claudinite-lifecycle"; print "    - id: claudinite-tasks"; print "      config:"
-        print "        disabledTasks:"; print "          - engine/update"
-        print "        agenticTaskInvocationEndpoints:"; print "          default:"; print "            url: \"" url "\"" }' \
+      # The engine pack whose checks the steps run, standing in as its
+      # manifest alone, as nothing here publishes it; the settings' tasks
+      # block carries the routine the hand-off fires.
+      mkdir -p "$member/.claudinite/shared/packs/claudinite-lifecycle"
+      printf '{\n  "version": "1.0",\n  "minEngineVersion": "%s"\n}\n' "$version" > "$member/.claudinite/shared/packs/claudinite-lifecycle/pack.json"
+      awk '{ print } /^    - hello$/ { print "    - claudinite-lifecycle" }' \
         "$member/.claudinite/settings.yaml" > "$work/settings.yaml"
       mv "$work/settings.yaml" "$member/.claudinite/settings.yaml"
+      printf 'tasks:\n  disabled:\n    - engine/update\n  routines:\n    default:\n      url: "%s"\n' "$gh/routines/trig_hello" \
+        >> "$member/.claudinite/settings.yaml"
       # The adoption is three days old, so the repo starts quiet.
       old=$(date -u -d '3 days ago' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -v-3d +%Y-%m-%dT%H:%M:%SZ)
       gitc() { (cd "$member" && git -c user.name=rehearse -c user.email=r@x -c commit.gpgsign=false "$@"); }
@@ -1444,7 +1442,7 @@ GO
       warm_member growth
       # The packs the steps read, each standing in as its manifest, and
       # claudinite-growth's logs-prune task as the pack declares it.
-      for p in claudinite-growth claudinite-tasks claudinite-lifecycle; do
+      for p in claudinite-growth claudinite-lifecycle; do
         mkdir -p "$member/.claudinite/shared/packs/$p"
         printf '{\n  "version": "1.0",\n  "minEngineVersion": "%s"\n}\n' "$version" > "$member/.claudinite/shared/packs/$p/pack.json"
       done
@@ -1465,10 +1463,9 @@ packs:
   declared:
     - claudinite-growth
     - claudinite-lifecycle
-    - id: claudinite-tasks
-      config:
-        disabledTasks:
-          - engine/update
+tasks:
+  disabled:
+    - engine/update
 YAML
       # The rules index and its import, as init writes them.
       (cd "$member" && .claudinite/bin/cn rules-index) > "$work/index.out" 2>&1 || fail "growth: rules-index: $(cat "$work/index.out")"
@@ -1639,7 +1636,7 @@ YAML
       step "dashboard 3: publish-pages built the real pack on a cn member, pushed index.html, the page's own modules and nothing else to gh-pages, and followed its deploy to success"
       ;;
     live-packs)
-      live_packs="basics git-github claudinite-lifecycle claudinite-tasks claudinite-growth node python aws-sam"
+      live_packs="basics git-github claudinite-lifecycle claudinite-growth node python aws-sam"
       step "live-packs: cn $live_version, signed with the development keys, against the real pack CDN and ClaudinitePacks' vendored branch"
       # The real shelf: both sources at the engine's defaults.
       unset CLAUDINITE_PACKS_CDN CLAUDINITE_PACKS_REPO
@@ -1720,8 +1717,8 @@ YAML
         [ "$verdict" = "$1" ] || fail "live-packs 3: verdict '$verdict', want '$1': $(cat "$work/update.out" "$work/update.err")"
       }
       update_live "up to date"
-      grep -q 'basics: index serial [0-9]* from cdn (read: cdn serial [0-9]*, branch serial [0-9]*)' "$work/update.out" "$work/update.err" \
-        || fail "live-packs 3: the read names both sources: $(cat "$work/update.out" "$work/update.err")"
+      grep -q 'basics: index serial [0-9]* from cdn$' "$work/update.out" "$work/update.err" \
+        || fail "live-packs 3: the CDN did not answer: $(cat "$work/update.out" "$work/update.err")"
       CLAUDINITE_PACKS_CDN=https://127.0.0.1:9
       export CLAUDINITE_PACKS_CDN
       update_live "up to date"
@@ -1739,13 +1736,13 @@ YAML
       git --git-dir "$mirror" update-ref refs/heads/vendored "$moved^" || fail "live-packs 3: rewind the mirror"
       CLAUDINITE_PACKS_REPO=$mirror
       export CLAUDINITE_PACKS_REPO
-      cn_member update packs > "$work/update.out" 2> "$work/update.err" || fail "live-packs 3: update packs: $(cat "$work/update.out" "$work/update.err")"
-      verdict=$(sed -n '$p' "$work/update.out")
-      case $verdict in "skipped: pack index sources disagree (cdn serial "*", branch serial "*")") ;; *) fail "live-packs 3: a branch one release behind: '$verdict': $(cat "$work/update.err")" ;; esac
+      update_live "up to date"
+      grep -q 'basics: index serial [0-9]* from cdn$' "$work/update.out" "$work/update.err" \
+        || fail "live-packs 3: a branch one release behind was read over the CDN: $(cat "$work/update.out" "$work/update.err")"
       unset CLAUDINITE_PACKS_REPO
       [ -z "$(cd "$member" && git status --porcelain)" ] || fail "live-packs 3: update packs left the checkout changed: $(cd "$member" && git status --porcelain)"
       [ "$(gh_count 'st.pulls.length')" = 0 ] || fail "live-packs 3: a pull request was opened: $(gh_state)"
-      step "live-packs 3: cn update packs is up to date from both sources and from the branch alone; a branch one release behind is $verdict"
+      step "live-packs 3: cn update packs is up to date from the CDN, from the branch alone behind an unreachable CDN, and from the CDN over a branch one release behind"
       ;;
   esac
 done

@@ -229,6 +229,7 @@ func init() {
 			return Outcome{Reason: "no conversation log was captured in the window"}
 		},
 		taskspec.LogPastRetention: logPastRetention,
+		taskspec.RunsSinceFold:    runsSinceFold,
 		"issues-touched": func(s Signals, _ Opts) Outcome {
 			if _, touched := nonTaskIssues(s); len(touched) > 0 {
 				return Outcome{Holds: true, Reason: itoa(len(touched)) + " issue(s) moved in the window",
@@ -378,4 +379,27 @@ func logPastRetention(s Signals, _ Opts) Outcome {
 		return Outcome{Reason: "no log older than retention " + days + "d — nothing to prune"}
 	}
 	return Outcome{Holds: true, Reason: "oldest log " + jsjson.ToFixed(*oldest, 1) + "d old vs retention " + days + "d"}
+}
+
+// runsSinceFold holds while the usage fold's run mark stands before the
+// UTC day opened: at least one tick has come and gone unfolded. No mark is
+// a repo that has never folded, so everything its machinery did is unread.
+func runsSinceFold(s Signals, o Opts) Outcome {
+	if o.Now == nil {
+		return Outcome{Error: taskspec.RunsSinceFold + " needs the instant the verdict is taken at"}
+	}
+	var fold UsageFold
+	if s.UsageFold != nil {
+		fold = *s.UsageFold
+	}
+	if fold.RunsFoldedThrough == nil {
+		return Outcome{Holds: true, Reason: "nothing has been folded yet — every run this repo has made is uncounted"}
+	}
+	mark := *fold.RunsFoldedThrough
+	n := o.Now.UTC()
+	at := calendar.ISO(time.Date(n.Year(), n.Month(), n.Day(), 0, 0, 0, 0, time.UTC))
+	if !fold.NotText && mark < at {
+		return Outcome{Holds: true, Reason: "runs are folded through " + mark + ", before this UTC day opened at " + at + ": the machinery has run since"}
+	}
+	return Outcome{Reason: "runs are folded through " + mark + ", inside the UTC day that opened at " + at + ": nothing has run since the last fold"}
 }

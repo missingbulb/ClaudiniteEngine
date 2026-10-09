@@ -4,6 +4,11 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
+
+	"github.com/missingbulb/ClaudiniteEngine/cn/shared/taskspec"
+	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/precondition"
+	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/usage"
 )
 
 func TestReadLocalTellsAnUnreadableRetentionFromAnAbsentOne(t *testing.T) {
@@ -77,5 +82,60 @@ func TestReadLocalReadsTheManifestReleaseConfigNames(t *testing.T) {
 		if got != c.want {
 			t.Errorf("%s: manifest version %q, want %q", c.name, got, c.want)
 		}
+	}
+}
+
+func TestReadLocalReadsTheUsageFoldsRunMark(t *testing.T) {
+	put := func(t *testing.T, root, rel, body string) {
+		t.Helper()
+		p := filepath.Join(root, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	file := func(mark any) string {
+		return usage.RenderTasksUsageFile(usage.EncodeTasksUsage(usage.TasksUsageFile{RunsFoldedThrough: mark}))
+	}
+	none := func(string) map[string]any { return nil }
+	cases := []struct {
+		name    string
+		files   map[string]string
+		want    string
+		notText bool
+	}{
+		{"never folded", map[string]string{}, "", false},
+		{"the file's own path", map[string]string{usage.TasksUsagePath: file("2026-09-14T17:10:00Z")}, "2026-09-14T17:10:00Z", false},
+		{"a file that has not moved yet", map[string]string{usage.LegacyTasksUsagePath: file("2026-09-13T05:00:00Z")}, "2026-09-13T05:00:00Z", false},
+		{"an unparsable file falls back to the legacy path", map[string]string{
+			usage.TasksUsagePath: "not json at all", usage.LegacyTasksUsagePath: file("2026-09-13T05:00:00Z"),
+		}, "2026-09-13T05:00:00Z", false},
+		{"a parsed file with no mark stands", map[string]string{
+			usage.TasksUsagePath: file(nil), usage.LegacyTasksUsagePath: file("2026-09-13T05:00:00Z"),
+		}, "", false},
+		{"a mark that is not text", map[string]string{usage.TasksUsagePath: file(5.0)}, "5", true},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			root := t.TempDir()
+			for rel, body := range c.files {
+				put(t, root, rel, body)
+			}
+			l := ReadLocal(root, nil, none)
+			got := ""
+			if l.UsageFold.RunsFoldedThrough != nil {
+				got = *l.UsageFold.RunsFoldedThrough
+			}
+			if got != c.want || l.UsageFold.NotText != c.notText {
+				t.Fatalf("%+v", l.UsageFold)
+			}
+			var out precondition.Signals
+			(&Collector{Local: l}).collect(&out, []string{"usageFold"}, taskspec.Task{}, time.Now(), precondition.Window{}, nil)
+			if out.UsageFold == nil || out.UsageFold.NotText != c.notText {
+				t.Fatalf("the collector carries %+v", out.UsageFold)
+			}
+		})
 	}
 }

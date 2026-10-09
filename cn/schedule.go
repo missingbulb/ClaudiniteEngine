@@ -17,6 +17,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/taskspec"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/version"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/workitem"
+	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/config"
 	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/ghport"
 	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/localterms"
 	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/queue"
@@ -27,14 +28,15 @@ import (
 )
 
 // taskRepo is what every queue command reads off the checkout: the
-// declared packs, the tasks they and the engine contribute, and the
-// tasks pack's own config.
+// declared packs, the tasks they and the engine contribute, each pack's
+// config and the settings' tasks block.
 type taskRepo struct {
 	root   string
 	set    packset.Set
 	tasks  []taskspec.Task
 	errs   []taskspec.DiscoveryError
 	config map[string]map[string]any
+	queue  config.Config
 }
 
 func loadTaskRepo(root string) (taskRepo, error) {
@@ -55,6 +57,9 @@ func loadTaskRepo(root string) (taskRepo, error) {
 		}
 		r.config[workitem.CanonicalPackID(id)] = e.Config
 	}
+	if r.queue, err = config.Read(root); err != nil {
+		return taskRepo{}, report.New(report.Verify, err.Error())
+	}
 	return r, nil
 }
 
@@ -63,25 +68,6 @@ func (r taskRepo) packConfig(pack string) map[string]any {
 		return c
 	}
 	return map[string]any{}
-}
-
-// dormancy is the tasks pack's dormant key: true stops the recurring
-// work; a value that is not a boolean reads as awake and is reported.
-func (r taskRepo) dormancy() (dormant bool, problem string) {
-	v, ok := r.packConfig(workitem.TasksPackID)[workitem.DormantConfigKey]
-	if !ok {
-		return false, ""
-	}
-	b, isBool := v.(bool)
-	if !isBool {
-		return false, fmt.Sprintf(`"%s" on the "%s" pack entry must be true or false, got %v — set it to true to stop this project's recurring work, or remove it`,
-			workitem.DormantConfigKey, workitem.TasksPackID, v)
-	}
-	return b, ""
-}
-
-func (r taskRepo) disabledTasks() []string {
-	return taskspec.Decl(r.packConfig(workitem.TasksPackID)).Strings("disabledTasks")
 }
 
 // jobClient is the Actions job's GitHub client: the job token held in
@@ -142,11 +128,7 @@ func cmdScheduleRun(args []string, stdout io.Writer, env world.Env) (err error) 
 	if err != nil {
 		return err
 	}
-	dormant, problem := r.dormancy()
-	if problem != "" {
-		fmt.Fprintln(stdout, "! "+problem)
-	}
-	if dormant {
+	if r.queue.Dormant {
 		fmt.Fprintln(stdout, "- this project declares its scheduler dormant — no items instantiated, readied or reclaimed")
 		return nil
 	}
@@ -179,7 +161,7 @@ func cmdScheduleRun(args []string, stdout io.Writer, env world.Env) (err error) 
 			Env: termsEnv(r, envMap()), Echo: func(_, line string) { fmt.Fprintln(stdout, line) }}
 	}
 	out, runErr := schedule.Run(schedule.RunIn{
-		Issues: issues, Tasks: r.tasks, Now: clock.Now(), Disabled: r.disabledTasks(),
+		Issues: issues, Tasks: r.tasks, Now: clock.Now(), Disabled: r.queue.Disabled,
 		PackConfig: r.packConfig, Wake: *wake, LocalTerms: terms,
 		Collector: func(items []workitem.Issue) *signals.Collector {
 			return &signals.Collector{Issues: issues, Repo: gw, DefaultBranch: env.DefaultBranch(),

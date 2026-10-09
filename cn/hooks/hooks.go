@@ -201,7 +201,7 @@ func (h Handler) sessionStart(repo, session string, outcome breadcrumb.Outcome, 
 			b.WriteString(MissingImport + "\n")
 		}
 	}
-	if ctx.tasks {
+	if ctx.selfCheck != "" {
 		if err := writeInstructions(repo); err != nil {
 			fmt.Fprintf(&b, "[cn] routine instructions not written: %v\n", err)
 		}
