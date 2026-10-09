@@ -11,7 +11,22 @@ linters:
   default: standard
   enable:
     - depguard
+    - forbidigo
+  exclusions:
+    rules:
+      # Tests and the dev tooling start what they like; only the shipped
+      # engine's starts are counted.
+      - path: '(_test\.go$|^dev/|^rewrite-temp/|^cn/helpers/proc/)'
+        linters:
+          - forbidigo
   settings:
+    forbidigo:
+      # Every process the engine starts goes through cn/helpers/proc, which
+      # counts it: one cn call should finish in as few processes as it can,
+      # and the spawn budget test reads those counts.
+      forbid:
+        - pattern: ^exec\.Command(Context)?$
+          msg: start processes through proc.Command or proc.CommandContext, which count them
     errcheck:
       # Diagnostic and protocol output goes to the process's stdout and
       # stderr; when those fail there is no channel left to report on.
