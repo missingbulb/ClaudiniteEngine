@@ -11,6 +11,7 @@ package workitem
 
 import (
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -98,6 +99,13 @@ const (
 	QueuedLabel   = "claude-queued"
 	InReviewLabel = "claude-in-review"
 )
+
+// IsQueueLabel reports a label in the queue's vocabulary, in any spelling
+// an engine ever wrote: a person's issue released from the queue keeps
+// every other label it carries.
+func IsQueueLabel(l string) bool {
+	return strings.HasPrefix(l, "task:") || l == NeedsHuman || l == RequestLabel || l == QueuedLabel || l == InReviewLabel
+}
 
 // RequestModels are the families a request may ask for.
 var RequestModels = []string{"opus", "sonnet", "haiku"}

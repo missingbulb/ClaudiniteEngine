@@ -14,10 +14,11 @@ const (
 	KindRetire        = "retire"
 	KindCloseTerminal = "close-terminal"
 	KindNote          = "note"
+	KindRelease       = "release"
 )
 
 // RepairKinds are the repair phase's op kinds.
-var RepairKinds = []string{KindEscalate, KindRetire, KindCloseTerminal, KindNote}
+var RepairKinds = []string{KindEscalate, KindRetire, KindCloseTerminal, KindNote, KindRelease}
 
 // The confirmations a transient-premise rule asks of a fresh read.
 const (
@@ -101,6 +102,17 @@ func PlanRepair(in RepairIn) (ops []Op, closed map[int]bool) {
 			continue
 		}
 		t, _ := taskOf(i)
+		if i.IsAdopted() {
+			var marks []string
+			for _, l := range i.Labels {
+				if workitem.IsQueueLabel(l) {
+					marks = append(marks, l)
+				}
+			}
+			ops = append(ops, Op{Kind: KindRelease, Rule: "orphaned", Issue: i.Number, Labels: marks,
+				IssueBody: workitem.HumanTextOf(i.Body), Body: ReleasedComment(t.ID())})
+			continue
+		}
 		ops = append(ops, Op{Kind: KindRetire, Rule: "orphaned", Issue: i.Number, From: i.Status(), To: workitem.StatusRejected,
 			Close: "not_planned", At: at, Body: OrphanedParkComment(t.ID(), head[t.ID()])})
 	}
@@ -211,6 +223,15 @@ func threadEffect(i *workitem.Issue, op Op) {
 	}
 	if op.To != "" && !has(i.Labels, op.To) {
 		i.Labels = append(i.Labels, op.To)
+	}
+	if op.Kind == KindRelease {
+		kept := workitem.LabelList{}
+		for _, l := range i.Labels {
+			if !has(op.Labels, l) {
+				kept = append(kept, l)
+			}
+		}
+		i.Labels, i.Body = kept, op.IssueBody
 	}
 	if op.Kind == KindRetire {
 		i.State, i.ClosedAt = "closed", op.At
