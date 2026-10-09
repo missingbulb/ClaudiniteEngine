@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/calendar"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/world"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/workitem"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/world"
 )
 
 // The holder's sign of life. A work step may run for hours, and while it

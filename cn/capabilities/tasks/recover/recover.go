@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/schedule"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/world"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/world"
 )
 
 // MaxDepth is how many continuations a chain makes before it stops.

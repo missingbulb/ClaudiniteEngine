@@ -24,8 +24,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/githubapi"
 	"github.com/missingbulb/ClaudiniteEngine/cn/fleet/licenseapi"
+	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/githubapi"
 	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/sign"
 )
 

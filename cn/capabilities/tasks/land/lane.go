@@ -10,7 +10,7 @@ import (
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/config"
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/mergepolicy"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/workitem"
 )
 
 // CIWorkflow is the member workflow whose runs on the default branch the

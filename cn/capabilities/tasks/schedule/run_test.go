@@ -14,8 +14,8 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/signals"
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/sim"
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/taskspec"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/world"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/workitem"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/world"
 )
 
 var t0 = time.Date(2026, 10, 1, 9, 17, 40, 0, time.UTC)

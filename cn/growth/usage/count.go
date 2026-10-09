@@ -6,8 +6,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/queue"
 	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/jsregex"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/queue"
 )
 
 // Counting one capture file. The checks are read off the three marks they

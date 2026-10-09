@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/land"
 	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/githubapi"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/land"
 )
 
 // ciEvents are the events whose claudinite-ci.yml run on an update PR's

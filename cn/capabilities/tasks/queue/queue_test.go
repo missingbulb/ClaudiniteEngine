@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/queue"
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/sim"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/queue"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/world"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/workitem"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/world"
 )
 
 var t0 = time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC)

@@ -3,7 +3,7 @@ package usage
 import (
 	"math"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/workitem"
 )
 
 // The machinery half's folding core. Every tier is append-once: each

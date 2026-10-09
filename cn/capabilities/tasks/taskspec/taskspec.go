@@ -14,9 +14,9 @@ import (
 	"strings"
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/mergepolicy"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/workitem"
 	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/jsjson"
 	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/jsregex"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem"
 )
 
 // Problem is one way a declaration is not well formed.

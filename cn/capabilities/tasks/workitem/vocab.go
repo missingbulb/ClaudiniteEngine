@@ -194,10 +194,6 @@ const (
 // routine's token where the member's routines name none.
 const RoutineTokenSecret = "CCR_ROUTINE_TOKEN"
 
-// DormantConfigKey is the tasks block's key that stops a repo's
-// recurring work.
-const DormantConfigKey = "dormant"
-
 // InstructionsFile is where SessionStart writes RoutineInstructions in
 // every member; the file ignores itself, so it is always the pinned
 // engine's copy.

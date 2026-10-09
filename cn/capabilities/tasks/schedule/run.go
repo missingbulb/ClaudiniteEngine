@@ -11,11 +11,11 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/items"
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/localterms"
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/precondition"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/queue"
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/signals"
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/taskspec"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/queue"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/world"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/workitem"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/world"
 )
 
 // RunIn is the world one scheduler run acts on: the same code a member's

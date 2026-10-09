@@ -1,13 +1,13 @@
 // Package tasks is the task runner: the scheduler run (tasks/schedule),
 // the executor loop (tasks/execute), the queue over GitHub issues
-// (integrations/github/queue), the routine session's commands (tasks/items), the landing
-// lane (integrations/github/land), the continuation chain (tasks/recover), the signals
+// (tasks/queue), the routine session's commands (tasks/items), the landing
+// lane (tasks/land), the continuation chain (tasks/recover), the signals
 // and precondition evaluator (tasks/signals, tasks/precondition), the
 // embedded Node runner a worker or a task-local preconditions.mjs runs
-// through (tasks/runner), the ports onto GitHub (integrations/github/world,
-// integrations/github/ghport) and the in-memory repository the scenario tests run
+// through (tasks/runner), the port onto GitHub (tasks/world) and its adapter
+// (integrations/github/ghport) and the in-memory repository the scenario tests run
 // against (tasks/sim). The task contract is capabilities/tasks/taskspec, the work
-// item's grammar integrations/github/workitem, the merge policy capabilities/tasks/mergepolicy.
+// item's grammar capabilities/tasks/workitem, the merge policy capabilities/tasks/mergepolicy.
 //
 // The claims below are the mechanism's, carried over from the Node pack's
 // docs/PRINCIPLES.md: each is "Y happens

@@ -10,9 +10,9 @@ import (
 	"net/url"
 	"strconv"
 
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/workitem"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/world"
 	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/githubapi"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/world"
 )
 
 // World is the port over one repository's client.

@@ -53,7 +53,7 @@ import (
 	"time"
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/sim"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/workitem"
 	"github.com/missingbulb/ClaudiniteEngine/dev/release/verify/stubs/stubtls"
 )
 

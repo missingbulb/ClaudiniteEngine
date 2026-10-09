@@ -10,10 +10,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/land"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/workitem"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/world"
 	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/githubapi"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/land"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/world"
 )
 
 type recorded struct{ method, path, body string }

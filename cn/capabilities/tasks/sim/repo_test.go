@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/land"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/land"
 )
 
 // A PR the simulated job token opens gets its pull_request run held; the

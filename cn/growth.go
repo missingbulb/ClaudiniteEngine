@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/execute"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/world"
 	"github.com/missingbulb/ClaudiniteEngine/cn/growth/capture"
 	"github.com/missingbulb/ClaudiniteEngine/cn/growth/prune"
 	"github.com/missingbulb/ClaudiniteEngine/cn/growth/retention"
@@ -17,7 +18,6 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/jsjson"
 	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/report"
 	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/gitcmd"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/world"
 	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/hooks"
 	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/settings"
 )

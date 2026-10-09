@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem"
 	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/packset"
 	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/settings"
 )
@@ -71,7 +70,7 @@ func ReadMember(repo string, packs []packset.Pack) (Member, bool, error) {
 	}
 	declared := parsed.Packs
 	tasks, _ := parsed.TasksBlock()
-	m.Dormant, _ = tasks[workitem.DormantConfigKey].(bool)
+	m.Dormant, _ = tasks[settings.DormantTasksKey].(bool)
 	m.Packs.Channel = declared.Channel
 	if m.Packs.Channel == "" {
 		m.Packs.Channel = settings.ChannelStable

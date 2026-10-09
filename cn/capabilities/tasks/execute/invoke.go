@@ -12,7 +12,7 @@ import (
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/config"
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/taskspec"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/workitem"
 )
 
 // The endpoint a task names when it names none, and the secret holding

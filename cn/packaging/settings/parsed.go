@@ -69,6 +69,10 @@ type Checks struct {
 	Accept []Acceptance
 }
 
+// DormantTasksKey is the tasks block's key that stops a repo's recurring
+// work: the one key read outside the queue's own config package.
+const DormantTasksKey = "dormant"
+
 // Parsed is the settings file's packs, checks, tasks and fleet blocks.
 type Parsed struct {
 	Packs  Packs

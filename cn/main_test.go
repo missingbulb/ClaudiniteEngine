@@ -9,8 +9,6 @@ import (
 	"strings"
 	"sync"
 	"testing"
-
-
 )
 
 var buildRoot string

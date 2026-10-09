@@ -17,9 +17,6 @@ var (
 // integration rather than under tasks.
 var portDirs = map[string]string{
 	"ghport": "../../integrations/github/ghport",
-	"land":   "../../integrations/github/land",
-	"queue":  "../../integrations/github/queue",
-	"world":  "../../integrations/github/world",
 }
 
 // scenarioSuites are the files every one of whose tests a claim cites.

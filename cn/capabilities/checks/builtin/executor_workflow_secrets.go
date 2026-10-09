@@ -8,7 +8,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/declared"
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/findings"
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/taskspec"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/workitem"
 	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/transcript"
 )
 

@@ -7,8 +7,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/world"
 	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/gitcmd"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/world"
 )
 
 // GitHubActions are the named GitHub actions the SDK answers. A pack

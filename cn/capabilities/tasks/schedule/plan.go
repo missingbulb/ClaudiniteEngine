@@ -21,9 +21,9 @@ import (
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/calendar"
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/precondition"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/queue"
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/taskspec"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/queue"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/workitem"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/workitem"
 )
 
 // The run's own op kinds.

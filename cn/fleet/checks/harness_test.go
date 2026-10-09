@@ -180,4 +180,3 @@ func expect(t *testing.T, got []findings.Finding, wants ...want) {
 		}
 	}
 }
-
