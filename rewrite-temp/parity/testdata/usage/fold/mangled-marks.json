@@ -1,0 +1,462 @@
+{
+  "input": {
+    "now": "2026-03-04T12:24:00.000Z",
+    "repo": "acme/member",
+    "pack": "claudinite-tasks",
+    "task": "usage-fold",
+    "automerge": "anything",
+    "packs": [
+      {
+        "id": "acme-pack",
+        "kind": "canon"
+      },
+      {
+        "id": "acme-local",
+        "kind": "local"
+      },
+      {
+        "id": "acme-absent",
+        "kind": "temp"
+      }
+    ],
+    "packConfig": {
+      "actionsMinuteRate": 0.008
+    },
+    "target": {
+      "branch": "claudinite/usage-fold"
+    },
+    "main": [
+      {
+        "date": "2026-01-18T12:24:00Z",
+        "files": {
+          ".claudinite/local/packs/acme-local/skills/acme-skill-i/SKILL.md": "# i\n",
+          ".claudinite/shared/packs/acme-pack/skills/acme-skill-h/SKILL.md": "# h\n",
+          ".claudinite/shared/packs/acme-pack/skills/no-skill-file/README": "x\n",
+          "README.md": "hi\n"
+        }
+      },
+      {
+        "date": "2026-02-06T11:13:03Z",
+        "files": {
+          "src/f2.txt": "line 0\nline 0\nline 0\nline 0\nline 0\nline 0\nline 0\nline 0\n"
+        }
+      }
+    ],
+    "logs": {
+      "README.md": "# logs\n"
+    },
+    "github": {
+      "runs": {
+        "executor": [
+          {
+            "conclusion": "timed_out",
+            "created_at": "2026-03-01T10:35:04Z",
+            "id": 9012,
+            "run_started_at": "2026-03-01T10:35:21Z"
+          },
+          {
+            "conclusion": null,
+            "created_at": "2026-03-01T10:35:04Z",
+            "id": 9011,
+            "run_started_at": "2026-03-01T10:35:21Z"
+          },
+          {
+            "conclusion": "cancelled",
+            "created_at": "2026-03-02T01:07:04Z",
+            "id": 9010,
+            "run_started_at": "2026-03-02T01:07:16Z"
+          },
+          {
+            "conclusion": "startup_failure",
+            "created_at": "2026-02-28T20:47:45Z",
+            "id": 9009,
+            "run_started_at": "2026-02-28T20:48:43Z"
+          },
+          {
+            "conclusion": "timed_out",
+            "created_at": "2026-03-02T02:51:32Z",
+            "id": 9008,
+            "run_started_at": "2026-03-02T02:51:46Z"
+          },
+          {
+            "conclusion": "success",
+            "created_at": "2026-02-28T14:06:47Z",
+            "id": 9007,
+            "run_started_at": "2026-02-28T14:07:46Z"
+          }
+        ],
+        "scheduler": [
+          {
+            "conclusion": "success",
+            "created_at": "2026-03-02T00:31:48Z",
+            "id": 9006,
+            "run_started_at": "2026-03-02T00:32:30Z"
+          },
+          {
+            "conclusion": "timed_out",
+            "created_at": "2026-03-02T14:05:06Z",
+            "run_started_at": "2026-03-02T14:05:54Z"
+          },
+          {
+            "conclusion": "timed_out",
+            "created_at": "2026-03-03T21:56:40Z",
+            "id": 9004
+          },
+          {
+            "conclusion": "failure",
+            "created_at": "2026-03-03T06:07:01Z",
+            "id": 9003,
+            "run_started_at": "2026-03-03T06:08:21Z"
+          },
+          {
+            "conclusion": "timed_out",
+            "created_at": "2026-03-02T04:13:11Z",
+            "id": 9002,
+            "run_started_at": "2026-03-02T04:13:58Z"
+          },
+          {
+            "conclusion": "startup_failure",
+            "created_at": "2026-02-28T15:11:50Z",
+            "id": 9001,
+            "run_started_at": "2026-02-28T15:12:50Z"
+          }
+        ]
+      },
+      "jobs": {
+        "9001": [
+          {
+            "completed_at": "2026-02-28T15:15:49Z",
+            "conclusion": "success",
+            "id": 70001,
+            "name": "job",
+            "started_at": "2026-02-28T15:12:25Z"
+          },
+          {
+            "completed_at": "2026-02-28T15:12:29Z",
+            "conclusion": "failure",
+            "id": 70002,
+            "name": "job",
+            "started_at": "2026-02-28T15:12:21Z"
+          },
+          {
+            "completed_at": "2026-02-28T15:14:10Z",
+            "conclusion": "success",
+            "id": 70003,
+            "name": "job",
+            "started_at": "2026-02-28T15:12:01Z"
+          }
+        ],
+        "9002": [
+          {
+            "completed_at": "2026-03-02T04:17:07Z",
+            "conclusion": "skipped",
+            "id": 70004,
+            "name": "job",
+            "started_at": "2026-03-02T04:13:20Z"
+          }
+        ],
+        "9003": [
+          {
+            "completed_at": "2026-03-03T06:13:37Z",
+            "conclusion": "failure",
+            "id": 70005,
+            "name": "job",
+            "started_at": "2026-03-03T06:07:50Z"
+          },
+          {
+            "completed_at": "2026-03-03T06:11:33Z",
+            "conclusion": "success",
+            "id": 70006,
+            "name": "job",
+            "started_at": "2026-03-03T06:07:45Z"
+          },
+          {
+            "completed_at": "2026-03-03T06:09:28Z",
+            "conclusion": "skipped",
+            "id": 70007,
+            "name": "job",
+            "started_at": "2026-03-03T06:07:38Z"
+          }
+        ],
+        "9004": [
+          {
+            "completed_at": "2026-03-03T21:57:52Z",
+            "conclusion": "failure",
+            "id": 70008,
+            "name": "job",
+            "started_at": "2026-03-03T21:56:43Z"
+          },
+          {
+            "completed_at": "2026-03-03T21:58:29Z",
+            "conclusion": "skipped",
+            "id": 70009,
+            "name": "job",
+            "started_at": "2026-03-03T21:56:59Z"
+          },
+          {
+            "completed_at": "2026-03-03T22:02:33Z",
+            "conclusion": "success",
+            "id": 70010,
+            "name": "job",
+            "started_at": "2026-03-03T21:57:16Z"
+          }
+        ],
+        "9005": [
+          {
+            "completed_at": null,
+            "conclusion": "failure",
+            "id": 70011,
+            "name": "job",
+            "started_at": "2026-03-02T14:05:42Z"
+          }
+        ],
+        "9006": [
+          {
+            "completed_at": "2026-03-02T00:33:55Z",
+            "conclusion": "success",
+            "id": 70012,
+            "name": "job",
+            "started_at": "2026-03-02T00:31:59Z"
+          },
+          {
+            "completed_at": "2026-03-02T00:33:22Z",
+            "conclusion": "success",
+            "id": 70013,
+            "name": "job",
+            "started_at": "2026-03-02T00:32:04Z"
+          }
+        ],
+        "9007": [
+          {
+            "completed_at": "2026-02-28T14:07:10Z",
+            "conclusion": "failure",
+            "id": 70014,
+            "name": "job",
+            "started_at": "2026-02-28T14:07:01Z"
+          }
+        ],
+        "9008": [
+          {
+            "completed_at": "2026-03-02T02:56:05Z",
+            "conclusion": "success",
+            "id": 70015,
+            "name": "job",
+            "started_at": "2026-03-02T02:52:21Z"
+          }
+        ],
+        "9009": [
+          {
+            "completed_at": "2026-02-28T20:49:11Z",
+            "conclusion": "failure",
+            "id": 70016,
+            "name": "job",
+            "started_at": "2026-02-28T20:48:30Z"
+          },
+          {
+            "completed_at": "2026-02-28T20:53:57Z",
+            "conclusion": "success",
+            "id": 70017,
+            "name": "job",
+            "started_at": "2026-02-28T20:48:41Z"
+          },
+          {
+            "completed_at": "2026-02-28T20:53:56Z",
+            "conclusion": "failure",
+            "id": 70018,
+            "name": "job",
+            "started_at": "2026-02-28T20:48:10Z"
+          }
+        ],
+        "9010": [
+          {
+            "completed_at": "2026-03-02T01:12:22Z",
+            "conclusion": "skipped",
+            "id": 70019,
+            "name": "job",
+            "started_at": "2026-03-02T01:08:02Z"
+          }
+        ],
+        "9011": [
+          {
+            "completed_at": "2026-03-01T10:35:22Z",
+            "conclusion": "skipped",
+            "id": 70020,
+            "name": "job",
+            "started_at": "2026-03-01T10:35:17Z"
+          }
+        ],
+        "9012": [
+          {
+            "completed_at": null,
+            "conclusion": "failure",
+            "id": 70021,
+            "name": "job",
+            "started_at": "2026-02-28T13:27:51Z"
+          }
+        ]
+      },
+      "logs": {
+        "70001": "2026-02-28T15:12:25.9077511Z ##[group]Run node cn tasks schedule\n\n",
+        "70002": "2026-02-28T15:12:21.9077511Z ##[group]Run node cn tasks schedule\n2026-02-28T15:12:21.9077511Z claudinite-run-cost v1 scheduler [9001] calls=3 list=48271 ask=77455 drain=29310\n",
+        "70003": "2026-02-28T15:12:01.9077511Z ##[group]Run node cn tasks schedule\n2026-02-28T15:12:01.9077511Z claudinite-run-cost v1 scheduler [9001] calls=6 list=4981 ask=23391 repair=4771 drain=40671\n2026-02-28T15:12:01.9077511Z claudinite-run-cost v1 scheduler [9001] calls=46 list=88345 ask=26553 repair=73611\n",
+        "70004": "2026-03-02T04:13:20.5001238Z ##[group]Run node cn tasks schedule\n\n",
+        "70005": "2026-03-03T06:07:50.5379648Z ##[group]Run node cn tasks schedule\n2026-03-03T06:07:50.5379648Z claudinite-run-cost v1 scheduler [9003] ask=51099 repair=22608\n",
+        "70006": "2026-03-03T06:07:45.5379648Z ##[group]Run node cn tasks schedule\n2026-03-03T06:07:45.5379648Z claudinite-run-cost v1 scheduler [9003] calls=53 ask=6306 drain=68142\n",
+        "70007": "2026-03-03T06:07:38.5379648Z ##[group]Run node cn tasks schedule\n2026-03-03T06:07:38.5379648Z claudinite-run-cost v1 scheduler [9003] ask=79684 repair=62231 drain=44564\n",
+        "70008": "2026-03-03T21:56:43.0169794Z ##[group]Run node cn tasks schedule\n2026-03-03T21:56:43.0169794Z claudinite-run-cost v1 scheduler [9004] calls=8 ask=3687 repair=15006 drain=74057\n",
+        "70010": "2026-03-03T21:57:16.0169794Z ##[group]Run node cn tasks schedule\n\n",
+        "70011": "2026-03-02T14:05:42.5110458Z ##[group]Run node cn tasks schedule\n2026-03-02T14:05:42.5110458Z claudinite-run-cost v1 scheduler [9005] calls=33 ask=27632 drain=47678\n2026-03-02T14:05:42.5110458Z claudinite-run-cost v1 scheduler [9005] calls=51 list=65606 ask=27498 repair=35848 drain=38680\n",
+        "70013": "2026-03-02T00:32:04.6582874Z ##[group]Run node cn tasks schedule\n2026-03-02T00:32:04.6582874Z claudinite-run-cost v1 scheduler [9006] calls=29 list=48973\n2026-03-02T00:32:04.6582874Z claudinite-run-cost v1 scheduler [9006] calls=0 ask=20565 drain=56258\n"
+      },
+      "pulls": [
+        {
+          "body": "does the thing\n\nCloses #1\n",
+          "created_at": "2026-02-27T15:54:36Z",
+          "merged_at": "2026-03-01T22:31:40Z",
+          "number": 1500,
+          "updated_at": "2026-02-28T17:30:22Z"
+        },
+        {
+          "body": "",
+          "created_at": "2026-03-02T19:19:32Z",
+          "merged_at": "2026-03-03T10:32:23Z",
+          "number": 1501,
+          "updated_at": "2026-03-03T00:47:22Z"
+        },
+        {
+          "body": "",
+          "created_at": "2026-03-04T02:09:37Z",
+          "merged_at": "2026-03-04T10:51:30Z",
+          "number": 1502,
+          "updated_at": "2026-03-04T07:53:11Z"
+        },
+        {
+          "body": "",
+          "created_at": "2026-03-02T03:02:05Z",
+          "merged_at": "2026-03-03T16:15:44Z",
+          "number": 1503,
+          "updated_at": "2026-03-03T10:32:06Z"
+        },
+        {
+          "body": "Fixes #3",
+          "created_at": "2026-03-01T19:04:03Z",
+          "merged_at": "2026-03-03T07:51:11Z",
+          "number": 1504,
+          "updated_at": "2026-03-03T01:04:01Z"
+        }
+      ],
+      "releases": [
+        {
+          "created_at": "2026-02-25T17:48:06Z",
+          "tag_name": "v1"
+        },
+        {
+          "created_at": "2026-02-06T14:29:41Z",
+          "tag_name": "v1"
+        }
+      ]
+    },
+    "steps": [
+      {
+        "now": "2026-03-04T20:24:00.000Z",
+        "mangle": 4037983388426641546
+      }
+    ]
+  },
+  "expect": [
+    {
+      "branch": {
+        "commits": [
+          "Claudinite: fold usage\n\nClaudinite-Task: claudinite-tasks/usage-fold\nClaudinite-Automerge-Policy: anything"
+        ],
+        "exists": true,
+        "files": {
+          ".claudinite/local/tasks-usage.GENERATED.json": null,
+          ".claudinite/local/usage.GENERATED.json": null,
+          ".claudinite/usage/sessions-and-elements.json": "{\n  \"version\": 4,\n  \"generated\": \"2026-03-04T12:24:00.000Z\",\n  \"foldedThrough\": \"2026-03-03\",\n  \"runsFoldedThrough\": \"2026-03-03T21:56:40Z\",\n  \"queueFoldedThrough\": null,\n  \"prsFoldedThrough\": \"2026-03-04T10:51:30Z\",\n  \"fields\": {\n    \"day\": [\"captures\",\"merges\",\"sessions\",\"userMessages\",\"userCommands\",\"tokensIn\",\"tokensOut\",\"tokenSessions\",\"commits\",\"linesAdded\",\"linesRemoved\",\"releases\",\"humanSeconds\",\"agentSeconds\"],\n    \"week\": [\"days\",\"captures\",\"merges\",\"sessionDays\",\"userMessages\",\"userCommands\",\"tokensIn\",\"tokensOut\",\"tokenSessions\",\"commits\",\"linesAdded\",\"linesRemoved\",\"releases\",\"humanSeconds\",\"agentSeconds\"],\n    \"hour\": [\"scheduler\",\"executor\",\"agentic\",\"failed\"],\n    \"checks\": [\"runs\",\"failures\",\"errors\",\"blocking\",\"advisory\",\"ciRuns\",\"ciFailures\"],\n    \"checkFindings\": [\"blocking\",\"advisory\",\"sessions\",\"persisted\",\"relent\"],\n    \"skillLoadsBy\": [\"voluntary\",\"blockedEdit\",\"blockedCall\",\"resultTrigger\",\"promptTrigger\",\"command\",\"read\"],\n    \"triggerFires\": [\"fired\",\"followed\"],\n    \"guardFires\": [\"blocking\",\"advisory\"],\n    \"checkTiming\": [\"runs\",\"totalMs\",\"maxMs\"],\n    \"buildSessions\": [\"cached\",\"started\",\"compiledMs\",\"compiledOk\",\"waits\",\"waitMs\",\"waitMaxMs\"],\n    \"buildWaits\": [\"waits\",\"sessions\",\"totalMs\",\"maxMs\",\"timeouts\"],\n    \"tokensByModel\": [\"input\",\"cacheRead\",\"cacheCreate\",\"output\"],\n    \"prs\": [\"leadHours\",\"issueLeadHours\",\"sessionToMergeHours\"],\n    \"taskCost\": [\"sessions\",\"tokensIn\",\"tokensOut\",\"userMessages\"],\n    \"parks\": [\"failure\",\"action\",\"decision\",\"approval\"],\n    \"tasks\": [\"agent\",\"code-work\",\"skipped\",\"failed\",\"deferred\"],\n    \"taskExec\": [\"success\",\"failed\",\"task-gone\",\"invalid\"],\n    \"queue\": [\"done\",\"delivered\",\"obsolete\",\"none\"]\n  },\n  \"caps\": {\n    \"humanSeconds\": 600\n  },\n  \"hours\": {\n    \"2026-03-02T00\": {\"totals\":[1,0,0,0]},\n    \"2026-03-02T01\": {\"totals\":[0,1,0,0]},\n    \"2026-03-02T02\": {\"totals\":[0,1,0,1]},\n    \"2026-03-02T04\": {\"totals\":[1,0,0,1]},\n    \"2026-03-03T06\": {\"totals\":[1,0,0,1]},\n    \"2026-03-03T21\": {\"totals\":[1,0,0,1]}\n  },\n  \"days\": {\n    \"2026-02-03\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-02-04\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-02-05\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-02-06\": {\"totals\":[0,0,0,0,0,null,null,null,1,8,0,1,null,null]},\n    \"2026-02-07\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-02-08\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-02-09\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-02-10\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-02-11\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-02-12\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-02-13\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-02-14\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-02-15\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-02-16\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-02-17\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-02-18\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-02-19\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-02-20\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-02-21\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-02-22\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-02-23\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-02-24\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-02-25\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,1,null,null]},\n    \"2026-02-26\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-02-27\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-02-28\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-03-01\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null],\"prs\":{\"1500\":[54.6,null,null]}},\n    \"2026-03-02\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-03-03\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null],\"prs\":{\"1501\":[15.2,null,null],\"1503\":[37.2,null,null],\"1504\":[36.8,null,null]}},\n    \"2026-03-04\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null],\"prs\":{\"1502\":[8.7,null,null]}}\n  },\n  \"weeks\": {\n    \"2026-W06\": {\"totals\":[6,0,0,0,0,0,null,null,null,1,8,0,1,null,null]},\n    \"2026-W07\": {\"totals\":[7,0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-W08\": {\"totals\":[7,0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-W09\": {\"totals\":[7,0,0,0,0,0,null,null,null,0,0,0,1,null,null],\"prs\":{\"1500\":[54.6,null,null]}},\n    \"2026-W10\": {\"totals\":[2,0,0,0,0,0,null,null,null,0,0,0,0,null,null],\"prs\":{\"1501\":[15.2,null,null],\"1503\":[37.2,null,null],\"1504\":[36.8,null,null]}}\n  }\n}\n",
+          ".claudinite/usage/task-runs-and-costs.json": "{\n  \"version\": 1,\n  \"generated\": \"2026-03-04T12:24:00.000Z\",\n  \"foldedThrough\": \"2026-03-03\",\n  \"runsFoldedThrough\": \"2026-03-03T21:56:40Z\",\n  \"queueFoldedThrough\": null,\n  \"minuteRate\": 0.008,\n  \"fields\": {\n    \"hour\": [\"runs\",\"jobs\",\"minutesBilled\",\"spend\",\"apiCalls\",\"list\",\"ask\",\"repair\",\"drain\",\"pick\",\"claim\",\"code-work\",\"hand-off\",\"converge\"],\n    \"day\": [\"runs\",\"jobs\",\"minutesBilled\",\"spend\",\"apiCalls\",\"list\",\"ask\",\"repair\",\"drain\",\"pick\",\"claim\",\"code-work\",\"hand-off\",\"converge\"],\n    \"week\": [\"days\",\"runs\",\"jobs\",\"minutesBilled\",\"spend\",\"apiCalls\",\"list\",\"ask\",\"repair\",\"drain\",\"pick\",\"claim\",\"code-work\",\"hand-off\",\"converge\"],\n    \"workflows\": [\"runs\",\"jobs\",\"minutesBilled\",\"spend\"],\n    \"runCosts\": [\"apiCalls\",\"list\",\"ask\",\"repair\",\"drain\",\"pick\",\"claim\",\"code-work\",\"hand-off\",\"converge\"],\n    \"queue\": [\"done\",\"delivered\",\"obsolete\",\"none\"],\n    \"parks\": [\"failure\",\"action\",\"decision\",\"approval\"],\n    \"latency\": [\"tickToItemMinutes\",\"itemToPickMinutes\",\"pickToHandOffMinutes\",\"handOffToConvergeMinutes\"]\n  },\n  \"hours\": {\n    \"2026-03-02T00\": {\"totals\":[1,2,4,0.032,0,null,20565,null,56258,null,null,null,null,null],\"workflows\":{\"scheduler\":[1,2,4,0.032]},\"runCosts\":{\"9006\":[0,null,20565,null,56258,null,null,null,null,null]}},\n    \"2026-03-02T01\": {\"totals\":[1,1,5,0.04,null,null,null,null,null,null,null,null,null,null],\"workflows\":{\"executor\":[1,1,5,0.04]}},\n    \"2026-03-02T02\": {\"totals\":[1,1,4,0.032,null,null,null,null,null,null,null,null,null,null],\"workflows\":{\"executor\":[1,1,4,0.032]}},\n    \"2026-03-02T04\": {\"totals\":[1,1,4,0.032,null,null,null,null,null,null,null,null,null,null],\"workflows\":{\"scheduler\":[1,1,4,0.032]}},\n    \"2026-03-03T06\": {\"totals\":[1,3,12,0.096,null,null,null,null,null,null,null,null,null,null],\"workflows\":{\"scheduler\":[1,3,12,0.096]}},\n    \"2026-03-03T21\": {\"totals\":[1,3,10,0.08,null,null,null,null,null,null,null,null,null,null],\"workflows\":{\"scheduler\":[1,3,10,0.08]}}\n  },\n  \"days\": {\n    \"2026-03-02\": {\"totals\":[4,5,17,0.136,0,null,20565,null,56258,null,null,null,null,null],\"workflows\":{\"executor\":[2,2,9,0.07200000000000001],\"scheduler\":[2,3,8,0.064]},\"runCosts\":{\"9006\":[0,null,20565,null,56258,null,null,null,null,null]}},\n    \"2026-03-03\": {\"totals\":[2,6,22,0.176,null,null,null,null,null,null,null,null,null,null],\"workflows\":{\"scheduler\":[2,6,22,0.176]}}\n  },\n  \"weeks\": {\n    \"2026-W10\": {\"totals\":[2,6,11,39,0.312,0,null,20565,null,56258,null,null,null,null,null],\"workflows\":{\"executor\":[2,2,9,0.07200000000000001],\"scheduler\":[4,9,30,0.24]}}\n  }\n}\n"
+        }
+      },
+      "said": {
+        "error": null,
+        "logs": [
+          "git history: complete for the window from 2026-02-03",
+          "sessions: 0 capture file(s), 6 run(s), 0 closed item(s) and 5 merged PR(s)",
+          "machinery: 6 run(s) and 0 closed item(s)",
+          "opened PR #41"
+        ],
+        "opened": [
+          {
+            "base": "main",
+            "body": "Regenerated the repo's rolling usage records:\n\n- `.claudinite/usage/sessions-and-elements.json`\n- `.claudinite/usage/task-runs-and-costs.json`\n\n`.claudinite/usage/sessions-and-elements.json` folds what the repo's sessions did - its captured conversation\nlogs, its workflow run listings, the queue's closed work items, its merged pull\nrequests and its git history. Hour rows cover the last three days; day rows are\nrecomputed from scratch every run; the run, queue and merged-PR rows and the week\nrows are appended once, past their own watermarks.\n\n`.claudinite/usage/task-runs-and-costs.json` folds what the machinery itself cost - per workflow the runs,\njobs, billed minutes and, only where this pack's config carries `actionsMinuteRate`,\nthe spend they imply; per run its API calls and wall time per phase; per task its\noutcomes, parks and latency samples. Every tier is appended once past its own watermark.\n\nA file whose recompute differs only in its `generated` stamp is left out, and a fold\nwhere neither moved opens no PR at all. Machine-written - never hand-edit either;\neach fold starts from the last, so a lost copy is lost history.",
+            "head": "claudinite/usage-fold",
+            "title": "Claudinite: usage fold"
+          }
+        ],
+        "requests": [
+          "/repos/acme/member/actions/workflows/claudinite-scheduler.yml/runs?status=completed\u0026per_page=100\u0026page=1\u0026created=%3E%3D2026-03-01",
+          "/repos/acme/member/actions/workflows/claudinite-executor.yml/runs?status=completed\u0026per_page=100\u0026page=1\u0026created=%3E%3D2026-03-01",
+          "/repos/acme/member/issues?state=closed\u0026sort=updated\u0026direction=desc\u0026since=2026-02-02T12%3A24%3A00.000Z\u0026per_page=100\u0026page=1",
+          "/repos/acme/member/pulls?state=closed\u0026sort=updated\u0026direction=desc\u0026per_page=100\u0026page=1",
+          "/repos/acme/member/issues/3",
+          "/repos/acme/member/issues/1",
+          "/repos/acme/member/releases?per_page=100",
+          "/repos/acme/member/actions/workflows/claudinite-scheduler.yml/runs?status=completed\u0026per_page=100\u0026page=1\u0026created=%3E%3D2026-03-01",
+          "/repos/acme/member/actions/workflows/claudinite-executor.yml/runs?status=completed\u0026per_page=100\u0026page=1\u0026created=%3E%3D2026-03-01",
+          "/repos/acme/member/actions/runs/9006/jobs?per_page=100",
+          "/repos/acme/member/actions/jobs/70012/logs",
+          "/repos/acme/member/actions/jobs/70013/logs",
+          "/repos/acme/member/actions/runs/9010/jobs?per_page=100",
+          "/repos/acme/member/actions/runs/9008/jobs?per_page=100",
+          "/repos/acme/member/actions/runs/9002/jobs?per_page=100",
+          "/repos/acme/member/actions/runs/9003/jobs?per_page=100",
+          "/repos/acme/member/actions/runs/9004/jobs?per_page=100",
+          "/repos/acme/member/issues?state=closed\u0026sort=updated\u0026direction=desc\u0026since=2026-02-02T12%3A24%3A00.000Z\u0026per_page=100\u0026page=1"
+        ]
+      }
+    },
+    {
+      "branch": {
+        "commits": [
+          "Claudinite: fold usage\n\nClaudinite-Task: claudinite-tasks/usage-fold\nClaudinite-Automerge-Policy: anything"
+        ],
+        "exists": true,
+        "files": {
+          ".claudinite/local/tasks-usage.GENERATED.json": null,
+          ".claudinite/local/usage.GENERATED.json": null,
+          ".claudinite/usage/sessions-and-elements.json": "{\n  \"version\": 4,\n  \"generated\": \"2026-03-04T20:24:00.000Z\",\n  \"foldedThrough\": \"2026-03-03\",\n  \"runsFoldedThrough\": \"2026-03-03T21:56:40Z\",\n  \"queueFoldedThrough\": null,\n  \"prsFoldedThrough\": \"2026-03-04T10:51:30Z\",\n  \"fields\": {\n    \"day\": [\"captures\",\"merges\",\"sessions\",\"userMessages\",\"userCommands\",\"tokensIn\",\"tokensOut\",\"tokenSessions\",\"commits\",\"linesAdded\",\"linesRemoved\",\"releases\",\"humanSeconds\",\"agentSeconds\"],\n    \"week\": [\"days\",\"captures\",\"merges\",\"sessionDays\",\"userMessages\",\"userCommands\",\"tokensIn\",\"tokensOut\",\"tokenSessions\",\"commits\",\"linesAdded\",\"linesRemoved\",\"releases\",\"humanSeconds\",\"agentSeconds\"],\n    \"hour\": [\"scheduler\",\"executor\",\"agentic\",\"failed\"],\n    \"checks\": [\"runs\",\"failures\",\"errors\",\"blocking\",\"advisory\",\"ciRuns\",\"ciFailures\"],\n    \"checkFindings\": [\"blocking\",\"advisory\",\"sessions\",\"persisted\",\"relent\"],\n    \"skillLoadsBy\": [\"voluntary\",\"blockedEdit\",\"blockedCall\",\"resultTrigger\",\"promptTrigger\",\"command\",\"read\"],\n    \"triggerFires\": [\"fired\",\"followed\"],\n    \"guardFires\": [\"blocking\",\"advisory\"],\n    \"checkTiming\": [\"runs\",\"totalMs\",\"maxMs\"],\n    \"buildSessions\": [\"cached\",\"started\",\"compiledMs\",\"compiledOk\",\"waits\",\"waitMs\",\"waitMaxMs\"],\n    \"buildWaits\": [\"waits\",\"sessions\",\"totalMs\",\"maxMs\",\"timeouts\"],\n    \"tokensByModel\": [\"input\",\"cacheRead\",\"cacheCreate\",\"output\"],\n    \"prs\": [\"leadHours\",\"issueLeadHours\",\"sessionToMergeHours\"],\n    \"taskCost\": [\"sessions\",\"tokensIn\",\"tokensOut\",\"userMessages\"],\n    \"parks\": [\"failure\",\"action\",\"decision\",\"approval\"],\n    \"tasks\": [\"agent\",\"code-work\",\"skipped\",\"failed\",\"deferred\"],\n    \"taskExec\": [\"success\",\"failed\",\"task-gone\",\"invalid\"],\n    \"queue\": [\"done\",\"delivered\",\"obsolete\",\"none\"]\n  },\n  \"caps\": {\n    \"humanSeconds\": 600\n  },\n  \"hours\": {\n    \"2026-03-02T00\": {\"totals\":[1,0,0,0]},\n    \"2026-03-02T01\": {\"totals\":[0,1,0,0]},\n    \"2026-03-02T02\": {\"totals\":[0,1,0,1]},\n    \"2026-03-02T04\": {\"totals\":[1,0,0,1]},\n    \"2026-03-03T06\": {\"totals\":[1,0,0,1]},\n    \"2026-03-03T21\": {\"totals\":[1,0,0,1]}\n  },\n  \"days\": {\n    \"2026-02-03\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-02-04\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-02-05\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-02-06\": {\"totals\":[0,0,0,0,0,null,null,null,1,8,0,1,null,null]},\n    \"2026-02-07\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-02-08\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-02-09\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-02-10\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-02-11\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-02-12\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-02-13\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-02-14\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-02-15\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-02-16\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-02-17\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-02-18\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-02-19\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-02-20\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-02-21\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-02-22\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-02-23\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-02-24\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-02-25\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,1,null,null]},\n    \"2026-02-26\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-02-27\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-02-28\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-03-01\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null],\"prs\":{\"1500\":[54.6,null,null]}},\n    \"2026-03-02\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-03-03\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null],\"prs\":{\"1501\":[15.2,null,null],\"1503\":[37.2,null,null],\"1504\":[36.8,null,null]}},\n    \"2026-03-04\": {\"totals\":[0,0,0,0,0,null,null,null,0,0,0,0,null,null],\"prs\":{\"1502\":[8.7,null,null]}}\n  },\n  \"weeks\": {\n    \"2026-W06\": {\"totals\":[6,0,0,0,0,0,null,null,null,1,8,0,1,null,null]},\n    \"2026-W07\": {\"totals\":[7,0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-W08\": {\"totals\":[7,0,0,0,0,0,null,null,null,0,0,0,0,null,null]},\n    \"2026-W09\": {\"totals\":[7,0,0,0,0,0,null,null,null,0,0,0,1,null,null],\"prs\":{\"1500\":[54.6,null,null]}},\n    \"2026-W10\": {\"totals\":[2,0,0,0,0,0,null,null,null,0,0,0,0,null,null],\"prs\":{\"1501\":[15.2,null,null],\"1503\":[37.2,null,null],\"1504\":[36.8,null,null]}}\n  }\n}\n",
+          ".claudinite/usage/task-runs-and-costs.json": "{\n  \"version\": 1,\n  \"generated\": \"2026-03-04T20:24:00.000Z\",\n  \"foldedThrough\": \"2026-03-03\",\n  \"runsFoldedThrough\": \"2026-03-03T21:56:40Z\",\n  \"queueFoldedThrough\": null,\n  \"minuteRate\": 0.008,\n  \"fields\": {\n    \"hour\": [\"runs\",\"jobs\",\"minutesBilled\",\"spend\",\"apiCalls\",\"list\",\"ask\",\"repair\",\"drain\",\"pick\",\"claim\",\"code-work\",\"hand-off\",\"converge\"],\n    \"day\": [\"runs\",\"jobs\",\"minutesBilled\",\"spend\",\"apiCalls\",\"list\",\"ask\",\"repair\",\"drain\",\"pick\",\"claim\",\"code-work\",\"hand-off\",\"converge\"],\n    \"week\": [\"days\",\"runs\",\"jobs\",\"minutesBilled\",\"spend\",\"apiCalls\",\"list\",\"ask\",\"repair\",\"drain\",\"pick\",\"claim\",\"code-work\",\"hand-off\",\"converge\"],\n    \"workflows\": [\"runs\",\"jobs\",\"minutesBilled\",\"spend\"],\n    \"runCosts\": [\"apiCalls\",\"list\",\"ask\",\"repair\",\"drain\",\"pick\",\"claim\",\"code-work\",\"hand-off\",\"converge\"],\n    \"queue\": [\"done\",\"delivered\",\"obsolete\",\"none\"],\n    \"parks\": [\"failure\",\"action\",\"decision\",\"approval\"],\n    \"latency\": [\"tickToItemMinutes\",\"itemToPickMinutes\",\"pickToHandOffMinutes\",\"handOffToConvergeMinutes\"]\n  },\n  \"hours\": {\n    \"2026-03-02T00\": {\"totals\":[1,2,4,0.032,0,null,20565,null,56258,null,null,null,null,null],\"workflows\":{\"scheduler\":[1,2,4,0.032]},\"runCosts\":{\"9006\":[0,null,20565,null,56258,null,null,null,null,null]}},\n    \"2026-03-02T01\": {\"totals\":[1,1,5,0.04,null,null,null,null,null,null,null,null,null,null],\"workflows\":{\"executor\":[1,1,5,0.04]}},\n    \"2026-03-02T02\": {\"totals\":[1,1,4,0.032,null,null,null,null,null,null,null,null,null,null],\"workflows\":{\"executor\":[1,1,4,0.032]}},\n    \"2026-03-02T04\": {\"totals\":[1,1,4,0.032,null,null,null,null,null,null,null,null,null,null],\"workflows\":{\"scheduler\":[1,1,4,0.032]}},\n    \"2026-03-03T06\": {\"totals\":[1,3,12,0.096,null,null,null,null,null,null,null,null,null,null],\"workflows\":{\"scheduler\":[1,3,12,0.096]}},\n    \"2026-03-03T21\": {\"totals\":[1,3,10,0.08,null,null,null,null,null,null,null,null,null,null],\"workflows\":{\"scheduler\":[1,3,10,0.08]}}\n  },\n  \"days\": {\n    \"2026-03-02\": {\"totals\":[null,null,null,null,null,null,null,null,null,null,null,null,null,null]},\n    \"2026-03-03\": {\"totals\":[2,6,22,0.176,null,null,null,null,null,null,null,null,null,null],\"workflows\":{\"scheduler\":[2,6,22,0.176]}}\n  },\n  \"weeks\": {\n    \"2026-W10\": {\"totals\":[2,6,11,39,0.312,0,null,20565,null,56258,null,null,null,null,null],\"workflows\":{\"executor\":[2,2,9,0.07200000000000001],\"scheduler\":[4,9,30,0.24]}}\n  }\n}\n"
+        }
+      },
+      "said": {
+        "error": null,
+        "logs": [
+          "git history: complete for the window from 2026-02-03",
+          "sessions: 0 capture file(s), 0 run(s), 0 closed item(s) and 5 merged PR(s)",
+          "machinery: 0 run(s) and 0 closed item(s)",
+          "opened PR #41"
+        ],
+        "opened": [
+          {
+            "base": "main",
+            "body": "Regenerated the repo's rolling usage records:\n\n- `.claudinite/usage/sessions-and-elements.json`\n- `.claudinite/usage/task-runs-and-costs.json`\n\n`.claudinite/usage/sessions-and-elements.json` folds what the repo's sessions did - its captured conversation\nlogs, its workflow run listings, the queue's closed work items, its merged pull\nrequests and its git history. Hour rows cover the last three days; day rows are\nrecomputed from scratch every run; the run, queue and merged-PR rows and the week\nrows are appended once, past their own watermarks.\n\n`.claudinite/usage/task-runs-and-costs.json` folds what the machinery itself cost - per workflow the runs,\njobs, billed minutes and, only where this pack's config carries `actionsMinuteRate`,\nthe spend they imply; per run its API calls and wall time per phase; per task its\noutcomes, parks and latency samples. Every tier is appended once past its own watermark.\n\nA file whose recompute differs only in its `generated` stamp is left out, and a fold\nwhere neither moved opens no PR at all. Machine-written - never hand-edit either;\neach fold starts from the last, so a lost copy is lost history.",
+            "head": "claudinite/usage-fold",
+            "title": "Claudinite: usage fold"
+          }
+        ],
+        "requests": [
+          "/repos/acme/member/actions/workflows/claudinite-scheduler.yml/runs?status=completed\u0026per_page=100\u0026page=1\u0026created=%3E%3D2026-03-03",
+          "/repos/acme/member/actions/workflows/claudinite-executor.yml/runs?status=completed\u0026per_page=100\u0026page=1\u0026created=%3E%3D2026-03-03",
+          "/repos/acme/member/issues?state=closed\u0026sort=updated\u0026direction=desc\u0026since=2026-02-02T20%3A24%3A00.000Z\u0026per_page=100\u0026page=1",
+          "/repos/acme/member/pulls?state=closed\u0026sort=updated\u0026direction=desc\u0026per_page=100\u0026page=1",
+          "/repos/acme/member/issues/3",
+          "/repos/acme/member/issues/1",
+          "/repos/acme/member/releases?per_page=100",
+          "/repos/acme/member/actions/workflows/claudinite-scheduler.yml/runs?status=completed\u0026per_page=100\u0026page=1\u0026created=%3E%3D2026-03-03",
+          "/repos/acme/member/actions/workflows/claudinite-executor.yml/runs?status=completed\u0026per_page=100\u0026page=1\u0026created=%3E%3D2026-03-03",
+          "/repos/acme/member/issues?state=closed\u0026sort=updated\u0026direction=desc\u0026since=2026-02-02T20%3A24%3A00.000Z\u0026per_page=100\u0026page=1"
+        ]
+      }
+    }
+  ]
+}

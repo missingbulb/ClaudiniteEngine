@@ -65,10 +65,13 @@ func ReadMember(repo string, packs []packset.Pack) (Member, bool, error) {
 	if e, err := settings.ReadEngine(raw, f); err == nil {
 		m.Engine = &MemberEngine{Package: e.Package, Version: e.Version, Channel: e.Channel}
 	}
-	declared, err := settings.ReadPacks(raw, f)
+	parsed, err := settings.ParseFile(raw, f)
 	if err != nil {
 		return Member{}, false, err
 	}
+	declared := parsed.Packs
+	tasks, _ := parsed.TasksBlock()
+	m.Dormant, _ = tasks[workitem.DormantConfigKey].(bool)
 	m.Packs.Channel = declared.Channel
 	if m.Packs.Channel == "" {
 		m.Packs.Channel = settings.ChannelStable
@@ -76,10 +79,6 @@ func ReadMember(repo string, packs []packset.Pack) (Member, bool, error) {
 	m.Packs.Declared = []MemberEntry{}
 	for _, e := range declared.Entries {
 		m.Packs.Declared = append(m.Packs.Declared, MemberEntry{ID: e.Token(), Config: e.Config})
-		if !e.Local && e.ID == workitem.TasksPackID {
-			b, ok := e.Config[workitem.DormantConfigKey].(bool)
-			m.Dormant = ok && b
-		}
 	}
 	for _, p := range packs {
 		if p.Kind == packset.Canon && p.Version != "" {

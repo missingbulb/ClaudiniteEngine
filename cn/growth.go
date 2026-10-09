@@ -94,7 +94,7 @@ func growthPrune(args []string, stdout io.Writer) error {
 	if err := flags(fs, args); err != nil {
 		return err
 	}
-	root, err := pruneRoot(*repo)
+	root, err := codeWorkRoot(*repo)
 	if err != nil {
 		return report.Wrap(report.IO, "growth prune", err)
 	}
@@ -126,10 +126,10 @@ func growthPrune(args []string, stdout io.Writer) error {
 	return nil
 }
 
-// pruneRoot is the repository a prune reads: --repo, else the executor's
-// CLAUDINITE_REPO_ROOT (code-work runs in its task's folder), else the
-// checkout around the working directory.
-func pruneRoot(repo string) (string, error) {
+// codeWorkRoot is the repository a code-work command reads: --repo, else
+// the executor's CLAUDINITE_REPO_ROOT (code-work runs in its task's
+// folder), else the checkout around the working directory.
+func codeWorkRoot(repo string) (string, error) {
 	if repo == "" {
 		repo = os.Getenv("CLAUDINITE_REPO_ROOT")
 	}

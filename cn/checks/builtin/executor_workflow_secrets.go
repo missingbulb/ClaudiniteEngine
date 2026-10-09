@@ -23,10 +23,10 @@ import (
 // .github/workflows/, which a member's own machinery cannot make.
 var executorWorkflowSecrets = declared.Builtin{
 	ID:     "executor-workflow-secrets",
-	Pack:   workitem.TasksPackID,
+	Pack:   declared.EnginePack,
 	OnFail: "advise",
-	Tags:   []string{"world", "builtin", workitem.TasksPackID},
-	Doc:    "packs/claudinite-tasks/README.md",
+	Tags:   []string{"world", "builtin", declared.EnginePack},
+	Doc:    "docs/tasks-principles.md",
 	Why:    "a secret the executor does not name statically never reaches the job, and the task fails only once the queue has already picked its item up",
 }
 

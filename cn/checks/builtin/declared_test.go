@@ -1,6 +1,7 @@
 package builtin
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/checks/declared"
@@ -34,25 +35,19 @@ func (r repo) declaredRun(t *testing.T, id string) ([]findings.Finding, bool) {
 	return out, loaded
 }
 
-// The engine's declared checks for a pack run wherever that pack is
-// declared, with no declared-checks file in its mount, and nowhere else.
-func TestTheEnginesDeclaredChecksRunWhereTheirPackIsDeclared(t *testing.T) {
+// The queue's declared checks run on every member, with no declared-checks
+// file in its mount.
+func TestTheQueuesDeclaredChecksRunOnEveryMember(t *testing.T) {
 	t.Parallel()
-	prose := map[string]string{
-		".claudinite/shared/packs/claudinite-tasks/pack.json": "{\"version\": \"1\"}\n",
-		".claudinite/local/packs/mypack/RULES.md":             "- File it and mark it for the queue.\n",
-	}
-	got, loaded := repo{settings: tasksSettings, base: prose}.declaredRun(t, "queue-mark-named-literally")
+	prose := map[string]string{".claudinite/local/packs/mypack/RULES.md": "- File it and mark it for the queue.\n"}
+	got, loaded := repo{base: prose}.declaredRun(t, "queue-mark-named-literally")
 	if !loaded || len(got) != 1 || got[0].Path != ".claudinite/local/packs/mypack/RULES.md" {
-		t.Fatalf("declared: loaded %v, findings %v", loaded, got)
-	}
-	if got, loaded := (repo{base: prose}).declaredRun(t, "queue-mark-named-literally"); loaded || len(got) != 0 {
-		t.Fatalf("undeclared: loaded %v, findings %v", loaded, got)
+		t.Fatalf("loaded %v, findings %v", loaded, got)
 	}
 }
 
-// A pack whose own file still declares an id the engine carries runs the
-// engine's copy alone.
+// A pack whose own file still declares an id the engine carries, as an
+// older claudinite-tasks mount does, runs the engine's copy alone.
 func TestAPacksOwnCopyOfAnEngineDeclaredCheckGivesWay(t *testing.T) {
 	t.Parallel()
 	base := map[string]string{
@@ -62,7 +57,8 @@ func TestAPacksOwnCopyOfAnEngineDeclaredCheckGivesWay(t *testing.T) {
 `,
 		".claudinite/local/packs/mypack/RULES.md": "- Nothing to see.\n",
 	}
-	set, err := declared.LoadSet(repo{settings: tasksSettings, base: base}.build(t), "0.0.0", All()...)
+	settings := strings.Replace(settingsYAML, "    - local/mypack\n", "    - claudinite-tasks\n    - local/mypack\n", 1)
+	set, err := declared.LoadSet(repo{settings: settings, base: base}.build(t), "0.0.0", All()...)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,7 +66,7 @@ func TestAPacksOwnCopyOfAnEngineDeclaredCheckGivesWay(t *testing.T) {
 	for _, c := range set.Checks {
 		if c.ID == "queue-mark-named-literally" {
 			n++
-			if c.File != declared.EngineDeclarationFile("claudinite-tasks") {
+			if c.File != declared.EngineDeclarationFile(declared.EnginePack) {
 				t.Errorf("ran the copy in %s", c.File)
 			}
 		}

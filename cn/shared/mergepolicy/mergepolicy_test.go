@@ -57,3 +57,17 @@ func TestTrailerReadsTheNewestExpression(t *testing.T) {
 		t.Errorf("%q", m)
 	}
 }
+
+// The retired claudinite-tasks pack's copies of the usage rules give way to
+// the built-ins; another pack declaring the same name still collides.
+func TestTheRetiredPacksUsageRulesGiveWay(t *testing.T) {
+	spec := []any{map[string]any{"name": "rolling-usage-files", "pathMatching": "/x/", "changeKinds": []any{"added"}, "editShape": "any"}}
+	d := Compile([]PackRules{{ID: "claudinite-tasks", File: "merge-rules.json", Specs: spec}}) // @real-entity the retired pack the tolerance names
+	if len(d.Errors) != 0 || len(d.Rules) != 0 {
+		t.Errorf("retired pack: rules %v errors %v", d.Rules, d.Errors)
+	}
+	d = Compile([]PackRules{{ID: "acme-pack", File: "merge-rules.json", Specs: spec}})
+	if len(d.Errors) != 1 || !strings.Contains(d.Errors[0], "already taken") {
+		t.Errorf("another pack: errors %v", d.Errors)
+	}
+}
