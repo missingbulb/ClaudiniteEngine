@@ -395,7 +395,7 @@ func (c CodeWorker) Run(t taskspec.Task, w Work) CodeWorkResult {
 			return CodeWorkResult{Why: "code-work's tree change could not be read", Detail: err.Error()}
 		}
 		afterRead = true
-		if paths := c.coveredPaths(sdk.Git, t, newPaths(before, after)); len(paths) > 0 {
+		if paths := c.coveredPaths(t, newPaths(before, after)); len(paths) > 0 {
 			pr, err := deliverTree(sdk, c.Place.Root, c.Place.DefaultBranch, w.Target, t, w.Item.Number, paths)
 			if err != nil {
 				c.Log(err.Error())

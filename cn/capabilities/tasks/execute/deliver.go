@@ -81,13 +81,14 @@ func gitOK(git func(args ...string) (gitcmd.Ran, error), args ...string) (string
 // coveredPaths are the paths a delivery commits: under a task's granular
 // automerge policy, those its allow terms cover file by file, naming
 // each one left out; otherwise all of them. Each committed path is named.
-func (c CodeWorker) coveredPaths(git func(args ...string) (gitcmd.Ran, error), t taskspec.Task, paths []string) []string {
+func (c CodeWorker) coveredPaths(t taskspec.Task, paths []string) []string {
 	policy := t.Decl["automerge"]
 	kept := paths
 	if mergepolicy.Normalize(policy).Kind == "rules" {
 		kept = nil
+		held, _ := gitcmd.Repo{Dir: c.Place.Root}.Files("HEAD", paths)
 		for _, p := range paths {
-			v := mergepolicy.Judge(policy, []mergepolicy.Entry{entryOf(git, c.Place.Root, p)}, c.Rules)
+			v := mergepolicy.Judge(policy, []mergepolicy.Entry{entryOf(held, c.Place.Root, p)}, c.Rules)
 			switch {
 			case len(v.Files) == 0:
 				// The policy itself is refused (an unknown rule), so
@@ -107,11 +108,12 @@ func (c CodeWorker) coveredPaths(git func(args ...string) (gitcmd.Ran, error), t
 	return kept
 }
 
-// entryOf is path's change against the checkout's HEAD.
-func entryOf(git func(args ...string) (gitcmd.Ran, error), root, p string) mergepolicy.Entry {
+// entryOf is path's change against held, the files the checkout's HEAD
+// holds.
+func entryOf(held map[string][]byte, root, p string) mergepolicy.Entry {
 	e := mergepolicy.Entry{File: p}
-	if ran, err := git("show", "HEAD:"+p); err == nil && ran.Code == 0 {
-		before := ran.Stdout
+	if raw, ok := held[p]; ok {
+		before := string(raw)
 		e.Before = &before
 	}
 	if raw, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(p))); err == nil {
