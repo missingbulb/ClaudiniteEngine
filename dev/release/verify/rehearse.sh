@@ -1105,13 +1105,14 @@ GO
       grep -q '"version": "1.4"' "$member/.claudinite/shared/packs/hello/pack.json" || fail "tasks: init did not vendor hello 1.4"
       # The engine pack whose checks the steps run, standing in as its
       # manifest alone, as nothing here publishes it; the settings' tasks
-      # block carries the routine the hand-off fires.
+      # block carries the routine the hand-off fires, and stands the
+      # engine's own tasks aside so the hello tasks alone move the queue.
       mkdir -p "$member/.claudinite/shared/packs/claudinite-lifecycle"
       printf '{\n  "version": "1.0",\n  "minEngineVersion": "%s"\n}\n' "$version" > "$member/.claudinite/shared/packs/claudinite-lifecycle/pack.json"
       awk '{ print } /^    - hello$/ { print "    - claudinite-lifecycle" }' \
         "$member/.claudinite/settings.yaml" > "$work/settings.yaml"
       mv "$work/settings.yaml" "$member/.claudinite/settings.yaml"
-      printf 'tasks:\n  disabled:\n    - engine/update\n  routines:\n    default:\n      url: "%s"\n' "$gh/routines/trig_hello" \
+      printf 'tasks:\n  disabled:\n    - engine/update\n    - engine/usage-fold\n  routines:\n    default:\n      url: "%s"\n' "$gh/routines/trig_hello" \
         >> "$member/.claudinite/settings.yaml"
       # The adoption is three days old, so the repo starts quiet.
       old=$(date -u -d '3 days ago' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -v-3d +%Y-%m-%dT%H:%M:%SZ)
