@@ -4,6 +4,7 @@
 //
 //	cndecide update decide <core> --world FILE
 //	cndecide growth decide <core> --world FILE
+//	cndecide usage decide fold --world FILE
 //	cndecide tasks <kind> --world FILE
 package main
 
@@ -18,6 +19,7 @@ import (
 var decides = map[string]func(core string, raw []byte) (any, error){
 	"update": updateDecide,
 	"growth": growthDecide,
+	"usage":  usageDecide,
 }
 
 func main() {

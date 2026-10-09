@@ -10,7 +10,6 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/findings"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/taskspec"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/transcript"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/workitem"
 )
 
 // A task's code may read only the CLAUDINITE_* variables code work is
@@ -23,10 +22,10 @@ import (
 // note explaining why a task stopped reading one names it too.
 var taskCodeWorkEnv = declared.Builtin{
 	ID:     "task-code-work-env",
-	Pack:   workitem.TasksPackID,
+	Pack:   declared.EnginePack,
 	OnFail: "block",
-	Tags:   []string{"world", "builtin", workitem.TasksPackID},
-	Doc:    "packs/claudinite-tasks/README.md",
+	Tags:   []string{"world", "builtin", declared.EnginePack},
+	Doc:    "docs/tasks-principles.md",
 	Why:    "a variable nothing sets reads as undefined and the run still goes green — a parameter channel that has stopped being delivered leaves the operation in its unscoped, unguarded mode with no signal at all",
 }
 

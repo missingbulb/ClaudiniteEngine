@@ -10,6 +10,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/workitem"
 	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/calendar"
 	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/localterms"
+	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/precondition"
 	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/schedule"
 	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/signals"
 	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/sim"
@@ -25,6 +26,7 @@ type harness struct {
 	gh     *sim.GitHub
 	repo   *sim.Repo
 	tasks  []taskspec.Task
+	local  signals.Local
 	logs   []string
 	output map[string]string
 }
@@ -49,7 +51,7 @@ func (h *harness) run(wake string) schedule.RunOut {
 	out, err := schedule.Run(schedule.RunIn{
 		Issues: h.gh, Tasks: h.tasks, Now: h.gh.Clock.Now(), Wake: wake, HasFleet: h.fleet != nil, LocalTerms: h.terms,
 		Collector: func(items []workitem.Issue) *signals.Collector {
-			return &signals.Collector{Issues: h.gh, Repo: h.repo, DefaultBranch: "main", Items: items, Fleet: h.fleet}
+			return &signals.Collector{Issues: h.gh, Repo: h.repo, DefaultBranch: "main", Items: items, Local: h.local, Fleet: h.fleet}
 		},
 		Log:       func(s string) { h.logs = append(h.logs, s) },
 		SetOutput: func(k, v string) error { h.output[k] = v; return nil },
@@ -390,6 +392,36 @@ func TestATornItemSettledBeforeTheWriteIsLeftAlone(t *testing.T) {
 
 // The engine's own update is a scheduled task like any other: at most one
 // occurrence a UTC day, filed at the engine's path, whatever the repo did.
+// The usage fold is the engine's own on every repo the queue runs in, and
+// a repo whose only activity is its own machinery files it while the
+// fold's run mark stands before the UTC day opened.
+func TestTheUsageFoldIsFiledWhileTheMachineryRanUnfolded(t *testing.T) {
+	all, errs := taskspec.Discover(t.TempDir(), nil)
+	if len(errs) > 0 {
+		t.Fatal(errs)
+	}
+	var fold taskspec.Task
+	for _, tk := range all {
+		if tk.ID == taskspec.UsageFoldTask {
+			fold = tk
+		}
+	}
+	h := newHarness(t, fold)
+	caughtUp := "2026-10-01T05:00:00Z"
+	h.local.UsageFold = precondition.UsageFold{RunsFoldedThrough: &caughtUp}
+	if out := h.run(""); len(h.open()) != 0 || out.Asked[0].Verdict != schedule.VerdictNo {
+		t.Fatalf("a mark inside today: open %v, asked %+v", h.open(), out.Asked)
+	}
+	behind := "2026-09-30T17:10:00Z"
+	h.local.UsageFold = precondition.UsageFold{RunsFoldedThrough: &behind}
+	h.run("")
+	open := h.open()
+	if len(open) != 1 || open[0].Title != "[claudinite-work] engine/usage-fold" ||
+		!strings.HasPrefix(open[0].Body, taskspec.BuiltinTaskPath(taskspec.UsageFoldTask)+"\n") {
+		t.Fatalf("a mark before today: %+v", open)
+	}
+}
+
 func TestTheEnginesUpdateIsFiledOnceADay(t *testing.T) {
 	all, errs := taskspec.Discover(t.TempDir(), nil)
 	if len(errs) > 0 {

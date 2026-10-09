@@ -271,7 +271,13 @@ var BuiltinTerms = Terms{
 	{Name: "no-open-pr-titled", Signals: []string{"prs"}, TakesArg: true, ArgName: "title-prefix"},
 	{Name: LogPastRetention, Signals: []string{"conversationLogs"}},
 	{Name: RequestEligible, Signals: []string{"request"}, NeedsItem: true},
+	{Name: RunsSinceFold, Signals: []string{"usageFold"}},
 }
+
+// RunsSinceFold holds when the usage fold's run mark stands before the UTC
+// day opened: the machinery moved since the last fold, which no movement
+// term over commits, issues, PRs or captures can say.
+const RunsSinceFold = "runs-since-fold"
 
 // A path-prefix term matches its argument as a literal prefix in both
 // engines, so a glob character in it can only ever match nothing.

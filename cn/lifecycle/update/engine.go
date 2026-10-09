@@ -86,6 +86,9 @@ type Deps struct {
 	Packs PackReader
 	// Exe is this cn, which runs check world over a pack branch.
 	Exe string
+	// SelfRun is the workflow run this cn runs in (GITHUB_RUN_ID), 0
+	// outside one: a land job's own run on the PR's head counts green.
+	SelfRun int64
 }
 
 // Options are cn update engine's flags.
@@ -308,11 +311,9 @@ func engine(d Deps, o Options, res *EngineResult) (string, error) {
 	prevState := ""
 	if len(open) == 1 {
 		prev = &open[0]
-		runs, err := d.GitHub.WorkflowRuns(CIWorkflow, prev.HeadSHA)
-		if err != nil {
+		if prevState, err = prevCI(d, prev.HeadSHA); err != nil {
 			return "", err
 		}
-		prevState = runState(latest(runs, ciEvents...))
 		if prevState == "success" {
 			v, err := Land(d, prev.Number, prev.HeadSHA)
 			return landed(res, v, err)
@@ -532,6 +533,11 @@ func openPR(d Deps, f settings.Format, raw []byte, got Fetched, self, verifyOut 
 			return err
 		}
 		rels := []string{rel}
+		if launcher, err := writeLauncher(d.Repo, got); err != nil {
+			return err
+		} else if launcher {
+			rels = append(rels, LauncherPath)
+		}
 		member, err := writeMemberFile(d.Repo)
 		if err != nil {
 			return err
@@ -675,8 +681,10 @@ func Land(d Deps, n int, sha string) (string, error) {
 	if len(moved) > 0 {
 		return fmt.Sprintf("skipped: #%d changes %s, which GitHub lets no job token merge; its agent stage merges it once cn update land --check passes", n, strings.Join(moved, ", ")), nil
 	}
-	if err := landPinned(d, pr, sha, EngineTitle(ver)); err != nil {
+	if why, err := landPinned(d, pr, sha, EngineTitle(ver)); err != nil {
 		return "", err
+	} else if why != "" {
+		return notLanded(pr.Number, why), nil
 	}
 	if err := d.GitHub.Dispatch(CIWorkflow, mainBranch, map[string]string{}); err != nil {
 		return "", err
@@ -706,7 +714,8 @@ func CheckLand(d Deps, base, head string) (string, error) {
 // branch it merges into: it moves base's pin to a newer verified engine,
 // restates the member file at most, and changes under .github/workflows/
 // exactly what that engine expects (expectedWorkflows), with nothing left
-// staged. It returns the new version and the workflow files changed; who
+// staged, and replaces the launcher only with the one that engine ships.
+// It returns the new version and the workflow files changed; who
 // names the PR in a refusal.
 func engineGate(d Deps, who, base, sha string) (string, []string, error) {
 	all, err := d.Git.ChangedFiles(base, sha)
@@ -714,8 +723,11 @@ func engineGate(d Deps, who, base, sha string) (string, []string, error) {
 		return "", nil, err
 	}
 	var files, moved, staged []string
+	launcher := false
 	for _, file := range all {
 		switch {
+		case file == LauncherPath:
+			launcher = true
 		case strings.HasPrefix(file, workflows.StagingDir+"/"):
 			staged = append(staged, file)
 		case strings.HasPrefix(file, ".github/workflows/"):
@@ -783,6 +795,22 @@ func engineGate(d Deps, who, base, sha string) (string, []string, error) {
 	got, err := checkPin(d, e)
 	if err != nil {
 		return "", nil, fmt.Errorf("%s: %w", who, err)
+	}
+	if launcher {
+		have, present, err := d.Git.Show(sha, LauncherPath)
+		if err != nil {
+			return "", nil, err
+		}
+		_, held, err := d.Git.Show(mb, LauncherPath)
+		if err != nil {
+			return "", nil, err
+		}
+		if !held {
+			return "", nil, fmt.Errorf("%s adds %s, which only cn init writes", who, LauncherPath)
+		}
+		if !present || !got.SignedLauncher || !bytes.Equal(have, got.Launcher) {
+			return "", nil, fmt.Errorf("%s: %s is not the launcher %s ships", who, LauncherPath, e.Version)
+		}
 	}
 	if err := expectedWorkflows(d, got.Binary, mb, sha, moved); err != nil {
 		return "", nil, fmt.Errorf("%s: %w", who, err)

@@ -224,6 +224,10 @@ func signalError(s precondition.Signals, name string) string {
 		if s.Request != nil {
 			return s.Request.Error
 		}
+	case "usageFold":
+		if s.UsageFold != nil {
+			return s.UsageFold.Error
+		}
 	default:
 		if m, ok := s.Extra[name].(map[string]string); ok {
 			return m["error"]

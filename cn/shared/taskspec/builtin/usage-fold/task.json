@@ -1,0 +1,16 @@
+{
+  "id": "usage-fold",
+  "description": "Folds the repository's captured session logs, workflow runs and closed work items into two small tracked usage aggregates: what its sessions did - skill loads, scheduler and executor activity, work-item outcomes - and what its machinery cost - billed minutes, API calls, latencies.",
+  "trigger": "schedule",
+  "preconditions": [
+    "schedule:at-most-daily",
+    "any-commit || session-captured || runs-since-fold"
+  ],
+  "expected_outcome": "amend_existing_or_create_new_pr",
+  "automerge": [
+    "rolling-usage-files",
+    "rolling-usage-file-moves"
+  ],
+  "code_work": "cn usage fold",
+  "code_work_timeout": 600
+}

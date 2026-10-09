@@ -69,17 +69,20 @@ type Checks struct {
 	Accept []Acceptance
 }
 
-// Parsed is the settings file's packs, checks and fleet blocks.
+// Parsed is the settings file's packs, checks, tasks and fleet blocks.
 type Parsed struct {
 	Packs  Packs
 	Checks Checks
+	// Tasks is the tasks block as written, nil when absent; the queue's
+	// own config package reads its keys.
+	Tasks map[string]any
 	// Fleet is the fleet block, nil when the file has none: its presence
 	// makes the repo a fleet manager.
 	Fleet map[string]any
 }
 
 var topSchema = descriptor.Schema{Name: "settings", Keys: map[string]descriptor.Kind{
-	"engine": descriptor.Object, "packs": descriptor.Object, "checks": descriptor.Object, "fleet": descriptor.Object,
+	"engine": descriptor.Object, "packs": descriptor.Object, "checks": descriptor.Object, "tasks": descriptor.Object, "fleet": descriptor.Object,
 }}
 
 // fleetSchema is the fleet block: whose repositories the manager covers,
@@ -130,6 +133,7 @@ func ParseFile(raw []byte, f Format) (Parsed, error) {
 	if p.Checks, err = parseChecks(obj["checks"], "checks"); err != nil {
 		return Parsed{}, err
 	}
+	p.Tasks, _ = obj["tasks"].(map[string]any)
 	if raw, ok := obj["fleet"]; ok {
 		block := raw.(map[string]any)
 		if errs := fleetSchema.Validate(block); len(errs) > 0 {

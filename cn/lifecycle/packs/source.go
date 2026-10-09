@@ -196,7 +196,8 @@ func (b *Branch) Close() {
 }
 
 // Reader reads verified indexes and archives from its sources, in order
-// (the CDN, then the branch), for one run.
+// (the CDN, then the branch), for one run: a later source is a backup for
+// an unreachable earlier one.
 type Reader struct {
 	Sources []Source
 	Roots   []ed25519.PublicKey
@@ -206,6 +207,7 @@ type Reader struct {
 	Log io.Writer
 
 	seen map[string]int64
+	from map[string]string
 }
 
 // Verified is an index whose signature, format and serial checked out.
@@ -269,45 +271,17 @@ func (r *Reader) fromSource(src Source, id string) (Verified, error) {
 
 type errUnreachable struct{ error }
 
-// SourceSerial is the serial one source's index carried.
-type SourceSerial struct {
-	Source string
-	Serial int64
-}
-
-// SourcesDisagree is a read in which a later source's index is older than
-// an earlier one's: the window while the CDN is ahead of the vendored
-// branch (or the branch has regressed). Nothing reads either until they
-// agree.
-type SourcesDisagree struct{ Serials []SourceSerial }
-
-func (e *SourcesDisagree) Error() string {
-	var parts []string
-	for _, s := range e.Serials {
-		parts = append(parts, fmt.Sprintf("%s serial %d", s.Source, s.Serial))
-	}
-	return "pack index sources disagree (" + strings.Join(parts, ", ") + ")"
-}
-
-// VerifiedIndex reads pack id's index from every source that answers,
-// verifies each pair, and refuses a serial lower than one an earlier read
-// of that pack saw in this run; a source whose serial is lower than an
-// earlier source's in this read is a *SourcesDisagree, so the CDN's and the
-// branch's copies never regress each other. It returns the copy with the
-// highest serial. A pair
-// that does not verify refuses the read outright, naming the check. The
-// member keeps no record of serials until phase 4 carries the last one in
-// its key.
+// VerifiedIndex reads pack id's index from the first source that
+// answers, in order, so a later source is read only while every earlier
+// one is unreachable: the CDN is the shelf's own, and the branch backs it
+// for a network that cannot reach it. A pair that does not verify refuses
+// the read outright, naming the check, and so does a serial lower than one
+// an earlier read of that pack saw in this run.
 func (r *Reader) VerifiedIndex(id string) (Verified, error) {
 	if r.seen == nil {
 		r.seen = map[string]int64{}
 	}
-	var best *Verified
 	var unreachable []string
-	var answered []string
-	var serials []SourceSerial
-	disagree := false
-	floor, seen := r.seen[id]
 	for _, src := range r.Sources {
 		v, err := r.fromSource(src, id)
 		var u errUnreachable
@@ -318,40 +292,30 @@ func (r *Reader) VerifiedIndex(id string) (Verified, error) {
 		if err != nil {
 			return Verified{}, fmt.Errorf("pack index %s from %s refused: %w", id, src.Name(), err)
 		}
-		if seen && v.Index.Serial < floor {
+		if floor, seen := r.seen[id]; seen && v.Index.Serial < floor {
 			return Verified{}, fmt.Errorf("pack index %s from %s refused: serial %d is older than serial %d already read in this run", id, src.Name(), v.Index.Serial, floor)
 		}
-		if best != nil && v.Index.Serial < best.Index.Serial {
-			disagree = true
+		r.seen[id] = v.Index.Serial
+		if r.from == nil {
+			r.from = map[string]string{}
 		}
-		if v.Index.Serial > r.seen[id] {
-			r.seen[id] = v.Index.Serial
+		r.from[id] = src.Name()
+		for _, u := range unreachable {
+			r.logf("%s: index unreachable from %s", id, u)
 		}
-		serials = append(serials, SourceSerial{src.Name(), v.Index.Serial})
-		answered = append(answered, fmt.Sprintf("%s serial %d", src.Name(), v.Index.Serial))
-		if best == nil || v.Index.Serial > best.Index.Serial {
-			vv := v
-			best = &vv
-		}
+		r.logf("%s: index serial %d from %s", id, v.Index.Serial, v.From)
+		return v, nil
 	}
-	for _, u := range unreachable {
-		r.logf("%s: index unreachable from %s", id, u)
-	}
-	if best == nil {
-		return Verified{}, fmt.Errorf("pack index %s: no source answered (%s)", id, strings.Join(unreachable, "; "))
-	}
-	if disagree {
-		return Verified{}, &SourcesDisagree{Serials: serials}
-	}
-	r.logf("%s: index serial %d from %s (read: %s)", id, best.Index.Serial, best.From, strings.Join(answered, ", "))
-	return *best, nil
+	return Verified{}, fmt.Errorf("pack index %s: no source answered (%s)", id, strings.Join(unreachable, "; "))
 }
 
-// Archive fetches the archive of e from the first source that has it and
-// checks it against the entry's SHA-256 and size.
+// Archive fetches the archive of e from the first source that has it,
+// asking first the source this pack's index came from, which published its
+// archives before the index named them, and checks it against the entry's
+// SHA-256 and size.
 func (r *Reader) Archive(id string, e packindex.Entry) ([]byte, error) {
 	var errs []string
-	for _, src := range r.Sources {
+	for _, src := range r.archiveOrder(id) {
 		data, err := src.Archive(id, e.Version)
 		if err != nil {
 			errs = append(errs, src.Name()+": "+err.Error())
@@ -364,6 +328,26 @@ func (r *Reader) Archive(id string, e packindex.Entry) ([]byte, error) {
 		return data, nil
 	}
 	return nil, fmt.Errorf("pack %s %s: no source has the archive (%s)", id, e.Version, strings.Join(errs, "; "))
+}
+
+// archiveOrder is the sources with the one pack id's index came from first.
+func (r *Reader) archiveOrder(id string) []Source {
+	from, ok := r.from[id]
+	if !ok {
+		return r.Sources
+	}
+	order := make([]Source, 0, len(r.Sources))
+	for _, src := range r.Sources {
+		if src.Name() == from {
+			order = append(order, src)
+		}
+	}
+	for _, src := range r.Sources {
+		if src.Name() != from {
+			order = append(order, src)
+		}
+	}
+	return order
 }
 
 // Sources builds the CDN and branch sources from the environment.
@@ -456,15 +440,12 @@ type VerifiedCatalog struct {
 	Raw, Sig []byte
 }
 
-// VerifiedCatalog reads the shelf's catalog from every source that serves
-// one, under the rule VerifiedIndex keeps for an index: a pair that does
-// not verify refuses the read, a later source older than an earlier one
-// is a *SourcesDisagree, and the highest serial is used.
+// VerifiedCatalog reads the shelf's catalog from the first source that
+// serves one and answers, under the rule VerifiedIndex keeps for an index:
+// a later source only while every earlier one is unreachable, and a pair
+// that does not verify refuses the read.
 func (r *Reader) VerifiedCatalog() (VerifiedCatalog, error) {
-	var best *VerifiedCatalog
-	var unreachable, answered []string
-	var serials []SourceSerial
-	disagree := false
+	var unreachable []string
 	for _, src := range r.Sources {
 		cs, ok := src.(CatalogSource)
 		if !ok {
@@ -479,27 +460,13 @@ func (r *Reader) VerifiedCatalog() (VerifiedCatalog, error) {
 		if err != nil {
 			return VerifiedCatalog{}, fmt.Errorf("pack catalog from %s refused: %w", src.Name(), err)
 		}
-		if best != nil && v.Catalog.Serial < best.Catalog.Serial {
-			disagree = true
+		for _, u := range unreachable {
+			r.logf("catalog unreachable from %s", u)
 		}
-		serials = append(serials, SourceSerial{src.Name(), v.Catalog.Serial})
-		answered = append(answered, fmt.Sprintf("%s serial %d", src.Name(), v.Catalog.Serial))
-		if best == nil || v.Catalog.Serial > best.Catalog.Serial {
-			vv := v
-			best = &vv
-		}
+		r.logf("catalog serial %d from %s", v.Catalog.Serial, v.From)
+		return v, nil
 	}
-	for _, u := range unreachable {
-		r.logf("catalog unreachable from %s", u)
-	}
-	if best == nil {
-		return VerifiedCatalog{}, fmt.Errorf("pack catalog: no source answered (%s)", strings.Join(unreachable, "; "))
-	}
-	if disagree {
-		return VerifiedCatalog{}, &SourcesDisagree{Serials: serials}
-	}
-	r.logf("catalog serial %d from %s (read: %s)", best.Catalog.Serial, best.From, strings.Join(answered, ", "))
-	return *best, nil
+	return VerifiedCatalog{}, fmt.Errorf("pack catalog: no source answered (%s)", strings.Join(unreachable, "; "))
 }
 
 // catalogFrom reads one source's pair and verifies it, asking once more

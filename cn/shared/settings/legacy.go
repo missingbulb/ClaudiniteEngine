@@ -39,3 +39,41 @@ func FromLegacyPackage(raw []byte, f Format) ([]byte, bool, error) {
 	}
 	return raw, false, nil
 }
+
+// RetiredTasksPack is the pack whose entry config held the queue's
+// settings before the tasks block did.
+const RetiredTasksPack = "claudinite-tasks"
+
+// TasksBlock is the tasks block; where the settings declare none, the
+// retired claudinite-tasks entry's config spelled as one. legacy says the
+// entry is still declared. A key the block does not know is carried, so
+// the block's reader refuses it by name.
+//
+// @legacy-tolerance advisory:tasks-settings retire:#144
+func (p Parsed) TasksBlock() (block map[string]any, legacy bool) {
+	for _, e := range p.Packs.Entries {
+		if e.Local || e.ID != RetiredTasksPack {
+			continue
+		}
+		if p.Tasks != nil {
+			return p.Tasks, true
+		}
+		block = map[string]any{}
+		for k, v := range e.Config {
+			switch k {
+			case "agenticTaskInvocationEndpoints":
+				block["routines"] = v
+			case "dailyClaudiniteUpdatesRequirePrReview":
+				if v == true {
+					block["delivery"] = "review"
+				}
+			case "disabledTasks":
+				block["disabled"] = v
+			default:
+				block[k] = v
+			}
+		}
+		return block, true
+	}
+	return p.Tasks, false
+}

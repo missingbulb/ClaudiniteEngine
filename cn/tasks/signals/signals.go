@@ -25,6 +25,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/workitem"
 	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/calendar"
 	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/precondition"
+	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/usage"
 	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/world"
 )
 
@@ -90,6 +91,8 @@ type Local struct {
 	// RetentionUnreadable is a retention_days some pack declares as
 	// neither null nor a finite number, while none declares a number.
 	RetentionUnreadable bool
+	// UsageFold is the run mark the usage fold's machinery file carries.
+	UsageFold precondition.UsageFold
 }
 
 var manifestPaths = []string{"manifest.json", "src/manifest.json", "public/manifest.json", "dist/manifest.json"}
@@ -152,6 +155,8 @@ func ReadLocal(root string, packIDs []string, packConfig func(string) map[string
 		unreadable = unreadable || (declared && raw != nil)
 	}
 	l.RetentionUnreadable = l.RetentionDays == nil && unreadable
+	mark, isText := usage.ReadRunsMark(root)
+	l.UsageFold = precondition.UsageFold{RunsFoldedThrough: mark, NotText: mark != nil && !isText}
 	return l
 }
 
@@ -309,6 +314,9 @@ func (c *Collector) collect(out *precondition.Signals, names []string, task task
 			out.SharedMount = &precondition.Mount{ChangedPacks: changed}
 		case "request":
 			out.Request = c.request(item)
+		case "usageFold":
+			fold := c.Local.UsageFold
+			out.UsageFold = &fold
 		case "localPacks":
 			list, err := windowCommits()
 			moved := false

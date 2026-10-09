@@ -6,13 +6,14 @@ import "encoding/json"
 // was not collected and carrying Error when it could not be read. The JSON
 // shape is the Node engine's signal bundle.
 type Signals struct {
-	Runs             *Runs    `json:"runs,omitempty"`
-	Commits          *Commits `json:"commits,omitempty"`
-	Issues           *Issues  `json:"issues,omitempty"`
-	PRs              *PRs     `json:"prs,omitempty"`
-	ConversationLogs *Logs    `json:"conversationLogs,omitempty"`
-	SharedMount      *Mount   `json:"sharedMount,omitempty"`
-	Request          *Request `json:"request,omitempty"`
+	Runs             *Runs      `json:"runs,omitempty"`
+	Commits          *Commits   `json:"commits,omitempty"`
+	Issues           *Issues    `json:"issues,omitempty"`
+	PRs              *PRs       `json:"prs,omitempty"`
+	ConversationLogs *Logs      `json:"conversationLogs,omitempty"`
+	SharedMount      *Mount     `json:"sharedMount,omitempty"`
+	Request          *Request   `json:"request,omitempty"`
+	UsageFold        *UsageFold `json:"usageFold,omitempty"`
 	// Extra are the signals no built-in term reads, collected for a
 	// task-local term (branches, release, localPacks, stamp, queue,
 	// fleet), each under its own name in the bundle.
@@ -146,6 +147,15 @@ type Mount struct {
 	Error        string   `json:"error,omitempty"`
 }
 
+// UsageFold is the run mark the checkout's machinery usage file carries,
+// as text: nil where nothing has been folded, NotText where the mark is a
+// value other than a string.
+type UsageFold struct {
+	RunsFoldedThrough *string `json:"runsFoldedThrough"`
+	NotText           bool    `json:"notText,omitempty"`
+	Error             string  `json:"error,omitempty"`
+}
+
 // Request is one marked issue as the request signal reads it.
 type Request struct {
 	Number           int        `json:"number"`
@@ -197,6 +207,10 @@ func (s Signals) state(name string) (present bool, readErr string) {
 	case "request":
 		if s.Request != nil {
 			return true, s.Request.Error
+		}
+	case "usageFold":
+		if s.UsageFold != nil {
+			return true, s.UsageFold.Error
 		}
 	}
 	return false, ""

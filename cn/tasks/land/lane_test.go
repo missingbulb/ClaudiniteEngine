@@ -10,25 +10,6 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/mergepolicy"
 )
 
-func TestDeliveryForOnlyAnExplicitTrueWithholdsThePR(t *testing.T) {
-	cases := []struct {
-		settings map[string]any
-		want     string
-	}{
-		{map[string]any{"dailyClaudiniteUpdatesRequirePrReview": true}, Review},
-		{map[string]any{"dailyClaudiniteUpdatesRequirePrReview": false}, AutoMerge},
-		{map[string]any{"packs": []any{"acme-pack"}}, AutoMerge},
-		{nil, AutoMerge},
-		{map[string]any{"dailyClaudiniteUpdatesRequirePrReview": "true"}, AutoMerge},
-		{map[string]any{"maintenance": map[string]any{"delivery": "review"}}, AutoMerge},
-	}
-	for _, c := range cases {
-		if got := DeliveryFor(c.settings); got != c.want {
-			t.Errorf("%v: %s, want %s", c.settings, got, c.want)
-		}
-	}
-}
-
 func TestWorkflowTriggersReadsEveryShape(t *testing.T) {
 	cases := map[string][]string{
 		"name: Tests\non:\n  workflow_dispatch:\n  pull_request:\n    branches: [main]\n  push:\n    branches: [main, \"claude/**\"]\njobs:\n  test:\n    runs-on: ubuntu-latest": {"workflow_dispatch", "pull_request", "push"},

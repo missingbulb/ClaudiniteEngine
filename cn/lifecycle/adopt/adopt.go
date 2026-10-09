@@ -27,7 +27,6 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/packindex"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/packset"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/settings"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/workitem"
 )
 
 // DefaultPackage is the engine package a pin names when it names none.
@@ -292,10 +291,10 @@ func Finish(in FinishInput) error {
 		}
 	}
 	pending, _ := interview.State(set)
-	steps := Handover(HandoverInput{Core: in.Core, Tasks: newly[workitem.TasksPackID], Newly: packs})
+	steps := Handover(HandoverInput{Core: in.Core, Newly: packs})
 	writeQuestions(in.Out, pending)
 	writeHandover(in.Out, steps)
-	writeNext(in.Out, NextInput{First: in.First, Routine: newly[workitem.TasksPackID], Handover: len(steps) > 0})
+	writeNext(in.Out, NextInput{First: in.First, Routine: in.Core, Handover: len(steps) > 0})
 	return nil
 }
 

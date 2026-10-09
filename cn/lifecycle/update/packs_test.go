@@ -60,7 +60,6 @@ type fakePacks struct {
 	entries  map[string][]packindex.Entry
 	archives map[string][]byte
 	reads    int
-	disagree *packs.SourcesDisagree
 }
 
 func newFakePacks(t *testing.T) *fakePacks {
@@ -78,9 +77,6 @@ func (f *fakePacks) publish(id, ver, channel string, files map[string]string) {
 
 func (f *fakePacks) VerifiedIndex(id string) (packs.Verified, error) {
 	f.reads++
-	if f.disagree != nil {
-		return packs.Verified{}, f.disagree
-	}
 	if _, ok := f.entries[id]; !ok {
 		return packs.Verified{}, fmt.Errorf("no index for %s", id)
 	}
@@ -228,7 +224,7 @@ func TestPacksAddTheImportToAnExistingClaudeMD(t *testing.T) {
 		if _, err := gateAt(t, w.repo, w.deps(t), pr); err == nil || !strings.Contains(err.Error(), "not only the settings file") {
 			t.Errorf("%s: the gate took a pack PR: %v", name, err)
 		}
-		if v, err := Land(w.deps(t), pr.Number, pr.HeadSHA); err != nil || v != "landed packs hello 1.1" {
+		if v, err := Land(landJob(w.hub, w.deps(t), pr.HeadSHA), pr.Number, pr.HeadSHA); err != nil || v != "landed packs hello 1.1" {
 			t.Errorf("%s: %q %v", name, v, err)
 		}
 	}
@@ -338,20 +334,6 @@ func TestPacksSkipAPackWhoseRequiresIsNotDeclared(t *testing.T) {
 	}
 }
 
-func TestPacksSkipWhileTheSourcesDisagree(t *testing.T) {
-	t.Parallel()
-	w := newPackWorld(t)
-	w.packs.disagree = &packs.SourcesDisagree{Serials: []packs.SourceSerial{{Source: "cdn", Serial: 5}, {Source: "branch", Serial: 4}}}
-	v, err := Packs(w.deps(t), Options{})
-	if err != nil || v != "skipped: pack index sources disagree (cdn serial 5, branch serial 4)" {
-		t.Errorf("%q %v", v, err)
-	}
-	if len(w.hub.called("create-pull")) != 0 {
-		t.Error("opened a PR")
-	}
-}
-
-// openPackPR runs a proposal and leaves its PR open with CI concluded.
 func (w *packWorld) openPackPR(t *testing.T, ci string) githubapi.PR {
 	t.Helper()
 	if v, err := Packs(w.deps(t), Options{}); err != nil || !strings.HasPrefix(v, "opened #") {
@@ -524,7 +506,7 @@ func TestLandRefusesAPackPRThatIsNotThePublishedSet(t *testing.T) {
 	}
 	w := newPackWorld(t)
 	pr := w.openPackPR(t, "")
-	if v, err := Land(w.deps(t), pr.Number, pr.HeadSHA); err != nil || v != "landed packs hello 1.1" {
+	if v, err := Land(landJob(w.hub, w.deps(t), pr.HeadSHA), pr.Number, pr.HeadSHA); err != nil || v != "landed packs hello 1.1" {
 		t.Errorf("the published set: %q %v", v, err)
 	}
 }

@@ -131,6 +131,12 @@ commands:
   growth prune [--branch NAME] [--repo DIR]
                  remove the captures past the repo's retention_days in one
                  commit; the logs-prune task's code-work
+  usage fold [--repo DIR]
+                 fold the captured sessions, the workflow runs, the closed
+                 work items and the merged PRs into the two rolling usage
+                 files, on one PR to the branch CLAUDINITE_TARGET_BRANCH
+                 names; the engine/usage-fold task's code-work; needs
+                 GITHUB_TOKEN
   provenance mark <pack>|--all [--dry-run]
   provenance check <pack>|--all
   provenance append <pack> <element> [--kind K] [--date D] [--changed]
@@ -322,6 +328,8 @@ func dispatch(args []string, stdin io.Reader, stdout, stderr io.Writer, start ti
 		return cmdSession(args[1:], stdout)
 	case "fleet":
 		return cmdFleet(args[1:], stdout, stderr, start)
+	case "usage":
+		return cmdUsage(args[1:], stdout)
 	}
 	return report.New(report.Usage, fmt.Sprintf("unknown command %q", args[0]))
 }

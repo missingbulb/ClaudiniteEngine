@@ -142,6 +142,15 @@ func TestRules(t *testing.T) {
 			raw, _ := os.ReadFile(filepath.Join(d, ".claudinite/settings.yaml"))
 			write(t, d, ".claudinite/settings.yaml", strings.Replace(string(raw), "  channel: \"staging\"\n", "  package: \"@claudinite/cli-rc\"\n", 1))
 		}, nil, []string{"engine-package"}},
+		{"a malformed tasks block", func(t *testing.T, d string) {
+			raw, _ := os.ReadFile(filepath.Join(d, ".claudinite/settings.yaml"))
+			write(t, d, ".claudinite/settings.yaml", string(raw)+"tasks:\n  delivery: sometimes\n")
+		}, []string{"tasks-settings"}, nil},
+		{"the retired claudinite-tasks entry", func(t *testing.T, d string) {
+			raw, _ := os.ReadFile(filepath.Join(d, ".claudinite/settings.yaml"))
+			write(t, d, ".claudinite/settings.yaml", string(raw)+"packs:\n  declared:\n    - id: claudinite-tasks\n      config:\n        dormant: false\n")
+			write(t, d, ".claudinite/shared/packs/claudinite-tasks/pack.json", `{"version": "1.61007.1", "minEngineVersion": "1.60930.1"}`)
+		}, nil, []string{"tasks-settings"}},
 		{"edited launcher", func(t *testing.T, d string) { write(t, d, ".claudinite/launch", string(launcherBytes(t))+"# edited\n") }, []string{"launcher"}, nil},
 		{"no launcher", func(t *testing.T, d string) { _ = os.Remove(filepath.Join(d, ".claudinite/launch")) }, []string{"launcher"}, nil},
 		{"no SessionStart", func(t *testing.T, d string) {

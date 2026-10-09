@@ -35,28 +35,25 @@ type catalogSource struct {
 
 func (c *catalogSource) Catalog() ([]byte, []byte, error) { return c.cat, c.sig, c.catErr }
 
-func TestVerifiedCatalogReadsBothSourcesAndTakesTheNewest(t *testing.T) {
-	var log bytes.Buffer
-	cdn := &catalogSource{fakeSource: fakeSource{name: "cdn"}, cat: catalogJSON(4), sig: signedCatalog(t, catalogJSON(4))}
-	branch := &catalogSource{fakeSource: fakeSource{name: "branch"}, cat: catalogJSON(5), sig: signedCatalog(t, catalogJSON(5))}
-	v, err := newReader(&log, cdn, branch).VerifiedCatalog()
-	if err != nil || v.Catalog.Serial != 5 || v.From != "branch" || len(v.Catalog.Packs) != 1 {
-		t.Fatalf("%+v %v", v, err)
+// The catalog follows the index's rule: the CDN while it answers, the
+// branch only behind an unreachable CDN.
+func TestVerifiedCatalogTakesTheCDNWhileItAnswers(t *testing.T) {
+	for name, c := range map[string]struct{ cdn, branch int }{"branch ahead": {4, 5}, "branch behind": {6, 5}} {
+		var log bytes.Buffer
+		cdn := &catalogSource{fakeSource: fakeSource{name: "cdn"}, cat: catalogJSON(c.cdn), sig: signedCatalog(t, catalogJSON(c.cdn))}
+		branch := &catalogSource{fakeSource: fakeSource{name: "branch"}, catErr: errors.New("must not be read")}
+		v, err := newReader(&log, cdn, branch).VerifiedCatalog()
+		if err != nil || int(v.Catalog.Serial) != c.cdn || v.From != "cdn" || len(v.Catalog.Packs) != 1 {
+			t.Fatalf("%s: %+v %v", name, v, err)
+		}
+		if !strings.Contains(log.String(), fmt.Sprintf("catalog serial %d from cdn\n", c.cdn)) {
+			t.Errorf("%s: %s", name, log.String())
+		}
 	}
-	if !strings.Contains(log.String(), "catalog serial 5 from branch (read: cdn serial 4, branch serial 5)") {
-		t.Error(log.String())
-	}
-}
-
-// The CDN ahead of the branch is the window between an upload and the
-// branch catching up: nothing reads either until they agree.
-func TestVerifiedCatalogRefusesABranchBehindTheCDN(t *testing.T) {
-	cdn := &catalogSource{fakeSource: fakeSource{name: "cdn"}, cat: catalogJSON(6), sig: signedCatalog(t, catalogJSON(6))}
+	cdn := &catalogSource{fakeSource: fakeSource{name: "cdn"}, catErr: errors.New("dial tcp: refused")}
 	branch := &catalogSource{fakeSource: fakeSource{name: "branch"}, cat: catalogJSON(5), sig: signedCatalog(t, catalogJSON(5))}
-	_, err := newReader(&bytes.Buffer{}, cdn, branch).VerifiedCatalog()
-	var d *SourcesDisagree
-	if !errors.As(err, &d) {
-		t.Fatalf("%v", err)
+	if v, err := newReader(&bytes.Buffer{}, cdn, branch).VerifiedCatalog(); err != nil || v.From != "branch" {
+		t.Errorf("behind an unreachable CDN: %+v %v", v, err)
 	}
 }
 

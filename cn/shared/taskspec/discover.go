@@ -13,6 +13,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/cn/checksdk"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/descriptor"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/packset"
+	"github.com/missingbulb/ClaudiniteEngine/cn/shared/settings"
 )
 
 // DeclarationName is a task declaration's file name, without its format.
@@ -121,25 +122,32 @@ func SecretNames(decls []Decl) []string {
 	return out
 }
 
-// The engine's own task: the nightly update. It is not a pack's and
-// declares nothing; wherever the queue runs it is active. It stands aside
-// while the repo still holds the update workflow it supersedes, so it
-// never runs twice.
+// The engine's own tasks: the nightly update and the usage fold. They are
+// no pack's and declare nothing; wherever the queue runs they are active.
+// The update stands aside while the repo still holds the update workflow
+// it supersedes, so it never runs twice.
 const (
-	BuiltinPack = "engine"
-	UpdateTask  = "update"
+	BuiltinPack   = "engine"
+	UpdateTask    = "update"
+	UsageFoldTask = "usage-fold"
 )
 
 // UpdateWorkflow is the nightly update workflow the update task supersedes.
 const UpdateWorkflow = ".github/workflows/claudinite-update.yml"
 
 // UpdateTaskPath is the worker path the update's items name: the engine's
-// own, as no file carries the task; it never moves.
+// own, as no file carries the task; it never moves. BuiltinTaskPath is
+// the same for any of the engine's tasks.
 const UpdateTaskPath = "engine/scheduler/queue/tasks/" + UpdateTask + "/task.json"
+
+// BuiltinTaskPath is the worker path an engine task's items name.
+func BuiltinTaskPath(id string) string { return "engine/scheduler/queue/tasks/" + id + "/task.json" }
 
 var (
 	//go:embed builtin/update/task.json
 	updateDeclaration []byte
+	//go:embed builtin/usage-fold/task.json
+	usageFoldDeclaration []byte
 	//go:embed builtin/update/task.md
 	updateInstructions string
 )
@@ -202,6 +210,11 @@ func Discover(repo string, packs []packset.Pack) ([]Task, []DiscoveryError) {
 		return filepath.ToSlash(r)
 	}
 	for _, f := range found {
+		// The retired pack's fold gives way to the engine's own.
+		// @legacy-tolerance advisory:tasks-settings retire:#144
+		if f.Pack == settings.RetiredTasksPack && f.Name == UsageFoldTask {
+			continue
+		}
 		terms := Terms(nil)
 		if text, err := os.ReadFile(filepath.Join(f.Dir, "preconditions.mjs")); err == nil {
 			terms = TermsFromText(checksdk.StripComments(string(text)))
@@ -232,6 +245,10 @@ func Discover(repo string, packs []packset.Pack) ([]Task, []DiscoveryError) {
 			decl []byte
 		}{UpdateTask, updateDeclaration})
 	}
+	builtins = append(builtins, struct {
+		id   string
+		decl []byte
+	}{UsageFoldTask, usageFoldDeclaration})
 	for _, b := range builtins {
 		d, err := ParseText("task.json", b.decl)
 		if err != nil {
@@ -281,7 +298,7 @@ func RequestHandler(tasks []Task) (Task, bool) {
 // TaskPath is the worker path a work item's first body line names.
 func (t Task) TaskPath() string {
 	if t.Pack == BuiltinPack && t.Rel == "" {
-		return UpdateTaskPath
+		return BuiltinTaskPath(t.ID)
 	}
 	return t.Rel + "/task.md"
 }

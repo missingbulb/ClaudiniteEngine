@@ -118,7 +118,7 @@ func TestMoveMovesANodeMember(t *testing.T) {
 			t.Errorf("output lacks %q:\n%s", want, s)
 		}
 	}
-	if strings.Contains(s, "pack: local/mine") || strings.Contains(s, "seeded ") || strings.Contains(s, "CCR_ROUTINE_TOKEN") {
+	if strings.Contains(s, "pack: local/mine") || strings.Contains(s, "seeded ") {
 		t.Errorf("output:\n%s", s)
 	}
 	for _, gone := range []string{".claudinite/shared/engine", ".claudinite/shared/packs/hello/RULES.md.orig"} {
