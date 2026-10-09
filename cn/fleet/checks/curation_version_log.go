@@ -1,7 +1,8 @@
-package builtin
+package checks
 
 import (
 	"fmt"
+	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/builtin"
 	"regexp"
 	"strings"
 
@@ -26,7 +27,7 @@ var versionLog = declared.Builtin{
 	Why:    "a reader trusts a VERSIONS.md row's position to say its age; once the tail drifts out of sequence a number near the bottom could be old or merely misplaced, and nothing short of re-deriving the order from the numbers themselves can tell which",
 }
 
-func init() { register(&versionLog, runVersionLog) }
+func init() { builtin.Register(&versionLog, runVersionLog) }
 
 var (
 	versionRow = regexp.MustCompile(`^\|\s*(\d+(?:\.\d+)*)\s*\|`)

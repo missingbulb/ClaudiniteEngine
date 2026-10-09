@@ -27,3 +27,9 @@ func All() []declared.Builtin {
 	sort.Slice(out, func(i, k int) bool { return out[i].ID < out[k].ID })
 	return out
 }
+
+// Register adds a built-in kept beside the feature it polices, outside
+// this package.
+func Register(b *declared.Builtin, run func(*declared.Ctx, *transcript.Session) []findings.Finding) {
+	register(b, run)
+}

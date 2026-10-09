@@ -15,7 +15,7 @@ import (
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/fleet"
 	"github.com/missingbulb/ClaudiniteEngine/cn/fleet/entitlement"
-	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/licenseapi"
+	"github.com/missingbulb/ClaudiniteEngine/cn/fleet/licenseapi"
 )
 
 // fleetManager is a manager checkout with a GitHub origin and an API that

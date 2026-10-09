@@ -13,7 +13,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/execute"
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/mergepolicy"
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/taskspec"
-	usagefold "github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/usage"
+	usagefold "github.com/missingbulb/ClaudiniteEngine/cn/growth/usage"
 	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/report"
 	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/gitcmd"
 	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/githubapi"

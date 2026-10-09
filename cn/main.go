@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/checksdk"
+	_ "github.com/missingbulb/ClaudiniteEngine/cn/fleet/checks"
 	_ "github.com/missingbulb/ClaudiniteEngine/cn/fleet/pack"
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/breadcrumb"
