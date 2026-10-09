@@ -313,6 +313,9 @@ linters:
             # Verify reads the settings' tasks block as the queue does, so a
             # value the queue would refuse breaks before an update lands.
             - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/config
+            # The skills probe reads a skill's links as the checks do, skipping
+            # code spans and fenced blocks, so an example link is never a miss.
+            - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/checksdk
         checks:
           list-mode: strict
           files:
