@@ -86,7 +86,7 @@ export const STALE_FRESHNESS = Object.freeze(['behind', 'no-stamp', 'no-schedule
 export const SLEEPY_DAYS = 14;
 
 // Sleepy, awake, or not classified. The input is `commitClasses` over the window
-// commit listing, so the test is the claudinite-tasks pack's own substantive-commit
+// commit listing, so the test is the queue's own substantive-commit
 // one and a member reads quiet here exactly when its own preconditions read it quiet.
 //
 // THREE STATES, and the third is the point: a member whose commit listing was withheld

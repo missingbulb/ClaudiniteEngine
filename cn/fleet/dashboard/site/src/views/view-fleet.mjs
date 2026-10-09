@@ -144,7 +144,7 @@ async function readPackCards(read, token) {
 async function readCommitGraph(read, token) {
   read.commits = await gh.commitActivity(read.repo, token).catch(() => null);
   // The second series, and the sleepy mark's whole evidence: the window's commits as
-  // the LISTING gives them, classified by the claudinite-tasks substantive-commit test.
+  // the LISTING gives them, classified by the queue's own substantive-commit test.
   // Priced with the graph — decoration — so a tight budget loses the classification
   // before it loses anything the queue depends on, and the row then says "not read"
   // rather than calling a member quiet it never looked at.
@@ -409,8 +409,8 @@ function memberBand(table, { id, title, members, onOpen, now, repaint }) {
 export const claudeRequest = (s) => (s.status === 'ignored'
   ? 'In the fleet manager repo (the one whose .claudinite/settings carries a fleet block), take '
     + `${s.repo} off the fleet block's exclude list, so the fleet covers it again.`
-  : `In ${s.repo}, remove "dormant": true from the claudinite-tasks pack entry in its `
-    + 'Claudinite settings, so its scheduler starts running again.');
+  : `In ${s.repo}, remove dormant: true from the tasks block of its .claudinite/settings, `
+    + 'so its scheduler starts running again.');
 
 // Copy, and say so on the button itself. `navigator.clipboard` is unavailable over
 // plain HTTP and in some embedded views, so the fallback REVEALS the text instead of

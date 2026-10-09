@@ -83,7 +83,7 @@
   you are building for it. (naming-new-canon)
 
 - **Naming a pack whose subject is a Claudinite feature itself** — the `claudinite-` prefix
-  (`claudinite-lifecycle`, `claudinite-single-repo-dashboard`). `claudinite-growth` is grandfathered.
+  (`claudinite-lifecycle`). `claudinite-growth` is grandfathered.
   (convertible → prose-to-checks) (naming-pack-subject)
 
 - **Looking for a skill and not finding it in `.claude/skills/`** — read

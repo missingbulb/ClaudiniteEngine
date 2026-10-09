@@ -1,6 +1,6 @@
 #!/bin/sh
 # The local Phase 1 to 4 gates, against the built release in $DIST
-# (default dist/) served by regstub, in ten modes:
+# (default dist/) served by regstub, in nine modes:
 #
 #   fresh    the host's smoke leg (dev/release/verify/smoke-platform.sh) on a new member
 #   current  a member warm on this release moves its pin to the next ordinal
@@ -52,12 +52,6 @@
 #            the engine's prune only once the captures are past retention,
 #            and cn adopt local/acme leaves verify and cn provenance
 #            check clean.
-#   dashboard a member declaring claudinite-single-repo-dashboard in YAML
-#            (dev/release/verify/fixtures/dashboard-fixture.sh): the flat
-#            task file and the member file, the retired flat dashboard file
-#            deleted, cn adopt rewriting them; then publish-pages building the real pack from
-#            CLAUDINITE_PACKS_TREE (a ClaudinitePacks checkout, which this
-#            mode requires) and following its deploy to success.
 #
 # One more mode reads the real shelf and is never in the default set:
 #
@@ -77,7 +71,7 @@
 # The update, packs, adopt, tasks and growth modes give every member a GitHub-shaped
 # origin (url.<bare>.insteadOf).
 #
-#   dev/release/verify/rehearse.sh [--mode fresh|current|stale|update|packs|adopt|tasks|growth|dashboard|live-packs]   (default: the nine offline modes)
+#   dev/release/verify/rehearse.sh [--mode fresh|current|stale|update|packs|adopt|tasks|growth|live-packs]   (default: the eight offline modes)
 #
 # UPDATE_STEPS=4 stops the update mode after the landing and the session on
 # the landed version (dev/release/verify/hop.sh); the default, 11, runs every step.
@@ -99,13 +93,13 @@ export GOCACHE
 fail() { echo "rehearse: FAIL: $*" >&2; exit 1; }
 step() { echo "rehearse: $*"; }
 
-usage="usage: dev/release/verify/rehearse.sh [--mode fresh|current|stale|update|packs|adopt|tasks|growth|dashboard|live-packs]"
-modes="fresh current stale update packs adopt tasks growth dashboard"
+usage="usage: dev/release/verify/rehearse.sh [--mode fresh|current|stale|update|packs|adopt|tasks|growth|live-packs]"
+modes="fresh current stale update packs adopt tasks growth"
 case $# in
   0) ;;
   2)
     [ "$1" = --mode ] || fail "$usage"
-    case $2 in fresh|current|stale|update|packs|adopt|tasks|growth|dashboard|live-packs) modes=$2 ;; *) fail "unknown mode $2" ;; esac ;;
+    case $2 in fresh|current|stale|update|packs|adopt|tasks|growth|live-packs) modes=$2 ;; *) fail "unknown mode $2" ;; esac ;;
   *) fail "$usage" ;;
 esac
 if [ "$modes" = live-packs ] && [ "${CLAUDINITE_OFFLINE:-}" = 1 ]; then
@@ -1547,93 +1541,6 @@ YAML
         | cn_member provenance append acme _pack > "$work/prov.out" 2>&1 || fail "growth 6: provenance append: $(cat "$work/prov.out")"
       grep -q 'scope-changed · acme owns its widgets' "$member/.claudinite/local/packs/acme/provenance/_pack.md" || fail "growth 6: the entry is not in the file"
       step "growth 6: cn adopt local/acme declared local/acme and wrote the rules index; verify and cn provenance check are clean; append wrote the entry"
-      ;;
-    dashboard)
-      step "dashboard: a member declaring claudinite-single-repo-dashboard in YAML, then publishing its pages"
-      warm_member dashboard
-      sh dev/release/verify/fixtures/dashboard-fixture.sh member "$member" "$version" || fail "dashboard: member fixture"
-      (cd "$member" && git init -q -b main && git add -A && git -c user.name=rehearse -c user.email=r@x -c commit.gpgsign=false commit -q -m adopt) \
-        || fail "dashboard: git setup"
-      flat=$member/.claudinite/cache
-      # json FILE EXPR: a value read from a JSON file with node.
-      json() { node -e 'const st=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));process.stdout.write(String(eval(process.argv[2])))' "$1" "$2"; }
-      execute() { (cd "$member" && GITHUB_TOKEN=rehearsal-token CLAUDINITE_NOW=${1:-} .claudinite/bin/cn execute loop) > "$work/exec.out" 2>&1; }
-      item() { gh_count 'Math.max(0,...st.issues.filter(i=>i.title==="'"$1"'").map(i=>i.number))'; }
-      labels_of() { gh_count 'st.issues.find(i=>i.number==='"$1"').labels.join(" ")'; }
-
-      cn_member adopt > "$work/index.out" 2>&1 || fail "dashboard 1: adopt: $(cat "$work/index.out")"
-      for f in tasks member; do
-        [ -f "$flat/$f.GENERATED.json" ] || fail "dashboard 1: no $f.GENERATED.json: $(cat "$work/index.out")"
-      done
-      [ ! -e "$flat/dashboard.GENERATED.json" ] || fail "dashboard 1: the retired dashboard.GENERATED.json is still there: $(cat "$work/index.out")"
-      [ "$(json "$flat/member.GENERATED.json" 'st.settings.path+" "+st.settings.format')" = ".claudinite/settings.yaml yaml" ] \
-        || fail "dashboard 1: the member file names $(json "$flat/member.GENERATED.json" 'JSON.stringify(st.settings)')"
-      [ "$(json "$flat/member.GENERATED.json" 'st.engine.package+" "+st.engine.version+" "+st.engine.channel')" = "$package $version canary" ] \
-        || fail "dashboard 1: the member file's pin is $(json "$flat/member.GENERATED.json" 'JSON.stringify(st.engine)')"
-      [ "$(json "$flat/member.GENERATED.json" 'JSON.stringify(st.held)+" "+st.packs.declared.map(e=>e.id).join(",")+" "+st.dormant')" = '{"claudinite-single-repo-dashboard":"1.0"} claudinite-single-repo-dashboard,local/acme false' ] \
-        || fail "dashboard 1: the member file: $(cat "$flat/member.GENERATED.json")"
-      step "dashboard 1: adopt wrote the task and member files and deleted the retired dashboard file; member.GENERATED.json names the YAML path, the pin and the held versions"
-
-      [ "$(json "$flat/member.GENERATED.json" 'st.packs.declared[0].config.defaultRepo')" = acme/member ] || fail "dashboard 2: the member file does not hold the declared config"
-      sed 's|        defaultRepo: "acme/member"|        defaultRepo: "acme/other"|' "$member/.claudinite/settings.yaml" > "$work/settings.yaml" && mv "$work/settings.yaml" "$member/.claudinite/settings.yaml"
-      cn_member adopt > "$work/flat.out" 2>&1 || fail "dashboard 2: adopt: $(cat "$work/flat.out")"
-      grep -q 'member.GENERATED.json' "$work/flat.out" || fail "dashboard 2: adopt names no member file: $(cat "$work/flat.out")"
-      [ "$(json "$flat/member.GENERATED.json" 'st.packs.declared[0].config.defaultRepo')" = acme/other ] || fail "dashboard 2: the member file kept the old config"
-      step "dashboard 2: cn adopt rewrites the member file once the declaration moves"
-
-      sed 's|        defaultRepo: "acme/other"|        defaultRepo: "acme/member"|' "$member/.claudinite/settings.yaml" > "$work/settings.yaml" && mv "$work/settings.yaml" "$member/.claudinite/settings.yaml"
-      origin=$work/dashboard-origin.git
-      git init -q --bare -b main "$origin"
-      (cd "$member" && git add -A && git -c user.name=rehearse -c user.email=r@x -c commit.gpgsign=false commit -q -m "this repo") || fail "dashboard: git"
-      github_origin "$origin"
-      (cd "$member" && git -c push.negotiate=false push -q origin main) || fail "dashboard: the first push"
-      start_ghstub "$origin"
-      actions_env
-      cat "$work/ca.pem" "$work/gh-ca.pem" > "$work/cas.pem"
-      SSL_CERT_FILE=$work/cas.pem CURL_CA_BUNDLE=$work/cas.pem GITHUB_REPOSITORY=acme/member CLAUDINITE_GITHUB_API=$gh
-      export SSL_CERT_FILE CURL_CA_BUNDLE GITHUB_REPOSITORY CLAUDINITE_GITHUB_API
-
-      # The real pack from the ClaudinitePacks checkout, its tests left behind as an
-      # archive leaves them, under the fixture's manifest granted the dispatch the
-      # real one grants: publish-pages builds the site on this cn member and
-      # follows the deploy it dispatches to success.
-      if [ -z "${CLAUDINITE_PACKS_TREE:-}" ] || [ ! -d "$CLAUDINITE_PACKS_TREE/packs/claudinite-single-repo-dashboard/src" ]; then
-        fail "dashboard 3: CLAUDINITE_PACKS_TREE names no ClaudinitePacks checkout carrying claudinite-single-repo-dashboard"
-      fi
-      dash=$member/.claudinite/shared/packs/claudinite-single-repo-dashboard
-      cp "$dash/pack.json" "$work/"
-      rm -rf "$dash"
-      mkdir -p "$dash"
-      (cd "$CLAUDINITE_PACKS_TREE/packs/claudinite-single-repo-dashboard" && tar cf - --exclude=./test .) | (cd "$dash" && tar xf -) || fail "dashboard 3: copying the pack"
-      node -e 'const fs=require("fs");const m=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));m.githubActions=["dispatchWorkflow"];fs.writeFileSync(process.argv[2],JSON.stringify(m,null,2)+"\n")' \
-        "$work/pack.json" "$dash/pack.json" || fail "dashboard 3: the manifest"
-      cn_member adopt > "$work/flat.out" 2>&1 || fail "dashboard 3: adopt: $(cat "$work/flat.out")"
-      [ "$(json "$member/.claudinite/cache/member.GENERATED.json" 'JSON.stringify(st.packs.declared.find(e=>e.id==="claudinite-single-repo-dashboard").config)')" = '{"defaultRepo":"acme/member"}' ] \
-        || fail "dashboard 3: the member file: $(cat "$member/.claudinite/cache/member.GENERATED.json")"
-      (cd "$member" && git add -A && git -c user.name=rehearse -c user.email=r@x -c commit.gpgsign=false commit -q -m "the dashboard pack" \
-        && git -c push.negotiate=false push -q origin main) || fail "dashboard 3: git"
-      GITHUB_API_URL=$gh NODE_EXTRA_CA_CERTS=$work/cas.pem
-      export GITHUB_API_URL NODE_EXTRA_CA_CERTS
-      ctl /_stub/dispatch '{"conclusion":"success"}'
-      cn_member work create claudinite-single-repo-dashboard/publish-pages --qualifier rehearsal > "$work/create.out" 2>&1 || fail "dashboard 3: work create: $(cat "$work/create.out")"
-      n=$(item "[claudinite-work] claudinite-single-repo-dashboard/publish-pages rehearsal")
-      execute || fail "dashboard 3: execute: $(cat "$work/exec.out")"
-      case " $(labels_of "$n") " in *" task:status:done "*) ;; *) fail "dashboard 3: #$n is $(labels_of "$n"): $(cat "$work/exec.out")" ;; esac
-      [ "$(gh_count 'st.dispatches.filter(d=>d.workflow==="claudinite-single-repo-dashboard-pages.yml"&&d.ref==="main").length')" = 1 ] \
-        || fail "dashboard 3: the deploy dispatches: $(gh_state)"
-      [ "$(git --git-dir "$origin" ls-tree --name-only gh-pages | tr '\n' ' ')" = ".nojekyll deployed.json index.html packs " ] \
-        || fail "dashboard 3: the site's root: $(git --git-dir "$origin" ls-tree --name-only gh-pages 2>&1)"
-      [ "$(git --git-dir "$origin" ls-tree --name-only gh-pages:packs)" = claudinite-single-repo-dashboard ] \
-        || fail "dashboard 3: the site carries $(git --git-dir "$origin" ls-tree --name-only gh-pages:packs | tr '\n' ' ')"
-      git --git-dir "$origin" cat-file -e gh-pages:packs/claudinite-single-repo-dashboard/index.html || fail "dashboard 3: no page"
-      git --git-dir "$origin" cat-file -e gh-pages:packs/claudinite-single-repo-dashboard/src/app.mjs || fail "dashboard 3: no modules"
-      git --git-dir "$origin" show gh-pages:packs/claudinite-single-repo-dashboard/dashboard.config.json > "$work/site-config.json" || fail "dashboard 3: no config"
-      [ "$(json "$work/site-config.json" 'st.defaultRepo+" "+("mode" in st)+" "+("owner" in st)')" = "acme/member false false" ] \
-        || fail "dashboard 3: the site's config: $(cat "$work/site-config.json")"
-      if git --git-dir "$origin" ls-tree -r --name-only gh-pages | grep -q -e '^engine/' -e '/test/'; then fail "dashboard 3: the site carries an engine or tests"; fi
-      [ -z "$(cd "$member" && git status --porcelain)" ] || fail "dashboard 3: the run left the checkout changed: $(cd "$member" && git status --porcelain)"
-      unset GITHUB_API_URL NODE_EXTRA_CA_CERTS
-      step "dashboard 3: publish-pages built the real pack on a cn member, pushed index.html, the page's own modules and nothing else to gh-pages, and followed its deploy to success"
       ;;
     live-packs)
       live_packs="basics git-github claudinite-lifecycle claudinite-growth node python aws-sam"

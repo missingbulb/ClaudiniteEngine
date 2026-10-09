@@ -312,7 +312,7 @@ export function bucketWeekly(rows) {
 // --- meaningful against machinery ------------------------------------------------
 
 // Which of a member's window commits were GENUINE PROJECT WORK, per day. The test is
-// the claudinite-tasks pack's own (`isSubstantiveCommit`), so a member reads as quiet
+// the queue's own (`isSubstantiveCommit`), so a member reads as quiet
 // here exactly when its own preconditions read the repo as not having moved — a second
 // notion of "meaningful" would mark a member sleepy on the commits its scheduler counts
 // as movement.

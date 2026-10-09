@@ -6,7 +6,7 @@
 // crawl per repo, per load, against the viewer's own rate limit.
 //
 // So the depth comes from a file the repo already folds for itself:
-// `.claudinite/usage/sessions-and-elements.json`, written by claudinite-tasks'
+// `.claudinite/usage/sessions-and-elements.json`, written by the engine's
 // usage-fold task. It is content at a sha, so it is cached like every other content
 // read here — ZERO requests while the default branch has not moved — and one read
 // answers every panel that looks further back than the live window.

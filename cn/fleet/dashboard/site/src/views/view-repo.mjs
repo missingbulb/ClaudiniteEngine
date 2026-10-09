@@ -564,8 +564,8 @@ function renderGrowth(growth) {
       el('p', {
         className: 'sub',
         textContent: 'These figures come from `.claudinite/usage/sessions-and-elements.json`, which the '
-          + 'claudinite-tasks pack\'s usage-fold task writes. Declare that pack and the panel fills in from '
-          + 'its first run; nothing else on this page depends on it.',
+          + 'engine\'s usage-fold task writes; the panel fills in from its first run, and nothing '
+          + 'else on this page depends on it.',
       }),
     ]));
     return;

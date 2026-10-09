@@ -1,10 +1,10 @@
 #!/bin/sh
 # Writes the rehearsal's fleet under WORK: the manager MANAGER (a member
-# dev/release/member-fixture.sh already wrote) declares claudinite-fleet-sheepdog
-# over owner acme with acme/ignored excluded and the hello pack seeded
-# with {greeting: hi}, on the canary channel, its packs needing engine
-# VERSION, its fleet-roster and fleet-update tasks as the pack declares
-# them, and claudinite-tasks; and
+# dev/release/member-fixture.sh already wrote) carries a fleet block over
+# owner acme with acme/ignored excluded and the hello pack seeded with
+# {greeting: hi}, which turns on the engine's own fleet pack and its
+# fleet-roster and fleet-update tasks, on the canary channel, with
+# engine/update disabled in its tasks block; and
 # one tree per member under WORK/fleet/, each served by dev/release/verify/stubs/ghstub as
 # acme/<name>:
 #
@@ -12,66 +12,34 @@
 #   behind       pinned to BEHIND, with its scheduler, on the canary
 #                channel, a hello.json and a greeting.txt asking for hello-asks
 #   noscheduler  pinned to LATEST, no scheduler workflow
-#   dormant      pinned to LATEST, claudinite-tasks dormant
+#   dormant      pinned to LATEST, its tasks block dormant
 #   uncovered    no declaration
 #   ignored      pinned to LATEST, on the exclude list
 #   nodemember   a Node engine declaration, with its scheduler
 #   forked       pinned to LATEST, served as a fork
 #
 # Every pin names @claudinite/cli, manifest INTEGRITY and the engine
-# channel CHANNEL. It prints the ghstub --repo flags, one per line.
-# usage: dev/release/fleet-fixture.sh WORK MANAGER VERSION LATEST BEHIND INTEGRITY CHANNEL
+# channel CHANNEL; VERSION is the hello pack's minimum engine. It prints
+# the ghstub --repo flags, one per line.
+# usage: dev/release/verify/fixtures/fleet-fixture.sh WORK MANAGER VERSION LATEST BEHIND INTEGRITY CHANNEL
 set -eu
-[ $# -eq 7 ] || { echo "usage: dev/release/fleet-fixture.sh WORK MANAGER VERSION LATEST BEHIND INTEGRITY CHANNEL" >&2; exit 2; }
+[ $# -eq 7 ] || { echo "usage: dev/release/verify/fixtures/fleet-fixture.sh WORK MANAGER VERSION LATEST BEHIND INTEGRITY CHANNEL" >&2; exit 2; }
 work=$1 manager=$2 version=$3 latest=$4 behind=$5 integrity=$6 channel=$7
 
-for p in claudinite-fleet-sheepdog claudinite-tasks; do
-  mkdir -p "$manager/.claudinite/shared/packs/$p"
-  printf '{\n  "version": "1.0",\n  "minEngineVersion": "%s"\n}\n' "$version" > "$manager/.claudinite/shared/packs/$p/pack.json"
-done
-tasks=$manager/.claudinite/shared/packs/claudinite-fleet-sheepdog/tasks
-mkdir -p "$tasks/fleet-roster" "$tasks/fleet-update"
-cat > "$tasks/fleet-roster/task.json" <<'JSON'
-{
-  "id": "fleet-roster",
-  "description": "The fleet manager's census and freshness sweep.",
-  "trigger": "schedule",
-  "preconditions": ["schedule:at-most-daily"],
-  "expected_outcome": "no_code_changes",
-  "code_work": "cn fleet roster",
-  "code_work_timeout": 900,
-  "code_work_required_secrets": ["FLEET_GITHUB_TOKEN"]
-}
-JSON
-cat > "$tasks/fleet-update/task.json" <<'JSON'
-{
-  "id": "fleet-update",
-  "description": "Dispatch every covered member's update and follow it.",
-  "trigger": "request",
-  "preconditions": [],
-  "expected_outcome": "no_code_changes",
-  "code_work": "cn fleet update",
-  "code_work_timeout": 1800,
-  "code_work_required_secrets": ["FLEET_GITHUB_TOKEN"]
-}
-JSON
 cat >> "$manager/.claudinite/settings.yaml" <<'YAML'
 packs:
   channel: "canary"
-  declared:
-    - id: claudinite-fleet-sheepdog
+fleet:
+  owner: "acme"
+  exclude:
+    - "acme/ignored"
+  packSeeds:
+    - id: "hello"
       config:
-        owner: "acme"
-        exclude:
-          - "acme/ignored"
-        packSeeds:
-          - id: "hello"
-            config:
-              greeting: "hi"
-    - id: claudinite-tasks
-      config:
-        disabledTasks:
-          - engine/update
+        greeting: "hi"
+tasks:
+  disabled:
+    - engine/update
 YAML
 
 # member NAME PIN [FLAG]: a cn member pinned to PIN.
@@ -101,11 +69,8 @@ printf 'please add hello-asks\n' > "$work/fleet/behind/greeting.txt"
 member noscheduler "$latest"
 member dormant "$latest"; scheduler dormant
 cat >> "$work/fleet/dormant/.claudinite/settings.yaml" <<'YAML'
-packs:
-  declared:
-    - id: claudinite-tasks
-      config:
-        dormant: true
+tasks:
+  dormant: true
 YAML
 mkdir -p "$work/fleet/uncovered"
 printf '# uncovered\n' > "$work/fleet/uncovered/README.md"

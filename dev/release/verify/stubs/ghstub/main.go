@@ -231,7 +231,6 @@ func fail(w http.ResponseWriter, code int, msg string) {
 var (
 	runsPath     = regexp.MustCompile(`^/actions/workflows/([^/]+)/runs$`)
 	dispatchPath = regexp.MustCompile(`^/actions/workflows/([^/]+)/dispatches$`)
-	runPath      = regexp.MustCompile(`^/actions/runs/(\d+)$`)
 	approvePath  = regexp.MustCompile(`^/actions/runs/(\d+)/approve$`)
 	pullPath     = regexp.MustCompile(`^/pulls/(\d+)$`)
 	mergePath    = regexp.MustCompile(`^/pulls/(\d+)/merge$`)
@@ -287,30 +286,15 @@ func (s *stub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	switch {
 	case r.Method == http.MethodGet && runsPath.MatchString(path):
-		// Keyed on head_sha, as the update's CI follow asks; a worker following its
-		// own dispatch has no sha and asks by event instead, newest first either way.
-		q := r.URL.Query()
-		sha, event := q.Get("head_sha"), q.Get("event")
+		// Keyed on head_sha, as the update's CI follow asks, newest first.
+		sha := r.URL.Query().Get("head_sha")
 		var out []run
 		for i := len(s.runs) - 1; i >= 0; i-- {
-			if sha != "" || event == "" {
-				if s.runs[i].HeadSHA == sha {
-					out = append(out, s.runs[i])
-				}
-			} else if s.runs[i].Event == event {
+			if s.runs[i].HeadSHA == sha {
 				out = append(out, s.runs[i])
 			}
 		}
 		reply(w, 200, map[string]any{"total_count": len(out), "workflow_runs": out})
-	case r.Method == http.MethodGet && runPath.MatchString(path):
-		id, _ := strconv.ParseInt(runPath.FindStringSubmatch(path)[1], 10, 64)
-		for _, run := range s.runs {
-			if run.ID == id {
-				reply(w, 200, run)
-				return
-			}
-		}
-		fail(w, http.StatusNotFound, "Not Found")
 	case r.Method == http.MethodPost && approvePath.MatchString(path):
 		id, _ := strconv.ParseInt(approvePath.FindStringSubmatch(path)[1], 10, 64)
 		for i := range s.runs {
@@ -330,8 +314,6 @@ func (s *stub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		fail(w, http.StatusNotFound, "Not Found")
-	case r.Method == http.MethodGet && path == "/pages":
-		reply(w, 200, map[string]string{"build_type": "workflow"})
 	case r.Method == http.MethodPost && dispatchPath.MatchString(path):
 		wf := dispatchPath.FindStringSubmatch(path)[1]
 		inputs := map[string]string{}
