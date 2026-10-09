@@ -50,7 +50,14 @@ var (
 	cronField   = regexp.MustCompile(`^[0-9*/,-]+$`)
 	stampedLine = regexp.MustCompile(`^ {10}([A-Z][A-Z0-9_]*): \$\{\{ secrets\.([A-Z][A-Z0-9_]*) \}\}$`)
 	secretWord  = regexp.MustCompile(`^[A-Z][A-Z0-9_]*$`)
+	onSchedule  = regexp.MustCompile(`(?m)^  schedule:|^ *- cron:`)
 )
+
+// scheduleOff is a scheduler have whose owner took the schedule trigger
+// out, so it runs on dispatch alone: neither the trigger nor a cron line.
+func scheduleOff(have []byte) bool {
+	return len(have) > 0 && !onSchedule.Match(have)
+}
 
 // memberCron is the cron the scheduler have runs on, when it carries one
 // GitHub can read: five fields of numbers, steps, lists, ranges and
@@ -81,13 +88,18 @@ var ErrNoName = errors.New("the scheduler carries no cron of its own, and this r
 // Expected is the template name as the member fullName (owner/name), holding
 // have, should carry it: the scheduler keeps the member's own cron
 // (memberCron) and otherwise takes fullName's hash, never the template's
-// placeholder, and the executor keeps the secret lines stamped beneath its
+// placeholder; one with no schedule trigger at all stays without one. The
+// executor keeps the secret lines stamped beneath its
 // marker. Anything else is the template's. fullName may be empty while the
 // member carries a cron; otherwise Expected fails with ErrNoName.
 func Expected(name string, have []byte, fullName string) ([]byte, error) {
 	want := string(Templates()[name])
 	switch name {
 	case "claudinite-scheduler.yml":
+		if scheduleOff(have) {
+			want = strings.Replace(want, "  schedule:\n    - cron: \""+CronPlaceholder+"\"\n", "", 1)
+			break
+		}
 		cron := memberCron(have)
 		if cron == "" {
 			if fullName == "" {

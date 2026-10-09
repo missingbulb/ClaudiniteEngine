@@ -370,9 +370,12 @@ func TestMoveFailurePartWayLeavesARerunnableRepo(t *testing.T) {
 func TestMovedWorkflowKeepsTheMembersOwnCron(t *testing.T) {
 	const n = "claudinite-scheduler.yml"
 	forRepo := workflows.ForRepo("acme/widget")
-	got, _ := movedWorkflow(n, []byte("on:\n  workflow_dispatch:\n"), "acme/widget")
+	got, _ := movedWorkflow(n, []byte("on:\n  schedule:\n  workflow_dispatch:\n"), "acme/widget")
 	if string(got) != string(forRepo[n]) || strings.Contains(string(got), workflows.CronPlaceholder) {
 		t.Errorf("no cron line: not the repo's template:\n%s", got)
+	}
+	if got, _ := movedWorkflow(n, []byte("on:\n  workflow_dispatch:\n"), "acme/widget"); strings.Contains(string(got), "schedule:") {
+		t.Errorf("a scheduler its owner turned off came back on:\n%s", got)
 	}
 	for _, cron := range []string{"26 4,16 * * *", "39 4 * * *", "0 3 * * *", "26 4,17 * * *"} {
 		for _, have := range []string{"    - cron: '" + cron + "'\n", "    - cron: \"" + cron + "\"\n"} {
