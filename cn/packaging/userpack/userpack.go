@@ -28,7 +28,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -36,6 +35,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/proc"
 	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/packset"
 	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/settings"
 )
@@ -427,7 +427,7 @@ func checkout(store *Store, dir string, getenv func(string) string) (string, err
 func git(dir string, args ...string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), cloneTimeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "git", args...)
+	cmd := proc.CommandContext(ctx, "git", args...)
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
 	out, err := cmd.CombinedOutput()

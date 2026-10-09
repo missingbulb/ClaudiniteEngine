@@ -2,8 +2,9 @@ package githubapi
 
 import (
 	"os"
-	"os/exec"
 	"strings"
+
+	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/proc"
 )
 
 // RepoFullName is the checkout's owner/name: GITHUB_REPOSITORY, else the
@@ -15,7 +16,7 @@ func RepoFullName(root string) string {
 			return r
 		}
 	}
-	out, err := exec.Command("git", "-C", root, "remote", "get-url", "origin").Output()
+	out, err := proc.Command("git", "-C", root, "remote", "get-url", "origin").Output()
 	if err == nil {
 		if r, ok := ParseRemote(strings.TrimSpace(string(out))); ok {
 			return r

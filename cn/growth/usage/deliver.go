@@ -5,11 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/proc"
 )
 
 // File is one folded file to deliver; Move is a rolling file to carry from
@@ -36,7 +37,7 @@ var secretEnv = []string{"GITHUB_TOKEN=", "GH_TOKEN=", "ACTIONS_RUNTIME_TOKEN=",
 func RunLocal(root string, env []string, stdin string, args ...string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), localTimeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "git", append([]string{"-C", root}, args...)...)
+	cmd := proc.CommandContext(ctx, "git", append([]string{"-C", root}, args...)...)
 	for _, kv := range os.Environ() {
 		keep := true
 		for _, s := range secretEnv {

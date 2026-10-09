@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/rules/rulesindex"
 	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/paths"
+	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/proc"
 	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/report"
 	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/adopt"
 	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/fetch"
@@ -183,7 +183,7 @@ func convergeIndex(repo string, stdout io.Writer) error {
 
 // originOf is the checkout's configured origin URL, unrewritten.
 func originOf(dir string) (string, error) {
-	out, err := exec.Command("git", "-C", dir, "config", "--get", "remote.origin.url").Output()
+	out, err := proc.Command("git", "-C", dir, "config", "--get", "remote.origin.url").Output()
 	if err != nil {
 		return "", errors.New("the checkout has no origin remote")
 	}

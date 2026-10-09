@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -33,6 +32,7 @@ import (
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/run"
 	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/paths"
+	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/proc"
 	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/packset"
 )
 
@@ -378,7 +378,7 @@ func ReadRecord(c Config, key string) (Record, bool) {
 
 func build(c Config, key string, srcs []Source, log *bytes.Buffer, placing func() error) error {
 	run := func(args ...string) error {
-		cmd := exec.Command(c.goCmd(), args...)
+		cmd := proc.Command(c.goCmd(), args...)
 		cmd.Dir = c.Dir(key)
 		cmd.Env = buildEnv()
 		cmd.Stdout, cmd.Stderr = log, log
@@ -491,7 +491,7 @@ func Judges(c Config, key string) (map[string][]string, error) {
 // Start runs `<exe> check build --repo REPO --key KEY` detached, in its
 // own session, and returns at once; the child outlives the hook.
 func Start(exe, repo, key string) error {
-	cmd := exec.Command(exe, "check", "build", "--repo", repo, "--key", key)
+	cmd := proc.Command(exe, "check", "build", "--repo", repo, "--key", key)
 	cmd.SysProcAttr = Detached()
 	cmd.Dir = os.TempDir()
 	if err := cmd.Start(); err != nil {

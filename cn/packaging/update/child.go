@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/proc"
 	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/workflows"
 	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/selftest"
 	"os"
@@ -31,7 +32,7 @@ func scrubbedEnv() []string {
 func child(binary string, timeout time.Duration, args ...string) (string, string, int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, binary, args...)
+	cmd := proc.CommandContext(ctx, binary, args...)
 	cmd.Env = scrubbedEnv()
 	cmd.WaitDelay = time.Second
 	var stdout, stderr bytes.Buffer

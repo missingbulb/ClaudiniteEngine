@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -15,6 +14,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/calendar"
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/execute"
 	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/paths"
+	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/proc"
 	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/report"
 	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/gitcmd"
 	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/githubapi"
@@ -330,7 +330,7 @@ func runUpdateTask(repo, token, branch string, out io.Writer) execute.CodeWorkRe
 // and landed by this run, so it is handed the job token the next scheduler
 // run would hand it.
 func packsOnPinnedEngine(repo, token string, out io.Writer) (string, error) {
-	cmd := exec.Command("sh", filepath.Join(repo, ".claudinite", "launch"), "update", "packs", "--repo", repo)
+	cmd := proc.Command("sh", filepath.Join(repo, ".claudinite", "launch"), "update", "packs", "--repo", repo)
 	cmd.Dir = repo
 	cmd.Env = append(os.Environ(), "GITHUB_TOKEN="+token)
 	var stdout bytes.Buffer

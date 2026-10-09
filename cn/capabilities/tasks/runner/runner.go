@@ -34,6 +34,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/proc"
 )
 
 // Proto is the pipe's protocol, which runner.mjs answers.
@@ -281,7 +283,7 @@ func Shell(s Step, command string) Result {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	cmd := exec.CommandContext(ctx, name, args...)
+	cmd := proc.CommandContext(ctx, name, args...)
 	cmd.Dir, cmd.Env = s.Dir, scrubbed(s.Env)
 	cmd.SysProcAttr = groupAttr()
 	cmd.Cancel = func() error { return killGroup(cmd) }
@@ -318,7 +320,7 @@ func (r Runner) converse(s Step, req any, answer any) Result {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	cmd := exec.CommandContext(ctx, node, "--import", fileURL(filepath.Join(r.Dir, "register.mjs")), filepath.Join(r.Dir, "runner.mjs"))
+	cmd := proc.CommandContext(ctx, node, "--import", fileURL(filepath.Join(r.Dir, "register.mjs")), filepath.Join(r.Dir, "runner.mjs"))
 	cmd.Dir, cmd.Env = s.Dir, scrubbed(s.Env)
 	cmd.SysProcAttr = groupAttr()
 	cmd.Cancel = func() error { return killGroup(cmd) }
