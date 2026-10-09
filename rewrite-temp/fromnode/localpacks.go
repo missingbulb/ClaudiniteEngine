@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
+	"slices"
 	"sort"
 	"strings"
 
@@ -41,6 +43,17 @@ func ownPackEdits(repo string, local []string) ([]ownPackEdit, error) {
 		}
 		if e != nil {
 			out = append(out, *e)
+		}
+		tasks, _ := filepath.Glob(filepath.Join(dir, "tasks", "*", "task.json"))
+		sort.Strings(tasks)
+		for _, t := range tasks {
+			e, err := schemaEdit(repo, rel+"/tasks/"+filepath.Base(filepath.Dir(t))+"/task.json")
+			if err != nil {
+				return nil, err
+			}
+			if e != nil {
+				out = append(out, *e)
+			}
 		}
 		files := []string{rel + "/declared-checks.json"}
 		skills, _ := os.ReadDir(filepath.Join(dir, "skills"))
@@ -92,6 +105,31 @@ func manifestEdit(dir, rel string) (*ownPackEdit, error) {
 		return nil, nil
 	}
 	return &ownPackEdit{rel: rel + "/pack.json", data: encodeOrdered(obj), what: dropped}, nil
+}
+
+// retiredSchema is the task schema the Node tasks pack shipped, which a
+// task.json's "$schema" named and which the move removes.
+const retiredSchema = "shared/packs/" + settings.RetiredTasksPack + "/"
+
+func schemaEdit(repo, rel string) (*ownPackEdit, error) {
+	raw, err := os.ReadFile(filepath.Join(repo, filepath.FromSlash(rel)))
+	if err != nil {
+		return nil, nil
+	}
+	v, err := settings.DecodeOrdered(raw)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", rel, err)
+	}
+	obj, ok := v.(*settings.Ordered)
+	if !ok {
+		return nil, nil
+	}
+	schema, _ := obj.Get("$schema")
+	if s, _ := schema.(string); !strings.Contains(s, retiredSchema) {
+		return nil, nil
+	}
+	obj.Delete("$schema")
+	return &ownPackEdit{rel: rel, data: encodeOrdered(obj), what: []string{`dropped "$schema", the Node tasks pack's schema the move removes`}}, nil
 }
 
 func severityEdit(repo, rel string) (*ownPackEdit, error) {
@@ -233,6 +271,39 @@ func applyOwnPackEdits(repo string, edits []ownPackEdit) (func(), error) {
 // jsRules lists the Node engine's coded rules under a pack directory,
 // relative to it, sorted: worldRules/*.mjs, workRules/*.mjs and
 // skills/*/checks.mjs. cn runs none of them.
+// relativeImport matches a module specifier a JavaScript file imports by
+// a relative path.
+var relativeImport = regexp.MustCompile(`(?m)(?:\bfrom|^\s*import|\bimport\s*\()\s*['"](\.{1,2}/[^'"]+)['"]`)
+
+// brokenImports are the JavaScript files under dir, other than skip, that
+// import a relative path that is not there: after the move, what they
+// imported from the Node engine's mount.
+func brokenImports(dir string, skip []string) map[string]string {
+	out := map[string]string{}
+	_ = filepath.WalkDir(dir, func(p string, d os.DirEntry, err error) error {
+		if err != nil || d.IsDir() || (filepath.Ext(p) != ".mjs" && filepath.Ext(p) != ".js") {
+			return nil
+		}
+		rel, _ := filepath.Rel(dir, p)
+		rel = filepath.ToSlash(rel)
+		if slices.Contains(skip, rel) {
+			return nil
+		}
+		text, err := os.ReadFile(p)
+		if err != nil {
+			return nil
+		}
+		for _, m := range relativeImport.FindAllStringSubmatch(string(text), -1) {
+			if _, err := os.Stat(filepath.Join(filepath.Dir(p), filepath.FromSlash(m[1]))); err != nil {
+				out[rel] = m[1]
+				break
+			}
+		}
+		return nil
+	})
+	return out
+}
+
 func jsRules(dir string) []string {
 	var out []string
 	for _, scope := range []string{"worldRules", "workRules"} {

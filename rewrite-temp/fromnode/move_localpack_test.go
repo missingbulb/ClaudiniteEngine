@@ -11,7 +11,8 @@ import (
 )
 
 // A local pack whose pack.json still carries the Node manifest's rule
-// lists and the scaffold's numeric version, and whose declared check spells
+// lists and the scaffold's numeric version, whose task names the Node tasks
+// pack's schema, and whose declared check spells
 // on_fail as severity, moves with the member: the move drops the lists and
 // the version and renames the severity, so the
 // pack loads, its prose reaches the rules index, and verify finds nothing.
@@ -25,11 +26,16 @@ func TestMoveRewritesALocalPacksNodeShapes(t *testing.T) {
 	if err := os.WriteFile(decls, []byte(`[{"id": "mine-x", "severity": "advisory", "scanFiles": "a", "forbidLinesMatching": "/x/", "failureMessage": "m"}]`+"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	task := filepath.Join(repo, ".claudinite/local/packs/mine/tasks/t/task.json")
+	write(t, repo, ".claudinite/local/packs/mine/tasks/t/task.json", `{"$schema": "../../../../../shared/packs/claudinite-tasks/task.schema.json", "id": "t"}`+"\n")
 	in, out := input(t, repo)
 	if err := move(in); err != nil {
 		t.Fatalf("%v\n%s", err, out)
 	}
-	for _, want := range []string{`own pack: .claudinite/local/packs/mine/pack.json: dropped "worldRules"`, `own pack: .claudinite/local/packs/mine/pack.json: dropped "version" 1`, `own pack: .claudinite/local/packs/mine/declared-checks.json: check mine-x: severity "advisory" became on_fail "advise"`} {
+	if got, _ := os.ReadFile(task); string(got) != "{\n  \"id\": \"t\"\n}\n" {
+		t.Errorf("task.json:\n%s", got)
+	}
+	for _, want := range []string{`own pack: .claudinite/local/packs/mine/tasks/t/task.json: dropped "$schema"`, `own pack: .claudinite/local/packs/mine/pack.json: dropped "worldRules"`, `own pack: .claudinite/local/packs/mine/pack.json: dropped "version" 1`, `own pack: .claudinite/local/packs/mine/declared-checks.json: check mine-x: severity "advisory" became on_fail "advise"`} {
 		if !strings.Contains(out.String(), want) {
 			t.Errorf("the report lacks %q:\n%s", want, out)
 		}
