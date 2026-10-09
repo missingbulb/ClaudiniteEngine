@@ -35,11 +35,11 @@ cat > "$dir/.claude/settings.json" <<'JSON'
 {
   "hooks": {
     "SessionStart": [{"hooks": [{"type": "command", "command": "sh \"$CLAUDE_PROJECT_DIR/.claudinite/launch\" hook session-start"}]}],
-    "PreToolUse": [{"matcher": "*", "hooks": [{"type": "command", "command": ".claudinite/bin/cn hook pre-tool-use"}]}],
-    "PostToolUse": [{"matcher": "*", "hooks": [{"type": "command", "command": ".claudinite/bin/cn hook post-tool-use"}]}],
-    "UserPromptSubmit": [{"hooks": [{"type": "command", "command": ".claudinite/bin/cn hook user-prompt-submit"}]}],
-    "Stop": [{"hooks": [{"type": "command", "command": ".claudinite/bin/cn hook stop"}]}],
-    "SessionEnd": [{"hooks": [{"type": "command", "command": ".claudinite/bin/cn hook session-end"}]}]
+    "PreToolUse": [{"matcher": "*", "hooks": [{"type": "command", "command": "\"$CLAUDE_PROJECT_DIR/.claudinite/bin/cn\" hook pre-tool-use"}]}],
+    "PostToolUse": [{"matcher": "*", "hooks": [{"type": "command", "command": "\"$CLAUDE_PROJECT_DIR/.claudinite/bin/cn\" hook post-tool-use"}]}],
+    "UserPromptSubmit": [{"hooks": [{"type": "command", "command": "\"$CLAUDE_PROJECT_DIR/.claudinite/bin/cn\" hook user-prompt-submit"}]}],
+    "Stop": [{"hooks": [{"type": "command", "command": "\"$CLAUDE_PROJECT_DIR/.claudinite/bin/cn\" hook stop"}]}],
+    "SessionEnd": [{"hooks": [{"type": "command", "command": "\"$CLAUDE_PROJECT_DIR/.claudinite/bin/cn\" hook session-end"}]}]
   }
 }
 JSON

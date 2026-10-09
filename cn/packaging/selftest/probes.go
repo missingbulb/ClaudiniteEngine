@@ -119,7 +119,7 @@ func packs(in Input) Probe {
 	return Probe{"packs", OK, fmt.Sprintf("%d load on %s", len(s.Packs), in.Version)}
 }
 
-var hookCall = regexp.MustCompile(`(?:\.claudinite/bin/cn|\.claudinite/launch"?)\s+hook\s+(\S+)`)
+var hookCall = regexp.MustCompile(`(?:\.claudinite/bin/cn|\.claudinite/launch)"?\s+hook\s+(\S+)`)
 
 func hooks(in Input) Probe {
 	raw, err := os.ReadFile(filepath.Join(in.Repo, ".claude", "settings.json"))

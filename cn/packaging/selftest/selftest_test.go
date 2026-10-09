@@ -3,14 +3,17 @@ package selftest
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/workflows"
+	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/verify"
 )
 
 var events = []string{"session-start", "pre-tool-use", "post-tool-use", "user-prompt-submit", "stop", "session-end"}
@@ -268,5 +271,23 @@ func TestFailedReadsTheReport(t *testing.T) {
 	}
 	if got := Failed("version 1.2.0\nok binary: x\n"); got != nil {
 		t.Fatal(got)
+	}
+}
+
+func TestHooksProbeCountsTheRootedForm(t *testing.T) {
+	repo := copyShape(t, "v7-update-as-task")
+	var b strings.Builder
+	b.WriteString(`{"hooks": {`)
+	for i, h := range verify.Hooks {
+		if i > 0 {
+			b.WriteString(",")
+		}
+		b.WriteString(strconv.Quote(h.Event) + `: [{"hooks": [{"type": "command", "command": ` + strconv.Quote(h.Command) + `}]}]`)
+	}
+	b.WriteString("}}")
+	write(t, filepath.Join(repo, ".claude/settings.json"), b.String())
+	p := probe(t, repo, "hooks")
+	if want := fmt.Sprintf("%d wired", len(verify.Hooks)); p.Status != OK || !strings.HasPrefix(p.Detail, want) {
+		t.Errorf("hooks probe = %v %q, want OK %q", p.Status, p.Detail, want)
 	}
 }
