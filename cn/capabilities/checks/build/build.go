@@ -447,7 +447,10 @@ func build(c Config, key string, srcs []Source, log *bytes.Buffer, placing func(
 	}
 	tmp := filepath.Base(c.Binary(key)) + ".tmp"
 	_ = os.Remove(filepath.Join(dir, tmp))
-	if err := run("build", "-trimpath", "-o", tmp, "."); err != nil {
+	// -l, no inlining anywhere, takes about a quarter off a cold compile,
+	// most of which is the standard library's, for checks that run about
+	// 5% slower.
+	if err := run("build", "-trimpath", "-gcflags=all=-l", "-o", tmp, "."); err != nil {
 		return fmt.Errorf("go build: %w", err)
 	}
 	if err := os.Chmod(filepath.Join(dir, tmp), 0o555); err != nil {
