@@ -1105,10 +1105,8 @@ GO
       # The engine pack whose checks the steps run, standing in as its
       # manifest alone, as nothing here publishes it; the settings' tasks
       # block carries the routine the hand-off fires.
-      for p in claudinite-lifecycle; do
-        mkdir -p "$member/.claudinite/shared/packs/$p"
-        printf '{\n  "version": "1.0",\n  "minEngineVersion": "%s"\n}\n' "$version" > "$member/.claudinite/shared/packs/$p/pack.json"
-      done
+      mkdir -p "$member/.claudinite/shared/packs/claudinite-lifecycle"
+      printf '{\n  "version": "1.0",\n  "minEngineVersion": "%s"\n}\n' "$version" > "$member/.claudinite/shared/packs/claudinite-lifecycle/pack.json"
       awk '{ print } /^    - hello$/ { print "    - claudinite-lifecycle" }' \
         "$member/.claudinite/settings.yaml" > "$work/settings.yaml"
       mv "$work/settings.yaml" "$member/.claudinite/settings.yaml"
