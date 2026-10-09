@@ -20,7 +20,8 @@ var Events = []string{"session-start", "pre-tool-use", "post-tool-use", "user-pr
 // maxStdin bounds what a hook reads from Claude Code.
 const maxStdin = 16 << 20
 
-// StopWait is how long Stop waits for the checks binary to be ready.
+// StopWait is how long Stop waits for a checks build another process
+// holds.
 const StopWait = 30 * time.Second
 
 // HelloRule is the rule content this engine version carries itself.
@@ -43,17 +44,13 @@ type CheckResult struct {
 type RunScope struct {
 	Tags       []string
 	Transcript string
-	// Session is the Claude Code session id, "" for none.
-	Session string
 }
 
 // Checks runs the declared packs' checks.
 type Checks interface {
-	// Start begins building the checks binary for the session and returns
-	// at once, with the build's breadcrumb ("" for nothing to build).
-	Start(repo, session string) (string, error)
-	// Run runs the checks scope selects, waiting up to wait for the
-	// binary.
+	// Run runs the checks scope selects, building their binary first
+	// unless it is built, and waiting up to wait for a build another
+	// process holds.
 	Run(repo, event string, scope RunScope, wait time.Duration) CheckResult
 }
 
@@ -184,15 +181,6 @@ func (h Handler) sessionStart(repo, session string, outcome breadcrumb.Outcome, 
 	for _, l := range ctx.notes {
 		b.WriteString(l + "\n")
 	}
-	if h.Checks != nil {
-		line, err := h.Checks.Start(repo, session)
-		if line != "" {
-			b.WriteString(line + "\n")
-		}
-		if err != nil {
-			fmt.Fprintf(&b, "[cn] checks build did not start: %v\n", err)
-		}
-	}
 	if h.Index != nil && ctx.selfCheck != "" {
 		if _, err := h.Index.Write(repo, h.engine()); err != nil {
 			fmt.Fprintf(&b, "[cn] rules index not written: %v\n", err)
@@ -224,7 +212,7 @@ func (h Handler) sessionStart(repo, session string, outcome breadcrumb.Outcome, 
 // finding the session cannot clear never loops.
 func (h Handler) stop(repo string, in hookInput, stdout, stderr io.Writer, start time.Time) error {
 	answer := "{}"
-	scope := RunScope{Tags: []string{"work"}, Transcript: in.TranscriptPath, Session: in.SessionID}
+	scope := RunScope{Tags: []string{"work"}, Transcript: in.TranscriptPath}
 	if h.Checks != nil {
 		res := h.Checks.Run(repo, "stop", scope, StopWait)
 		for _, e := range res.Errors {

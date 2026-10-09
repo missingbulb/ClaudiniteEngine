@@ -5,7 +5,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -260,31 +259,6 @@ func TestLockIsTakenOnceAndGoesStale(t *testing.T) {
 		r()
 	}
 	release2()
-}
-
-func TestStartRunsDetached(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("sh")
-	}
-	dir := t.TempDir()
-	script := filepath.Join(dir, "fake-cn")
-	marker := filepath.Join(dir, "ran")
-	_ = os.WriteFile(script, []byte("#!/bin/sh\necho \"$@\" > "+marker+"\n"), 0o755)
-	start := time.Now()
-	if err := Start(script, "/repo", "abc"); err != nil {
-		t.Fatal(err)
-	}
-	if time.Since(start) > time.Second {
-		t.Error("Start waited")
-	}
-	deadline := time.Now().Add(5 * time.Second)
-	for time.Now().Before(deadline) {
-		if raw, err := os.ReadFile(marker); err == nil && strings.TrimSpace(string(raw)) == "check build --repo /repo --key abc" {
-			return
-		}
-		time.Sleep(20 * time.Millisecond)
-	}
-	t.Error("the detached build never ran")
 }
 
 // A local pack's checks build as local/<name>; a temp pack's never do.

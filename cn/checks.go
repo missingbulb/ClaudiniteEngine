@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -27,10 +26,8 @@ import (
 const buildWait = 10 * time.Minute
 
 func checksService() checks.Service {
-	exe, _ := os.Executable()
 	return checks.Service{
 		Build: build.Config{CacheRoot: paths.CacheRoot(), Engine: version.Version(), SDK: checksdk.Sources()},
-		Exe:   exe,
 	}
 }
 
@@ -46,25 +43,26 @@ func foreground(caller string, stderr io.Writer) checks.Service {
 // hookChecks gives the hooks the checks service.
 type hookChecks struct{}
 
-func (hookChecks) Start(repo, session string) (string, error) {
-	svc := checksService()
-	svc.Session = session
-	return svc.Start(repo)
-}
-
 func (hookChecks) Run(repo, event string, scope hooks.RunScope, wait time.Duration) hooks.CheckResult {
 	var notes bytes.Buffer
 	sel := declared.Selection{Tags: scope.Tags, Session: transcript.NewSession(scope.Transcript)}
 	svc := checksService()
-	svc.Session = scope.Session
 	svc.Timing = func(line string) { notes.WriteString(line + "\n") }
-	o := svc.RunAll(repo, event, sel, wait, false, &notes)
+	o := svc.RunAll(repo, event, sel, wait, &notes)
 	crumb := strings.TrimRight(notes.String()+o.DeclaredCrumb+"\n"+o.Crumb+"\n"+o.SDKCrumb, "\n")
 	return hooks.CheckResult{Findings: o.Findings, Errors: o.Errors, Err: o.Err, Crumb: crumb}
 }
 
 // hookGuards gives the hooks the checks service's guards.
 type hookGuards struct{}
+
+func (hookGuards) Prepare(repo, event string) ([]string, error) {
+	var lines []string
+	svc := checksService()
+	svc.Timing = func(line string) { lines = append(lines, line) }
+	err := svc.Prepare(repo, event, hooks.GuardBuildWait)
+	return lines, err
+}
 
 func (hookGuards) Judge(repo string, call hooks.Call, deadline time.Time) hooks.GuardResult {
 	v := checksService().Judge(repo, call.Event, checks.Call{Tool: call.Tool, Input: call.Input, Response: call.Response, Prompt: call.Prompt}, call.Session, deadline)
@@ -80,7 +78,7 @@ func (hookGuards) Judge(repo string, call hooks.Call, deadline time.Time) hooks.
 // break. verbose adds the coded checks' SDK calls, by method, the checks
 // a git fault skipped, and the tail of their stderr.
 func allFindings(repo, event string, sel declared.Selection, verbose bool, stderr io.Writer) []findings.Finding {
-	o := foreground(event, stderr).RunAll(repo, event, sel, buildWait, true, stderr)
+	o := foreground(event, stderr).RunAll(repo, event, sel, buildWait, stderr)
 	fmt.Fprintln(stderr, o.DeclaredCrumb)
 	if !strings.Contains(o.Crumb, " ok ") {
 		fmt.Fprintln(stderr, o.Crumb)

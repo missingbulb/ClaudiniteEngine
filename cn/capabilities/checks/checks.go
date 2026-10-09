@@ -26,12 +26,6 @@ import (
 // Service runs the declared packs' coded checks for one engine.
 type Service struct {
 	Build build.Config
-	// Exe is this cn, which Start runs detached as `cn check build`.
-	Exe string
-	// Session is the Claude Code session the service serves, "" for none:
-	// a build its SessionStart started is reported by its first run that
-	// finds that build done.
-	Session string
 	// Caller names a foreground build's wait, as the event names a run's.
 	Caller string
 	// Timing receives the build's breadcrumbs; nil drops them.
@@ -57,87 +51,6 @@ func (s Service) Key(repo string) (string, []build.Source, error) {
 	return build.Key(s.Build, srcs), srcs, nil
 }
 
-// Start begins building the repo's checks binary in the background unless
-// it is built or nothing needs building, and returns at once with the
-// build breadcrumb: cached, or started, when the session is marked to
-// report the build; "" when there is nothing to build.
-func (s Service) Start(repo string) (string, error) {
-	start := time.Now()
-	key, _, err := s.Key(repo)
-	if err != nil || key == "" {
-		return "", err
-	}
-	if _, err := build.Wait(s.Build, key, 0); err == nil {
-		return breadcrumb.Line("build", "cached", breadcrumb.OK, time.Since(start)), nil
-	}
-	s.markSession(key)
-	if err := build.Start(s.Exe, repo, key); err != nil {
-		return breadcrumb.Line("build", "started", breadcrumb.Error, time.Since(start)), err
-	}
-	return breadcrumb.Line("build", "started", breadcrumb.OK, time.Since(start)), nil
-}
-
-// staleMark is how long a session's mark outlives a session that never
-// reported its build.
-const staleMark = 7 * 24 * time.Hour
-
-func (s Service) markPath() string {
-	for _, r := range s.Session {
-		if (r < 'a' || r > 'z') && (r < 'A' || r > 'Z') && (r < '0' || r > '9') && r != '-' && r != '_' {
-			return ""
-		}
-	}
-	if s.Session == "" {
-		return ""
-	}
-	return filepath.Join(s.Build.SessionsDir(), s.Session)
-}
-
-// markSession records that this session started the key's build, and
-// drops the marks of sessions long gone. Best effort: a mark that cannot
-// be written costs only the report.
-func (s Service) markSession(key string) {
-	p := s.markPath()
-	if p == "" || os.MkdirAll(filepath.Dir(p), 0o700) != nil {
-		return
-	}
-	if entries, err := os.ReadDir(filepath.Dir(p)); err == nil {
-		for _, e := range entries {
-			if info, err := e.Info(); err == nil && time.Since(info.ModTime()) > staleMark {
-				_ = os.Remove(filepath.Join(filepath.Dir(p), e.Name()))
-			}
-		}
-	}
-	_ = os.WriteFile(p, []byte(key), 0o600)
-}
-
-// reportSessionBuild reports, once, the build this session started, as
-// soon as a compile of its key ended after the mark was made.
-func (s Service) reportSessionBuild() {
-	p := s.markPath()
-	if p == "" || s.Timing == nil {
-		return
-	}
-	info, err := os.Stat(p)
-	if err != nil {
-		return
-	}
-	key, err := os.ReadFile(p)
-	if err != nil {
-		return
-	}
-	rec, ok := build.ReadRecord(s.Build, string(key))
-	if !ok || rec.At.Before(info.ModTime().Truncate(time.Millisecond)) {
-		return
-	}
-	outcome := breadcrumb.OK
-	if !rec.OK {
-		outcome = breadcrumb.Error
-	}
-	s.note(breadcrumb.Line("build", "compiled", outcome, rec.Took))
-	_ = os.Remove(p)
-}
-
 func (s Service) note(line string) {
 	if s.Timing != nil {
 		s.Timing(line)
@@ -157,6 +70,20 @@ func (s Service) noteWait(event string, began time.Time, err error) {
 	s.note(breadcrumb.Line("buildwait", event, outcome, time.Since(began)))
 }
 
+// noteCompile reports the compile of key this process ran, from its
+// record.
+func (s Service) noteCompile(key string) {
+	rec, ok := build.ReadRecord(s.Build, key)
+	if !ok {
+		return
+	}
+	outcome := breadcrumb.OK
+	if !rec.OK {
+		outcome = breadcrumb.Error
+	}
+	s.note(breadcrumb.Line("build", "compiled", outcome, rec.Took))
+}
+
 // BuildNow builds the repo's checks binary in this process; when another
 // process is building it, wait says whether to wait for that build, for
 // up to timeout. It returns the key, "" for nothing to build. A binary
@@ -169,64 +96,91 @@ func (s Service) BuildNow(repo, wantKey string, wait bool, timeout time.Duration
 	if wantKey != "" && wantKey != key {
 		return "", fmt.Errorf("the packs changed since key %s was computed (now %s)", wantKey, key)
 	}
-	began := time.Now()
-	ready := key == ""
-	if !ready {
-		_, werr := build.Wait(s.Build, key, 0)
-		ready = werr == nil
-	}
-	err = build.Build(s.Build, key, srcs)
-	if errors.Is(err, build.ErrBuilding) && wait {
-		_, err = build.Wait(s.Build, key, timeout)
-	}
-	if !ready && s.Caller != "" {
-		s.noteWait(s.Caller, began, err)
-	}
+	_, err = s.ensure(key, srcs, s.Caller, wait, timeout)
 	return key, err
 }
 
-// Run runs the checks whose tags include every one of tags (from pack when
-// set) over repo, srv answering their SDK calls. Foreground builds the
-// binary here, as CI does; otherwise a build is started if none is under
-// way and Run waits for it up to wait. The breadcrumb records the outcome:
-// a binary not ready in time is a timeout, never silence. A repo with no
-// Go checks runs nothing, ok.
-func (s Service) Run(repo, event string, tags []string, pack string, wait time.Duration, foreground bool, srv run.Server) (run.Result, string) {
-	start := time.Now()
-	key, srcs, err := s.Key(repo)
-	if err == nil && key == "" {
-		return run.Result{}, breadcrumb.Line("checks", event, breadcrumb.OK, time.Since(start))
+// ensure builds key's binary here unless it is built, waiting up to
+// timeout for another process's build of it when wait says to, and
+// returns the binary. A binary not there on arrival is a wait, reported
+// under event when event is set.
+func (s Service) ensure(key string, srcs []build.Source, event string, wait bool, timeout time.Duration) (string, error) {
+	if key == "" {
+		return "", nil
 	}
-	var binary string
-	ready := false
-	if err == nil {
-		_, werr := build.Wait(s.Build, key, 0)
-		ready = werr == nil
+	if binary, err := build.Wait(s.Build, key, 0); err == nil {
+		return binary, nil
 	}
 	began := time.Now()
-	if err == nil && foreground {
-		err = build.Build(s.Build, key, srcs)
-		if errors.Is(err, build.ErrBuilding) {
-			err = nil
-		}
-	} else if err == nil && !ready {
-		err = build.Start(s.Exe, repo, key)
+	err := build.Build(s.Build, key, srcs)
+	switch {
+	case errors.Is(err, build.ErrBuilding) && wait:
+		_, err = build.Wait(s.Build, key, timeout)
+	case !errors.Is(err, build.ErrBuilding):
+		s.noteCompile(key)
 	}
-	if err == nil {
-		binary, err = build.Wait(s.Build, key, wait)
-	}
-	if key != "" && !ready {
+	if event != "" {
 		s.noteWait(event, began, err)
 	}
-	s.reportSessionBuild()
 	if err != nil {
+		return "", err
+	}
+	return s.Build.Binary(key), nil
+}
+
+// prepared is the checks binary a run will use, or why it has none.
+type prepared struct {
+	key    string
+	binary string
+	err    error
+}
+
+// prepare builds the repo's checks binary here unless it is built, as
+// CI does; a build another process holds is waited for up to wait.
+func (s Service) prepare(repo, event string, wait time.Duration) prepared {
+	key, srcs, err := s.Key(repo)
+	if err != nil || key == "" {
+		return prepared{key: key, err: err}
+	}
+	binary, err := s.ensure(key, srcs, event, true, wait)
+	return prepared{key: key, binary: binary, err: err}
+}
+
+// Prepare builds the repo's checks binary here unless it is built, so a
+// guard judges with every coded judge; a build another process holds is
+// waited for up to wait, and a build of these sources that already failed
+// is not run again. The wait is reported under event.
+func (s Service) Prepare(repo, event string, wait time.Duration) error {
+	key, srcs, err := s.Key(repo)
+	if err != nil || key == "" || build.Failed(s.Build, key) {
+		return err
+	}
+	_, err = s.ensure(key, srcs, event, true, wait)
+	return err
+}
+
+// Run runs the checks whose tags include every one of tags (from pack when
+// set) over repo, srv answering their SDK calls, building the binary here
+// first unless it is built. The breadcrumb records the outcome: a binary
+// not ready in time is a timeout, never silence. A repo with no Go checks
+// runs nothing, ok.
+func (s Service) Run(repo, event string, tags []string, pack string, wait time.Duration, srv run.Server) (run.Result, string) {
+	start := time.Now()
+	return s.runPrepared(s.prepare(repo, event, wait), event, tags, pack, repo, srv, start)
+}
+
+func (s Service) runPrepared(p prepared, event string, tags []string, pack, repo string, srv run.Server, start time.Time) (run.Result, string) {
+	if p.err == nil && p.key == "" {
+		return run.Result{}, breadcrumb.Line("checks", event, breadcrumb.OK, time.Since(start))
+	}
+	if p.err != nil {
 		outcome := breadcrumb.Error
-		if errors.Is(err, build.ErrTimeout) {
+		if errors.Is(p.err, build.ErrTimeout) {
 			outcome = breadcrumb.Timeout
 		}
-		return run.Result{Err: err}, breadcrumb.Line("checks", event, outcome, time.Since(start))
+		return run.Result{Err: p.err}, breadcrumb.Line("checks", event, outcome, time.Since(start))
 	}
-	res, _ := run.Runner{Binary: binary, Engine: s.Build.Engine, Server: srv}.Run(event, tags, pack, repo)
+	res, _ := run.Runner{Binary: p.binary, Engine: s.Build.Engine, Server: srv}.Run(event, tags, pack, repo)
 	outcome := breadcrumb.OK
 	switch {
 	case res.Err != nil && errors.Is(res.Err, run.ErrSilent):
@@ -304,13 +258,16 @@ type Outcome struct {
 // Blocking reports whether any finding blocks.
 func (o Outcome) Blocking() bool { return findings.AnyBreak(o.Findings) }
 
-// RunAll runs the declared checks sel takes in this process, then the
-// coded ones with the same tags and pack as Run does, their SDK calls
-// answered from the declared run's own walk and session; applies grace to
-// the coded findings, then the member's checks configuration over both.
-func (s Service) RunAll(repo, event string, sel declared.Selection, wait time.Duration, foreground bool, stderr io.Writer) Outcome {
+// RunAll runs the declared checks sel takes in this process while the
+// coded ones' binary is built beside them, then the coded ones with the
+// same tags and pack as Run does, their SDK calls answered from the
+// declared run's own walk and session; applies grace to the coded
+// findings, then the member's checks configuration over both.
+func (s Service) RunAll(repo, event string, sel declared.Selection, wait time.Duration, stderr io.Writer) Outcome {
 	tags, pack := sel.Tags, sel.Pack
 	start := time.Now()
+	built := make(chan prepared, 1)
+	go func() { built <- s.prepare(repo, event, wait) }()
 	var out Outcome
 	set, err := s.LoadSet(repo)
 	var cfg declared.Config
@@ -327,7 +284,7 @@ func (s Service) RunAll(repo, event string, sel declared.Selection, wait time.Du
 	}
 	out.DeclaredCrumb = fmt.Sprintf("[cn] declared %d checks %dms", n, time.Since(start).Milliseconds())
 	srv := newServer(repo, set, sel.Session, start)
-	res, crumb := s.Run(repo, event, tags, pack, wait, foreground, srv)
+	res, crumb := s.runPrepared(<-built, event, tags, pack, repo, srv, start)
 	out.Crumb, out.Errors, out.Err, out.SDKCrumb, out.Calls, out.Stderr = crumb, res.Errors, res.Err, res.SDKCrumb, res.Calls, res.Stderr
 	for i, f := range res.Shared() {
 		out.Findings = append(out.Findings, declared.Grace(f, res.Findings[i].Since, start))

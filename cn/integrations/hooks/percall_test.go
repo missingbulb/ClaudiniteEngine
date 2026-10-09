@@ -18,6 +18,15 @@ type fakeGuards struct {
 	sleep  time.Duration
 	panics bool
 	calls  []Call
+	// building is how long Prepare takes; prepared counts its calls.
+	building time.Duration
+	prepared int
+}
+
+func (f *fakeGuards) Prepare(repo, event string) ([]string, error) {
+	f.prepared++
+	time.Sleep(f.building)
+	return []string{"[cn] buildwait " + event + " ok 1ms"}, nil
 }
 
 func (f *fakeGuards) Judge(repo string, call Call, deadline time.Time) GuardResult {
@@ -118,6 +127,17 @@ func TestABlockElsewhereBecomesContext(t *testing.T) {
 	}
 	if string(g.calls[0].Response) != `"r"` {
 		t.Errorf("response %q", g.calls[0].Response)
+	}
+}
+
+// The checks build runs before the hook's deadline starts, so a call that
+// waited for it is still judged, and the build's breadcrumb reaches stderr.
+func TestTheBuildDoesNotSpendTheDeadline(t *testing.T) {
+	t.Setenv("CLAUDINITE_HOOK_DEADLINE_MS", "100")
+	g := &fakeGuards{result: GuardResult{Blocks: []string{"Blocked by j: x"}}, building: 300 * time.Millisecond}
+	_, errOut, err := perCall(t, Handler{Guards: g, ProjectDir: t.TempDir()}, "pre-tool-use", bashCall)
+	if report.CodeOf(err) != report.Block || g.prepared != 1 || len(g.calls) != 1 || !strings.Contains(errOut, "[cn] buildwait pre-tool-use ok 1ms\n") {
+		t.Errorf("%v prepared %d judged %d %q", err, g.prepared, len(g.calls), errOut)
 	}
 }
 

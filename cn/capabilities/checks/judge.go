@@ -81,7 +81,7 @@ func (s Service) coded(repo, event string, call Call, config func() declared.Con
 	}
 	binary, err := build.Wait(s.Build, key, 0)
 	if err != nil {
-		v.Errors = append(v.Errors, s.notBuilt(repo, key))
+		v.Advice = append(v.Advice, s.notBuilt(key))
 		return
 	}
 	judges, err := build.Judges(s.Build, key)
@@ -131,18 +131,12 @@ func (s Service) coded(repo, event string, call Call, config func() declared.Con
 	}
 }
 
-// notBuilt is the error line of a judge that found no binary for key. A
-// build nobody is running, one a session killed or none ever started, is
-// started here, so the next call finds it.
-func (s Service) notBuilt(repo, key string) string {
-	switch {
-	case build.Failed(s.Build, key):
-		return "the coded judges did not run: the checks build failed; see " + filepath.Join(s.Build.Dir(key), "build.log")
-	case build.Building(s.Build, key):
-		return "the coded judges did not run: the checks binary is not built yet"
+// notBuilt is the advice of a judge that found no binary for key: the
+// coded judges did not run, which the session must see on every call
+// until they do.
+func (s Service) notBuilt(key string) string {
+	if build.Failed(s.Build, key) {
+		return "[claudinite] the coded checks did not run: the checks build failed; fix the check source it names in " + filepath.Join(s.Build.Dir(key), "build.log")
 	}
-	if err := build.Start(s.Exe, repo, key); err != nil {
-		return "the coded judges did not run: the checks binary is not built yet, and starting its build failed: " + err.Error()
-	}
-	return "the coded judges did not run: the checks binary is not built yet; its build started"
+	return "[claudinite] the coded checks did not run: the checks binary was not built in time"
 }

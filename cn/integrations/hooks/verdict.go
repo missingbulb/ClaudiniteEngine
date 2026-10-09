@@ -14,8 +14,14 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/transcript"
 )
 
-// HookDeadline bounds a per-call hook: past it the call goes through.
+// HookDeadline bounds a per-call hook's judging: past it the call goes
+// through.
 const HookDeadline = 5 * time.Second
+
+// GuardBuildWait bounds a per-call hook's wait, before its judging, for a
+// checks build another process holds; one this hook runs itself takes as
+// long as it takes.
+const GuardBuildWait = 45 * time.Second
 
 // deadlineEnv overrides HookDeadline in milliseconds, for tests.
 const deadlineEnv = "CLAUDINITE_HOOK_DEADLINE_MS"
@@ -49,6 +55,9 @@ type GuardResult struct {
 // Guards judges a call through the declared action checks, the built-in
 // guards and the packs' coded judges, never past deadline.
 type Guards interface {
+	// Prepare builds the coded judges' binary unless it is built, and
+	// returns the build's breadcrumbs.
+	Prepare(repo, event string) ([]string, error)
 	Judge(repo string, call Call, deadline time.Time) GuardResult
 }
 
@@ -102,8 +111,16 @@ func (h Handler) perCall(event string, raw []byte, readErr error, stdout, stderr
 	if p, ok := in.Prompt.(string); ok {
 		call.Prompt = p
 	}
+	var built []string
+	if h.Guards != nil {
+		lines, err := h.Guards.Prepare(repo, event)
+		built = lines
+		if err != nil {
+			built = append(built, "[cn] hooks: the checks binary is not ready: "+err.Error())
+		}
+	}
 	limit := hookDeadline()
-	deadline := start.Add(limit)
+	deadline := time.Now().Add(limit)
 	done := make(chan verdict, 1)
 	go func() {
 		defer func() {
@@ -117,8 +134,9 @@ func (h Handler) perCall(event string, raw []byte, readErr error, stdout, stderr
 	select {
 	case v = <-done:
 	case <-time.After(time.Until(deadline)):
-		return fail(breadcrumb.Deadline, fmt.Sprintf("[cn] hooks: no verdict within %v; the call goes through", limit))
+		return fail(breadcrumb.Deadline, append(built, fmt.Sprintf("[cn] hooks: no verdict within %v; the call goes through", limit))...)
 	}
+	v.notes = append(built, v.notes...)
 	if v.outcome == breadcrumb.Error && len(v.block) == 0 && len(v.context) == 0 {
 		return fail(breadcrumb.Error, v.notes...)
 	}

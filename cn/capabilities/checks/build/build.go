@@ -75,10 +75,6 @@ var ErrBuilding = errors.New("another process is building this checks binary")
 func (c Config) checksRoot() string       { return filepath.Join(c.CacheRoot, "checks") }
 func (c Config) lockPath(k string) string { return filepath.Join(c.checksRoot(), k+".lock") }
 
-// SessionsDir holds a mark per session that started a build, for that
-// session to report the build once it is done.
-func (c Config) SessionsDir() string { return filepath.Join(c.checksRoot(), "sessions") }
-
 // Dir is the key's folder: the generated module, build.log and the binary.
 func (c Config) Dir(key string) string { return filepath.Join(c.checksRoot(), key) }
 
@@ -514,18 +510,6 @@ func Judges(c Config, key string) (map[string][]string, error) {
 		return nil, fmt.Errorf("%s: %w", c.judgesPath(key), err)
 	}
 	return out, nil
-}
-
-// Start runs `<exe> check build --repo REPO --key KEY` detached, in its
-// own session, and returns at once; the child outlives the hook.
-func Start(exe, repo, key string) error {
-	cmd := exec.Command(exe, "check", "build", "--repo", repo, "--key", key)
-	cmd.SysProcAttr = Detached()
-	cmd.Dir = os.TempDir()
-	if err := cmd.Start(); err != nil {
-		return err
-	}
-	return cmd.Process.Release()
 }
 
 // ErrTimeout is Wait running out of time.

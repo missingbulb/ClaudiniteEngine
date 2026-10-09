@@ -18,7 +18,7 @@ import (
 
 func service(t *testing.T) Service {
 	t.Helper()
-	return Service{Build: build.Config{CacheRoot: filepath.Join(t.TempDir(), "claudinite"), Engine: "1.61001.1", SDK: checksdk.Sources()}, Exe: "/nonexistent/cn"}
+	return Service{Build: build.Config{CacheRoot: filepath.Join(t.TempDir(), "claudinite"), Engine: "1.61001.1", SDK: checksdk.Sources()}}
 }
 
 func helloRepo(t *testing.T) string {
@@ -58,21 +58,21 @@ func TestRunTheHelloCheckByTag(t *testing.T) {
 		}
 		return out
 	}
-	o := s.RunAll(repo, "world", declared.Selection{Tags: []string{"world"}}, time.Minute, true, nil)
+	o := s.RunAll(repo, "world", declared.Selection{Tags: []string{"world"}}, time.Minute, nil)
 	if o.Err != nil || len(o.Errors) != 0 || len(coded(o)) != 0 || !strings.HasPrefix(o.Crumb, "[cn] checks world ok ") {
 		t.Fatalf("%+v", o)
 	}
 	_ = os.WriteFile(filepath.Join(repo, "HELLO_FINDING"), nil, 0o644)
-	o = s.RunAll(repo, "stop", declared.Selection{Tags: []string{"work"}}, time.Minute, false, nil)
+	o = s.RunAll(repo, "stop", declared.Selection{Tags: []string{"work"}}, time.Minute, nil)
 	if got := coded(o); o.Err != nil || len(o.Errors) != 0 || len(got) != 1 || got[0] != "hello/hello-check" {
 		t.Fatalf("%v %+v", got, o)
 	}
-	if o := s.RunAll(repo, "tag", declared.Selection{Tags: []string{"work"}, Pack: "other"}, time.Minute, false, nil); len(coded(o)) != 0 {
+	if o := s.RunAll(repo, "tag", declared.Selection{Tags: []string{"work"}, Pack: "other"}, time.Minute, nil); len(coded(o)) != 0 {
 		t.Errorf("--pack other ran hello's check: %+v", o)
 	}
 	_ = os.Remove(filepath.Join(repo, "HELLO_FINDING"))
 	_ = os.WriteFile(filepath.Join(repo, ".claudinite/settings.yaml"), []byte("engine:\n  version: \"1.1.0\"\npacks:\n  declared:\n    - id: hello\n      config:\n        probe: true\n"), 0o644)
-	o = s.RunAll(repo, "world", declared.Selection{Tags: []string{"world"}}, time.Minute, true, nil)
+	o = s.RunAll(repo, "world", declared.Selection{Tags: []string{"world"}}, time.Minute, nil)
 	if got := coded(o); len(got) != 1 || got[0] != "hello/hello-config" || o.SDKCrumb == "" {
 		t.Errorf("hello-config through the SDK: %v %+v", got, o)
 	}
@@ -91,7 +91,7 @@ func TestRunWithNoGoChecksIsOK(t *testing.T) {
 	repo := t.TempDir()
 	_ = os.MkdirAll(filepath.Join(repo, ".claudinite"), 0o755)
 	_ = os.WriteFile(filepath.Join(repo, ".claudinite/settings.yaml"), []byte("engine:\n  version: \"1.1.0\"\n"), 0o644)
-	res, crumb := service(t).Run(repo, "stop", []string{"work"}, "", time.Second, false, nil)
+	res, crumb := service(t).Run(repo, "stop", []string{"work"}, "", time.Second, nil)
 	if res.Err != nil || len(res.Findings) != 0 || !strings.HasPrefix(crumb, "[cn] checks stop ok ") {
 		t.Errorf("%+v %q", res, crumb)
 	}
@@ -100,15 +100,16 @@ func TestRunWithNoGoChecksIsOK(t *testing.T) {
 func TestRunTimesOutWhenTheBuildNeverComes(t *testing.T) {
 	s := service(t)
 	repo := helloRepo(t)
-	s.Exe = "/bin/true"
-	res, crumb := s.Run(repo, "stop", []string{"work"}, "", 200*time.Millisecond, false, nil)
+	key, _, _ := s.Key(repo)
+	holdLock(t, s, key)
+	res, crumb := s.Run(repo, "stop", []string{"work"}, "", 200*time.Millisecond, nil)
 	if res.Err == nil || !strings.HasPrefix(crumb, "[cn] checks stop timeout ") {
 		t.Errorf("%+v %q", res, crumb)
 	}
 }
 
 func TestARepoWithoutSettingsRunsNothing(t *testing.T) {
-	res, crumb := service(t).Run(t.TempDir(), "check", []string{"world"}, "", time.Second, true, nil)
+	res, crumb := service(t).Run(t.TempDir(), "check", []string{"world"}, "", time.Second, nil)
 	if res.Err != nil || len(res.Findings) != 0 || !strings.HasPrefix(crumb, "[cn] checks check ok ") {
 		t.Errorf("%+v %q", res, crumb)
 	}
@@ -117,7 +118,7 @@ func TestARepoWithoutSettingsRunsNothing(t *testing.T) {
 // Judge runs the declared guards in this process and the coded judges in
 // the checks binary, the latter only once it is built and only for an
 // event the judges manifest names; a judge that cannot run lets the call
-// through with an error line.
+// through, telling the session its coded checks did not run.
 func TestJudgeRunsGuardsAndCodedJudges(t *testing.T) {
 	if _, err := exec.LookPath("go"); err != nil {
 		t.Skip("no go")
@@ -127,7 +128,7 @@ func TestJudgeRunsGuardsAndCodedJudges(t *testing.T) {
 	bash := func(cmd string) Call { return Call{Tool: "Bash", Input: []byte(`{"command":"` + cmd + `"}`)} }
 	soon := func() time.Time { return time.Now().Add(5 * time.Second) }
 	v := s.Judge(repo, "pre-tool-use", bash("echo HELLO_JUDGE"), nil, soon())
-	if len(v.Blocks) != 0 || len(v.Errors) != 1 || !strings.Contains(v.Errors[0], "not built") {
+	if len(v.Blocks) != 0 || len(v.Advice) != 1 || !strings.Contains(v.Advice[0], "the coded checks did not run") {
 		t.Errorf("before the build: %+v", v)
 	}
 	if _, err := s.BuildNow(repo, "", true, time.Minute); err != nil {
@@ -263,7 +264,7 @@ func TestRunAllOverCodedFindings(t *testing.T) {
 	t.Setenv("CLAUDINITE_CHECKS_NO_FETCH", "1")
 	s := service(t)
 	repo := acmeRepo(t, "checks:\n  rules:\n    acme-pack/acme-sdk: block\n")
-	o := s.RunAll(repo, "world", declared.Selection{Tags: []string{"world"}}, time.Minute, true, nil)
+	o := s.RunAll(repo, "world", declared.Selection{Tags: []string{"world"}}, time.Minute, nil)
 	if o.Err != nil || len(o.Errors) != 0 {
 		t.Fatalf("%v %v", o.Err, o.Errors)
 	}
@@ -301,7 +302,7 @@ func TestRunAllOverCodedFindings(t *testing.T) {
 	}
 
 	bare := acmeRepo(t, "checks:\n  rules:\n    acme-sdk: \"off\"\n    local-check: advise\n")
-	o = s.RunAll(bare, "world", declared.Selection{Tags: []string{"world"}}, time.Minute, true, nil)
+	o = s.RunAll(bare, "world", declared.Selection{Tags: []string{"world"}}, time.Minute, nil)
 	got = byName(o.Findings)
 	if _, ok := got["acme-pack/acme-sdk"]; ok {
 		t.Errorf("a bare-id off left the finding: %v", o.Findings)
@@ -309,12 +310,12 @@ func TestRunAllOverCodedFindings(t *testing.T) {
 	if got["local/probe/local-check"].Class != findings.Advisory {
 		t.Errorf("a bare-id advise: %+v", got["local/probe/local-check"])
 	}
-	if o := s.RunAll(bare, "pack", declared.Selection{Pack: "local/probe"}, time.Minute, true, nil); len(o.Findings) != 1 || o.Findings[0].Name() != "local/probe/local-check" {
+	if o := s.RunAll(bare, "pack", declared.Selection{Pack: "local/probe"}, time.Minute, nil); len(o.Findings) != 1 || o.Findings[0].Name() != "local/probe/local-check" {
 		t.Errorf("--pack local/probe: %v", o.Findings)
 	}
 	for _, key := range []string{"local/probe/local-check", "local-check"} {
 		off := acmeRepo(t, "checks:\n  rules:\n    "+key+": \"off\"\n")
-		o := s.RunAll(off, "world", declared.Selection{Tags: []string{"world"}}, time.Minute, true, nil)
+		o := s.RunAll(off, "world", declared.Selection{Tags: []string{"world"}}, time.Minute, nil)
 		if _, ok := byName(o.Findings)["local/probe/local-check"]; ok {
 			t.Errorf("%s: off left the local finding: %v", key, o.Findings)
 		}
@@ -361,11 +362,11 @@ func TestBuiltinsListAndRunUnderTheirPack(t *testing.T) {
 			t.Errorf("list lacks %q: %v", want, rows)
 		}
 	}
-	o := s.RunAll(repo, "pack", declared.Selection{Pack: "claudinite-growth"}, time.Minute, true, nil)
+	o := s.RunAll(repo, "pack", declared.Selection{Pack: "claudinite-growth"}, time.Minute, nil)
 	if _, ok := byName(o.Findings)["claudinite-growth/routine-structure"]; !ok || o.Err != nil {
 		t.Errorf("--pack claudinite-growth did not run routine-structure: %v %v", o.Err, o.Findings)
 	}
-	o = s.RunAll(repo, "pack", declared.Selection{Pack: "claudinite-lifecycle"}, time.Minute, true, nil)
+	o = s.RunAll(repo, "pack", declared.Selection{Pack: "claudinite-lifecycle"}, time.Minute, nil)
 	if _, ok := byName(o.Findings)["claudinite-growth/routine-structure"]; ok {
 		t.Errorf("--pack claudinite-lifecycle ran a growth built-in: %v", o.Findings)
 	}
@@ -401,38 +402,36 @@ func TestListBuiltNeverBuilds(t *testing.T) {
 // A judge that finds no binary and no build under way starts one, so a
 // build a session killed is not waited on until a Stop; a build that
 // failed says so.
-func TestJudgeStartsABuildNobodyIsRunning(t *testing.T) {
+// A guard builds the binary before it judges, so its first call is judged
+// by the coded judges too; a build of these sources that failed is not run
+// again, and every call tells the session its coded checks did not run.
+func TestAGuardBuildsTheBinaryThenJudgesWithIt(t *testing.T) {
 	s := service(t)
 	repo := helloRepo(t)
-	marker := filepath.Join(t.TempDir(), "started")
-	exe := filepath.Join(t.TempDir(), "cn")
-	if err := os.WriteFile(exe, []byte("#!/bin/sh\necho \"$@\" > "+marker+"\n"), 0o755); err != nil {
+	call := Call{Tool: "Bash", Input: []byte(`{"command":"echo HELLO_JUDGE"}`)}
+	if err := s.Prepare(repo, "pre-tool-use", time.Minute); err != nil {
 		t.Fatal(err)
 	}
-	s.Exe = exe
-	call := Call{Tool: "Bash", Input: []byte(`{"command":"ls"}`)}
 	v := s.Judge(repo, "pre-tool-use", call, nil, time.Now().Add(5*time.Second))
-	if len(v.Errors) != 1 || !strings.Contains(v.Errors[0], "not built yet") || !strings.Contains(v.Errors[0], "started") {
-		t.Errorf("no binary, no build: %+v", v)
+	if len(v.Blocks) != 1 || !strings.Contains(v.Blocks[0], "hello-judge") || len(v.Advice) != 0 {
+		t.Errorf("the first call after a build: %+v", v)
 	}
-	deadline := time.Now().Add(5 * time.Second)
-	for {
-		if raw, err := os.ReadFile(marker); err == nil && strings.HasPrefix(string(raw), "check build --repo "+repo) {
-			break
-		}
-		if time.Now().After(deadline) {
-			t.Fatal("the judge started no build")
-		}
-		time.Sleep(20 * time.Millisecond)
-	}
+
+	s = service(t)
 	key, _, err := s.Key(repo)
 	if err != nil {
 		t.Fatal(err)
 	}
 	_ = os.MkdirAll(s.Build.Dir(key), 0o755)
 	_ = os.WriteFile(filepath.Join(s.Build.Dir(key), "build.failed"), nil, 0o644)
+	if err := s.Prepare(repo, "pre-tool-use", time.Minute); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(s.Build.Binary(key)); err == nil {
+		t.Error("a failed build was run again")
+	}
 	v = s.Judge(repo, "pre-tool-use", call, nil, time.Now().Add(5*time.Second))
-	if len(v.Errors) != 1 || !strings.Contains(v.Errors[0], "the checks build failed") || !strings.Contains(v.Errors[0], "build.log") {
+	if len(v.Advice) != 1 || !strings.Contains(v.Advice[0], "the checks build failed") || !strings.Contains(v.Advice[0], "build.log") {
 		t.Errorf("a failed build: %+v", v)
 	}
 }
