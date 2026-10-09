@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/findings"
+	"github.com/missingbulb/ClaudiniteEngine/dev/test/testgit"
 )
 
 const testSettings = `engine:
@@ -55,9 +56,9 @@ func member(t *testing.T, settingsYAML, checksJSON string, files map[string]stri
 		".claudinite/local/packs/acme-pack/declared-checks.json": checksJSON,
 	})
 	put(t, dir, files)
-	gitIn(t, dir, "init", "-q", "-b", "main")
-	gitIn(t, dir, "add", "-A")
-	gitIn(t, dir, "commit", "-q", "-m", "base")
+	testgit.Init(t, dir, "main")
+	testgit.Commit(t, dir, "main", "base")
+	testgit.Index(t, dir)
 	return dir
 }
 

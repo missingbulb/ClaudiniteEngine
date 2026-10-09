@@ -2,7 +2,6 @@ package builtin
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -12,6 +11,7 @@ import (
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/declared"
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/findings"
+	"github.com/missingbulb/ClaudiniteEngine/dev/test/testgit"
 )
 
 // gone, as a file's content in a change, deletes the file.
@@ -36,15 +36,6 @@ type repo struct {
 	message      string
 	untracked    map[string]string
 	branch       string
-}
-
-func git(t *testing.T, dir string, args ...string) {
-	t.Helper()
-	cmd := exec.Command("git", append([]string{"-c", "user.name=t", "-c", "user.email=t@x", "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null"}, args...)...)
-	cmd.Dir = dir
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("git %v: %v\n%s", args, err, out)
-	}
 }
 
 func write(t *testing.T, dir string, files map[string]string) {
@@ -88,23 +79,21 @@ func (r repo) build(t *testing.T) string {
 		".claudinite/local/packs/mypack/pack.json":                "{}\n",
 	})
 	write(t, dir, r.base)
-	git(t, dir, "init", "-q", "-b", "main")
-	git(t, dir, "add", "-A")
-	git(t, dir, "commit", "-q", "-m", "base")
+	testgit.Init(t, dir, "main")
+	testgit.Commit(t, dir, "main", "base")
 	if r.change != nil {
 		branch := r.branch
 		if branch == "" {
 			branch = "change"
 		}
-		git(t, dir, "checkout", "-q", "-b", branch)
 		write(t, dir, r.change)
 		msg := r.message
 		if msg == "" {
 			msg = "change"
 		}
-		git(t, dir, "add", "-A")
-		git(t, dir, "commit", "-q", "--allow-empty", "-m", msg)
+		testgit.Commit(t, dir, branch, msg)
 	}
+	testgit.Index(t, dir)
 	write(t, dir, r.untracked)
 	return dir
 }

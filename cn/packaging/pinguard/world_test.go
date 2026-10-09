@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -12,6 +11,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/findings"
 	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/gitcmd"
 	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/settings"
+	"github.com/missingbulb/ClaudiniteEngine/dev/test/testgit"
 )
 
 const (
@@ -21,15 +21,6 @@ const (
 	// shippedLauncher is the launcher the engine under test ships.
 	shippedLauncher = "#!/bin/sh\n# shipped\n"
 )
-
-func git(t *testing.T, dir string, args ...string) {
-	t.Helper()
-	cmd := exec.Command("git", append([]string{"-c", "user.name=t", "-c", "user.email=t@x"}, args...)...)
-	cmd.Dir = dir
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("git %v: %v\n%s", args, err, out)
-	}
-}
 
 func write(t *testing.T, dir, rel, body string) {
 	t.Helper()
@@ -55,16 +46,14 @@ func member(t *testing.T, change func(dir string)) string {
 func memberOn(t *testing.T, base string, change func(dir string)) string {
 	t.Helper()
 	dir := t.TempDir()
-	git(t, dir, "init", "-q", "-b", "main")
+	testgit.Init(t, dir, "main")
 	write(t, dir, ".claudinite/settings.yaml", base)
 	write(t, dir, ".claudinite/launch", "#!/bin/sh\n")
 	write(t, dir, "RULES.md", "- a rule\n")
-	git(t, dir, "add", "-A")
-	git(t, dir, "commit", "-q", "-m", "base")
-	git(t, dir, "checkout", "-q", "-b", "change")
+	testgit.Commit(t, dir, "main", "base")
 	change(dir)
-	git(t, dir, "add", "-A")
-	git(t, dir, "commit", "-q", "--allow-empty", "-m", "change")
+	testgit.Commit(t, dir, "change", "change")
+	testgit.Index(t, dir)
 	return dir
 }
 
@@ -182,14 +171,12 @@ func TestFindingsDecideTheExit(t *testing.T) {
 func unadopted(t *testing.T, change func(dir string)) string {
 	t.Helper()
 	dir := t.TempDir()
-	git(t, dir, "init", "-q", "-b", "main")
+	testgit.Init(t, dir, "main")
 	write(t, dir, "README.md", "unadopted\n")
-	git(t, dir, "add", "-A")
-	git(t, dir, "commit", "-q", "-m", "base")
-	git(t, dir, "checkout", "-q", "-b", "change")
+	testgit.Commit(t, dir, "main", "base")
 	change(dir)
-	git(t, dir, "add", "-A")
-	git(t, dir, "commit", "-q", "--allow-empty", "-m", "change")
+	testgit.Commit(t, dir, "change", "change")
+	testgit.Index(t, dir)
 	return dir
 }
 
@@ -304,15 +291,13 @@ func symlinkSettings(t *testing.T, engine string) func(string) {
 func TestPinGuardRefusesTheBotAddingALauncher(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	git(t, dir, "init", "-q", "-b", "main")
+	testgit.Init(t, dir, "main")
 	write(t, dir, ".claudinite/settings.yaml", settingsBody("1.1.0", pin1))
-	git(t, dir, "add", "-A")
-	git(t, dir, "commit", "-q", "-m", "base")
-	git(t, dir, "checkout", "-q", "-b", "change")
+	testgit.Commit(t, dir, "main", "base")
 	movePin(t)(dir)
 	write(t, dir, ".claudinite/launch", shippedLauncher)
-	git(t, dir, "add", "-A")
-	git(t, dir, "commit", "-q", "-m", "change")
+	testgit.Commit(t, dir, "change", "change")
+	testgit.Index(t, dir)
 	code, out := runWorld(t, dir, bot, &pinCheck{}, nil)
 	if code != 1 || !strings.Contains(out, "adds the launcher") {
 		t.Errorf("exit %d, want a refusal naming the added launcher:\n%s", code, out)
