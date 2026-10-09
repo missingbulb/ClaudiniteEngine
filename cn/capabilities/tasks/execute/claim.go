@@ -45,6 +45,22 @@ func ClaimWinner(comments []world.Comment) *world.Comment {
 	return nil
 }
 
+// handedOffClaim is the claim an agent-held item's executor won, the
+// newest before the newest hand-off: the hand-off closes its episode, but
+// the agent holds the item on that claim's standing.
+func handedOffClaim(comments []world.Comment) *world.Comment {
+	sorted := byID(comments)
+	var claim, held *world.Comment
+	for i, c := range sorted {
+		if strings.Contains(c.Body, workitem.HandoffMarker) {
+			held = claim
+		} else if strings.Contains(c.Body, workitem.ClaimMarker) {
+			claim = &sorted[i]
+		}
+	}
+	return held
+}
+
 // mineOf is this executor's newest claim among the comments.
 func mineOf(comments []world.Comment, executor string) *world.Comment {
 	sorted := byID(comments)

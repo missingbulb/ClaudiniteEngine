@@ -268,7 +268,11 @@ func (r *run) withClaimIDs(self int) ([]Claimed, error) {
 			if err != nil {
 				return nil, err
 			}
-			if w := ClaimWinner(comments); w != nil {
+			w := ClaimWinner(comments)
+			if i.Is(workitem.StatusRunningAgent) {
+				w = handedOffClaim(comments)
+			}
+			if w != nil {
 				c.ClaimID = w.ID
 			}
 		}
@@ -558,9 +562,10 @@ func bullets(lines []string) string {
 }
 
 // HandoffComment is the hand-off's record on the item: the executor and
-// the nonce the session proves its fire with.
+// the nonce the session proves its fire with. It closes the executor's
+// episode, so an item requeued from its agent is claimed afresh.
 func HandoffComment(executor, nonce string) string {
-	return workitem.HandoffMarker + "\nHanded off by executor `" + executor + "` — invocation nonce `" + nonce + "`."
+	return workitem.HandoffMarker + "\n" + workitem.EpisodeMarker + "\nHanded off by executor `" + executor + "` — invocation nonce `" + nonce + "`."
 }
 
 // handOff gives the item to an agent session: one fire per item, ever.

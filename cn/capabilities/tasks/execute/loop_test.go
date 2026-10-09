@@ -1053,3 +1053,46 @@ func TestADependentYieldsWhileItsScheduledUpstreamIsLive(t *testing.T) {
 	}
 	h.wants(6, "open", workitem.StatusReady)
 }
+
+// A hand-off ends the executor's episode: an item a person requeues from
+// running-agent, as a dead-agent park tells them to, is picked afresh.
+// ShoutsAndWhispers #447-#451 sat running-executor behind their spent
+// hand-off claims until the leash reclaimed them.
+func TestAnItemRequeuedFromItsAgentIsPickedAfresh(t *testing.T) {
+	h := newLoop(t)
+	h.item(1, "a")
+	if done := h.drive([]taskspec.Task{loopTask("a", nil)}); !reflect.DeepEqual(done, settled(1, OutcomeAgent)) {
+		t.Fatal(done)
+	}
+	if err := h.gh.RemoveLabel(1, workitem.StatusRunningAgent); err != nil {
+		t.Fatal(err)
+	}
+	if err := h.gh.AddLabel(1, workitem.StatusReady); err != nil {
+		t.Fatal(err)
+	}
+	done := h.drive([]taskspec.Task{loopTask("a", nil)}, func(in *In) { in.ExecutorID = "E2" })
+	if !reflect.DeepEqual(done, settled(1, OutcomeAgent)) {
+		t.Errorf("%v\n%s", done, strings.Join(h.logs, "\n"))
+	}
+	h.wants(1, "open", workitem.StatusRunningAgent)
+}
+
+// An item with its agent still holds its executor's claim against a twin
+// that claimed later.
+func TestAnAgentHeldTwinStillHoldsItsEarlierClaim(t *testing.T) {
+	h := newLoop(t)
+	h.item(1, "a")
+	if done := h.drive([]taskspec.Task{loopTask("a", nil)}); !reflect.DeepEqual(done, settled(1, OutcomeAgent)) {
+		t.Fatal(done)
+	}
+	r := &run{In: h.in(nil)}
+	others, err := r.withClaimIDs(2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, o := range others {
+		if o.Number == 1 && o.ClaimID == 0 {
+			t.Error("the agent-held item lost its claim")
+		}
+	}
+}
