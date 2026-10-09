@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -33,6 +32,7 @@ import (
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/run"
 	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/paths"
+	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/proc"
 	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/packset"
 )
 
@@ -378,7 +378,7 @@ func ReadRecord(c Config, key string) (Record, bool) {
 
 func build(c Config, key string, srcs []Source, log *bytes.Buffer, placing func() error) error {
 	run := func(args ...string) error {
-		cmd := exec.Command(c.goCmd(), args...)
+		cmd := proc.Command(c.goCmd(), args...)
 		cmd.Dir = c.Dir(key)
 		cmd.Env = buildEnv()
 		cmd.Stdout, cmd.Stderr = log, log
@@ -441,11 +441,15 @@ func build(c Config, key string, srcs []Source, log *bytes.Buffer, placing func(
 func (c Config) judgesPath(key string) string { return filepath.Join(c.Dir(key), "judges.json") }
 
 // writeJudges asks the freshly built binary for its checks and writes the
-// judges manifest: each hook event's judges, by name. It is written before
-// the binary is placed, so a placed binary always has one.
+// judges manifest: each hook event's judges, by name, and the list of
+// every check. Both are written before the binary is placed, so a placed
+// binary always has them.
 func writeJudges(c Config, key, binary string) error {
 	listed, err := run.Runner{Binary: binary, Engine: c.Engine}.List()
 	if err != nil {
+		return err
+	}
+	if err := WriteList(c, key, listed); err != nil {
 		return err
 	}
 	judges := map[string][]string{}
@@ -464,6 +468,36 @@ func writeJudges(c Config, key, binary string) error {
 		return err
 	}
 	return os.WriteFile(c.judgesPath(key), raw, 0o644)
+}
+
+// listPath is the list of checks beside the key's binary.
+func (c Config) listPath(key string) string { return filepath.Join(c.Dir(key), "list.json") }
+
+// WriteList records the checks the key's binary holds, so a listing never
+// needs to start it.
+func WriteList(c Config, key string, listed []run.Listed) error {
+	if listed == nil {
+		listed = []run.Listed{}
+	}
+	raw, err := json.Marshal(listed)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(c.listPath(key), raw, 0o644)
+}
+
+// List reads the checks the key's binary holds; false when no build
+// recorded them.
+func List(c Config, key string) ([]run.Listed, bool) {
+	raw, err := os.ReadFile(c.listPath(key))
+	if err != nil {
+		return nil, false
+	}
+	var listed []run.Listed
+	if json.Unmarshal(raw, &listed) != nil {
+		return nil, false
+	}
+	return listed, true
 }
 
 // HookEvent reports whether a tag is one a judge is selected by.
@@ -491,7 +525,7 @@ func Judges(c Config, key string) (map[string][]string, error) {
 // Start runs `<exe> check build --repo REPO --key KEY` detached, in its
 // own session, and returns at once; the child outlives the hook.
 func Start(exe, repo, key string) error {
-	cmd := exec.Command(exe, "check", "build", "--repo", repo, "--key", key)
+	cmd := proc.Command(exe, "check", "build", "--repo", repo, "--key", key)
 	cmd.SysProcAttr = Detached()
 	cmd.Dir = os.TempDir()
 	if err := cmd.Start(); err != nil {

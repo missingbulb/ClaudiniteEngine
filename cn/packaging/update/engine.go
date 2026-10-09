@@ -84,8 +84,12 @@ type Deps struct {
 	// Packs reads the pack indexes and archives (cn update packs, and
 	// landing a pack PR).
 	Packs PackReader
-	// Exe is this cn, which runs check world over a pack branch.
+	// Exe is this cn, which runs check world over a pack branch when
+	// CheckWorld is nil.
 	Exe string
+	// CheckWorld runs this cn's check world over repo in this process,
+	// writing what it says to out; failed is a refusal.
+	CheckWorld func(repo string, out io.Writer) (failed bool, err error)
 	// SelfRun is the workflow run this cn runs in (GITHUB_RUN_ID), 0
 	// outside one: a land job's own run on the PR's head counts green.
 	SelfRun int64
@@ -286,6 +290,14 @@ func mainGate(d Deps) (verdict string, pending bool, err error) {
 	default:
 		return "skipped: main is not green (" + s + ")", false, nil
 	}
+}
+
+// MainCI is main's CI on the checkout's head: "" when green, else the
+// skip verdict an update run would give, dispatching a run where there is
+// none.
+func MainCI(d Deps) (string, error) {
+	v, _, err := mainGate(d)
+	return v, err
 }
 
 func engine(d Deps, o Options, res *EngineResult) (string, error) {
@@ -760,7 +772,10 @@ func engineGate(d Deps, who, base, sha string) (string, []string, error) {
 	}
 	rel := settings.RelPath(f)
 	if member != "" {
-		if err := flatRendered(d.Git, sha, member); err != nil {
+		at := newPacksAt(d.Git, sha)
+		err := flatRendered(at, member)
+		at.remove()
+		if err != nil {
 			return "", nil, fmt.Errorf("%s: %s %w", who, member, err)
 		}
 	}
@@ -768,22 +783,15 @@ func engineGate(d Deps, who, base, sha string) (string, []string, error) {
 	if err != nil {
 		return "", nil, err
 	}
-	old, _, err := d.Git.Show(mb, rel)
+	reads, err := d.Git.Objects(mb+":"+rel, sha+":"+rel, base+":"+rel, sha+":"+LauncherPath, mb+":"+LauncherPath)
 	if err != nil {
 		return "", nil, err
 	}
-	updated, _, err := d.Git.Show(sha, rel)
-	if err != nil {
-		return "", nil, err
-	}
+	old, updated, current := reads[0].Data, reads[1].Data, reads[2].Data
 	if err := settings.PinOnlyChange(old, updated, f); err != nil {
 		return "", nil, fmt.Errorf("%s: %w", who, err)
 	}
 	e, err := settings.ReadEngine(updated, f)
-	if err != nil {
-		return "", nil, err
-	}
-	current, _, err := d.Git.Show(base, rel)
 	if err != nil {
 		return "", nil, err
 	}
@@ -797,14 +805,7 @@ func engineGate(d Deps, who, base, sha string) (string, []string, error) {
 		return "", nil, fmt.Errorf("%s: %w", who, err)
 	}
 	if launcher {
-		have, present, err := d.Git.Show(sha, LauncherPath)
-		if err != nil {
-			return "", nil, err
-		}
-		_, held, err := d.Git.Show(mb, LauncherPath)
-		if err != nil {
-			return "", nil, err
-		}
+		have, present, held := reads[3].Data, !reads[3].Missing, !reads[4].Missing
 		if !held {
 			return "", nil, fmt.Errorf("%s adds %s, which only cn adopt writes", who, LauncherPath)
 		}
@@ -832,15 +833,15 @@ func expectedWorkflows(d Deps, binary, mb, sha string, moved []string) error {
 		return err
 	}
 	defer func() { _ = os.RemoveAll(tmp) }()
+	var rels []string
 	for _, name := range workflows.Names {
-		rel := ".github/workflows/" + name
-		have, present, err := d.Git.Show(mb, rel)
-		if err != nil {
-			return err
-		}
-		if !present {
-			continue
-		}
+		rels = append(rels, ".github/workflows/"+name)
+	}
+	held, err := d.Git.Files(mb, rels)
+	if err != nil {
+		return err
+	}
+	for rel, have := range held {
 		p := filepath.Join(tmp, filepath.FromSlash(rel))
 		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
 			return err
@@ -861,19 +862,24 @@ func expectedWorkflows(d Deps, binary, mb, sha string, moved []string) error {
 		}
 		want[".github/workflows/"+path.Base(s)] = b
 	}
+	now, err := d.Git.Files(sha, moved)
+	if err != nil {
+		return err
+	}
+	regular, err := d.Git.RegularFiles(sha, moved...)
+	if err != nil {
+		return err
+	}
 	for _, file := range moved {
 		exp, ok := want[file]
 		if !ok {
 			return fmt.Errorf("changes %s, which the pinned engine does not change", file)
 		}
-		have, present, err := d.Git.Show(sha, file)
-		if err != nil {
-			return err
-		}
+		have, present := now[file]
 		if !present {
 			return fmt.Errorf("deletes %s, which the pinned engine changes", file)
 		}
-		if regular, err := d.Git.Regular(sha, file); err != nil || !regular {
+		if !regular[file] {
 			return fmt.Errorf("%s is not a regular file", file)
 		}
 		if !bytes.Equal(have, exp) {

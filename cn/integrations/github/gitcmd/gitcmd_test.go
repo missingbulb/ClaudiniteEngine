@@ -81,6 +81,9 @@ func TestBranchCommitPushDelete(t *testing.T) {
 	if out := git(t, bare, "branch", "--list", "claudinite/*"); out != "" {
 		t.Errorf("branch still on the remote: %s", out)
 	}
+	if err := r.DeleteRemoteBranch("origin", "claudinite/engine-1.2.0"); err != nil {
+		t.Errorf("deleting an absent branch: %v", err)
+	}
 }
 
 // The job token stays in the engine's memory: no git child sees it.
@@ -238,8 +241,8 @@ func TestAHungGitTimesOut(t *testing.T) {
 	if again := r.Faults.Take(); len(again) != 0 {
 		t.Errorf("Take does not clear: %q", again)
 	}
-	if _, ok := (Repo{Dir: t.TempDir()}).ShowText("HEAD", "a.txt"); ok {
-		t.Error("a timed-out show read as ok")
+	if _, err := (Repo{Dir: t.TempDir()}).Files("HEAD", []string{"a.txt"}); err == nil {
+		t.Error("a timed-out read answered")
 	}
 	if _, ok := (Repo{Dir: t.TempDir()}).input("x", "hash-object", "--stdin"); ok {
 		t.Error("a timed-out input read as ok")
@@ -259,8 +262,8 @@ func TestAfterOneTimeoutLaterGitFailsAtOnce(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "git status not run: git rev-parse HEAD timed out after 100ms") {
 		t.Errorf("err %v", err)
 	}
-	if _, ok := r.ShowText("HEAD", "a.txt"); ok {
-		t.Error("a skipped show read as ok")
+	if _, err := r.Files("HEAD", []string{"a.txt"}); err == nil {
+		t.Error("a skipped read answered")
 	}
 	if _, ok := r.input("x", "hash-object", "--stdin"); ok {
 		t.Error("a skipped input read as ok")

@@ -12,12 +12,7 @@ import (
 // with extra ldflags, and returns dir/bin.
 func buildInto(t *testing.T, extra string) string {
 	t.Helper()
-	return buildUnder(t, t.TempDir(), extra)
-}
-
-func buildUnder(t *testing.T, parent, extra string) string {
-	t.Helper()
-	bin := filepath.Join(parent, "bin")
+	bin := filepath.Join(t.TempDir(), "bin")
 	out := filepath.Join(bin, "linux-x64", "cn")
 	if err := os.MkdirAll(filepath.Dir(out), 0o755); err != nil {
 		t.Fatal(err)
@@ -55,14 +50,19 @@ func TestSecretScan(t *testing.T) {
 		// TLS; a private key block is not.
 		"pem private key": "-X 'main.secretScanPlant=-----BEGIN EC PRIVATE KEY-----'",
 	}
+	built := map[string]string{}
 	for name, flags := range cases {
-		out, err := scan(t, buildInto(t, flags))
+		built[name] = buildInto(t, flags)
+		out, err := scan(t, built[name])
 		if err == nil {
 			t.Errorf("%s: scan passed a planted secret\n%s", name, out)
 		}
 	}
-	spaced := filepath.Join(t.TempDir(), "a folder with spaces")
-	if out, err := scan(t, buildUnder(t, spaced, cases["npm token"])); err == nil || !strings.Contains(out, "a folder with spaces/bin/linux-x64/cn carries a string matching npm_") {
+	spaced := filepath.Join(t.TempDir(), "a folder with spaces", "bin")
+	if err := os.CopyFS(spaced, os.DirFS(built["npm token"])); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := scan(t, spaced); err == nil || !strings.Contains(out, "a folder with spaces/bin/linux-x64/cn carries a string matching npm_") {
 		t.Errorf("scan passed a planted secret under a path with spaces\n%s", out)
 	}
 	if out, err := scan(t, buildInto(t, "")); err != nil {

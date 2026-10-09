@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -15,6 +14,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/calendar"
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/execute"
 	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/paths"
+	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/proc"
 	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/report"
 	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/gitcmd"
 	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/githubapi"
@@ -74,7 +74,7 @@ func localDeps(repo, token string, stdout io.Writer) (update.Deps, error) {
 	}
 	return update.Deps{Registry: reg, ReleasesHost: ghrelease.Host(), Git: gitcmd.Repo{Dir: repo, Token: token}, Roots: roots,
 		CacheRoot: paths.CacheRoot(), Platform: version.Platform(), Now: time.Now, Sleep: time.Sleep,
-		Repo: repo, FullName: githubapi.RepoFullName(repo), Out: stdout, Timeout: childTimeout, Exe: exe}, nil
+		Repo: repo, FullName: githubapi.RepoFullName(repo), Out: stdout, Timeout: childTimeout, Exe: exe, CheckWorld: checkWorldIn}, nil
 }
 
 func cmdUpdate(args []string, stdout io.Writer) error {
@@ -196,9 +196,12 @@ func updateTaskResult(said []string, eng update.EngineResult, now time.Time) exe
 // branch after a landing, and the packs update run by the engine an engine
 // landing just pinned.
 type updateSteps struct {
-	Engine           func() (update.EngineResult, error)
-	Packs            func() (update.EngineResult, error)
-	Sync             func() error
+	Engine func() (update.EngineResult, error)
+	Packs  func() (update.EngineResult, error)
+	Sync   func() error
+	// MainCI is main's CI on the checkout's head, as this engine reads
+	// it: "" when green, else the skip verdict.
+	MainCI           func() (string, error)
 	PacksOnNewEngine func() (string, error)
 	Now              func() time.Time
 	Sleep            func(time.Duration)
@@ -221,7 +224,8 @@ func mainWaiting(verdict string) bool {
 // run is one update in one executor run. A step that finds main's CI
 // without a verdict is asked again once it has one, until the wait's
 // bound; an engine landing hands the packs update to the engine it pinned,
-// once the checkout holds the landing and main's CI on it is green; a
+// once the checkout holds the landing and this engine has seen main's CI
+// on it conclude, so the new engine is started once rather than per poll; a
 // packs landing ends the run. Only a CI verdict still missing at the bound,
 // main's or an update PR's, leaves the item requeued.
 func (s updateSteps) run(out io.Writer) ([]string, update.EngineResult, *execute.CodeWorkResult) {
@@ -253,6 +257,16 @@ func (s updateSteps) run(out io.Writer) ([]string, update.EngineResult, *execute
 		eng.MainPending = false
 		if err := s.Sync(); err != nil {
 			return said, eng, fail("syncing the checkout to the landing", err)
+		}
+		for {
+			v, err := s.MainCI()
+			if err != nil {
+				return said, eng, fail("reading main's CI on the landing", err)
+			}
+			if !mainWaiting(v) || !s.Now().Before(deadline) {
+				break
+			}
+			s.Sleep(mainCIPoll)
 		}
 		var v string
 		for {
@@ -314,6 +328,7 @@ func runUpdateTask(repo, token, branch string, out io.Writer) execute.CodeWorkRe
 			_, err := d.Git.Run("reset", "-q", "--hard", "FETCH_HEAD")
 			return err
 		},
+		MainCI:           func() (string, error) { return update.MainCI(d) },
 		PacksOnNewEngine: func() (string, error) { return packsOnPinnedEngine(repo, token, out) },
 		Now:              time.Now,
 		Sleep:            time.Sleep,
@@ -330,7 +345,7 @@ func runUpdateTask(repo, token, branch string, out io.Writer) execute.CodeWorkRe
 // and landed by this run, so it is handed the job token the next scheduler
 // run would hand it.
 func packsOnPinnedEngine(repo, token string, out io.Writer) (string, error) {
-	cmd := exec.Command("sh", filepath.Join(repo, ".claudinite", "launch"), "update", "packs", "--repo", repo)
+	cmd := proc.Command("sh", filepath.Join(repo, ".claudinite", "launch"), "update", "packs", "--repo", repo)
 	cmd.Dir = repo
 	cmd.Env = append(os.Environ(), "GITHUB_TOKEN="+token)
 	var stdout bytes.Buffer
@@ -345,4 +360,14 @@ func packsOnPinnedEngine(repo, token string, out io.Writer) (string, error) {
 		}
 	}
 	return "", fmt.Errorf("the pinned engine's cn update packs ended on no verdict")
+}
+
+// checkWorldIn is cn check world over a pack branch, as the bot's pull
+// request against main, in this process.
+func checkWorldIn(repo string, out io.Writer) (bool, error) {
+	err := cmdCheckWorld([]string{"--pr-author", gitcmd.BotName, "--base-ref", "main", "--repo", repo}, out, out)
+	if report.CodeOf(err) == report.Verify {
+		return true, nil
+	}
+	return false, err
 }

@@ -11,7 +11,22 @@ linters:
   default: standard
   enable:
     - depguard
+    - forbidigo
+  exclusions:
+    rules:
+      # Tests and the dev tooling start what they like; only the shipped
+      # engine's starts are counted.
+      - path: '(_test\.go$|^dev/|^rewrite-temp/|^cn/helpers/proc/)'
+        linters:
+          - forbidigo
   settings:
+    forbidigo:
+      # Every process the engine starts goes through cn/helpers/proc, which
+      # counts it: one cn call should finish in as few processes as it can,
+      # and the spawn budget test reads those counts.
+      forbid:
+        - pattern: ^exec\.Command(Context)?$
+          msg: start processes through proc.Command or proc.CommandContext, which count them
     errcheck:
       # Diagnostic and protocol output goes to the process's stdout and
       # stderr; when those fail there is no channel left to report on.
@@ -165,6 +180,9 @@ linters:
             # The fleet reads packs off the shelf through the same verified
             # reader adoption and the update use.
             - github.com/missingbulb/ClaudiniteEngine/cn/packaging/fetch
+            # Tests build their fixture repositories with the shared
+            # writer; the dev rule keeps shipped code off it.
+            - github.com/missingbulb/ClaudiniteEngine/dev/test/testgit
         tasks:
           list-mode: strict
           files:
@@ -320,6 +338,9 @@ linters:
             # The skills probe reads a skill's links as the checks do, skipping
             # code spans and fenced blocks, so an example link is never a miss.
             - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/checksdk
+            # Tests build their fixture repositories with the shared
+            # writer; the dev rule keeps shipped code off it.
+            - github.com/missingbulb/ClaudiniteEngine/dev/test/testgit
         checks:
           list-mode: strict
           files:
@@ -353,6 +374,9 @@ linters:
             - github.com/missingbulb/ClaudiniteEngine/cn/fleet/packseed
             - github.com/missingbulb/ClaudiniteEngine/cn/helpers
             - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks
+            # Tests build their fixture repositories with the shared
+            # writer; the dev rule keeps shipped code off it.
+            - github.com/missingbulb/ClaudiniteEngine/dev/test/testgit
             # The engine side of the coded checks' pipe: the run hands each
             # built checks binary a server answering its SDK calls.
             # The SDK sources a pack's checks build compiles against.
@@ -396,6 +420,19 @@ linters:
             # checks (comment stripping, fence blanking) live in the SDK,
             # so the two engines read a file the same way.
             - github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/checksdk
+            # Tests build their fixture repositories with the shared
+            # writer; the dev rule keeps shipped code off it.
+            - github.com/missingbulb/ClaudiniteEngine/dev/test/testgit
+        dev:
+          # Shipped code imports nothing under dev/, which holds the build
+          # and test tooling; a test may.
+          list-mode: lax
+          files:
+            - "**/cn/**"
+            - "!$test"
+          deny:
+            - pkg: github.com/missingbulb/ClaudiniteEngine/dev
+              desc: dev/ holds build and test tooling, never shipped code
         parity:
           # The two-engine harness drives both engines as black boxes: it
           # imports nothing of the engine, so a scenario cannot pass by

@@ -143,11 +143,12 @@ func TestTheChange(t *testing.T) {
 	if len(ms) != 1 || ms[0].Subject != "Merge side" || ms[0].Sha == "" {
 		t.Errorf("merges %v", ms)
 	}
-	if text, ok := r.ShowText(base, "gone.txt"); !ok || text != "g\n" {
-		t.Errorf("show %q %v", text, ok)
+	files, err := r.Files(base, []string{"gone.txt", "nope.txt"})
+	if err != nil || string(files["gone.txt"]) != "g\n" {
+		t.Errorf("files %q %v", files, err)
 	}
-	if _, ok := r.ShowText(base, "nope.txt"); ok {
-		t.Error("show of a missing path")
+	if _, ok := files["nope.txt"]; ok {
+		t.Error("read a missing path")
 	}
 	cs := r.CommitsWithFiles(base)
 	bySubject := map[string]Commit{}

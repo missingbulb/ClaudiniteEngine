@@ -241,7 +241,29 @@ func (b *briefer) commitsOf(p string, follow bool) []pathCommit {
 	return out
 }
 
-func (b *briefer) show(sha, p string) string { return b.out("show", sha+":"+p) }
+// shown is each commit's file as it held it, read in one git process; a
+// file a commit does not hold reads empty.
+func (b *briefer) shown(cs []pathCommit) []string {
+	names := make([]string, len(cs))
+	for i, c := range cs {
+		names[i] = c.sha + ":" + c.path
+	}
+	return b.blobs(names)
+}
+
+func (b *briefer) blobs(names []string) []string {
+	out := make([]string, len(names))
+	objs, err := b.git.Objects(names...)
+	if err != nil {
+		return out
+	}
+	for i, o := range objs {
+		if !o.Missing && o.Type == "blob" {
+			out[i] = string(o.Data)
+		}
+	}
+	return out
+}
 
 func ruleWords(text string) map[string]bool {
 	out := map[string]bool{}
@@ -402,8 +424,10 @@ func (b *briefer) ruleEvents(file string, rule prov.Block, blocksOf func(string)
 	newerText := ""
 	var events []event
 	var at *inPlaceAt
-	for _, c := range b.commitsOf(file, true) {
-		text := b.show(c.sha, c.path)
+	commits := b.commitsOf(file, true)
+	texts := b.shown(commits)
+	for i, c := range commits {
+		text := texts[i]
 		newerRevision := newerText
 		newerText = text
 		if words == nil {
@@ -487,8 +511,10 @@ func declarationOf(text, id string) (string, bool) {
 func (b *briefer) declaredCheckEvents(p, id string) []event {
 	var events []event
 	state, newer := "", ""
-	for _, c := range b.commitsOf(p, true) {
-		text, ok := declarationOf(b.show(c.sha, c.path), id)
+	commits := b.commitsOf(p, true)
+	texts := b.shown(commits)
+	for i, c := range commits {
+		text, ok := declarationOf(texts[i], id)
 		if !ok {
 			break
 		}
@@ -554,8 +580,12 @@ func versionRows(io WriteIO, pack string) []versionRowT {
 }
 
 func (b *briefer) manifestTextAt(sha, pack string) string {
-	for _, f := range prov.ManifestFiles {
-		if t := b.show(sha, pack+"/"+f); t != "" {
+	names := make([]string, len(prov.ManifestFiles))
+	for i, f := range prov.ManifestFiles {
+		names[i] = sha + ":" + pack + "/" + f
+	}
+	for _, t := range b.blobs(names) {
+		if t != "" {
 			return t
 		}
 	}

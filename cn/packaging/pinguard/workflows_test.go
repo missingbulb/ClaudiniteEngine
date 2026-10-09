@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/gitcmd"
+	"github.com/missingbulb/ClaudiniteEngine/dev/test/testgit"
 )
 
 // expectedFrom stands in for the engine's workflows.Expected: the
@@ -25,19 +26,17 @@ func expectedFrom(name string, base []byte) ([]byte, error) {
 func workflowMember(t *testing.T, base string, change func(dir string)) string {
 	t.Helper()
 	dir := t.TempDir()
-	git(t, dir, "init", "-q", "-b", "main")
+	testgit.Init(t, dir, "main")
 	write(t, dir, ".claudinite/settings.yaml", settingsBody("1.1.0", pin1))
 	write(t, dir, ".claudinite/launch", "#!/bin/sh\n")
 	write(t, dir, ".github/workflows/claudinite-scheduler.yml", base)
 	write(t, dir, ".github/workflows/deploy.yml", "deploy\n")
-	git(t, dir, "add", "-A")
-	git(t, dir, "commit", "-q", "-m", "base")
-	git(t, dir, "checkout", "-q", "-b", "change")
+	testgit.Commit(t, dir, "main", "base")
 	write(t, dir, ".claudinite/settings.yaml", settingsBody("1.2.0", pin2))
 	write(t, dir, ".claudinite/cache/member.GENERATED.json", "{}\n")
 	change(dir)
-	git(t, dir, "add", "-A")
-	git(t, dir, "commit", "-q", "-m", "change")
+	testgit.Commit(t, dir, "change", "change")
+	testgit.Index(t, dir)
 	return dir
 }
 

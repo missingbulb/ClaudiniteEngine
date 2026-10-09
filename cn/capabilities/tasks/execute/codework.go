@@ -349,14 +349,20 @@ func (c CodeWorker) Run(t taskspec.Task, w Work) CodeWorkResult {
 	// the shell changes is put back however the run ends, unless it hands
 	// that change to the agent.
 	handedOver := false
+	var after []string
+	afterRead := false
 	if delivers {
 		defer func() {
 			if handedOver {
 				return
 			}
-			if after, err := changedPaths(sdk.Git); err == nil {
-				restorePaths(sdk.Git, c.Place.Root, newPaths(before, after))
+			if !afterRead {
+				var err error
+				if after, err = changedPaths(sdk.Git); err != nil {
+					return
+				}
 			}
+			restorePaths(sdk.Git, c.Place.Root, newPaths(before, after))
 		}()
 	}
 	if isModule {
@@ -383,11 +389,13 @@ func (c CodeWorker) Run(t taskspec.Task, w Work) CodeWorkResult {
 		out.DeliveredPR, out.Merged, out.Branch, out.Issue, out.Reason = req.PR, req.Merged, req.Branch, req.Issue, req.Reason
 	}
 	if delivers && !out.AgentRequested {
-		after, err := changedPaths(sdk.Git)
+		var err error
+		after, err = changedPaths(sdk.Git)
 		if err != nil {
 			return CodeWorkResult{Why: "code-work's tree change could not be read", Detail: err.Error()}
 		}
-		if paths := c.coveredPaths(sdk.Git, t, newPaths(before, after)); len(paths) > 0 {
+		afterRead = true
+		if paths := c.coveredPaths(t, newPaths(before, after)); len(paths) > 0 {
 			pr, err := deliverTree(sdk, c.Place.Root, c.Place.DefaultBranch, w.Target, t, w.Item.Number, paths)
 			if err != nil {
 				c.Log(err.Error())

@@ -75,3 +75,42 @@ func TestTheBriefNamesAnEngineCarriedCheck(t *testing.T) {
 		t.Errorf("brief:\n%s", stdout)
 	}
 }
+
+// A rule reworded in place is briefed with the commit that reworded it,
+// read from each commit's copy of RULES.md.
+func TestTheBriefNamesTheCommitThatRewordedARule(t *testing.T) {
+	root := t.TempDir()
+	write := func(rel, text string) {
+		p := filepath.Join(root, rel)
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(text), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	git := func(args ...string) {
+		cmd := exec.Command("git", append([]string{"-c", "user.name=a", "-c", "user.email=a@b"}, args...)...)
+		cmd.Dir = root
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v %s", args, err, out)
+		}
+	}
+	write("packs/acme-pack/pack.json", "{\"version\": \"1\"}\n")
+	write("packs/acme-pack/RULES.md", "# acme\n\n- **Doing a thing** — do it once. (doing-thing)\n")
+	write("packs/acme-pack/provenance/doing-thing.md", "")
+	git("init", "-q")
+	git("add", "-A")
+	git("commit", "-qm", "acme: the rule (#1)")
+	write("packs/acme-pack/RULES.md", "# acme\n\n- **Doing a thing** — do it once, and say so. (doing-thing)\n")
+	git("commit", "-qam", "acme: reword the rule (#2)")
+	write("packs/acme-pack/pack.json", "{\"version\": \"2\"}\n")
+	git("commit", "-qam", "acme: a version (#3)")
+	code, stdout, stderr := run(root, "", "backfill", "acme-pack", "doing-thing")
+	if code != 0 {
+		t.Fatalf("exit %d, stderr %q", code, stderr)
+	}
+	if !strings.Contains(stdout, "reword the rule · RULES.md · doing-thing (reworded)") {
+		t.Errorf("the brief does not name #2 as the rewording:\n%s", stdout)
+	}
+}

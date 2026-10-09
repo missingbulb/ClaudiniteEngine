@@ -292,52 +292,73 @@ func indexShape(raw []byte) error {
 	return nil
 }
 
-// packsAt writes sha's settings file and pack trees into a fresh
-// directory, the tree a derived file on sha is rendered from; the caller
-// removes it.
-func packsAt(g gitcmd.Repo, sha string) (string, error) {
-	tmp, err := os.MkdirTemp("", "claudinite-pack-pr-")
+// packsAt is sha's settings file and pack trees, written into a directory
+// once, the tree a derived file on sha is rendered from.
+type packsAt struct {
+	g   gitcmd.Repo
+	sha string
+	dir string
+	err error
+}
+
+func newPacksAt(g gitcmd.Repo, sha string) *packsAt { return &packsAt{g: g, sha: sha} }
+
+func (a *packsAt) tree() (string, error) {
+	if a.dir != "" || a.err != nil {
+		return a.dir, a.err
+	}
+	a.dir, a.err = os.MkdirTemp("", "claudinite-pack-pr-")
+	if a.err != nil {
+		return "", a.err
+	}
+	a.err = a.write()
+	return a.dir, a.err
+}
+
+func (a *packsAt) write() error {
+	var rels []string
+	for _, f := range settings.Formats {
+		rels = append(rels, settings.RelPath(f))
+	}
+	found, err := a.g.Files(a.sha, rels)
 	if err != nil {
-		return "", err
+		return err
 	}
 	files := map[string]gitcmd.File{}
-	for _, f := range settings.Formats {
-		rel := settings.RelPath(f)
-		data, ok, err := g.Show(sha, rel)
-		if err != nil {
-			return tmp, err
-		}
-		if ok {
-			files[rel] = gitcmd.File{Data: data}
-		}
+	for rel, data := range found {
+		files[rel] = gitcmd.File{Data: data}
 	}
-	for _, root := range []string{packset.Dir, packset.LocalDir} {
-		tree, err := g.Tree(sha, root+"/")
-		if err != nil {
-			return tmp, err
-		}
-		for p, f := range tree {
-			files[p] = f
-		}
+	tree, err := a.g.Tree(a.sha, packset.Dir+"/", packset.LocalDir+"/")
+	if err != nil {
+		return err
+	}
+	for p, f := range tree {
+		files[p] = f
 	}
 	for rel, f := range files {
-		p := filepath.Join(tmp, filepath.FromSlash(rel))
+		p := filepath.Join(a.dir, filepath.FromSlash(rel))
 		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
-			return tmp, err
+			return err
 		}
 		if err := os.WriteFile(p, f.Data, 0o644); err != nil {
-			return tmp, err
+			return err
 		}
 	}
-	return tmp, nil
+	return nil
+}
+
+// remove removes the directory, if one was written.
+func (a *packsAt) remove() {
+	if a.dir != "" {
+		_ = os.RemoveAll(a.dir)
+	}
 }
 
 // flatRendered refuses a flat file on sha that is not the one the packs
 // and the declaration on sha render, so a pack PR carries no other text
 // through it.
-func flatRendered(g gitcmd.Repo, sha, file string) error {
-	tmp, err := packsAt(g, sha)
-	defer func() { _ = os.RemoveAll(tmp) }()
+func flatRendered(at *packsAt, file string) error {
+	tmp, err := at.tree()
 	if err != nil {
 		return err
 	}
@@ -349,7 +370,7 @@ func flatRendered(g gitcmd.Repo, sha, file string) error {
 	if err != nil {
 		return err
 	}
-	have, ok, err := g.Show(sha, file)
+	have, ok, err := at.g.Show(at.sha, file)
 	if err != nil {
 		return err
 	}
@@ -366,9 +387,8 @@ func flatRendered(g gitcmd.Repo, sha, file string) error {
 // skillsIndexRendered refuses a skills index on sha that is not the one
 // the packs on sha render, absent where they bundle no skill, so a pack PR
 // cannot carry text into every session through it.
-func skillsIndexRendered(g gitcmd.Repo, sha string) error {
-	tmp, err := packsAt(g, sha)
-	defer func() { _ = os.RemoveAll(tmp) }()
+func skillsIndexRendered(at *packsAt) error {
+	tmp, err := at.tree()
 	if err != nil {
 		return err
 	}
@@ -376,7 +396,7 @@ func skillsIndexRendered(g gitcmd.Repo, sha string) error {
 	if err != nil {
 		return err
 	}
-	have, ok, err := g.Show(sha, rulesindex.SkillsFile)
+	have, ok, err := at.g.Show(at.sha, rulesindex.SkillsFile)
 	if err != nil {
 		return err
 	}
@@ -473,7 +493,9 @@ func openPackPR(d Deps, res *EngineResult, o Options, moves []move, prev *github
 		return d.Git.Commit(title, slices.Compact(rels)...)
 	}()
 	checkOut, failed := "", false
-	if err == nil && !o.Force {
+	if err == nil && !o.Force && d.CheckWorld != nil {
+		failed, err = d.CheckWorld(d.Repo, d.Out)
+	} else if err == nil && !o.Force {
 		var errOut string
 		var code int
 		checkOut, errOut, code, err = child(d.Exe, d.Timeout, "check", "world", "--pr-author", gitcmd.BotName, "--base-ref", mainBranch, "--repo", d.Repo)
@@ -561,14 +583,12 @@ func openPackPR(d Deps, res *EngineResult, o Options, moves []move, prev *github
 // line repointed, so a pack PR cannot carry other text into every session
 // through it.
 func onlyAppendsImport(g gitcmd.Repo, base, sha string) error {
-	old, had, err := g.Show(base, rulesindex.ClaudeMD)
+	reads, err := g.Objects(base+":"+rulesindex.ClaudeMD, sha+":"+rulesindex.ClaudeMD)
 	if err != nil {
 		return err
 	}
-	cur, has, err := g.Show(sha, rulesindex.ClaudeMD)
-	if err != nil {
-		return err
-	}
+	old, had := reads[0].Data, !reads[0].Missing
+	cur, has := reads[1].Data, !reads[1].Missing
 	if !has {
 		return errors.New("changes more than appending the rules index import")
 	}
@@ -597,6 +617,12 @@ func landPacks(d Deps, pr githubapi.PR, sha string) (string, error) {
 	if len(files) == 0 {
 		return "", fmt.Errorf("#%d changes nothing", pr.Number)
 	}
+	onSha, err := d.Git.Files(sha, files)
+	if err != nil {
+		return "", err
+	}
+	at := newPacksAt(d.Git, sha)
+	defer at.remove()
 	touched := map[string]bool{}
 	var ids []string
 	for _, f := range files {
@@ -604,19 +630,13 @@ func landPacks(d Deps, pr githubapi.PR, sha string) (string, error) {
 			return "", fmt.Errorf("#%d changes %s, which no pack update writes", pr.Number, f)
 		}
 		if strings.HasPrefix(f, flatdecl.LegacyDir+"/") {
-			if _, ok, err := d.Git.Show(sha, f); err != nil {
-				return "", err
-			} else if ok {
+			if _, ok := onSha[f]; ok {
 				return "", fmt.Errorf("#%d writes %s, under %s/, which a pack update only empties", pr.Number, f, flatdecl.LegacyDir)
 			}
 			continue
 		}
 		if f == rulesindex.File {
-			idx, ok, err := d.Git.Show(sha, f)
-			if err != nil {
-				return "", err
-			}
-			if ok {
+			if idx, ok := onSha[f]; ok {
 				if err := indexShape(idx); err != nil {
 					return "", fmt.Errorf("#%d: %s: %w", pr.Number, f, err)
 				}
@@ -627,15 +647,13 @@ func landPacks(d Deps, pr githubapi.PR, sha string) (string, error) {
 			continue
 		}
 		if slices.Contains(flatdecl.Retired, f) {
-			if _, ok, err := d.Git.Show(sha, f); err != nil {
-				return "", err
-			} else if ok {
+			if _, ok := onSha[f]; ok {
 				return "", fmt.Errorf("#%d writes %s, which no engine renders any more", pr.Number, f)
 			}
 			continue
 		}
 		if isFlatFile(f) {
-			if err := flatRendered(d.Git, sha, f); err != nil {
+			if err := flatRendered(at, f); err != nil {
 				return "", fmt.Errorf("#%d: %s: %w", pr.Number, f, err)
 			}
 			continue
@@ -656,7 +674,7 @@ func landPacks(d Deps, pr githubapi.PR, sha string) (string, error) {
 			ids = append(ids, id)
 		}
 	}
-	if err := skillsIndexRendered(d.Git, sha); err != nil {
+	if err := skillsIndexRendered(at); err != nil {
 		return "", fmt.Errorf("#%d: %s: %w", pr.Number, rulesindex.SkillsFile, err)
 	}
 	sort.Strings(ids)
@@ -664,16 +682,34 @@ func landPacks(d Deps, pr githubapi.PR, sha string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	var prefixes []string
+	for _, id := range ids {
+		prefixes = append(prefixes, packset.TreeRel(id)+"/")
+	}
+	var trees map[string]gitcmd.File
+	if len(ids) > 0 {
+		if trees, err = d.Git.Tree(sha, prefixes...); err != nil {
+			return "", err
+		}
+	}
+	var mainManifests []string
+	for _, id := range ids {
+		for _, n := range packset.ManifestFiles() {
+			mainManifests = append(mainManifests, path.Join(packset.TreeRel(id), n))
+		}
+	}
+	onMain, err := d.Git.Files(base, mainManifests)
+	if err != nil {
+		return "", err
+	}
 	var landed []string
 	for _, id := range ids {
 		prefix := packset.TreeRel(id) + "/"
-		tree, err := d.Git.Tree(sha, prefix)
-		if err != nil {
-			return "", err
-		}
 		have := map[string]fetch.File{}
-		for p, f := range tree {
-			have[strings.TrimPrefix(p, prefix)] = fetch.File{Data: f.Data, Executable: f.Executable}
+		for p, f := range trees {
+			if rest, ok := strings.CutPrefix(p, prefix); ok {
+				have[rest] = fetch.File{Data: f.Data, Executable: f.Executable}
+			}
 		}
 		var mfName string
 		for _, n := range packset.ManifestFiles() {
@@ -691,9 +727,7 @@ func landPacks(d Deps, pr githubapi.PR, sha string) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("#%d: %s: %w", pr.Number, id, err)
 		}
-		if cur, inMain, err := d.Git.Show(base, path.Join(packset.TreeRel(id), mfName)); err != nil {
-			return "", err
-		} else if inMain {
+		if cur, inMain := onMain[path.Join(packset.TreeRel(id), mfName)]; inMain {
 			if cm, err := packset.ParseManifestFile(mfName, cur); err == nil {
 				if c, err := version.ComparePack(m.Version, cm.Version); err != nil || c <= 0 {
 					return "", fmt.Errorf("#%d holds %s %s, not newer than main's %s", pr.Number, id, m.Version, cm.Version)

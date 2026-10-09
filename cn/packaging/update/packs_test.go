@@ -110,7 +110,7 @@ func newPackWorld(t *testing.T) *packWorld {
 	}
 	gitRun(t, w.repo, "add", "-A")
 	gitRun(t, w.repo, "commit", "-q", "-m", "declare hello")
-	gitRun(t, w.repo, "push", "-q", "origin", "main")
+	w.push(t, "refs/heads/main", "main")
 	w.mainRun(t, "success")
 	w.packs.publish("hello", "1.1", "canary", helloFiles("1.1"))
 	return w
@@ -210,7 +210,7 @@ func TestPacksAddTheImportToAnExistingClaudeMD(t *testing.T) {
 		_ = os.WriteFile(filepath.Join(w.repo, "CLAUDE.md"), []byte(c.main), 0o644)
 		gitRun(t, w.repo, "add", "-A")
 		gitRun(t, w.repo, "commit", "-q", "-m", "claude.md")
-		gitRun(t, w.repo, "push", "-q", "origin", "main")
+		w.push(t, "refs/heads/main", "main")
 		w.mainRun(t, "success")
 		pr := w.openPackPR(t, "")
 		files := gitRun(t, w.bare, "diff", "--name-only", "main", pr.HeadRef)
@@ -271,7 +271,7 @@ func (w *packWorld) converge(t *testing.T) {
 	}
 	gitRun(t, w.repo, "add", "-A")
 	gitRun(t, w.repo, "commit", "-q", "-m", "converge")
-	gitRun(t, w.repo, "push", "-q", "origin", "main")
+	w.push(t, "refs/heads/main", "main")
 	w.mainRun(t, "success")
 }
 
@@ -340,7 +340,7 @@ func (w *packWorld) openPackPR(t *testing.T, ci string) githubapi.PR {
 		t.Fatalf("%q %v", v, err)
 	}
 	p := &w.hub.pulls[len(w.hub.pulls)-1]
-	p.HeadSHA = gitRun(t, w.bare, "rev-parse", p.HeadRef)
+	p.HeadSHA = w.tip(t, p.HeadRef)
 	if ci != "" {
 		w.hub.runs[p.HeadSHA] = []githubapi.Run{{HeadSHA: p.HeadSHA, Event: "workflow_dispatch", Status: "completed", Conclusion: ci, CreatedAt: "2026-10-01T00:00:00Z"}}
 	}
@@ -390,7 +390,7 @@ func TestLandRefusesASkillsIndexThePacksDoNotRender(t *testing.T) {
 		}
 		gitRun(t, w.repo, "add", "-A")
 		gitRun(t, w.repo, "commit", "-q", "-m", "more")
-		gitRun(t, w.repo, "push", "-q", "-f", "origin", "HEAD:refs/heads/"+pr.HeadRef)
+		w.push(t, "HEAD", pr.HeadRef)
 		pr.HeadSHA = w.head(t)
 		gitRun(t, w.repo, "checkout", "-q", "main")
 		w.hub.pulls[len(w.hub.pulls)-1].HeadSHA = pr.HeadSHA
@@ -485,7 +485,7 @@ func TestLandRefusesAPackPRThatIsNotThePublishedSet(t *testing.T) {
 		"a version not newer than main's": func(w *packWorld, t *testing.T, pr *githubapi.PR) {
 			gitRun(t, w.repo, "fetch", "-q", "origin", pr.HeadRef)
 			gitRun(t, w.repo, "merge", "-q", "--ff-only", "FETCH_HEAD")
-			gitRun(t, w.repo, "push", "-q", "origin", "main")
+			w.push(t, "refs/heads/main", "main")
 		},
 	}
 	for name, mutate := range cases {
@@ -519,7 +519,7 @@ func rewrite(w *packWorld, t *testing.T, pr *githubapi.PR, rel, body string) {
 	_ = os.WriteFile(p, []byte(body), 0o644)
 	gitRun(t, w.repo, "add", "-A")
 	gitRun(t, w.repo, "commit", "-q", "-m", "more")
-	gitRun(t, w.repo, "push", "-q", "-f", "origin", "HEAD:refs/heads/"+pr.HeadRef)
+	w.push(t, "HEAD", pr.HeadRef)
 	pr.HeadSHA = w.head(t)
 	gitRun(t, w.repo, "checkout", "-q", "main")
 }
@@ -542,7 +542,7 @@ func TestPacksMoveTheLegacyDirectory(t *testing.T) {
 	}
 	gitRun(t, w.repo, "add", "-A")
 	gitRun(t, w.repo, "commit", "-q", "-m", "a member from before the move")
-	gitRun(t, w.repo, "push", "-q", "origin", "main")
+	w.push(t, "refs/heads/main", "main")
 	w.mainRun(t, "success")
 
 	if v, err := Packs(w.deps(t), Options{}); err != nil || !strings.HasPrefix(v, "opened #") {
@@ -552,7 +552,7 @@ func TestPacksMoveTheLegacyDirectory(t *testing.T) {
 		t.Errorf("the PR body does not name the move: %v", creates)
 	}
 	pr := w.hub.pulls[len(w.hub.pulls)-1]
-	pr.HeadSHA = gitRun(t, w.bare, "rev-parse", pr.HeadRef)
+	pr.HeadSHA = w.tip(t, pr.HeadRef)
 	w.hub.pulls[len(w.hub.pulls)-1].HeadSHA = pr.HeadSHA
 	w.hub.runs[pr.HeadSHA] = []githubapi.Run{{HeadSHA: pr.HeadSHA, Event: "workflow_dispatch", Status: "completed", Conclusion: "success", CreatedAt: "2026-10-01T00:00:00Z"}}
 	if pr.Title != IndexTitle {
@@ -585,7 +585,7 @@ func TestLandRefusesAPackPRWritingTheLegacyDirectory(t *testing.T) {
 	_ = os.WriteFile(p, []byte("@../../evil.md\n"), 0o644)
 	gitRun(t, w.repo, "add", "-A")
 	gitRun(t, w.repo, "commit", "-q", "-m", "tamper")
-	gitRun(t, w.repo, "push", "-q", "-f", "origin", "HEAD:refs/heads/"+pr.HeadRef)
+	w.push(t, "HEAD", pr.HeadRef)
 	sha := w.head(t)
 	gitRun(t, w.repo, "checkout", "-q", "main")
 	w.hub.pulls[len(w.hub.pulls)-1].HeadSHA = sha
@@ -608,14 +608,14 @@ func TestPacksDeleteARetiredFlatFile(t *testing.T) {
 	}
 	gitRun(t, w.repo, "add", "-A")
 	gitRun(t, w.repo, "commit", "-q", "-m", "a member from before the file retired")
-	gitRun(t, w.repo, "push", "-q", "origin", "main")
+	w.push(t, "refs/heads/main", "main")
 	w.mainRun(t, "success")
 
 	if v, err := Packs(w.deps(t), Options{}); err != nil || !strings.HasPrefix(v, "opened #") {
 		t.Fatalf("%q %v\n%s", v, err, w.out)
 	}
 	pr := w.hub.pulls[len(w.hub.pulls)-1]
-	pr.HeadSHA = gitRun(t, w.bare, "rev-parse", pr.HeadRef)
+	pr.HeadSHA = w.tip(t, pr.HeadRef)
 	w.hub.pulls[len(w.hub.pulls)-1].HeadSHA = pr.HeadSHA
 	w.hub.runs[pr.HeadSHA] = []githubapi.Run{{HeadSHA: pr.HeadSHA, Event: "workflow_dispatch", Status: "completed", Conclusion: "success", CreatedAt: "2026-10-01T00:00:00Z"}}
 	if files := gitRun(t, w.bare, "diff", "--no-renames", "--name-status", "main", pr.HeadRef); !strings.Contains(files+"\n", "D\t"+stale+"\n") {
@@ -639,7 +639,7 @@ func TestLandRefusesAPackPRWritingARetiredFlatFile(t *testing.T) {
 	_ = os.WriteFile(p, []byte("{}\n"), 0o644)
 	gitRun(t, w.repo, "add", "-A")
 	gitRun(t, w.repo, "commit", "-q", "-m", "tamper")
-	gitRun(t, w.repo, "push", "-q", "-f", "origin", "HEAD:refs/heads/"+pr.HeadRef)
+	w.push(t, "HEAD", pr.HeadRef)
 	sha := w.head(t)
 	gitRun(t, w.repo, "checkout", "-q", "main")
 	w.hub.pulls[len(w.hub.pulls)-1].HeadSHA = sha

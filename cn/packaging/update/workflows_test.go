@@ -24,7 +24,7 @@ func proposeStaged(t *testing.T) (*world, EngineResult) {
 	if err != nil || got.Verdict != "opened #1 for "+v2 {
 		t.Fatalf("%+v %v\n%s", got, err, w.out)
 	}
-	w.hub.pulls[0].HeadSHA = gitRun(t, w.bare, "rev-parse", got.Branch)
+	w.hub.pulls[0].HeadSHA = w.tip(t, got.Branch)
 	return w, got
 }
 
@@ -136,7 +136,7 @@ func moveStaged(t *testing.T, w *world, edit func(dir string)) string {
 	}
 	gitRun(t, w.repo, "add", "-A")
 	gitRun(t, w.repo, "commit", "-q", "-m", "move the staged workflows")
-	gitRun(t, w.repo, "push", "-q", "-f", "origin", "HEAD:refs/heads/"+branch)
+	w.push(t, "HEAD", branch)
 	sha := w.head(t)
 	w.hub.pulls[0].HeadSHA = sha
 	gitRun(t, w.repo, "checkout", "-q", "main")
@@ -221,7 +221,7 @@ func TestLandRefusesAnyOtherWorkflowEdit(t *testing.T) {
 	_ = os.WriteFile(filepath.Join(w.repo, ".github", "workflows", "claudinite-ci.yml"), []byte("name: ci\n"), 0o644)
 	gitRun(t, w.repo, "add", "-A")
 	gitRun(t, w.repo, "commit", "-q", "-m", "ci")
-	gitRun(t, w.repo, "push", "-q", "origin", "main")
+	w.push(t, "refs/heads/main", "main")
 	w.mainRun(t, "success")
 	w.publish(t, v2, relOpts{binary: cnScript(v2, "exit 0", "staged scheduler")})
 	if _, err := EngineRun(w.deps(t), Options{}); err != nil {

@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/integrations/github/githubapi"
+	"github.com/missingbulb/ClaudiniteEngine/dev/test/testgit"
 )
 
 func git(t *testing.T, dir string, args ...string) string {
@@ -27,15 +28,13 @@ func git(t *testing.T, dir string, args ...string) string {
 func fixture(t *testing.T) (bare, branchSHA string) {
 	root := t.TempDir()
 	bare, work := filepath.Join(root, "o.git"), filepath.Join(root, "w")
-	git(t, root, "init", "-q", "--bare", "-b", "main", bare)
-	git(t, root, "init", "-q", "-b", "main", work)
-	git(t, work, "commit", "-q", "--allow-empty", "-m", "base")
-	git(t, work, "remote", "add", "origin", bare)
-	git(t, work, "push", "-q", "origin", "main")
-	git(t, work, "checkout", "-q", "-b", "claudinite/engine-2.0.0")
-	git(t, work, "commit", "-q", "--allow-empty", "-m", "pin")
-	git(t, work, "push", "-q", "origin", "claudinite/engine-2.0.0")
-	return bare, git(t, work, "rev-parse", "HEAD")
+	testgit.InitBare(t, bare, "main")
+	testgit.Init(t, work, "main")
+	testgit.Commit(t, work, "main", "base")
+	testgit.Origin(t, work, bare)
+	testgit.Push(t, work, bare, "refs/heads/main", "main")
+	testgit.Commit(t, work, "claudinite/engine-2.0.0", "pin")
+	return bare, testgit.Push(t, work, bare, "HEAD", "claudinite/engine-2.0.0")
 }
 
 func start(t *testing.T, bare string) (*githubapi.Client, *httptest.Server) {

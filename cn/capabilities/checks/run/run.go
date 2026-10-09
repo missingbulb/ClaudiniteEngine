@@ -16,13 +16,13 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/findings"
 	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/breadcrumb"
+	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/proc"
 )
 
 // Proto is the pipe's protocol, which the SDK's Main answers.
@@ -266,7 +266,7 @@ func (r Runner) converse(req any) (a answer, tk talk, stderr string, err error) 
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	cmd := exec.CommandContext(ctx, r.Binary)
+	cmd := proc.CommandContext(ctx, r.Binary)
 	cmd.Env = r.childEnv()
 	errTail := &tail{}
 	cmd.Stderr = errTail

@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/proc"
 )
 
 func put(t *testing.T, root, rel, body string) {
@@ -180,7 +182,11 @@ func TestPrepareClonesTheStore(t *testing.T) {
 	login := github(t, "ariel")
 	vars := map[string]string{"GH_TOKEN": "good", "CLAUDINITE_GITHUB_USER_URL": login, "CLAUDINITE_USER_PACKS_CLONE_URL": "file://" + store}
 	repo := member(t, "        repo: acme/store\n")
+	proc.Reset()
 	r, _ := Prepare(repo, env(vars))
+	if c := proc.Counts(); proc.Total(c) != 2 || c["git clone"] != 1 || c["git sparse-checkout"] != 1 {
+		t.Errorf("the store was read with %s, not one clone and one sparse checkout", proc.Format(c))
+	}
 	if !r.Copied || read(repo, PackDir+"/RULES.md") != "- from the store\n" || !strings.Contains(read(repo, PackDir+"/pack.json"), `"belongs": "me"`) {
 		t.Fatalf("clone copy: %q, err %v", r.Line(), r.Err)
 	}

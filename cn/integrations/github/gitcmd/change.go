@@ -5,12 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/proc"
 )
 
 // The reads a check run makes of a working tree and its change: which
@@ -126,8 +127,11 @@ func (r Repo) RefreshBaseRef(ref string) {
 	if !ok || remote == "" || branch == "" {
 		return
 	}
-	markerRel, _ := r.try("rev-parse", "--git-path", refreshFile)
-	markerRel = strings.TrimSpace(markerRel)
+	markerRel := filepath.Join(".git", refreshFile)
+	if st, err := os.Stat(filepath.Join(r.Dir, ".git")); err != nil || !st.IsDir() {
+		markerRel, _ = r.try("rev-parse", "--git-path", refreshFile)
+		markerRel = strings.TrimSpace(markerRel)
+	}
 	marker := ""
 	if markerRel != "" {
 		marker = markerRel
@@ -146,7 +150,7 @@ func (r Repo) RefreshBaseRef(ref string) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), FetchTimeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "git", "fetch", "--quiet", "--no-tags", remote, "+refs/heads/"+branch+":refs/remotes/"+remote+"/"+branch)
+	cmd := proc.CommandContext(ctx, "git", "-c", "maintenance.auto=false", "-c", "gc.auto=0", "fetch", "--quiet", "--no-tags", remote, "+refs/heads/"+branch+":refs/remotes/"+remote+"/"+branch)
 	cmd.Dir = r.Dir
 	cmd.Env = childEnv()
 	if cmd.Run() == nil && marker != "" {
@@ -281,12 +285,6 @@ func (r Repo) Merges(base string) []Merge {
 		ms = append(ms, Merge{sha, subject})
 	}
 	return ms
-}
-
-// ShowText is path's content at ref, or false.
-func (r Repo) ShowText(ref, path string) (string, bool) {
-	out, ok := r.try("show", ref+":"+path)
-	return out, ok
 }
 
 // Commit is one commit of a change, with the files it changed.

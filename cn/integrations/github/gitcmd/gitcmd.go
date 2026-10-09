@@ -18,6 +18,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/proc"
 )
 
 // CommandTimeout bounds a local git command; RemoteTimeout one that talks
@@ -90,7 +92,7 @@ func (f *Faults) Take() []string {
 // error naming shown, else passes err through.
 func command(timeout time.Duration, shown []string, args ...string) (cmd *exec.Cmd, done func(error) error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	cmd = exec.CommandContext(ctx, "git", args...)
+	cmd = proc.CommandContext(ctx, "git", args...)
 	cmd.WaitDelay = time.Second
 	return cmd, func(err error) error {
 		defer cancel()
@@ -174,13 +176,15 @@ func (r Repo) exec(remote bool, args ...string) ([]byte, error) {
 }
 
 // child is git with args in the tree, as the bot, under the bound its
-// kind takes, with the token when it talks to the remote.
+// kind takes, with the token when it talks to the remote. It leaves the
+// repository's housekeeping to the person's own git, which would otherwise
+// start another process after a commit, fetch or push.
 func (r Repo) child(remote bool, args []string) (*exec.Cmd, func(error) error) {
 	timeout := CommandTimeout
 	if remote {
 		timeout = RemoteTimeout
 	}
-	cmd, done := command(timeout, args, append([]string{"-c", "user.name=" + BotName, "-c", "user.email=" + BotEmail}, args...)...)
+	cmd, done := command(timeout, args, append([]string{"-c", "user.name=" + BotName, "-c", "user.email=" + BotEmail, "-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)...)
 	cmd.Dir = r.Dir
 	cmd.Env = childEnv()
 	if remote && r.Token != "" {
@@ -242,14 +246,10 @@ func (r Repo) Push(remote, branch string) error {
 // DeleteRemoteBranch deletes branch on remote; an already absent branch is
 // not an error.
 func (r Repo) DeleteRemoteBranch(remote, branch string) error {
-	out, err := r.remote("ls-remote", "--heads", remote, "refs/heads/"+branch)
-	if err != nil {
-		return err
-	}
-	if strings.TrimSpace(string(out)) == "" {
+	_, err := r.remote("push", "-q", remote, "--delete", "refs/heads/"+branch)
+	if err != nil && strings.Contains(err.Error(), "remote ref does not exist") {
 		return nil
 	}
-	_, err = r.remote("push", "-q", remote, "--delete", "refs/heads/"+branch)
 	return err
 }
 
@@ -261,26 +261,47 @@ func (r Repo) Fetch(remote string, refspecs ...string) error {
 
 // Show returns path's content at ref, and false when ref has no such path.
 func (r Repo) Show(ref, path string) ([]byte, bool, error) {
-	if _, err := r.run("cat-file", "-e", ref+":"+path); err != nil {
-		if _, rerr := r.RevParse(ref); rerr != nil {
-			return nil, false, fmt.Errorf("%s is not a commit", ref)
-		}
+	objs, err := r.Objects(ref+"^{commit}", ref+":"+path)
+	switch {
+	case err != nil:
+		return nil, false, err
+	case objs[0].Missing:
+		return nil, false, fmt.Errorf("%s is not a commit", ref)
+	case objs[1].Missing:
 		return nil, false, nil
+	case objs[1].Type != "blob":
+		out, err := r.run("show", ref+":"+path)
+		return out, err == nil, err
 	}
-	out, err := r.run("show", ref+":"+path)
-	return out, err == nil, err
+	return objs[1].Data, true, nil
 }
 
 // Regular reports whether path at ref is a regular file, and false when ref
 // has no such path. Show reads a symlink as its target's text.
 func (r Repo) Regular(ref, path string) (bool, error) {
-	out, err := r.run("ls-tree", "-z", ref, "--", path)
-	if err != nil {
-		return false, err
+	regular, err := r.RegularFiles(ref, path)
+	return regular[path], err
+}
+
+// RegularFiles is which of paths are regular files at ref, in one git
+// process.
+func (r Repo) RegularFiles(ref string, paths ...string) (map[string]bool, error) {
+	regular := map[string]bool{}
+	if len(paths) == 0 {
+		return regular, nil
 	}
-	meta, _, ok := strings.Cut(strings.TrimSuffix(string(out), "\x00"), "\t")
-	f := strings.Fields(meta)
-	return ok && len(f) == 3 && f[1] == "blob" && (f[0] == "100644" || f[0] == "100755"), nil
+	out, err := r.run(append([]string{"ls-tree", "-z", ref, "--"}, paths...)...)
+	if err != nil {
+		return nil, err
+	}
+	for _, rec := range strings.Split(string(out), "\x00") {
+		meta, p, ok := strings.Cut(rec, "\t")
+		f := strings.Fields(meta)
+		if ok && len(f) == 3 && f[1] == "blob" && (f[0] == "100644" || f[0] == "100755") {
+			regular[p] = true
+		}
+	}
+	return regular, nil
 }
 
 // MergeBase is the best common ancestor of a and b.
@@ -332,14 +353,19 @@ type File struct {
 	Executable bool
 }
 
-// Tree reads every file under prefix at ref, by repo-relative path. A
-// symlink or submodule under prefix is refused.
-func (r Repo) Tree(ref, prefix string) (map[string]File, error) {
-	out, err := r.run("ls-tree", "-r", "-z", ref, "--", prefix)
+// Tree reads every file under the prefixes at ref, by repo-relative path.
+// A symlink or submodule under them is refused.
+func (r Repo) Tree(ref string, prefixes ...string) (map[string]File, error) {
+	out, err := r.run(append([]string{"ls-tree", "-r", "-z", ref, "--"}, prefixes...)...)
 	if err != nil {
 		return nil, err
 	}
-	files := map[string]File{}
+	type entry struct {
+		path string
+		exec bool
+	}
+	var entries []entry
+	var shas []string
 	for _, rec := range strings.Split(string(out), "\x00") {
 		if rec == "" {
 			continue
@@ -352,11 +378,19 @@ func (r Repo) Tree(ref, prefix string) (map[string]File, error) {
 		if f[1] != "blob" || (f[0] != "100644" && f[0] != "100755") {
 			return nil, fmt.Errorf("%s at %s is a %s %s, not a regular file", path, ref, f[0], f[1])
 		}
-		data, err := r.run("cat-file", "blob", f[2])
-		if err != nil {
-			return nil, err
+		entries = append(entries, entry{path, f[0] == "100755"})
+		shas = append(shas, f[2])
+	}
+	objs, err := r.Objects(shas...)
+	if err != nil {
+		return nil, err
+	}
+	files := map[string]File{}
+	for i, e := range entries {
+		if objs[i].Missing {
+			return nil, fmt.Errorf("%s at %s: blob %s is missing", e.path, ref, shas[i])
 		}
-		files[path] = File{Data: data, Executable: f[0] == "100755"}
+		files[e.path] = File{Data: objs[i].Data, Executable: e.exec}
 	}
 	return files, nil
 }
