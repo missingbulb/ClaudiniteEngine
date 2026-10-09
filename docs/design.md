@@ -42,7 +42,7 @@ Each arrow is one actor delivering one thing. The engine update verifies the rel
 | --- | --- | --- | --- |
 | ClaudiniteEngine | Private | Go source of the `cn` binary, including the task runner, growth and lifecycle and their built-in checks; the launcher; the JavaScript runner script, `@claudinite/sdk` and the public Go check SDK; the release workflow | npm (`@claudinite/cli`, platform packages, `@claudinite/sdk`), each release's manifest signed by a release key the embedded root certifies |
 | ClaudinitePacks | Public | Pack sources (`RULES.md`, skills, `declared-checks.json`, `task.json`, coded checks in Go, task workers in `.mjs`); pack tests against a pinned engine; the pack release workflow | Cloudflare R2 behind the CDN |
-| ClaudiniteWebsite | Private | The commercial website, the single-repo dashboard and other lower-criticality website work | Cloudflare Pages |
+| ClaudiniteWebsite | Private | The commercial website and other lower-criticality website work | Cloudflare Pages |
 | ClaudiniteLicenses | Private | The license server: the key Worker, which only reads D1 and KV, and the sync Worker, the only writer, which handles Polar and the queue; their deploys | Cloudflare (Workers, D1, KV) |
 | Member repo | The customer's | The engine pin, the launcher, and the vendored packs; the scheduler, executor and CI workflows | Nothing; receives update PRs |
 | Fleet manager | Private, one per customer account | Fleet-wide tasks across the organization's member repos: a `fleet` settings block turns on `cn fleet` and the fleet pack the binary carries (record row 160) | Fleet PRs |

@@ -1,9 +1,8 @@
 #!/bin/sh
 # The ported packs against this cn, and the per-call hooks' latency budgets
 # (full.yml's packs job): ClaudinitePacks' Go tests and cn check --pack
-# fixtures (tools/checks/test.sh), the dashboard pack's suite against this cn,
-# then the hook-latency probe
-# over the same checkout's packs, held to its budgets, its table printed.
+# fixtures (tools/checks/test.sh), then the hook-latency probe over the
+# same checkout's packs, held to its budgets, its table printed.
 #
 #   dev/test/packs.sh PACKS_CHECKOUT
 #
@@ -17,7 +16,6 @@ trap 'rm -rf "$work"' EXIT
 
 go build -o "$work/cn" ./cn/cli
 (cd "$packs" && CLAUDINITE_CN=$work/cn sh tools/checks/test.sh)
-(cd "$packs" && CLAUDINITE_CN=$work/cn node --test 'packs/claudinite-single-repo-dashboard/test/**/*.test.mjs')
 
 rc=0
 sh rewrite-temp/probe/hook-latency/run.sh --shelf "$packs" --out "$work/hook-latency" --budget || rc=$?

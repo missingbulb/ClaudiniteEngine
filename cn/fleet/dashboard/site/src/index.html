@@ -1125,7 +1125,7 @@
     <p class="panel gap" id="work-dormant" hidden>
       This repo declares its <strong>scheduler dormant</strong>, so nothing is instantiated, readied or
       picked up. Its declared tasks and any open work items are not drawn here, because none of them
-      can move — the rest of the page is still live. Clear <code>dormant</code> on the <code>claudinite-tasks</code> pack entry to
+      can move — the rest of the page is still live. Clear <code>dormant</code> in its settings' <code>tasks</code> block to
       wake it; a dormant spell is not replayed, so it simply starts scheduling again from now.
     </p>
     <div class="views" id="work-views"></div>
@@ -1190,7 +1190,7 @@
     </p>
     <p class="info-body" id="info-machine-2" hidden>
       It all comes from <code>.claudinite/usage/task-runs-and-costs.json</code>, a
-      <em>second</em> past-data file written by the claudinite-tasks pack's own fold on its own
+      <em>second</em> past-data file written by the engine's own usage fold on its own
       watermark — not the <code>sessions-and-elements.json</code> the panels above read. A repo that folds
       one and not the other is ordinary, and this panel says so rather than borrowing the other
       file's numbers. A counter no day recorded reads <strong>not recorded</strong>, never zero, and

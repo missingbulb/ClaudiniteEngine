@@ -42,7 +42,7 @@ say() { echo "run.sh: $*" >&2; }
 
 go build -o "$work/timeit$exe" ./rewrite-temp/probe/desktop-timings/timeit
 go build -o "$work/gonode$exe" ./rewrite-temp/probe/desktop-timings/gonode
-CGO_ENABLED=0 go build -trimpath -buildvcs=false -ldflags "-s -w" -o "$work/cn$exe" ./cn
+CGO_ENABLED=0 go build -trimpath -buildvcs=false -ldflags "-s -w" -o "$work/cn$exe" ./cn/cli
 timeit=$work/timeit$exe
 
 say "1/4 cn hook session-start"
