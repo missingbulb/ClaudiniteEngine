@@ -82,6 +82,12 @@ func manifestEdit(dir, rel string) (*ownPackEdit, error) {
 			dropped = append(dropped, fmt.Sprintf("dropped %q, a Node manifest field cn does not read", k))
 		}
 	}
+	if v, ok := obj.Get("version"); ok {
+		if _, isString := v.(string); !isString {
+			obj.Delete("version")
+			dropped = append(dropped, fmt.Sprintf("dropped \"version\" %v: an own pack is not versioned, and cn reads a version only as a string", v))
+		}
+	}
 	if len(dropped) == 0 {
 		return nil, nil
 	}

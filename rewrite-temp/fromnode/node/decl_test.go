@@ -163,17 +163,21 @@ func TestAbsorbedEntryNestsBeforeItMerges(t *testing.T) {
 	}
 }
 
-func TestSchedulerMovesOntoTheTasksEntry(t *testing.T) {
+// The queue's settings move onto the tasks block, under its names, and the
+// retired claudinite-tasks entry is not declared.
+func TestSchedulerMovesOntoTheTasksBlock(t *testing.T) {
 	d, r := readFixture(t, "scheduler")
-	got := settings.Plain(d.Packs).(map[string]any)["declared"].([]any)[1].(map[string]any)["config"].(map[string]any)
-	if _, ok := got["agenticTaskInvocationEndpoints"]; !ok || !reflect.DeepEqual(got["disabledTasks"], []any{"claudinite-lifecycle/update"}) || len(got) != 2 {
+	got, _ := settings.Plain(d.Tasks).(map[string]any)
+	if _, ok := got["routines"]; !ok || !reflect.DeepEqual(got["disabled"], []any{"claudinite-lifecycle/update"}) || len(got) != 2 {
 		t.Errorf("%v\n%s", got, r)
 	}
-	for _, name := range []string{"review", "dormant-top-level"} {
-		d, _ := readFixture(t, name)
-		cfg := settings.Plain(d.Packs).(map[string]any)["declared"].([]any)[1].(map[string]any)["config"].(map[string]any)
-		if len(cfg) != 1 {
-			t.Errorf("%s: %v", name, cfg)
+	for name, want := range map[string]map[string]any{"review": {"delivery": "review"}, "dormant-top-level": {"dormant": true}} {
+		d, r := readFixture(t, name)
+		if got := settings.Plain(d.Tasks); !reflect.DeepEqual(got, want) {
+			t.Errorf("%s: %v\n%s", name, got, r)
+		}
+		if got := settings.Plain(d.Packs).(map[string]any)["declared"]; !reflect.DeepEqual(got, []any{"claudinite-lifecycle"}) {
+			t.Errorf("%s: declared %v", name, got)
 		}
 	}
 }

@@ -11,13 +11,14 @@ import (
 )
 
 // A local pack whose pack.json still carries the Node manifest's rule
-// lists, and whose declared check spells on_fail as severity, moves with
-// the member: the move drops the lists and renames the severity, so the
+// lists and the scaffold's numeric version, and whose declared check spells
+// on_fail as severity, moves with the member: the move drops the lists and
+// the version and renames the severity, so the
 // pack loads, its prose reaches the rules index, and verify finds nothing.
 func TestMoveRewritesALocalPacksNodeShapes(t *testing.T) {
 	repo := nodeMember(t)
 	manifest := filepath.Join(repo, ".claudinite/local/packs/mine/pack.json")
-	if err := os.WriteFile(manifest, []byte(`{"worldRules": [], "ruleRoutingGuidance": {"belongs": "b"}, "workRules": []}`+"\n"), 0o644); err != nil {
+	if err := os.WriteFile(manifest, []byte(`{"version": 1, "worldRules": [], "ruleRoutingGuidance": {"belongs": "b"}, "workRules": []}`+"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	decls := filepath.Join(repo, ".claudinite/local/packs/mine/declared-checks.json")
@@ -28,7 +29,7 @@ func TestMoveRewritesALocalPacksNodeShapes(t *testing.T) {
 	if err := move(in); err != nil {
 		t.Fatalf("%v\n%s", err, out)
 	}
-	for _, want := range []string{`own pack: .claudinite/local/packs/mine/pack.json: dropped "worldRules"`, `own pack: .claudinite/local/packs/mine/declared-checks.json: check mine-x: severity "advisory" became on_fail "advise"`} {
+	for _, want := range []string{`own pack: .claudinite/local/packs/mine/pack.json: dropped "worldRules"`, `own pack: .claudinite/local/packs/mine/pack.json: dropped "version" 1`, `own pack: .claudinite/local/packs/mine/declared-checks.json: check mine-x: severity "advisory" became on_fail "advise"`} {
 		if !strings.Contains(out.String(), want) {
 			t.Errorf("the report lacks %q:\n%s", want, out)
 		}
