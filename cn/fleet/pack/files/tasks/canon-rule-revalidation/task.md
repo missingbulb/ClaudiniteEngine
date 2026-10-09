@@ -8,8 +8,8 @@ Nothing in this repo turns red when a platform moves under such a rule, and the 
 it cannot fix it: they receive the rule and no evidence behind it. A stale canon claim is therefore
 paid for once per session per member until it is re-probed here.
 
-**The corpus is the roots this repo curates** — the `packs/` shelf, plus any root this pack's
-`write_paths` config names (the `promote-scope` check resolves them).
+**The corpus is the roots this repo curates** — the `packs/` shelf, plus any root the settings'
+`fleet.writePaths` names (the `promote-scope` check resolves them).
 
 ## The method lives in the skill
 
@@ -27,8 +27,7 @@ here. This worker frames the unattended run around it and names the corpus.
    probes that matter most are the ones a member could never run: this session's reach is the canon
    home's, and a claim about a member's own environment is that member's to revalidate.
 3. **Correct what is stale**, as far as each probe reaches and no further.
-4. **Deliver by the shared procedure —
-   [deliver-pr.md](../../../claudinite-tasks/public/deliver-pr.md)**, under the title
+4. **Deliver as your instructions say to deliver a pull request**, under the title
    `Claudinite canon: rule revalidation`. The commit references the tracking issue so the
    `task-lifecycle` gate passes, and the whole suite is green before you push.
 5. **Report every verdict in the PR body** — every claim probed, its verdict and the probe behind it.
