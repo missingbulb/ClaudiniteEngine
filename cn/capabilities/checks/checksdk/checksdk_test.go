@@ -92,12 +92,12 @@ func TestRequestBeforeHandshakeAndMalformed(t *testing.T) {
 
 func TestPackOfReadsTheGeneratedPackagePath(t *testing.T) {
 	cases := map[string]string{
-		"claudinite.checks/build/packs/hello.init.0":               "hello",
-		"claudinite.checks/build/packs/acme-pack/sub.init.0":       "acme-pack",
-		"claudinite.checks/build/packs/local/probe.init.0":         "local/probe",
-		"claudinite.checks/build/packs/local/probe/sub.init.0":     "local/probe",
-		"claudinite.checks/build/packs/hello.glob..func1":          "hello",
-		"github.com/missingbulb/ClaudiniteEngine/cn/checksdk.Test": "",
+		"claudinite.checks/build/packs/hello.init.0":                                   "hello",
+		"claudinite.checks/build/packs/acme-pack/sub.init.0":                           "acme-pack",
+		"claudinite.checks/build/packs/local/probe.init.0":                             "local/probe",
+		"claudinite.checks/build/packs/local/probe/sub.init.0":                         "local/probe",
+		"claudinite.checks/build/packs/hello.glob..func1":                              "hello",
+		"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/checks/checksdk.Test": "",
 	}
 	for fn, want := range cases {
 		if got := packOf(fn); got != want {
