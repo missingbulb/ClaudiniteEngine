@@ -51,8 +51,8 @@ func packParameters(cfg map[string]any) (map[string]any, bool) {
 	return nil, false
 }
 
-// EntryDormant is a cn member's dormancy: its claudinite-tasks entry's
-// config.dormant, strictly true.
+// EntryDormant is a cn member's dormancy: its tasks block's dormant,
+// strictly true.
 func EntryDormant(config map[string]any) bool {
 	b, ok := config[DormantKey].(bool)
 	return ok && b

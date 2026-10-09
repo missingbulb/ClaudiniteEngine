@@ -13,10 +13,9 @@
         "to": "*",
         "scope": "imports",
         "allow": [
-          "engine",
-          "packs/claudinite-tasks/public"
+          "engine"
         ],
-        "reason": "a pack imports only its own files, the engine surface, and the tasks pack's published public/ — abilities otherwise cross pack boundaries through declaration and configuration, never imports"
+        "reason": "a pack imports only its own files, and the engine surface — abilities otherwise cross pack boundaries through declaration and configuration, never imports"
       }
     ]
   },

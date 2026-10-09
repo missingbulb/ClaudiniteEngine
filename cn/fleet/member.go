@@ -121,10 +121,9 @@ func readCn(gh GH, m Member, f settings.Format) (Member, error) {
 	} else {
 		m.Pin = pin
 	}
-	for _, e := range packs.Entries {
-		if !e.Local && e.ID == TasksPackID {
-			m.Dormant = EntryDormant(e.Config)
-		}
+	if parsed, err := settings.ParseFile([]byte(file.Text), f); err == nil {
+		tasks, _ := parsed.TasksBlock()
+		m.Dormant = EntryDormant(tasks)
 	}
 	m.Held = map[string]string{}
 	for _, id := range packs.Declared {
