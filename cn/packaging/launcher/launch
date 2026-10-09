@@ -265,7 +265,7 @@ if [ -n "$bootstrap" ]; then
     || refuse "$pkgdir/package.json must name \"@claudinite/cli\" or \"@claudinite/cli-rc\""
 else
   pinned=$(read_pin) || refuse "cannot read $settings"
-  engines=0 version= manifest_pin= package= releases= pin_hex=
+  engines=0 version='' manifest_pin='' package='' releases='' pin_hex=''
   { read -r engines; read -r version; read -r manifest_pin; read -r package; read -r releases; read -r pin_hex; } <<EOF
 $pinned
 EOF
@@ -349,6 +349,7 @@ private_dir() {
   fi
   [ -L "$1" ] && refuse "the cache directory $1 is a symbolic link"
   [ "$os" = windows ] && return 0
+  # shellcheck disable=SC3067 # -O is in every sh the launcher runs under (dash, bash, busybox, zsh)
   [ -O "$1" ] || private_refused "$1"
 }
 # private_refused names the mode and owner found on a cache folder that is
@@ -459,6 +460,7 @@ fi
 
 # Step 5: link, unpack, run.
 
+# shellcheck disable=SC3013 # -ef is in every sh the launcher runs under (dash, bash, busybox, zsh)
 if [ ! "$here/bin/$bin" -ef "$vdir/$bin" ]; then
   mkdir -p "$here/bin" || refuse "cannot create $here/bin"
   if ! ln -sfn "$vdir/$bin" "$here/bin/$bin" 2>/dev/null; then

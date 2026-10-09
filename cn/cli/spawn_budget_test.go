@@ -29,6 +29,10 @@ var spawnBudget = map[string]string{
 func TestSpawnBudget(t *testing.T) {
 	t.Setenv("XDG_CACHE_HOME", t.TempDir())
 	t.Setenv("CLAUDINITE_CHECKS_NO_FETCH", "1")
+	// A session names its repository from the checkout's origin; CI's own
+	// GITHUB_REPOSITORY would spare that read.
+	t.Setenv("GITHUB_REPOSITORY", "")
+	t.Setenv("CLAUDINITE_REPO", "")
 	member := memberAt(t, "v5-settings-checks")
 	many := memberAt(t, "v5-settings-checks")
 	for i := 0; i < 40; i++ {
