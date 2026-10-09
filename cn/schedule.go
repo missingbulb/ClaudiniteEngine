@@ -89,13 +89,11 @@ func jobClient(env world.Env) (*githubapi.Client, error) {
 
 func cmdSchedule(args []string, stdout io.Writer) error {
 	if len(args) == 0 {
-		return report.New(report.Usage, "schedule takes run, drain or report-failure")
+		return report.New(report.Usage, "schedule takes run or report-failure")
 	}
 	switch args[0] {
 	case "run":
 		return cmdScheduleRun(args[1:], stdout, world.Env(os.Getenv))
-	case "drain":
-		return cmdScheduleDrain(args[1:], stdout, world.Env(os.Getenv))
 	case "report-failure":
 		return cmdReportFailure(args[1:], stdout, world.Env(os.Getenv))
 	}
@@ -107,7 +105,6 @@ func cmdScheduleRun(args []string, stdout io.Writer, env world.Env) (err error) 
 	fs := flag.NewFlagSet("schedule run", flag.ContinueOnError)
 	repo := fs.String("repo", ".", "")
 	dry := fs.Bool("dry-run", false, "")
-	wake := fs.String("wake", "", "")
 	if err := flags(fs, args); err != nil {
 		return err
 	}
@@ -148,9 +145,6 @@ func cmdScheduleRun(args []string, stdout io.Writer, env world.Env) (err error) 
 	if *dry {
 		issues = &dryIssues{Issues: gw, log: func(s string) { fmt.Fprintln(stdout, s) }}
 	}
-	if *wake == "" {
-		*wake = env("CLAUDINITE_WAKE")
-	}
 	meter := &queue.CostMeter{Workflow: "scheduler", RunID: env("GITHUB_RUN_ID"), Now: time.Now,
 		Calls: func() *int { n := int(client.CallCount()); return &n }}
 	readFleet := fleetSignal(env.Repo())
@@ -163,7 +157,7 @@ func cmdScheduleRun(args []string, stdout io.Writer, env world.Env) (err error) 
 	}
 	out, runErr := schedule.Run(schedule.RunIn{
 		Issues: issues, Tasks: r.tasks, Now: clock.Now(), Disabled: r.queue.Disabled,
-		PackConfig: r.packConfig, Wake: *wake, HasFleet: readFleet != nil, LocalTerms: terms,
+		PackConfig: r.packConfig, Wake: env("CLAUDINITE_WAKE"), HasFleet: readFleet != nil, LocalTerms: terms,
 		Collector: func(items []workitem.Issue) *signals.Collector {
 			return &signals.Collector{Issues: issues, Repo: gw, DefaultBranch: env.DefaultBranch(),
 				Packs: r.set.Declared.Declared, PackConfig: r.packConfig, EngineVersion: version.Version(),
@@ -235,30 +229,8 @@ func (d *dryIssues) EditComment(id int64, _ string) error {
 	return nil
 }
 
-func cmdScheduleDrain(args []string, stdout io.Writer, env world.Env) error {
-	fs := flag.NewFlagSet("schedule drain", flag.ContinueOnError)
-	if err := flags(fs, args); err != nil {
-		return err
-	}
-	if env.Suspended() {
-		fmt.Fprintln(stdout, world.SuspendedNotice())
-		return nil
-	}
-	client, err := jobClient(env)
-	if err != nil {
-		return err
-	}
-	branch := env.DefaultBranch()
-	if err := client.Dispatch(workitem.ExecutorWorkflowFile, branch, nil); err != nil {
-		return report.New(report.IO, fmt.Sprintf("could not dispatch %s on %s: %v", workitem.ExecutorWorkflowFile, branch, err))
-	}
-	fmt.Fprintf(stdout, "- dispatched the executor on %s to drain whatever this scheduler run created\n", branch)
-	return nil
-}
-
 func cmdReportFailure(args []string, stdout io.Writer, env world.Env) error {
 	fs := flag.NewFlagSet("schedule report-failure", flag.ContinueOnError)
-	title := fs.String("title", schedule.SchedulerFailureTitle, "")
 	if err := flags(fs, args); err != nil {
 		return err
 	}
@@ -266,7 +238,7 @@ func cmdReportFailure(args []string, stdout io.Writer, env world.Env) error {
 	if err != nil {
 		return err
 	}
-	n, created, err := schedule.ReportFailure(ghport.New(client), schedule.FailureLabels, *title,
+	n, created, err := schedule.ReportFailure(ghport.New(client), schedule.FailureLabels, schedule.SchedulerFailureTitle,
 		"The Claudinite scheduler run/drain run failed: "+env.RunURL())
 	if err != nil {
 		return report.New(report.IO, err.Error())

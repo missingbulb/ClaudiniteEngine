@@ -27,20 +27,20 @@
 #            packs proposes, refuses, skips and lands pack versions as the
 #            fixture publishes and revokes them, approving each PR's held CI
 #            run and landing on it in the same run, then refuses an index whose
-#            serial regressed or whose signature broke; cn init asks for no
+#            serial regressed or whose signature broke; cn adopt asks for no
 #            license; hello's declared checks fail the
 #            world and block Stop, and the member's checks block turns them
 #            off and accepts them; a local pack's Go check builds and
 #            finds, and hello 1.4's checks read the change and the pack's
 #            config through the SDK.
-#   adopt    the adoption flow over hello and the hello-asks probe: cn init
+#   adopt    the adoption flow over hello and the hello-asks probe: cn adopt
 #            ends on QUESTIONS and HANDOVER with the seed written and the
 #            task secret stamped, adoption-answers-pending blocks Stop until
-#            cn settings answer, and cn adopt does the same for a pack
+#            cn adopt --answer, and cn adopt does the same for a pack
 #            added later.
 #   tasks    a member on hello 1.4 with the three workflows runs the task
 #            queue against ghstub (its routine route and dev/release/stub-
-#            agent.sh): tasks list and the declaration check,
+#            agent.sh): check list --tasks and the declaration check,
 #            the scheduler filing and gating, the executor running hello's
 #            worker through the SDK and landing its PR, a missing secret,
 #            the routine hand-off with its nonce, a lost claim and the leash, the suspend switch, the
@@ -48,14 +48,14 @@
 #            flat declarations.
 #   growth   a member declaring claudinite-growth with a GitHub origin: cn
 #            growth capture writes the branch and a disjoint delta,
-#            SessionEnd captures under CLAUDINITE_SESSION_ISSUE, a logs-prune item runs cn growth
-#            prune as its code-work only once the captures are past
-#            retention, and cn pack new leaves verify and cn provenance
+#            SessionEnd captures under CLAUDINITE_SESSION_ISSUE, an engine/logs-prune item runs
+#            the engine's prune only once the captures are past retention,
+#            and cn adopt local/acme leaves verify and cn provenance
 #            check clean.
 #   dashboard a member declaring claudinite-single-repo-dashboard in YAML
 #            (dev/release/verify/fixtures/dashboard-fixture.sh): the flat
 #            task file and the member file, the retired flat dashboard file
-#            deleted, tasks flat --check; then publish-pages building the real pack from
+#            deleted, cn adopt rewriting them; then publish-pages building the real pack from
 #            CLAUDINITE_PACKS_TREE (a ClaudinitePacks checkout, which this
 #            mode requires) and following its deploy to success.
 #
@@ -392,8 +392,8 @@ for mode in $modes; do
       staged=.claudinite/cache/pending-workflows/claudinite-scheduler.yml
       grep -v '^    - cron: ' "$member/$sched" > "$work/sched.yml" && mv "$work/sched.yml" "$member/$sched"
       (cd "$member" && git init -q -b main) || fail "update: git init"
-      (cd "$member" && sh .claudinite/launch rules-index) > "$work/index.out" 2>&1 || fail "update: rules-index: $(cat "$work/index.out")"
-      grep -q '"hello": "1.0"' "$member/.claudinite/cache/member.GENERATED.json" || fail "update: rules-index wrote no member file holding hello"
+      (cd "$member" && sh .claudinite/launch adopt) > "$work/index.out" 2>&1 || fail "update: adopt: $(cat "$work/index.out")"
+      grep -q '"hello": "1.0"' "$member/.claudinite/cache/member.GENERATED.json" || fail "update: adopt wrote no member file holding hello"
       (cd "$member" && git add -A && git -c user.name=rehearse -c user.email=r@x commit -q -m adopt) || fail "update: git setup"
       github_origin "$origin"
       (cd "$member" && git push -q origin main) || fail "update: push"
@@ -569,7 +569,7 @@ for mode in $modes; do
       sched run > "$work/sched.out" 2>&1 || fail "update 11: schedule run: $(cat "$work/sched.out")"
       [ "$(gh_count 'st.issues.filter(i=>i.title==="'"$upd"'").length')" = 1 ] || fail "update 11: a second run the same day filed another: $(gh_state)"
       cp "$root/cn/integrations/workflows/templates/claudinite-update.yml" "$member/.github/workflows/"
-      cn_member tasks list > "$work/list.out" 2>&1 || fail "update 11: tasks list: $(cat "$work/list.out")"
+      cn_member check list --tasks > "$work/list.out" 2>&1 || fail "update 11: check list --tasks: $(cat "$work/list.out")"
       if grep -q "^engine/update " "$work/list.out"; then fail "update 11: engine/update stands beside the update workflow: $(cat "$work/list.out")"; fi
       cn_member verify > "$work/verify.out" 2>&1 || fail "update 11: verify: $(cat "$work/verify.out")"
       grep -q "^deprecation member-workflows .github/workflows/claudinite-update.yml" "$work/verify.out" || fail "update 11: no deprecation for the update workflow: $(cat "$work/verify.out")"
@@ -621,13 +621,13 @@ for mode in $modes; do
       # Actions artifact has lost its modes.
       chmod 0755 "$npx/$package/launch"
       ln -s "../$package/launch" "$npx/.bin/cn"
-      # adopt NAME: cn init through the npx bin into a new empty repo.
+      # adopt NAME: cn adopt through the npx bin into a new empty repo.
       adopt() {
         member=$work/$1
         mkdir -p "$member" "$member-home" "$member-cache"
         HOME=$member-home XDG_CACHE_HOME=$member-cache
         export HOME XDG_CACHE_HOME
-        (cd "$member" && "$npx/.bin/cn" init --packs hello --channel canary --repo "$member") \
+        (cd "$member" && "$npx/.bin/cn" adopt hello --channel canary --repo "$member") \
           > "$work/init.out" 2>&1 || fail "packs 1: init: $(cat "$work/init.out")"
       }
       CLAUDINITE_PACKS_CDN=$(cat "$work/cdn-down-ready")
@@ -652,23 +652,23 @@ for mode in $modes; do
         || fail "packs 1: git setup"
       github_origin "$origin"
       (cd "$member" && git -c push.negotiate=false push -q origin main) || fail "packs 1: push"
-      step "packs 1: cn init through npx adopted hello 1.0 (CDN, and the branch with the CDN down); the npx bin runs the member's pin from its folder and by --repo"
+      step "packs 1: cn adopt through npx adopted hello 1.0 (CDN, and the branch with the CDN down); the npx bin runs the member's pin from its folder and by --repo"
 
-      # init_with_origin NAME: cn init in a new repo whose origin is the
+      # init_with_origin NAME: cn adopt in a new repo whose origin is the
       # member's on GitHub.
       init_with_origin() {
         dir=$work/$1
         mkdir -p "$dir"
         (cd "$dir" && git init -q -b main && git remote add origin https://github.com/acme/member.git \
           && git config "url.$origin.insteadOf" https://github.com/acme/member.git) || fail "packs init: git setup"
-        (cd "$dir" && "$npx/.bin/cn" init --packs hello --channel canary --repo "$dir") > "$work/init.out" 2>&1 \
+        (cd "$dir" && "$npx/.bin/cn" adopt hello --channel canary --repo "$dir") > "$work/init.out" 2>&1 \
           || fail "packs init: init exited non-zero: $(cat "$work/init.out")"
       }
       init_with_origin packs-init
       if grep -Eqi "(^|[^a-z])(plan|license)([^a-z]|$)|GitHub App" "$work/init.out"; then fail "packs init: init speaks of a plan, a license or the App: $(cat "$work/init.out")"; fi
       sed -n '$p' "$work/init.out" | grep -q "^NEXT: " || fail "packs init: init does not end on NEXT: $(cat "$work/init.out")"
       if grep -q '^license:' "$work/packs-init/.claudinite/settings.yaml"; then fail "packs init: init wrote a license block"; fi
-      step "packs init: cn init asks for no license and writes no license block"
+      step "packs init: cn adopt asks for no license and writes no license block"
 
       out=$(session_start) || fail "packs 2: SessionStart exited non-zero"
       index=$member/.claudinite/cache/claudinite-rules.GENERATED.md
@@ -711,7 +711,7 @@ for mode in $modes; do
       }
       expect_verdict() { [ "$verdict" = "$1" ] || fail "packs: verdict '$verdict', want '$1': $(cat "$work/update.out" "$work/update.err")"; }
       pull() { (cd "$member" && git fetch -q origin && git reset -q --hard origin/main) || fail "packs: pull"; }
-      day=$(cn_member version --day)
+      day=$(sh dev/build/version.sh day)
       branch=claudinite/packs-$day
       # A pack PR's held CI run, once approved, passes.
       ctl /_stub/approve '{"conclusion":"success"}'
@@ -1100,7 +1100,7 @@ GO
       cp -R "$dist1/npm/$name/package" "$npx/$package"
       chmod 0755 "$npx/$package/launch"
       ln -s "../$package/launch" "$npx/.bin/cn"
-      (cd "$member" && "$npx/.bin/cn" init --packs hello --channel canary --repo "$member") > "$work/init.out" 2>&1 \
+      (cd "$member" && "$npx/.bin/cn" adopt hello --channel canary --repo "$member") > "$work/init.out" 2>&1 \
         || fail "tasks: init: $(cat "$work/init.out")"
       grep -q '"version": "1.4"' "$member/.claudinite/shared/packs/hello/pack.json" || fail "tasks: init did not vendor hello 1.4"
       # The engine pack whose checks the steps run, standing in as its
@@ -1119,7 +1119,7 @@ GO
       gitc() { (cd "$member" && git -c user.name=rehearse -c user.email=r@x -c commit.gpgsign=false "$@"); }
       (cd "$member" && git init -q -b main) || fail "tasks: git init"
       # The adopt commit holds the flat files that declaration produces.
-      (cd "$member" && sh .claudinite/launch rules-index) > "$work/index.out" 2>&1 || fail "tasks: rules-index: $(cat "$work/index.out")"
+      (cd "$member" && sh .claudinite/launch adopt) > "$work/index.out" 2>&1 || fail "tasks: adopt: $(cat "$work/index.out")"
       (cd "$member" && git add -A) || fail "tasks: git add"
       GIT_AUTHOR_DATE=$old GIT_COMMITTER_DATE=$old gitc commit -q -m adopt || fail "tasks: adopt commit"
       github_origin "$origin"
@@ -1137,9 +1137,9 @@ GO
       comments_of() { gh_count 'st.issues.find(i=>i.number==='"$1"').comments.join("\n----\n")'; }
       pull_after() { (cd "$member" && git -c push.negotiate=false pull -q --ff-only origin main) || fail "tasks: pull"; }
 
-      cn_member tasks list > "$work/list.out" 2>&1 || fail "tasks 1: tasks list: $(cat "$work/list.out")"
+      cn_member check list --tasks > "$work/list.out" 2>&1 || fail "tasks 1: check list --tasks: $(cat "$work/list.out")"
       for t in hello/hello-fold hello/hello-agent; do
-        grep -q "^$t " "$work/list.out" || fail "tasks 1: tasks list does not name $t: $(cat "$work/list.out")"
+        grep -q "^$t " "$work/list.out" || fail "tasks 1: check list --tasks does not name $t: $(cat "$work/list.out")"
       done
       cn_member check world > "$work/world.out" 2>&1 || fail "tasks 1: check world: $(cat "$work/world.out")"
       # The check reads the repo's own declarations, never the vendored mount.
@@ -1151,7 +1151,7 @@ GO
       grep -q "task-declaration-shape .claudinite/local/packs/probe/tasks/probe/task.json" "$work/world.out" \
         || fail "tasks 1: task-declaration-shape did not fail it: $(cat "$work/world.out")"
       rm -r "$member/.claudinite/local"
-      step "tasks 1: tasks list names the two tasks; check world passes, and task-declaration-shape fails a misspelt field"
+      step "tasks 1: check list --tasks names the two tasks; check world passes, and task-declaration-shape fails a misspelt field"
 
       sched run > "$work/sched.out" 2>&1 || fail "tasks 2: schedule run: $(cat "$work/sched.out")"
       [ "$(gh_count 'st.issues.length')" = 0 ] || fail "tasks 2: a quiet repo filed an item: $(gh_state)"
@@ -1277,8 +1277,8 @@ GO
       step "tasks 8: CLAUDINITE_TASKS_SUSPEND_ALL stops both runs before any call"
 
       chain="Claudinite executor chain failed repeatedly"
-      if (cd "$member" && GITHUB_TOKEN=rehearsal-token CLAUDINITE_CONTINUATION_DEPTH=3 .claudinite/bin/cn execute continue) > "$work/cont.out" 2>&1; then
-        fail "tasks 9: execute continue at depth 3 exited zero: $(cat "$work/cont.out")"
+      if (cd "$member" && GITHUB_TOKEN=rehearsal-token CLAUDINITE_CONTINUATION_DEPTH=3 .claudinite/bin/cn execute dispatch --continue) > "$work/cont.out" 2>&1; then
+        fail "tasks 9: execute dispatch --continue at depth 3 exited zero: $(cat "$work/cont.out")"
       fi
       [ "$(issues_titled "$chain")" = 1 ] || fail "tasks 9: no chain-failure issue: $(cat "$work/cont.out")"
       failure="Claudinite scheduler run failed"
@@ -1296,7 +1296,7 @@ GO
       mv "$work/executor.yml" "$member/.github/workflows/claudinite-executor.yml"
       fresh=$work/tasks-init
       mkdir -p "$fresh"
-      (cd "$fresh" && "$npx/.bin/cn" init --packs hello --channel canary --repo "$fresh") > "$work/init.out" 2>&1 \
+      (cd "$fresh" && "$npx/.bin/cn" adopt hello --channel canary --repo "$fresh") > "$work/init.out" 2>&1 \
         || fail "tasks 10: init: $(cat "$work/init.out")"
       for f in claudinite-ci claudinite-scheduler claudinite-executor; do
         [ -f "$fresh/.github/workflows/$f.yml" ] || fail "tasks 10: init wrote no $f.yml"
@@ -1308,8 +1308,8 @@ GO
       sed 's/once a day after any commit/once a day after a commit/' "$work/task.json" > "$decl"
       if cn_member check world > "$work/world.out" 2>&1; then fail "tasks 10: check world passed a stale flat file"; fi
       grep -q "flat-declarations-current" "$work/world.out" || fail "tasks 10: flat-declarations-current did not fail it: $(cat "$work/world.out")"
-      cn_member tasks flat --write > "$work/flat.out" 2>&1 || fail "tasks 10: tasks flat --write: $(cat "$work/flat.out")"
-      cn_member check world > "$work/world.out" 2>&1 || fail "tasks 10: check world after tasks flat --write: $(cat "$work/world.out")"
+      cn_member adopt > "$work/flat.out" 2>&1 || fail "tasks 10: adopt: $(cat "$work/flat.out")"
+      cn_member check world > "$work/world.out" 2>&1 || fail "tasks 10: check world after adopt: $(cat "$work/world.out")"
       step "tasks 10: verify breaks without the executor; init writes three workflows and the three flat files; flat-declarations-current tracks a task edit"
       ;;
     adopt)
@@ -1363,7 +1363,7 @@ GO
         awk '{ print } /^  declared:$/ { print "    - claudinite-lifecycle" }' "$member/.claudinite/settings.yaml" > "$work/settings.yaml" \
           || fail "adopt: declaring claudinite-lifecycle"
         mv "$work/settings.yaml" "$member/.claudinite/settings.yaml"
-        launch rules-index > /dev/null || fail "adopt: rules-index"
+        launch adopt > /dev/null || fail "adopt: adopt"
       }
       stop_hook() { (cd "$member" && printf '{"session_id":"rehearse","hook_event_name":"Stop","stop_hook_active":false}' | CLAUDE_PROJECT_DIR=$member sh -c "$(hook_command Stop)" 2>/dev/null); }
       selftest_member() { launch selftest --repo "$member" > "$work/selftest.out" 2>&1 || fail "adopt $1: selftest --repo: $(cat "$work/selftest.out")"; }
@@ -1382,14 +1382,14 @@ GO
       }
 
       adopt_repo adopt-init
-      (cd "$member" && "$npx/.bin/cn" init --packs hello,hello-asks --channel canary --repo "$member") > "$work/init.out" 2>&1 \
+      (cd "$member" && "$npx/.bin/cn" adopt hello,hello-asks --channel canary --repo "$member") > "$work/init.out" 2>&1 \
         || fail "adopt 1: init exited non-zero with questions pending: $(cat "$work/init.out")"
       expect_blocks 1 "$work/init.out"
       grep -q '^  \[ \] (cn) In the repository.s Settings > Actions > General' "$work/init.out" || fail "adopt 1: no Actions setting row: $(cat "$work/init.out")"
       verify_out=$(launch verify) || fail "adopt 1: verify: $verify_out"
       [ -z "$verify_out" ] || fail "adopt 1: verify reported: $verify_out"
       selftest_member 1
-      step "adopt 1: cn init --packs hello,hello-asks exits 0 with QUESTIONS and HANDOVER, the seed written, HELLO_TOKEN stamped"
+      step "adopt 1: cn adopt hello,hello-asks exits 0 with QUESTIONS and HANDOVER, the seed written, HELLO_TOKEN stamped"
 
       lifecycle_standin
       # Work checks run under a key: the session's request needs the origin.
@@ -1398,17 +1398,17 @@ GO
       session_start > /dev/null || fail "adopt 2: SessionStart"
       out=$(stop_hook)
       case $out in *'"decision":"block"'*adoption-answers-pending*) ;; *) fail "adopt 2: Stop did not block on the pending answer: $out" ;; esac
-      launch settings answer hello-asks/goals "n/a — none wanted" > "$work/answer.out" 2>&1 || fail "adopt 2: settings answer: $(cat "$work/answer.out")"
+      launch adopt --answer "hello-asks/goals=n/a — none wanted" > "$work/answer.out" 2>&1 || fail "adopt 2: adopt --answer: $(cat "$work/answer.out")"
       grep -q '^  declared:$' "$member/.claudinite/settings.yaml" || fail "adopt 2: the answer rewrote the settings: $(cat "$member/.claudinite/settings.yaml")"
       grep -q 'n/a — none wanted' "$member/.claudinite/settings.yaml" || fail "adopt 2: no answer recorded: $(cat "$member/.claudinite/settings.yaml")"
       out=$(stop_hook)
       case $out in *adoption-answers-pending*) fail "adopt 2: Stop still blocks after the answer: $out" ;; esac
       launch check world > "$work/world.out" 2>&1 || fail "adopt 2: check world: $(cat "$work/world.out")"
       selftest_member 2
-      step "adopt 2: adoption-answers-pending blocks Stop until cn settings answer records it; check world is clean"
+      step "adopt 2: adoption-answers-pending blocks Stop until cn adopt --answer records it; check world is clean"
 
       adopt_repo adopt-later
-      (cd "$member" && "$npx/.bin/cn" init --packs hello --channel canary --repo "$member") > "$work/init.out" 2>&1 \
+      (cd "$member" && "$npx/.bin/cn" adopt hello --channel canary --repo "$member") > "$work/init.out" 2>&1 \
         || fail "adopt 3: init: $(cat "$work/init.out")"
       if grep -q '^QUESTIONS' "$work/init.out"; then fail "adopt 3: hello asks nothing, yet: $(cat "$work/init.out")"; fi
       launch adopt hello-asks > "$work/adopt.out" 2>&1 || fail "adopt 3: cn adopt: $(cat "$work/adopt.out")"
@@ -1426,7 +1426,7 @@ GO
       mkdir -p "$dir"
       (cd "$dir" && git init -q -b main && git remote add origin https://github.com/acme/member.git \
         && git config "url.$origin.insteadOf" https://github.com/acme/member.git) || fail "adopt 4: git setup"
-      (cd "$dir" && "$npx/.bin/cn" init --packs hello --channel canary --repo "$dir") > "$work/init.out" 2>&1 \
+      (cd "$dir" && "$npx/.bin/cn" adopt hello --channel canary --repo "$dir") > "$work/init.out" 2>&1 \
         || fail "adopt 4: init: $(cat "$work/init.out")"
       if grep -Eqi "(^|[^a-z])(plan|license)([^a-z]|$)|GitHub App" "$work/init.out"; then fail "adopt 4: init speaks of a plan, a license or the App: $(cat "$work/init.out")"; fi
       if grep -q '^license:' "$dir/.claudinite/settings.yaml"; then fail "adopt 4: init wrote a license block"; fi
@@ -1442,7 +1442,8 @@ GO
       printf '{}\n' > "$work/deprecations.json"
       warm_member growth
       # The packs the steps read, each standing in as its manifest, and
-      # claudinite-growth's logs-prune task as the pack declares it.
+      # claudinite-growth's logs-prune task as the pack declares it, which the
+      # engine's own engine/logs-prune supersedes.
       for p in claudinite-growth claudinite-lifecycle; do
         mkdir -p "$member/.claudinite/shared/packs/$p"
         printf '{\n  "version": "1.0",\n  "minEngineVersion": "%s"\n}\n' "$version" > "$member/.claudinite/shared/packs/$p/pack.json"
@@ -1520,32 +1521,32 @@ YAML
       execute() { (cd "$member" && GITHUB_TOKEN=rehearsal-token CLAUDINITE_NOW=${1:-} .claudinite/bin/cn execute loop) > "$work/exec.out" 2>&1; }
       item() { gh_count 'Math.max(0,...st.issues.filter(i=>i.title==="'"$1"'").map(i=>i.number))'; }
       labels_of() { gh_count 'st.issues.find(i=>i.number==='"$1"').labels.join(" ")'; }
-      prune="[claudinite-work] claudinite-growth/logs-prune"
-      cn_member work create claudinite-growth/logs-prune --qualifier now > "$work/create.out" 2>&1 || fail "growth 5: work create: $(cat "$work/create.out")"
+      prune="[claudinite-work] engine/logs-prune"
+      cn_member work create engine/logs-prune --qualifier now > "$work/create.out" 2>&1 || fail "growth 5: work create: $(cat "$work/create.out")"
       (cd "$member" && GITHUB_OUTPUT=$work/gh-output GITHUB_TOKEN=rehearsal-token .claudinite/bin/cn schedule run) > "$work/sched.out" 2>&1 || fail "growth 5: schedule run: $(cat "$work/sched.out")"
       n=$(item "$prune now")
       execute || fail "growth 5: execute: $(cat "$work/exec.out")"
       case " $(labels_of "$n") " in *" task:status:done "*) fail "growth 5: #$n ran inside retention: $(cat "$work/exec.out")" ;; esac
       [ "$(captures)" = 3 ] || fail "growth 5: a prune inside retention removed files"
       later=$(date -u -d '11 days' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -v+11d +%Y-%m-%dT%H:%M:%SZ)
-      cn_member work create claudinite-growth/logs-prune --qualifier later > "$work/create.out" 2>&1 || fail "growth 5: work create: $(cat "$work/create.out")"
+      cn_member work create engine/logs-prune --qualifier later > "$work/create.out" 2>&1 || fail "growth 5: work create: $(cat "$work/create.out")"
       n=$(item "$prune later")
       execute "$later" || fail "growth 5: execute 11 days on: $(cat "$work/exec.out")"
       case " $(labels_of "$n") " in *" task:status:done "*) ;; *) fail "growth 5: 11 days on, #$n is $(labels_of "$n"): $(cat "$work/exec.out")" ;; esac
       [ "$(captures)" = 0 ] || fail "growth 5: the prune left $(git --git-dir "$origin" ls-tree --name-only conversation-logs)"
       git --git-dir "$origin" ls-tree --name-only conversation-logs | grep -qx README.md || fail "growth 5: the prune removed the README"
-      step "growth 5: logs-prune declined inside retention; 11 days on cn growth prune removed the three captures and kept the README"
+      step "growth 5: logs-prune declined inside retention; 11 days on the engine's prune removed the three captures and kept the README"
 
-      cn_member pack new acme --belongs "acme's own conventions" > "$work/pack.out" 2>&1 || fail "growth 6: pack new: $(cat "$work/pack.out")"
-      grep -q "^declared local/acme in .claudinite/settings.yaml$" "$work/pack.out" || fail "growth 6: pack new said $(cat "$work/pack.out")"
-      grep -q "^wrote .claudinite/cache/claudinite-rules.GENERATED.md$" "$work/pack.out" || fail "growth 6: pack new did not converge the rules index: $(cat "$work/pack.out")"
+      cn_member adopt local/acme --belongs "acme's own conventions" > "$work/pack.out" 2>&1 || fail "growth 6: adopt local/acme: $(cat "$work/pack.out")"
+      grep -q "^declared local/acme in .claudinite/settings.yaml$" "$work/pack.out" || fail "growth 6: adopt local/acme said $(cat "$work/pack.out")"
+      grep -q "^wrote .claudinite/cache/claudinite-rules.GENERATED.md$" "$work/pack.out" || fail "growth 6: adopt local/acme did not converge the rules index: $(cat "$work/pack.out")"
       verify_out=$(cd "$member" && .claudinite/bin/cn verify) || fail "growth 6: verify: $verify_out"
       [ -z "$verify_out" ] || fail "growth 6: verify reported: $verify_out"
       cn_member provenance check acme > "$work/prov.out" 2>&1 || fail "growth 6: provenance check: $(cat "$work/prov.out")"
       printf '## %s · scope-changed · acme owns its widgets\n- **Reason:** the first lesson landed.\n- **Actor:** @rehearse (owner).\n- **Mechanism:** the pack manifest.\n' "$(date -u +%Y-%m-%d)" \
         | cn_member provenance append acme _pack > "$work/prov.out" 2>&1 || fail "growth 6: provenance append: $(cat "$work/prov.out")"
       grep -q 'scope-changed · acme owns its widgets' "$member/.claudinite/local/packs/acme/provenance/_pack.md" || fail "growth 6: the entry is not in the file"
-      step "growth 6: cn pack new declared local/acme and wrote the rules index; verify and cn provenance check are clean; append wrote the entry"
+      step "growth 6: cn adopt local/acme declared local/acme and wrote the rules index; verify and cn provenance check are clean; append wrote the entry"
       ;;
     dashboard)
       step "dashboard: a member declaring claudinite-single-repo-dashboard in YAML, then publishing its pages"
@@ -1560,7 +1561,7 @@ YAML
       item() { gh_count 'Math.max(0,...st.issues.filter(i=>i.title==="'"$1"'").map(i=>i.number))'; }
       labels_of() { gh_count 'st.issues.find(i=>i.number==='"$1"').labels.join(" ")'; }
 
-      cn_member rules-index > "$work/index.out" 2>&1 || fail "dashboard 1: rules-index: $(cat "$work/index.out")"
+      cn_member adopt > "$work/index.out" 2>&1 || fail "dashboard 1: adopt: $(cat "$work/index.out")"
       for f in tasks member; do
         [ -f "$flat/$f.GENERATED.json" ] || fail "dashboard 1: no $f.GENERATED.json: $(cat "$work/index.out")"
       done
@@ -1571,16 +1572,14 @@ YAML
         || fail "dashboard 1: the member file's pin is $(json "$flat/member.GENERATED.json" 'JSON.stringify(st.engine)')"
       [ "$(json "$flat/member.GENERATED.json" 'JSON.stringify(st.held)+" "+st.packs.declared.map(e=>e.id).join(",")+" "+st.dormant')" = '{"claudinite-single-repo-dashboard":"1.0"} claudinite-single-repo-dashboard,local/acme false' ] \
         || fail "dashboard 1: the member file: $(cat "$flat/member.GENERATED.json")"
-      step "dashboard 1: rules-index wrote the task and member files and deleted the retired dashboard file; member.GENERATED.json names the YAML path, the pin and the held versions"
+      step "dashboard 1: adopt wrote the task and member files and deleted the retired dashboard file; member.GENERATED.json names the YAML path, the pin and the held versions"
 
-      cn_member tasks flat --check > "$work/flat.out" 2>&1 || fail "dashboard 2: a fresh tree is stale: $(cat "$work/flat.out")"
+      [ "$(json "$flat/member.GENERATED.json" 'st.packs.declared[0].config.defaultRepo')" = acme/member ] || fail "dashboard 2: the member file does not hold the declared config"
       sed 's|        defaultRepo: "acme/member"|        defaultRepo: "acme/other"|' "$member/.claudinite/settings.yaml" > "$work/settings.yaml" && mv "$work/settings.yaml" "$member/.claudinite/settings.yaml"
-      if cn_member tasks flat --check > "$work/flat.out" 2>&1; then fail "dashboard 2: --check passed a moved declaration"; fi
-      grep -q 'member.GENERATED.json' "$work/flat.out" || fail "dashboard 2: --check names no member file: $(cat "$work/flat.out")"
-      cn_member tasks flat --write > "$work/flat.out" 2>&1 || fail "dashboard 2: --write: $(cat "$work/flat.out")"
-      cn_member tasks flat --check > "$work/flat.out" 2>&1 || fail "dashboard 2: stale after --write: $(cat "$work/flat.out")"
+      cn_member adopt > "$work/flat.out" 2>&1 || fail "dashboard 2: adopt: $(cat "$work/flat.out")"
+      grep -q 'member.GENERATED.json' "$work/flat.out" || fail "dashboard 2: adopt names no member file: $(cat "$work/flat.out")"
       [ "$(json "$flat/member.GENERATED.json" 'st.packs.declared[0].config.defaultRepo')" = acme/other ] || fail "dashboard 2: the member file kept the old config"
-      step "dashboard 2: tasks flat --check exits 1 once the declaration moves and 0 after --write"
+      step "dashboard 2: cn adopt rewrites the member file once the declaration moves"
 
       sed 's|        defaultRepo: "acme/other"|        defaultRepo: "acme/member"|' "$member/.claudinite/settings.yaml" > "$work/settings.yaml" && mv "$work/settings.yaml" "$member/.claudinite/settings.yaml"
       origin=$work/dashboard-origin.git
@@ -1608,7 +1607,7 @@ YAML
       (cd "$CLAUDINITE_PACKS_TREE/packs/claudinite-single-repo-dashboard" && tar cf - --exclude=./test .) | (cd "$dash" && tar xf -) || fail "dashboard 3: copying the pack"
       node -e 'const fs=require("fs");const m=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));m.githubActions=["dispatchWorkflow"];fs.writeFileSync(process.argv[2],JSON.stringify(m,null,2)+"\n")' \
         "$work/pack.json" "$dash/pack.json" || fail "dashboard 3: the manifest"
-      cn_member tasks flat --write > "$work/flat.out" 2>&1 || fail "dashboard 3: tasks flat --write: $(cat "$work/flat.out")"
+      cn_member adopt > "$work/flat.out" 2>&1 || fail "dashboard 3: adopt: $(cat "$work/flat.out")"
       [ "$(json "$member/.claudinite/cache/member.GENERATED.json" 'JSON.stringify(st.packs.declared.find(e=>e.id==="claudinite-single-repo-dashboard").config)')" = '{"defaultRepo":"acme/member"}' ] \
         || fail "dashboard 3: the member file: $(cat "$member/.claudinite/cache/member.GENERATED.json")"
       (cd "$member" && git add -A && git -c user.name=rehearse -c user.email=r@x -c commit.gpgsign=false commit -q -m "the dashboard pack" \
@@ -1667,7 +1666,7 @@ YAML
       mkdir -p "$member" "$member-home" "$member-cache"
       HOME=$member-home XDG_CACHE_HOME=$member-cache
       export HOME XDG_CACHE_HOME
-      (cd "$member" && "$npx/.bin/cn" init --packs "$(echo "$live_packs" | tr ' ' ,)" --channel canary --repo "$member") \
+      (cd "$member" && "$npx/.bin/cn" adopt "$(echo "$live_packs" | tr ' ' ,)" --channel canary --repo "$member") \
         > "$work/init.out" 2>&1 || fail "live-packs 1: init: $(cat "$work/init.out")"
       for p in $live_packs; do
         grep -q "$p: index serial [0-9]* from cdn" "$work/init.out" || fail "live-packs 1: $p was not read from the CDN: $(cat "$work/init.out")"
@@ -1684,7 +1683,7 @@ YAML
       github_origin "$origin"
       (cd "$member" && git -c push.negotiate=false push -q origin main) || fail "live-packs 1: push"
       n=$(find "$member/.claudinite/shared/packs" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')
-      step "live-packs 1: cn init through npx vendored $n packs from the CDN, each against its signed index, every version in the live catalog"
+      step "live-packs 1: cn adopt through npx vendored $n packs from the CDN, each against its signed index, every version in the live catalog"
 
       out=$(session_start) || fail "live-packs 2: SessionStart exited non-zero"
       case $out in *"[cn] packs $n/$n loaded"*) ;; *) fail "live-packs 2: self-check line: $out" ;; esac

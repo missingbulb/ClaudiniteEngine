@@ -115,7 +115,7 @@ func pendingLine(set packset.Set) string {
 	if len(ids) == 0 {
 		return ""
 	}
-	return "[cn] adoption questions pending (" + strings.Join(ids, ", ") + "): in an interactive session, at a natural moment, ask the person and record each with cn settings answer; an unattended session ignores this"
+	return "[cn] adoption questions pending (" + strings.Join(ids, ", ") + "): in an interactive session, at a natural moment, ask the person and record each with cn adopt --answer <pack>/<question>=<answer>; an unattended session ignores this"
 }
 
 // hasJSChecks reports whether a pack ships the Node engine's coded

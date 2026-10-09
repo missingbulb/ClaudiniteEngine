@@ -6,8 +6,8 @@
 // declaration, pin and held versions in. Each entry carries the source's parsed value as written (no
 // defaults, no normalisation) and the path it was read from; a file that
 // does not parse carries its text. Session-copied packs are left out. The
-// bytes match the Node engine's generate-flat-declarations.mjs at
-// missingbulb/Claudinite@057841ac for the same packs.
+// bytes match the Node engine's generate-flat-declarations.mjs
+// for the same packs.
 package flatdecl
 
 import (

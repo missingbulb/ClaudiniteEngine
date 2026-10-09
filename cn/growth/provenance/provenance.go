@@ -1,8 +1,8 @@
 // Package provenance reads a pack's decision log, read-only: the file
 // grammar, the marker that binds a prose rule to its file, how a pack's
 // carriers are enumerated and which file each names, and the audit an
-// integrity check judges. It is the Node engine's provenance helper at
-// missingbulb/Claudinite@057841ac (engine/checks/helpers/provenance.mjs)
+// integrity check judges. It is the Node engine's provenance helper
+// (engine/checks/helpers/provenance.mjs)
 // without its writers: the file grammar is spelled once, here, and
 // nothing below carries a check's failure text.
 //

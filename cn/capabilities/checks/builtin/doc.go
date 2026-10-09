@@ -3,7 +3,7 @@
 // declared.LoadSet takes only where that pack is declared, one file per
 // check. All returns them; the checks Service hands them to LoadSet.
 //
-// Each is a port of the Node rule at missingbulb/Claudinite@057841ac,
+// Each is a port of the Node rule,
 // keeping its id, on_fail, since, why, doc and finding text:
 //
 //	shared-tree-immutable       claudinite-lifecycle  packs/claudinite-lifecycle/workRules/shared-tree-immutable.mjs

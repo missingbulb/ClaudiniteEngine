@@ -200,13 +200,13 @@ func checkLauncher(in Input) []findings.Finding {
 			return nil
 		}
 	}
-	return []findings.Finding{brk("launcher", ".claudinite/launch", "the launcher is not one a Claudinite release shipped; only the update and cn init write it, so restore it unchanged")}
+	return []findings.Finding{brk("launcher", ".claudinite/launch", "the launcher is not one a Claudinite release shipped; only the update and cn adopt write it, so restore it unchanged")}
 }
 
 // HookWiring is one hook event and the command a member wires to it.
 type HookWiring struct{ Event, Command string }
 
-// Hooks are the wirings the member fixture and cn init write.
+// Hooks are the wirings the member fixture and cn adopt write.
 var Hooks = []HookWiring{
 	{"SessionStart", `sh "$CLAUDE_PROJECT_DIR/.claudinite/launch" hook session-start`},
 	{"PreToolUse", ".claudinite/bin/cn hook pre-tool-use"},
@@ -604,7 +604,7 @@ func checkSkillsIndex(in Input) []findings.Finding {
 	if len(held) == 0 {
 		return nil
 	}
-	const fix = "run `cn rules-index` and commit it"
+	const fix = "run `cn adopt` and commit it"
 	file := flatdecl.HeldIn(in.Repo, rulesindex.SkillsFile)
 	text, err := os.ReadFile(filepath.Join(in.Repo, filepath.FromSlash(file)))
 	if err != nil {
@@ -630,7 +630,7 @@ func checkRulesIndex(in Input) []findings.Finding {
 	}
 	var out []findings.Finding
 	if rulesindex.NeedsMove(in.Repo) {
-		const move = "; the next pack update moves them and repoints the import, or run `cn rules-index` and commit the result"
+		const move = "; the next pack update moves them and repoints the import, or run `cn adopt` and commit the result"
 		if st, err := os.Stat(filepath.Join(in.Repo, filepath.FromSlash(flatdecl.LegacyDir))); err == nil && st.IsDir() {
 			out = append(out, dep("rules-index-current", flatdecl.LegacyDir, "holds the files cn generates at their directory from before "+flatdecl.Dir+"/, which nothing writes any more"+move))
 		} else {
@@ -641,9 +641,9 @@ func checkRulesIndex(in Input) []findings.Finding {
 	switch {
 	case err != nil:
 	case st == rulesindex.Stale:
-		out = append(out, brk("rules-index-current", flatdecl.HeldIn(in.Repo, rulesindex.File), "is not the import index the declared packs produce, so sessions read another set of rules; run `cn rules-index` and commit it"))
+		out = append(out, brk("rules-index-current", flatdecl.HeldIn(in.Repo, rulesindex.File), "is not the import index the declared packs produce, so sessions read another set of rules; run `cn adopt` and commit it"))
 	case st == rulesindex.Absent:
-		out = append(out, dep("rules-index-current", rulesindex.File, "is missing, so no session reads the declared packs' rules; run `cn rules-index` and commit it"))
+		out = append(out, dep("rules-index-current", rulesindex.File, "is missing, so no session reads the declared packs' rules; run `cn adopt` and commit it"))
 	}
 	return out
 }

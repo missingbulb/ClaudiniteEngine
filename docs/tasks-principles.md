@@ -9,10 +9,9 @@ This file is the Node-era record of the claudinite-tasks pack, kept for what `ta
 alternatives under each claim and the list of what no test can reach. Every claim below is
 *Y happens when Z*, and ends with the Node test that proved it when the runner was this pack's: a
 scenario's first word (`S13'`, `S59`) from
-[`test/sim/scenarios.test.mjs`](https://github.com/missingbulb/Claudinite/blob/057841ac43de1f90b821f7a57e0f3d21eb6ff0e7/packs/claudinite-tasks/test/sim/scenarios.test.mjs), or `<test file>: <test
+`test/sim/scenarios.test.mjs`, or `<test file>: <test
 title>` from the Node unit suite. Both suites, and the two-way guard that held this file to them
-([`test/sim/coverage.test.mjs`](https://github.com/missingbulb/Claudinite/blob/057841ac43de1f90b821f7a57e0f3d21eb6ff0e7/packs/claudinite-tasks/test/sim/coverage.test.mjs)), are frozen at
-missingbulb/Claudinite@057841ac; the scenario harness was ported to the engine's `tasks/sim`. Claims are
+(`test/sim/coverage.test.mjs`), were retired with the Node engine; the scenario harness was ported to the engine's `tasks/sim`. Claims are
 grouped by role — schedule, execute, session, deliver, recover, requests, cost, contract.
 
 ## Schedule
@@ -538,9 +537,9 @@ a place a bug could live that nothing here catches; what would make it
 verifiable is named beside it.
 
 The fake's own limitations are stated in the header of the module that owns
-them ([`packs/claudinite-tasks/test/sim/world/`](https://github.com/missingbulb/Claudinite/tree/057841ac43de1f90b821f7a57e0f3d21eb6ff0e7/packs/claudinite-tasks/test/sim/world)), and the behaviours it DOES
+them (`packs/claudinite-tasks/test/sim/world/`), and the behaviours it DOES
 model are proven in
-[`packs/claudinite-tasks/test/sim/world/world.test.mjs`](https://github.com/missingbulb/Claudinite/blob/057841ac43de1f90b821f7a57e0f3d21eb6ff0e7/packs/claudinite-tasks/test/sim/world/world.test.mjs) rather
+`packs/claudinite-tasks/test/sim/world/world.test.mjs` rather
 than assumed — the strictly-increasing comment ids that claim arbitration
 rests on, the one-second timestamp granularity that makes them necessary, a
 torn label swap, a rate limit, a stale listing, a dropped `labeled` webhook, a

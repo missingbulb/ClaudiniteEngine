@@ -67,7 +67,7 @@ func TestTheBriefNamesAnEngineCarriedCheck(t *testing.T) {
 			t.Fatalf("git %v: %v %s", args, err, out)
 		}
 	}
-	code, stdout, stderr := run(root, "", "brief", "acme-engine")
+	code, stdout, stderr := run(root, "", "backfill", "acme-engine")
 	if code != 0 {
 		t.Fatalf("exit %d, stderr %q", code, stderr)
 	}

@@ -372,7 +372,7 @@ func TestSessionStartNamesPendingQuestions(t *testing.T) {
 	asks := map[string]string{"pack.json": `{"version": "1.0", "questions": [{"id": "goals", "prompt": "Why?"}]}`}
 	repo := member(t, []string{"asks"}, map[string]map[string]string{"asks": asks})
 	out, _ := hook(t, Handler{ProjectDir: repo}, "session-start", startIn)
-	want := "[cn] adoption questions pending (asks/goals): in an interactive session, at a natural moment, ask the person and record each with cn settings answer; an unattended session ignores this\n"
+	want := "[cn] adoption questions pending (asks/goals): in an interactive session, at a natural moment, ask the person and record each with cn adopt --answer <pack>/<question>=<answer>; an unattended session ignores this\n"
 	if ctx := contextOf(t, out); !strings.Contains(ctx, want) {
 		t.Errorf("no pending line:\n%s", ctx)
 	}

@@ -148,7 +148,7 @@ func cmdCheck(args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 	if *tag == "" && *pack == "" {
-		return report.New(report.Usage, "check takes world, list, build, sdk, --tag TAG or --pack ID")
+		return report.New(report.Usage, "check takes world, list, sdk, --tag TAG or --pack ID")
 	}
 	var tags []string
 	if *tag != "" {
@@ -199,12 +199,16 @@ func selected(l checks.Listed, tags []string, pack string) bool {
 
 // cmdCheckList prints every check the repo declares, declared, built in
 // coded and judge, sorted by id: name, kind, tags, on_fail and, where the
-// check has one, since.
+// check has one, since. With --tasks it lists the tasks instead.
 func cmdCheckList(args []string, stdout io.Writer) error {
 	fs := flag.NewFlagSet("check list", flag.ContinueOnError)
 	repo := fs.String("repo", ".", "")
+	tasks := fs.Bool("tasks", false, "")
 	if err := flags(fs, args); err != nil {
 		return err
+	}
+	if *tasks {
+		return listTasks(*repo, stdout)
 	}
 	listed, err := checksService().ListAll(*repo, buildWait)
 	if err != nil {

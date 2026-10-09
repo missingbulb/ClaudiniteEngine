@@ -64,7 +64,7 @@ func born(r Request) string {
 	return verbs.Render(verbs.Entry{Date: r.Now.UTC().Format("2006-01-02"), Kind: "born", Title: "the local pack " + r.Name,
 		Fields: []verbs.Field{
 			{Name: "Reason", Value: reason + "."},
-			{Name: "Actor", Value: "whoever ran `cn pack new " + r.Name + "`."},
+			{Name: "Actor", Value: "whoever ran `cn adopt local/" + r.Name + "`."},
 			{Name: "Mechanism", Value: "the pack manifest."},
 		}})
 }

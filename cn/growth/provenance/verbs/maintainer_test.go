@@ -27,20 +27,6 @@ func TestReduceTextDropsOnlyALongQuoteStandingAlone(t *testing.T) {
 	}
 }
 
-func TestSplitReaffirmationAndRelinked(t *testing.T) {
-	reason, retire := splitReaffirmation("Shipped twice. Retire when tags are automatic. Revisit yearly.")
-	if reason != "Shipped twice." || retire != "Retire when tags are automatic. Revisit yearly." {
-		t.Errorf("split = %q / %q", reason, retire)
-	}
-	if reason, retire = splitReaffirmation("e.g. retire it. not a capital"); retire != "" || reason != "e.g. retire it. not a capital" {
-		t.Errorf("a lower-case sentence stays in the reason, got %q / %q", reason, retire)
-	}
-	got := relinked("[a](docs/x.md) [b](https://x.y) [c](#top) [d](/abs)")
-	if want := "[a](../docs/x.md) [b](https://x.y) [c](#top) [d](/abs)"; got != want {
-		t.Errorf("relinked = %q, want %q", got, want)
-	}
-}
-
 func TestApplyTwiceWritesNothingTheSecondTime(t *testing.T) {
 	io := NewOverlay(Checkout{Root: t.TempDir()})
 	file := "packs/acme/provenance/writing-widget.md"

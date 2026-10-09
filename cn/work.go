@@ -16,18 +16,14 @@ import (
 
 func cmdWork(args []string, stdout io.Writer) error {
 	if len(args) == 0 {
-		return report.New(report.Usage, "work takes create, wake, converge, record-exec or validate")
+		return report.New(report.Usage, "work takes create, converge or validate")
 	}
 	env := world.Env(os.Getenv)
 	switch args[0] {
 	case "create":
 		return cmdWorkCreate(args[1:], stdout, env)
-	case "wake":
-		return cmdWorkWake(args[1:], stdout, env)
 	case "converge":
 		return cmdWorkConverge(args[1:], stdout)
-	case "record-exec":
-		return cmdWorkRecordExec(args[1:], stdout)
 	case "validate":
 		return cmdWorkValidate(args[1:], stdout)
 	}
@@ -114,37 +110,4 @@ func cmdWorkCreate(args []string, stdout io.Writer, env world.Env) error {
 		return nil
 	}
 	return report.New(report.Verify, fmt.Sprintf("no task %q in this repo's declared packs", target))
-}
-
-func cmdWorkWake(args []string, stdout io.Writer, env world.Env) error {
-	fs := flag.NewFlagSet("work wake", flag.ContinueOnError)
-	urgent := fs.Bool("urgent", false, "")
-	ref, rest := "", args
-	if len(rest) > 0 && !strings.HasPrefix(rest[0], "-") {
-		ref, rest = rest[0], rest[1:]
-	}
-	if err := flags(fs, rest); err != nil {
-		return err
-	}
-	n, err := issueRef(ref)
-	if err != nil {
-		return err
-	}
-	clock, err := env.Clock()
-	if err != nil {
-		return report.New(report.Usage, err.Error())
-	}
-	client, err := jobClient(env)
-	if err != nil {
-		return err
-	}
-	if err := items.Wake(ghport.New(client), n, *urgent, clock.Now()); err != nil {
-		return report.New(report.IO, err.Error())
-	}
-	suffix := ""
-	if *urgent {
-		suffix = " (urgent)"
-	}
-	fmt.Fprintf(stdout, "woke #%d%s\n", n, suffix)
-	return nil
 }

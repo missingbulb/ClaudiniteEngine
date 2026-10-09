@@ -11,6 +11,6 @@
     "rolling-usage-files",
     "rolling-usage-file-moves"
   ],
-  "code_work": "cn usage fold",
+  "code_work": "in-process: usage fold",
   "code_work_timeout": 600
 }

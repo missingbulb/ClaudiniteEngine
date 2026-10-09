@@ -1,11 +1,9 @@
 package main
 
 import (
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/capabilities/tasks/taskspec"
@@ -52,13 +50,5 @@ func TestTheUsageFoldsCommitsCarryTheTaskAndItsAutomerge(t *testing.T) {
 	}
 	if got := usageFoldTrailers(nil); got != "Claudinite-Task: engine/usage-fold" {
 		t.Errorf("no declaration to read: %q", got)
-	}
-}
-
-func TestUsageTakesOnlyFold(t *testing.T) {
-	for _, args := range [][]string{nil, {"census"}} {
-		if err := cmdUsage(args, io.Discard); err == nil || !strings.Contains(err.Error(), "usage takes fold") {
-			t.Errorf("%v: %v", args, err)
-		}
 	}
 }

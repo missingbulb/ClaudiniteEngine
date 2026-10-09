@@ -9,53 +9,14 @@ import (
 	"strings"
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/helpers/report"
-	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/adopt"
 	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/settings"
-	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/version"
 )
 
 func cmdSettings(args []string, stdout io.Writer) error {
-	if len(args) > 0 && args[0] == "answer" {
-		return cmdSettingsAnswer(args[1:], stdout)
-	}
 	if len(args) > 0 && args[0] == "config" {
 		return cmdSettingsConfig(args[1:], stdout)
 	}
-	return report.New(report.Usage, "settings takes answer or config")
-}
-
-// cmdSettingsAnswer is cn settings answer <pack>/<question> [--] <text>.
-// The two positionals come first; after a `--` the next ones are taken as
-// they are, so a text may start with a dash.
-func cmdSettingsAnswer(args []string, stdout io.Writer) error {
-	var pos []string
-	for len(args) > 0 && len(pos) < 2 {
-		if args[0] == "--" {
-			args = args[1:]
-			for len(args) > 0 && len(pos) < 2 {
-				pos, args = append(pos, args[0]), args[1:]
-			}
-			break
-		}
-		if strings.HasPrefix(args[0], "-") {
-			break
-		}
-		pos, args = append(pos, args[0]), args[1:]
-	}
-	fs := flag.NewFlagSet("settings answer", flag.ContinueOnError)
-	repo := fs.String("repo", ".", "")
-	if err := flags(fs, args); err != nil {
-		return err
-	}
-	if len(pos) != 2 {
-		return report.New(report.Usage, "settings answer takes <pack>/<question> [--] <text>")
-	}
-	file, err := adopt.Answer(*repo, version.Version(), pos[0], pos[1])
-	if err != nil {
-		return report.Wrap(report.Verify, "settings answer", err)
-	}
-	fmt.Fprintf(stdout, "answered %s in %s\n", pos[0], file)
-	return nil
+	return report.New(report.Usage, "settings takes config")
 }
 
 // cmdSettingsConfig is `cn settings config <pack>`: the declared entry's

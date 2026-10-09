@@ -8,7 +8,7 @@
 // A list is a union, `&&` is the one narrowing operator, `reject:<name>`
 // vetoes, `under:<dir>` scopes to a folder, and an unknown name fails
 // closed. The built-in classes and the composite are string-identical with
-// the Node engine's merge-policy.mjs at missingbulb/Claudinite@057841ac,
+// the Node engine's merge-policy.mjs,
 // but for the engine-update and usage-fold classes, which that engine has
 // no counterpart of; a pack adds its own as data in merge-rules.json (or
 // .yaml, .toml). Under a list policy the files that define policies are

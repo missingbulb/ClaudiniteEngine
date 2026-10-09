@@ -1,8 +1,7 @@
 // Package provenance is the provenance verbs over the convention's reader
 // (growth/provenance): mark a pack onto it, append an entry, check a
 // pack, read one element's history, write and apply a backfill brief,
-// convert a retired references doc, and reduce a file for promotion
-// across a repository boundary.
+// and reduce a file for promotion across a repository boundary.
 package verbs
 
 import (
@@ -232,7 +231,7 @@ func Check(io WriteIO, git gitcmd.Repo, packs []string) ([]string, int) {
 			fault(e.File, e.Line, e.What)
 		}
 		if doc := pack + "/references.md"; io.Exists(doc) {
-			fault(doc, 0, "a references.md still exists - convert-references retires it")
+			fault(doc, 0, "a references.md still exists - move its entries onto the provenance files and delete it")
 		}
 		if shallow {
 			for _, f := range files {
@@ -564,9 +563,9 @@ const Usage = `usage: cn provenance <command> …
   check <pack>|--all                     what each file is named by, and every fault
   append <pack> <element> [--kind K] [--date D] [--changed] [--backfill] < entry.md
   history <pack> <element>               one element's raw evidence from git, VERSIONS.md and the README
-  brief <pack> [<element>…]              the backfill brief: every pull request once, a draft entry per event
-  apply <pack> <brief.md> [--backfill]   every entry fence of an edited brief, as one batch
-  convert-references <pack>|--all        a references.md turned into entries, then deleted
+  backfill <pack> [<element>…]           the backfill brief: every pull request once, a draft entry per event
+  backfill <pack> --apply <brief.md> [--backfill]
+                                         every entry fence of an edited brief, as one batch
   reduce <file> [--public]               a provenance file as it may cross into the canon
   --backfill                             the backfill's lane: entries dated in the past, written in
                                          date order over the file, creating one the marking pass
@@ -581,7 +580,7 @@ func Main(args []string, root string, stdin io.Reader, stdout, stderr io.Writer)
 		return 2
 	}
 	command, rest := args[0], args[1:]
-	valued := map[string]bool{"--kind": true, "--date": true, "--repo": true}
+	valued := map[string]bool{"--kind": true, "--date": true, "--repo": true, "--apply": true}
 	flags := map[string]bool{}
 	values := map[string]string{}
 	var positional []string
@@ -700,30 +699,16 @@ func Main(args []string, root string, stdin io.Reader, stdout, stderr io.Writer)
 		}
 		fmt.Fprint(stdout, ReduceFile(text, flags["--public"]))
 		return 0
-	case "convert-references":
+	case "backfill":
 		packs := packsFor()
 		if packs == nil {
 			return 2
 		}
-		var lines []string
-		for _, p := range packs {
-			lines = append(lines, ConvertReferences(p, io, ReferenceDates(git, p+"/"+ReferencesDoc), Today())...)
+		if values["--apply"] == "" {
+			print(Brief(io, git, packs[0], positional[1:]))
+			return 0
 		}
-		if len(lines) == 0 {
-			lines = []string{"no references.md to convert"}
-		}
-		print(lines)
-		return 0
-	case "apply":
-		packs := packsFor()
-		if packs == nil {
-			return 2
-		}
-		if len(positional) < 2 {
-			fmt.Fprintln(stderr, "apply needs the brief file")
-			return 2
-		}
-		brief := positional[1]
+		brief := values["--apply"]
 		if !filepath.IsAbs(brief) {
 			brief = filepath.Join(root, brief)
 		}
@@ -776,13 +761,6 @@ func Main(args []string, root string, stdin io.Reader, stdout, stderr io.Writer)
 			return 2
 		}
 		print(History(io, git, packs[0], positional[1]))
-		return 0
-	case "brief":
-		packs := packsFor()
-		if packs == nil {
-			return 2
-		}
-		print(Brief(io, git, packs[0], positional[1:]))
 		return 0
 	}
 	fmt.Fprintln(stderr, Usage)

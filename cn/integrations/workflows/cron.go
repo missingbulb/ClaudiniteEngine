@@ -36,7 +36,7 @@ func SchedulerCron(fullName string) string {
 	return fmt.Sprintf("%d %d,%d * * *", minuteMin+h%minuteBand, anchor, anchor+anchorHours)
 }
 
-// ForRepo is the templates as cn init writes them for fullName: the
+// ForRepo is the templates as cn adopt writes them for fullName: the
 // scheduler's placeholder cron rewritten to the repo's own.
 func ForRepo(fullName string) map[string][]byte {
 	out := Templates()

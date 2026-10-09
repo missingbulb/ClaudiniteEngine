@@ -10,7 +10,7 @@
 // item's grammar capabilities/tasks/workitem, the merge policy capabilities/tasks/mergepolicy.
 //
 // The claims below are the mechanism's, carried over from the Node pack's
-// docs/PRINCIPLES.md at missingbulb/Claudinite@057841ac: each is "Y happens
+// docs/PRINCIPLES.md: each is "Y happens
 // when Z" and names the Go tests that prove it. The guard in doc_test.go
 // keeps this honest both ways: every citation names a test that exists,
 // and every test of the two scenario suites (schedule's run_test.go,

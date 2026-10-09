@@ -112,7 +112,7 @@ func TestTemplates(t *testing.T) {
 		}
 	}
 	sched := string(tpl["claudinite-scheduler.yml"])
-	for _, w := range []string{"schedule:", "cron: \"" + CronPlaceholder + "\"", "wake:", "group: claudinite-scheduler-run", "cn schedule run", "cn schedule drain", "cn schedule report-failure",
+	for _, w := range []string{"schedule:", "cron: \"" + CronPlaceholder + "\"", "wake:", "group: claudinite-scheduler-run", "cn schedule run", "cn execute dispatch", "cn schedule report-failure",
 		"CLAUDINITE_WAKE: ${{ inputs.wake }}", "CLAUDINITE_VARS: ${{ toJSON(vars) }}", "pickable", fleetToken} {
 		if !strings.Contains(sched, w) {
 			t.Errorf("claudinite-scheduler.yml lacks %q", w)
@@ -123,7 +123,7 @@ func TestTemplates(t *testing.T) {
 	}
 	exe := string(tpl["claudinite-executor.yml"])
 	for _, w := range []string{"types: [labeled]", "continuation_depth:", "timeout-minutes: 350", "CLAUDINITE_VARS: ${{ toJSON(vars) }}",
-		"CCR_ROUTINE_TOKEN: ${{ secrets.CCR_ROUTINE_TOKEN }}", SecretsMarker, "cn execute loop", "cn execute continue",
+		"CCR_ROUTINE_TOKEN: ${{ secrets.CCR_ROUTINE_TOKEN }}", SecretsMarker, "cn execute loop", "cn execute dispatch --continue",
 		"CLAUDINITE_CONTINUATION_DEPTH: ${{ inputs.continuation_depth }}", "task:status:waiting-for-executor"} {
 		if !strings.Contains(exe, w) {
 			t.Errorf("claudinite-executor.yml lacks %q", w)

@@ -6,7 +6,7 @@ import (
 )
 
 // The cases are the growth pack's own, from test/provenance-integrity.
-// test.mjs at missingbulb/Claudinite@057841ac.
+// test.mjs.
 
 const pk = ".claudinite/local/packs/mypack/"
 

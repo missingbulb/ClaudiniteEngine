@@ -62,7 +62,7 @@ func updateDepsWith(repo, token string, stdout io.Writer) (update.Deps, error) {
 
 // localDeps are the updater's dependencies but GitHub's: the registry, the
 // trust roots and git over repo, whose remote token may be empty. The
-// repo's owner/name is read as cn init reads it.
+// repo's owner/name is read as cn adopt reads it.
 func localDeps(repo, token string, stdout io.Writer) (update.Deps, error) {
 	reg, err := npmreg.FromEnv()
 	if err != nil {
