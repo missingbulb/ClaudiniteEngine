@@ -19,7 +19,6 @@ var writers = map[string]string{
 	"fleet.FireScheduler":        "member: a workflow dispatch on its own scheduler",
 	"fleet.EnsureLabel":          "manager, or a member's work-list label",
 	"fleet.PutFile":              "member: the one write into its tree, a sha-guarded Contents PUT",
-	"roster.ConvergeAdoption":    "manager",
 	"update.Force":               "member: through FireScheduler",
 	"addpacks.Remark":            "member: its work-list issue's mark, body and status labels",
 	"addpacks.openIssue":         "member: a marked work-list issue",

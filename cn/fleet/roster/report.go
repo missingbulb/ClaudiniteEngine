@@ -24,18 +24,15 @@ func list(head string, items []string, sep string) string {
 
 // RenderCoverage is the coverage section, naming every repository: each
 // lands in one list, and the manager is named as not censused.
-func RenderCoverage(owner, home string, c Coverage, actions []string) string {
+func RenderCoverage(owner, home string, c Coverage) string {
 	covered := "**Covered:** none"
 	if len(c.Covered) > 0 {
 		covered = "**Covered:** " + strings.Join(c.Covered, ", ")
 	}
-	uncovered := "**Uncovered:** none 🎉"
+	uncovered := "**Outside the fleet:** none 🎉"
 	if len(c.Uncovered) > 0 {
-		uncovered = "**Uncovered (adoption issue open):** " + strings.Join(c.Uncovered, ", ")
-	}
-	acts := "**Issue actions:** none (converged)"
-	if len(actions) > 0 {
-		acts = "**Issue actions:** " + strings.Join(actions, "; ")
+		uncovered = "**Outside the fleet:** " + strings.Join(c.Uncovered, ", ") +
+			". To bring one in, run `cn init` in a session on it (the `adopt-claudinite` skill); to leave one out, add it to `exclude` in this repo's fleet block."
 	}
 	return join([]string{
 		"# Fleet coverage census — " + owner,
@@ -47,11 +44,10 @@ func RenderCoverage(owner, home string, c Coverage, actions []string) string {
 		covered,
 		list("**Covered but dormant (self-declared, upkeep stopped — measured by nothing and swept by nothing):** ", c.Dormant, ", "),
 		uncovered,
-		list("**Ignored (config.exclude — nothing is read, measured or claimed about these):** ", c.Ignored, ", "),
+		list("**Ignored (the fleet block's exclude — nothing is read, measured or claimed about these):** ", c.Ignored, ", "),
 		list("**Skipped:** ", c.Skipped, ", "),
 		list("**UNKNOWN (declaration read errored — fix the token/scope):** ", c.Unknown, "; "),
 		"**Not censused:** " + home + " — the enforcer itself",
-		acts,
 	})
 }
 
@@ -95,7 +91,7 @@ func RenderFreshness(owner, home string, f Freshness) string {
 		fresh,
 		list("**Node engine (covered, not measured — phase 9 moves them):** ", f.Node, ", "),
 		list("**Dormant (scheduler stopped by declaration — not measured, and no fleet operation touches them):** ", f.Dormant, ", "),
-		list("**Ignored (config.exclude — nothing is read, measured or claimed about these):** ", f.Ignored, ", "),
+		list("**Ignored (the fleet block's exclude — nothing is read, measured or claimed about these):** ", f.Ignored, ", "),
 		list("**Out of scope (not covered members):** ", f.OutOfScope, ", "),
 		list("**UNKNOWN (probe errored — fix the token/scope):** ", f.Unknown, "; "),
 		"**Not measured:** `" + home + "` — the enforcer, swept by its own scheduler",
