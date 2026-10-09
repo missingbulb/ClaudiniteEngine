@@ -8,8 +8,8 @@ import (
 )
 
 // EngineDeclarationFile stands for the file of a declared check the
-// engine carries for a pack, where a pack's own check names its
-// declared-checks file.
+// engine carries, where a pack's own check names its declared-checks
+// file.
 func EngineDeclarationFile(pack string) string { return "(engine) " + pack + "/declared-checks.json" }
 
 var (
@@ -18,9 +18,8 @@ var (
 )
 
 // RegisterEngineDeclarations adds the declared checks the engine carries
-// for pack: they load wherever that pack is active, as the pack's own
-// declared-checks file does, and an id the pack's file also declares runs
-// as the engine's.
+// under pack; LoadSet loads EnginePack's on every member, and an id a
+// pack's own file also declares runs as the engine's.
 func RegisterEngineDeclarations(pack string, raw []byte) {
 	engineMu.Lock()
 	defer engineMu.Unlock()
@@ -70,17 +69,14 @@ func LoadEngine(pack string) ([]*Check, error) {
 	return out, nil
 }
 
-// withEngine is the pack's own checks with the engine's for it, an id
-// both declare taken from the engine.
-func withEngine(own, engine []*Check) []*Check {
-	if len(engine) == 0 {
-		return own
-	}
+// outranked is own less every check whose id the engine carries in
+// engine, which runs in its place.
+func outranked(own, engine []*Check) []*Check {
 	ids := map[string]bool{}
 	for _, c := range engine {
 		ids[c.ID] = true
 	}
-	out := append([]*Check{}, engine...)
+	var out []*Check
 	for _, c := range own {
 		if !ids[c.ID] {
 			out = append(out, c)

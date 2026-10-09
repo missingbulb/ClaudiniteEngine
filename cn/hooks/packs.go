@@ -16,7 +16,6 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/settings"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/skillfm"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/taskspec"
-	"github.com/missingbulb/ClaudiniteEngine/cn/shared/workitem"
 )
 
 // SkillsDir is where Claude Code reads a project's skills.
@@ -33,8 +32,6 @@ type assembled struct {
 	selfCheck string
 	// skills are the mounted skills' metadata, by name.
 	skills map[string]skillfm.Meta
-	// tasks is whether the canon tasks pack loaded.
-	tasks bool
 }
 
 // mountedSkill is one skill a loaded pack offers.
@@ -60,9 +57,6 @@ func assemble(repo, engine string) assembled {
 	var parts []string
 	var offered []mountedSkill
 	for _, p := range set.Packs {
-		if p.Kind == packset.Canon && p.ID == workitem.TasksPackID {
-			a.tasks = true
-		}
 		var body []byte
 		if path := p.ProsePath(); path != "" {
 			body, _ = os.ReadFile(path)

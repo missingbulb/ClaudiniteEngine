@@ -10,31 +10,18 @@ import (
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/mergepolicy"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/workitem"
+	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/config"
 )
 
 // CIWorkflow is the member workflow whose runs on the default branch the
 // engine's update needs green before it acts.
 const CIWorkflow = "claudinite-ci.yml"
 
-// The member's two delivery preferences.
+// The member's two delivery preferences, as its tasks block spells them.
 const (
-	AutoMerge = "auto-merge"
-	Review    = "review"
+	AutoMerge = config.AutoMerge
+	Review    = config.Review
 )
-
-// RequirePRReviewKey is the member setting that withholds every
-// authorized landing for a person's review.
-const RequirePRReviewKey = "dailyClaudiniteUpdatesRequirePrReview"
-
-// DeliveryFor is the member's delivery from its claudinite-tasks config:
-// only an explicit true withholds the PR; an absent or unreadable setting
-// lands.
-func DeliveryFor(settings map[string]any) string {
-	if settings[RequirePRReviewKey] == true {
-		return Review
-	}
-	return AutoMerge
-}
 
 // WorkflowFile is one workflow as it exists on the delivered branch.
 type WorkflowFile struct {

@@ -21,10 +21,10 @@ import (
 // member's own module.
 var taskDeclarationShape = declared.Builtin{
 	ID:     "task-declaration-shape",
-	Pack:   workitem.TasksPackID,
+	Pack:   declared.EnginePack,
 	OnFail: "block",
-	Tags:   []string{"world", "builtin", workitem.TasksPackID},
-	Doc:    "packs/claudinite-tasks/README.md",
+	Tags:   []string{"world", "builtin", declared.EnginePack},
+	Doc:    "docs/tasks-principles.md",
 	Why:    "the scheduler run and executor read agent_model/expected_outcome/preconditions from this file, not the work item — an illegal or missing value means a task never fires, fires wrong, or writes past its ceiling",
 }
 

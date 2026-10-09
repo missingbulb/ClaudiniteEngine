@@ -11,7 +11,8 @@ const (
 )
 
 // updatePolicy is the engine/update task's prediction of its pull
-// request: the pin moved, and the member file and the managed workflows.
+// request: the pin moved, and the member file, the launcher and the
+// managed workflows.
 var updatePolicy = []any{"engine-pin-move", "engine-update-files"}
 
 func modified(file, before, after string) Entry {
@@ -31,6 +32,10 @@ func TestTheEngineUpdatePolicyPassesARealUpdatePR(t *testing.T) {
 			modified(".github/workflows/claudinite-scheduler.yml", "on: {}\n", "on:\n  schedule: []\n"),
 			added(".github/workflows/claudinite-executor.yml", "on: {}\n"),
 			modified(".github/workflows/claudinite-ci.yml", "a\n", "b\n"),
+		},
+		"the pin and the launcher the new engine ships": {
+			modified(".claudinite/settings.yaml", pinBefore, pinAfter),
+			modified(".claudinite/launch", "#!/bin/sh\n# 1\n", "#!/bin/sh\n# 2\n"),
 		},
 		"a member file still in the legacy directory": {
 			modified(".claudinite/settings.yaml", pinBefore, pinAfter),
@@ -61,6 +66,8 @@ func TestTheEngineUpdatePolicyRefusesAnythingElse(t *testing.T) {
 		"a deleted managed workflow":     {updatePolicy, []Entry{pin, deleted(".github/workflows/claudinite-ci.yml", "a\n")}, "claudinite-ci.yml"},
 		"a staged workflow left behind":  {updatePolicy, []Entry{pin, added(".claudinite/cache/pending-workflows/claudinite-ci.yml", "a\n")}, "pending-workflows"},
 		"an extra file":                  {updatePolicy, []Entry{pin, modified("README.md", "a\n", "b\n")}, "README.md"},
+		"a deleted launcher":             {updatePolicy, []Entry{pin, deleted(".claudinite/launch", "#!/bin/sh\n")}, "launch"},
+		"an added launcher":              {updatePolicy, []Entry{pin, added(".claudinite/launch", "#!/bin/sh\n")}, "launch"},
 		"another task's declaration":     {updatePolicy, []Entry{pin, modified(".claudinite/local/packs/acme-pack/tasks/acme-task/task.json", "{}\n", "{\"x\": 1}\n")}, "task.json"},
 		"the pin through a conjunction":  {[]any{"engine-pin-move&&under:.claudinite"}, []Entry{pin}, "settings.yaml"},
 		"the pin under a folder scope":   {[]any{"under:.claudinite"}, []Entry{pin}, "settings.yaml"},

@@ -101,7 +101,7 @@ type PlanIn struct {
 	Items    []workitem.Issue
 	Requests []Request
 	Now      time.Time
-	// Disabled are the <pack>/<task> ids taskScheduler.disabledTasks names.
+	// Disabled are the <pack>/<task> ids the settings' tasks.disabled names.
 	Disabled       []string
 	ExecutingLeash time.Duration
 	// LivenessAt is the holder's last claim or heartbeat on an executing
@@ -165,7 +165,7 @@ func Plan(in PlanIn) ([]Op, []Asked, error) {
 		reason := fmt.Sprintf("Closing: `%s` is no longer declared on this repository, so this item names a task ", key) +
 			"that is not at HEAD and can never run. If the task came back under a new id, its own item is the live one."
 		if disabled[key] {
-			reason = fmt.Sprintf("Closing: `%s` is named in this repository's `taskScheduler.disabledTasks`, so it is not ", key) +
+			reason = fmt.Sprintf("Closing: `%s` is named in this repository's settings, under `tasks.disabled`, so it is not ", key) +
 				"asked here. Remove it from that list to bring the task back."
 		}
 		ops = append(ops, Op{Kind: KindRetireOrphan, Issue: i.Number, Pack: t.Pack, Task: t.Task, Reason: reason})

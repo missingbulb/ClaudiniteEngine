@@ -19,10 +19,9 @@ type Step struct {
 
 // HandoverInput is what the block is built from.
 type HandoverInput struct {
-	// Core adds the row every adoption owes: the Actions setting.
+	// Core adds the rows every first adoption owes: the Actions setting
+	// and the executor routine's token.
 	Core bool
-	// Tasks adds the executor routine's token row.
-	Tasks bool
 	// Newly are the packs this run vendored, whose adoptionHandover steps
 	// follow the core rows in order.
 	Newly []packset.Pack
@@ -36,10 +35,8 @@ func Handover(in HandoverInput) []Step {
 			"In the repository's Settings > Actions > General, allow GitHub Actions to create and approve pull requests",
 			"the nightly update and every task that opens a pull request fail at the open",
 			"the first engine/update item's pull request exists"})
-	}
-	if in.Tasks {
-		out = append(out, Step{workitem.TasksPackID,
-			"Mint the executor routine's bearer token and add it as the Actions secret CCR_ROUTINE_TOKEN",
+		out = append(out, Step{"cn",
+			"Mint the executor routine's bearer token and add it as the Actions secret " + workitem.RoutineTokenSecret,
 			"every item with an agentic phase parks needs-human-action naming the secret",
 			"an executor run fires a routine"})
 	}
@@ -66,8 +63,7 @@ func writeHandover(out io.Writer, steps []Step) {
 type NextInput struct {
 	// First are the steps before the commit's, in order.
 	First []string
-	// Routine is the executor routine's step, where claudinite-tasks is
-	// declared.
+	// Routine is the executor routine's step, on a first adoption.
 	Routine  bool
 	Handover bool
 }
@@ -76,7 +72,7 @@ type NextInput struct {
 func writeNext(out io.Writer, in NextInput) {
 	steps := append([]string{}, in.First...)
 	if in.Routine {
-		steps = append(steps, "create the executor routine with create_trigger, its stored prompt "+strconv.Quote(workitem.RoutinePrompt)+", and record its endpoint on the "+workitem.TasksPackID+" entry's config.agenticTaskInvocationEndpoints")
+		steps = append(steps, "create the executor routine with create_trigger, its stored prompt "+strconv.Quote(workitem.RoutinePrompt)+", and record its endpoint under the settings' tasks.routines")
 	}
 	steps = append(steps, "commit everything above and open one pull request, which a person merges")
 	if in.Handover {

@@ -12,16 +12,14 @@ import (
 
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/taskspec"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/workitem"
+	"github.com/missingbulb/ClaudiniteEngine/cn/tasks/config"
 )
 
 // The endpoint a task names when it names none, and the secret holding
 // that endpoint's token when the member names none.
 const (
 	DefaultEndpoint    = "default"
-	DefaultTokenSecret = "CCR_ROUTINE_TOKEN"
-	// EndpointsKey is the claudinite-tasks config key mapping endpoint
-	// names to routines.
-	EndpointsKey = "agenticTaskInvocationEndpoints"
+	DefaultTokenSecret = workitem.RoutineTokenSecret
 	// FireTimeout bounds the one fire.
 	FireTimeout = 60 * time.Second
 )
@@ -51,7 +49,7 @@ func ResolveEndpoint(endpoints map[string]any, t taskspec.Task) Endpoint {
 	e := Endpoint{Name: name}
 	entry, ok := endpoints[name].(map[string]any)
 	if !ok {
-		e.Error = fmt.Sprintf("this repo's settings declare no invocation endpoint %q (the claudinite-tasks config's %s)", name, EndpointsKey)
+		e.Error = fmt.Sprintf("this repo's settings declare no invocation endpoint %q (the settings' tasks.%s)", name, config.RoutinesKey)
 		return e
 	}
 	raw, _ := entry["url"].(string)

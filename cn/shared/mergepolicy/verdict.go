@@ -12,6 +12,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/descriptor"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/jsjson"
 	"github.com/missingbulb/ClaudiniteEngine/cn/shared/jsregex"
+	"github.com/missingbulb/ClaudiniteEngine/cn/shared/settings"
 )
 
 var (
@@ -187,6 +188,11 @@ func Compile(packs []PackRules) Declared {
 		}
 		for _, spec := range specs {
 			r, err := CompileRule(spec, where)
+			// The retired pack's usage rules give way to the engine's own.
+			// @legacy-tolerance advisory:tasks-settings retire:#144
+			if _, builtin := Builtins[r.Name]; err == nil && builtin && p.ID == settings.RetiredTasksPack {
+				continue
+			}
 			if err == nil {
 				_, builtin := Builtins[r.Name]
 				_, comp := Composites[r.Name]
