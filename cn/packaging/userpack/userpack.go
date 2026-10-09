@@ -407,8 +407,9 @@ func treeFiles(dir string) []string {
 
 // checkout is the store's default branch with only dir checked out, in a
 // directory the caller removes: a clone, since a private store is
-// reachable only through the credentials git already carries. The clone
-// fetches no file, and checking dir out fetches only dir's.
+// reachable only through the credentials git already carries. A sparse
+// checkout fetches the files it checks out in one batch, where checking a
+// path out of a blobless clone fetches each file on its own.
 // CLAUDINITE_USER_PACKS_CLONE_URL replaces the address.
 func checkout(store *Store, dir string, getenv func(string) string) (string, error) {
 	clone, err := os.MkdirTemp("", "claudinite-personal-pack-")
@@ -419,14 +420,10 @@ func checkout(store *Store, dir string, getenv func(string) string) (string, err
 	if url == "" {
 		url = "https://github.com/" + store.Repo
 	}
-	if err := git("", "clone", "--quiet", "--depth", "1", "--filter=blob:none", "--no-checkout", url, clone); err != nil {
+	if err := git("", "clone", "--quiet", "--depth", "1", "--filter=blob:none", "--sparse", url, clone); err != nil {
 		return clone, err
 	}
-	err = git(clone, "checkout", "--quiet", "HEAD", "--", dir)
-	if err != nil && strings.Contains(err.Error(), "did not match any file") {
-		return clone, nil
-	}
-	return clone, err
+	return clone, git(clone, "sparse-checkout", "set", "--no-cone", dir)
 }
 
 func git(dir string, args ...string) error {

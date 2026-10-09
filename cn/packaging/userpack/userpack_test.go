@@ -184,8 +184,8 @@ func TestPrepareClonesTheStore(t *testing.T) {
 	repo := member(t, "        repo: acme/store\n")
 	proc.Reset()
 	r, _ := Prepare(repo, env(vars))
-	if c := proc.Counts(); proc.Total(c) != 2 || c["git clone"] != 1 || c["git checkout"] != 1 {
-		t.Errorf("the store was read with %s, not one clone and one checkout", proc.Format(c))
+	if c := proc.Counts(); proc.Total(c) != 2 || c["git clone"] != 1 || c["git sparse-checkout"] != 1 {
+		t.Errorf("the store was read with %s, not one clone and one sparse checkout", proc.Format(c))
 	}
 	if !r.Copied || read(repo, PackDir+"/RULES.md") != "- from the store\n" || !strings.Contains(read(repo, PackDir+"/pack.json"), `"belongs": "me"`) {
 		t.Fatalf("clone copy: %q, err %v", r.Line(), r.Err)
