@@ -8,7 +8,7 @@ import (
 )
 
 // The cases are the Node module's own, from engine-tests/checks/helpers/
-// provenance.test.mjs at missingbulb/Claudinite@057841ac.
+// provenance.test.mjs.
 
 const born = "## 2026-07-18 · born · promoted from a member's local pack (#319)\n" +
 	"- **Source:** the member's own site rule matched a lookalike host.\n" +

@@ -1,32 +1,32 @@
 #!/bin/sh
 # Hook latency probe (#37 T6): times cn's per-call hooks over the payloads a
-# session sends most, against a throwaway member declaring every canon pack
-# of a frozen Claudinite checkout, with no transcript and with a 5 MB one,
+# session sends most, against a throwaway member declaring every pack of a
+# pack shelf checkout, with no transcript and with a 5 MB one,
 # and times the per-call derivation from the tree alone; then writes
 # results/<platform>-<date>.md and .json.
 #
-#   sh rewrite-temp/probe/hook-latency/run.sh --node DIR [--runs N] [--out DIR] [--budget]
+#   sh rewrite-temp/probe/hook-latency/run.sh --shelf DIR [--runs N] [--out DIR] [--budget]
 #
-# DIR is a Claudinite checkout whose packs/ the member vendors. --budget
+# DIR is a checkout whose packs/ the member vendors. --budget
 # then fails the run when an unnamed PreToolUse call's median passes 50 ms
 # or a held call's over the 5 MB transcript passes 250 ms.
 set -eu
 runs=50
 out=
-node=
+shelf=
 budget=
 while [ $# -gt 0 ]; do
   case $1 in
-    --node) node=$2; shift 2 ;;
+    --shelf) shelf=$2; shift 2 ;;
     --runs) runs=$2; shift 2 ;;
     --out) out=$2; shift 2 ;;
     --budget) budget=1; shift ;;
-    *) echo "usage: run.sh --node DIR [--runs N] [--out DIR] [--budget]" >&2; exit 2 ;;
+    *) echo "usage: run.sh --shelf DIR [--runs N] [--out DIR] [--budget]" >&2; exit 2 ;;
   esac
 done
 case $runs in ''|*[!0-9]*) echo "run.sh: --runs takes a number" >&2; exit 2 ;; esac
-[ -d "$node/packs" ] || { echo "run.sh: --node names no Claudinite checkout with packs/" >&2; exit 2; }
-node=$(cd "$node" && pwd)
+[ -d "$shelf/packs" ] || { echo "run.sh: --shelf names no checkout with packs/" >&2; exit 2; }
+shelf=$(cd "$shelf" && pwd)
 cd "$(dirname "$0")/../../.."
 root=$(pwd)
 [ -n "$out" ] || out=$root/rewrite-temp/probe/hook-latency/results
@@ -56,7 +56,7 @@ mkdir -p "$member/.claudinite/shared/packs"
 {
   printf 'engine:\n  version: "0.0.0"\n  manifest: "sha512-%s=="\npacks:\n  declared:\n' \
     AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-  for dir in "$node"/packs/*/; do
+  for dir in "$shelf"/packs/*/; do
     id=$(basename "$dir")
     [ -f "$dir/pack.json" ] || continue
     cp -R "$dir" "$member/.claudinite/shared/packs/$id"
@@ -117,7 +117,7 @@ for t in none big; do
   time_hook "user-prompt-submit prompt ($label)" user-prompt-submit '"prompt":"please explain the design"' "$tp" 0
 done
 
-"$timeit" report --log "$log" --out "$out" --runs "$runs" --title "Hook latency ($packs packs)" --command "sh rewrite-temp/probe/hook-latency/run.sh --node <Claudinite checkout> --runs $runs"
+"$timeit" report --log "$log" --out "$out" --runs "$runs" --title "Hook latency ($packs packs)" --command "sh rewrite-temp/probe/hook-latency/run.sh --shelf <pack shelf checkout> --runs $runs"
 say "results in $out"
 if [ -n "$budget" ]; then
   "$timeit" budget --log "$log" \

@@ -20,14 +20,14 @@ var rows = []string{
 	"user-prompt-submit prompt (5 MB transcript)",
 }
 
-// The probe needs the frozen Node engine's checkout for its packs.
+// The probe needs a pack shelf checkout for its packs.
 func TestProbeWritesResults(t *testing.T) {
-	node := os.Getenv("CLAUDINITE_NODE_ENGINE")
-	if node == "" || testing.Short() {
-		t.Skip("CLAUDINITE_NODE_ENGINE is not set")
+	shelf := os.Getenv("CLAUDINITE_PACKS_TREE")
+	if shelf == "" || testing.Short() {
+		t.Skip("CLAUDINITE_PACKS_TREE is not set")
 	}
 	out := t.TempDir()
-	cmd := exec.Command("sh", "rewrite-temp/probe/hook-latency/run.sh", "--node", node, "--runs", "2", "--out", out)
+	cmd := exec.Command("sh", "rewrite-temp/probe/hook-latency/run.sh", "--shelf", shelf, "--runs", "2", "--out", out)
 	cmd.Dir = "../../.."
 	if o, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("run.sh: %v\n%s", err, o)
