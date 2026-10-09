@@ -87,8 +87,10 @@ func TestGitReadsTheHistoryAsItsOwn(t *testing.T) {
 	}
 }
 
-// A bare repository written here takes a push and serves a fetch.
-func TestABareRepositoryTakesAPush(t *testing.T) {
+// An origin written here serves a fixture's Push and git's own: the pushed
+// commit is on the origin's branch and the member's remote-tracking ref,
+// git reads the origin whole, and a real push and fetch still work.
+func TestAnOriginTakesBothPushes(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()
 	bare, dir := filepath.Join(root, "origin.git"), filepath.Join(root, "member")
@@ -97,9 +99,26 @@ func TestABareRepositoryTakesAPush(t *testing.T) {
 	put(t, dir, "f", "x\n", 0o644)
 	sha := Commit(t, dir, "main", "base")
 	Index(t, dir)
-	git(t, dir, "push", "-q", bare, "main")
-	if got, err := Resolve(bare, "refs/heads/main"); err != nil || got != sha {
-		t.Errorf("pushed main: %q %v", got, err)
+	Origin(t, dir, bare)
+	if got := Push(t, dir, bare, "refs/heads/main", "main"); got != sha {
+		t.Errorf("Push returned %s, want %s", got, sha)
+	}
+	if got := git(t, dir, "ls-remote", "origin", "main"); got != sha+"\trefs/heads/main" {
+		t.Errorf("origin's main: %q", got)
+	}
+	if got := git(t, dir, "rev-parse", "origin/main"); got != sha {
+		t.Errorf("the tracking ref: %q", got)
 	}
 	git(t, bare, "fsck", "--strict", "--no-dangling")
+
+	put(t, dir, "f", "y\n", 0o644)
+	next := Commit(t, dir, "topic", "next")
+	git(t, dir, "push", "-q", "origin", "topic")
+	if got, err := Resolve(bare, "refs/heads/topic"); err != nil || got != next {
+		t.Errorf("git's push: %q %v", got, err)
+	}
+	git(t, dir, "fetch", "-q", "origin", "main")
+	if got := git(t, dir, "rev-parse", "FETCH_HEAD"); got != sha {
+		t.Errorf("fetched %q", got)
+	}
 }
